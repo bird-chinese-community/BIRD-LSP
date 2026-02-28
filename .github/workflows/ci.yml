@@ -21,7 +21,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: j178/prek-action@v1
         with:
-          prek-command: run --all-files
+          extra-args: run --all-files
 
   turbo:
     runs-on: ubuntu-latest
@@ -49,4 +49,9 @@ jobs:
           else
             FROM="${{ github.event.before }}"
           fi
+
+          if ! git cat-file -e "$FROM^{commit}" 2>/dev/null; then
+            FROM="$(git merge-base HEAD "origin/${{ github.event.repository.default_branch }}")"
+          fi
+
           pnpm exec commitlint --config commitlint.config.cjs --from "$FROM" --to "${{ github.sha }}"
