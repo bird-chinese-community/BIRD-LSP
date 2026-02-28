@@ -75,7 +75,7 @@ const bgpLocalAsRule: BirdRule = ({ parsed }) => {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-local-as",
-          `BGP 协议 '${declaration.name}' 缺少 local as 配置`,
+          `BGP protocol '${declaration.name}' missing local as configuration`,
           declaration,
         ),
       );
@@ -98,7 +98,7 @@ const bgpNeighborRule: BirdRule = ({ parsed }) => {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-neighbor",
-          `BGP 协议 '${declaration.name}' 缺少 neighbor 配置`,
+          `BGP protocol '${declaration.name}' missing neighbor configuration`,
           declaration,
         ),
       );

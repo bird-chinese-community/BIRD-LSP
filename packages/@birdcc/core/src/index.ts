@@ -105,7 +105,7 @@ export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSna
     if (seenDeclarations.has(key)) {
       diagnostics.push({
         code: "semantic/duplicate-definition",
-        message: `${symbol.kind} '${symbol.name}' 重复定义`,
+        message: `${symbol.kind} '${symbol.name}' is already defined`,
         severity: "error",
         source: "core",
         range: createRange(symbol.line, symbol.column, symbol.name.length),
@@ -131,7 +131,7 @@ export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSna
     if (!seenDeclarations.has(key)) {
       diagnostics.push({
         code: "semantic/undefined-reference",
-        message: `未定义的模板引用 '${reference.name}'`,
+        message: `Undefined template reference '${reference.name}'`,
         severity: "error",
         source: "core",
         range: createRange(reference.line, reference.column, reference.name.length),
