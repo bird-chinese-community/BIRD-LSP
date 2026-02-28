@@ -1,0 +1,24 @@
+repos:
+  - repo: local
+    hooks:
+      - id: oxfmt-check
+        name: oxfmt check
+        entry: pnpm exec oxfmt --check
+        language: system
+        files: '^packages/@birdcc/.*/(src|test)/.*\.tsx?$'
+      - id: oxlint
+        name: oxlint
+        entry: pnpm exec oxlint --deny-warnings
+        language: system
+        files: '^packages/@birdcc/.*/(src|test)/.*\.tsx?$'
+      - id: commitlint
+        name: commitlint
+        entry: pnpm exec commitlint --config commitlint.config.cjs --edit
+        language: system
+        stages: [commit-msg]
+      - id: turbo-test
+        name: turbo test
+        entry: pnpm test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
