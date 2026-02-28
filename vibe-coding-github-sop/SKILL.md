@@ -1,3 +1,8 @@
+---
+name: vibe-coding-github-sop
+description: Vibe Coding 与项目管理标准化操作流程 (SOP)
+---
+
 # Vibe Coding 与项目管理标准化操作流程 (SOP)
 
 ## 0. 本仓库专属定义
