@@ -16,7 +16,8 @@
   "dependencies": {
     "@birdcc/core": "workspace:*",
     "@birdcc/lsp": "workspace:*",
-    "@birdcc/linter": "workspace:*"
+    "@birdcc/linter": "workspace:*",
+    "cac": "^6.7.14"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -1,3 +1,5 @@
+import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
+
 export type BirdDiagnosticSeverity = "error" | "warning" | "info";
 
 export interface BirdRange {
@@ -44,89 +46,82 @@ const createRange = (line: number, column: number, nameLength = 1): BirdRange =>
   endColumn: column + Math.max(nameLength, 1),
 });
 
-const declarationPatterns: Array<{
-  kind: BirdSymbolKind;
-  regex: RegExp;
-  pickName: (match: RegExpMatchArray) => string;
-}> = [
-  {
-    kind: "protocol",
-    regex: /^\s*protocol\s+[A-Za-z_][\w-]*\s+([A-Za-z_][\w-]*)\b/i,
-    pickName: (match) => match[1],
-  },
-  {
-    kind: "template",
-    regex: /^\s*template\s+[A-Za-z_][\w-]*\s+([A-Za-z_][\w-]*)\b/i,
-    pickName: (match) => match[1],
-  },
-  {
-    kind: "filter",
-    regex: /^\s*filter\s+([A-Za-z_][\w-]*)\b/i,
-    pickName: (match) => match[1],
-  },
-  {
-    kind: "function",
-    regex: /^\s*function\s+([A-Za-z_][\w-]*)\b/i,
-    pickName: (match) => match[1],
-  },
-];
+const declarationToSymbol = (
+  declaration: ParsedBirdDocument["program"]["declarations"][number],
+): SymbolDefinition | null => {
+  if (declaration.kind === "protocol") {
+    return {
+      kind: "protocol",
+      name: declaration.name,
+      line: declaration.nameRange.line,
+      column: declaration.nameRange.column,
+    };
+  }
 
-const findColumn = (lineText: string, value: string): number => {
-  const idx = lineText.indexOf(value);
-  return idx >= 0 ? idx + 1 : 1;
+  if (declaration.kind === "template") {
+    return {
+      kind: "template",
+      name: declaration.name,
+      line: declaration.nameRange.line,
+      column: declaration.nameRange.column,
+    };
+  }
+
+  if (declaration.kind === "filter") {
+    return {
+      kind: "filter",
+      name: declaration.name,
+      line: declaration.nameRange.line,
+      column: declaration.nameRange.column,
+    };
+  }
+
+  if (declaration.kind === "function") {
+    return {
+      kind: "function",
+      name: declaration.name,
+      line: declaration.nameRange.line,
+      column: declaration.nameRange.column,
+    };
+  }
+
+  return null;
 };
 
-export const buildCoreSnapshot = (text: string): CoreSnapshot => {
+export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSnapshot => {
   const symbols: SymbolDefinition[] = [];
   const references: SymbolReference[] = [];
   const diagnostics: BirdDiagnostic[] = [];
   const seenDeclarations = new Map<string, SymbolDefinition>();
 
-  const lines = text.split(/\r?\n/);
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const lineText = lines[i];
-    const lineNumber = i + 1;
-
-    for (const pattern of declarationPatterns) {
-      const match = lineText.match(pattern.regex);
-      if (!match) {
-        continue;
-      }
-
-      const name = pattern.pickName(match);
-      const column = findColumn(lineText, name);
-      const symbol: SymbolDefinition = {
-        kind: pattern.kind,
-        name,
-        line: lineNumber,
-        column,
-      };
-      const key = `${pattern.kind}:${name.toLowerCase()}`;
-
-      if (seenDeclarations.has(key)) {
-        diagnostics.push({
-          code: "semantic/duplicate-definition",
-          message: `${pattern.kind} '${name}' 重复定义`,
-          severity: "error",
-          source: "core",
-          range: createRange(lineNumber, column, name.length),
-        });
-      } else {
-        seenDeclarations.set(key, symbol);
-      }
-
-      symbols.push(symbol);
+  for (const declaration of parsed.program.declarations) {
+    const symbol = declarationToSymbol(declaration);
+    if (!symbol) {
+      continue;
     }
 
-    const fromRegex = /\bfrom\s+([A-Za-z_][\w-]*)\b/gi;
-    for (const match of lineText.matchAll(fromRegex)) {
-      const name = match[1];
+    const key = `${symbol.kind}:${symbol.name.toLowerCase()}`;
+
+    if (seenDeclarations.has(key)) {
+      diagnostics.push({
+        code: "semantic/duplicate-definition",
+        message: `${symbol.kind} '${symbol.name}' 重复定义`,
+        severity: "error",
+        source: "core",
+        range: createRange(symbol.line, symbol.column, symbol.name.length),
+      });
+    } else {
+      seenDeclarations.set(key, symbol);
+    }
+
+    symbols.push(symbol);
+
+    if (declaration.kind === "protocol" && declaration.fromTemplate) {
       references.push({
         kind: "template",
-        name,
-        line: lineNumber,
-        column: findColumn(lineText, name),
+        name: declaration.fromTemplate,
+        line: declaration.fromTemplateRange?.line ?? declaration.line,
+        column: declaration.fromTemplateRange?.column ?? declaration.column,
       });
     }
   }
@@ -149,4 +144,9 @@ export const buildCoreSnapshot = (text: string): CoreSnapshot => {
     references,
     diagnostics,
   };
+};
+
+export const buildCoreSnapshot = (text: string): CoreSnapshot => {
+  const parsed = parseBirdConfig(text);
+  return buildCoreSnapshotFromParsed(parsed);
 };

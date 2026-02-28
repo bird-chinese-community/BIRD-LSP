@@ -1,5 +1,5 @@
-import { buildCoreSnapshot, type BirdDiagnostic, type CoreSnapshot } from "@birdcc/core";
-import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
+import { buildCoreSnapshotFromParsed, type BirdDiagnostic, type CoreSnapshot } from "@birdcc/core";
+import { parseBirdConfig, type ParsedBirdDocument, type ProtocolDeclaration } from "@birdcc/parser";
 
 export interface RuleContext {
   text: string;
@@ -9,100 +9,74 @@ export interface RuleContext {
 
 export type BirdRule = (context: RuleContext) => BirdDiagnostic[];
 
-interface BgpBlock {
-  name: string;
-  start: number;
-  end: number;
-  line: number;
-  column: number;
-  body: string;
-}
-
 export interface LintResult {
   parsed: ParsedBirdDocument;
   core: CoreSnapshot;
   diagnostics: BirdDiagnostic[];
 }
 
-const indexToLineColumn = (text: string, index: number): { line: number; column: number } => {
-  const prefix = text.slice(0, index);
-  const lines = prefix.split(/\r?\n/);
-  return {
-    line: lines.length,
-    column: lines[lines.length - 1].length + 1,
-  };
-};
-
-const extractBgpBlocks = (text: string): BgpBlock[] => {
-  const blocks: BgpBlock[] = [];
-  const headerRegex = /\bprotocol\s+bgp\s+([A-Za-z_][\w-]*)\s*\{/gi;
-
-  let match: RegExpExecArray | null;
-  while ((match = headerRegex.exec(text)) !== null) {
-    const protocolName = match[1];
-    const startIndex = match.index;
-    const braceStart = headerRegex.lastIndex - 1;
-    let cursor = braceStart;
-    let depth = 0;
-
-    while (cursor < text.length) {
-      const char = text[cursor];
-      if (char === "{") {
-        depth += 1;
-      } else if (char === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          break;
-        }
-      }
-      cursor += 1;
-    }
-
-    const endIndex = cursor < text.length ? cursor : text.length - 1;
-    const body = text.slice(braceStart + 1, endIndex);
-    const position = indexToLineColumn(text, startIndex);
-
-    blocks.push({
-      name: protocolName,
-      start: startIndex,
-      end: endIndex,
-      line: position.line,
-      column: position.column,
-      body,
-    });
-  }
-
-  return blocks;
-};
-
 const createProtocolDiagnostic = (
   code: string,
   message: string,
-  block: BgpBlock,
+  declaration: ProtocolDeclaration,
 ): BirdDiagnostic => ({
   code,
   message,
   severity: "warning",
   source: "linter",
   range: {
-    line: block.line,
-    column: block.column,
-    endLine: block.line,
-    endColumn: block.column + block.name.length,
+    line: declaration.nameRange.line,
+    column: declaration.nameRange.column,
+    endLine: declaration.nameRange.endLine,
+    endColumn: declaration.nameRange.endColumn,
   },
 });
 
-const bgpLocalAsRule: BirdRule = ({ text }) => {
-  const diagnostics: BirdDiagnostic[] = [];
-  const blocks = extractBgpBlocks(text);
+const isBgpProtocol = (declaration: ProtocolDeclaration): boolean =>
+  declaration.protocolType.toLowerCase() === "bgp";
 
-  for (const block of blocks) {
-    if (!/\blocal\s+as\b/i.test(block.body)) {
+const hasTokenSequence = (tokens: string[], sequence: string[]): boolean => {
+  if (tokens.length < sequence.length) {
+    return false;
+  }
+
+  for (let i = 0; i <= tokens.length - sequence.length; i += 1) {
+    let matched = true;
+    for (let j = 0; j < sequence.length; j += 1) {
+      if (tokens[i + j] !== sequence[j]) {
+        matched = false;
+        break;
+      }
+    }
+
+    if (matched) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const protocolDeclarations = (parsed: ParsedBirdDocument): ProtocolDeclaration[] =>
+  parsed.program.declarations.filter(
+    (declaration): declaration is ProtocolDeclaration => declaration.kind === "protocol",
+  );
+
+const bgpLocalAsRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+
+  for (const declaration of protocolDeclarations(parsed)) {
+    if (!isBgpProtocol(declaration)) {
+      continue;
+    }
+
+    const bodyTokens = declaration.bodyTokens.map((token) => token.toLowerCase());
+    if (!hasTokenSequence(bodyTokens, ["local", "as"])) {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-local-as",
-          `BGP 协议 '${block.name}' 缺少 local as 配置`,
-          block,
+          `BGP 协议 '${declaration.name}' 缺少 local as 配置`,
+          declaration,
         ),
       );
     }
@@ -111,17 +85,21 @@ const bgpLocalAsRule: BirdRule = ({ text }) => {
   return diagnostics;
 };
 
-const bgpNeighborRule: BirdRule = ({ text }) => {
+const bgpNeighborRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
-  const blocks = extractBgpBlocks(text);
 
-  for (const block of blocks) {
-    if (!/\bneighbor\b/i.test(block.body)) {
+  for (const declaration of protocolDeclarations(parsed)) {
+    if (!isBgpProtocol(declaration)) {
+      continue;
+    }
+
+    const bodyTokens = declaration.bodyTokens.map((token) => token.toLowerCase());
+    if (!bodyTokens.includes("neighbor")) {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-neighbor",
-          `BGP 协议 '${block.name}' 缺少 neighbor 配置`,
-          block,
+          `BGP 协议 '${declaration.name}' 缺少 neighbor 配置`,
+          declaration,
         ),
       );
     }
@@ -134,7 +112,7 @@ const defaultRules: BirdRule[] = [bgpLocalAsRule, bgpNeighborRule];
 
 export const lintBirdConfig = (text: string): LintResult => {
   const parsed = parseBirdConfig(text);
-  const core = buildCoreSnapshot(text);
+  const core = buildCoreSnapshotFromParsed(parsed);
   const context: RuleContext = { text, parsed, core };
 
   const ruleDiagnostics = defaultRules.flatMap((rule) => rule(context));

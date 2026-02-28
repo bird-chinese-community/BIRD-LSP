@@ -30,36 +30,46 @@ interface DeclarationBase extends SourceRange {
 export interface IncludeDeclaration extends DeclarationBase {
   kind: "include";
   path: string;
+  pathRange: SourceRange;
 }
 
 export interface DefineDeclaration extends DeclarationBase {
   kind: "define";
   name: string;
+  nameRange: SourceRange;
 }
 
 export interface ProtocolDeclaration extends DeclarationBase {
   kind: "protocol";
   protocolType: string;
+  protocolTypeRange: SourceRange;
   name: string;
+  nameRange: SourceRange;
   fromTemplate?: string;
+  fromTemplateRange?: SourceRange;
   headerTokens: string[];
+  bodyTokens: string[];
 }
 
 export interface TemplateDeclaration extends DeclarationBase {
   kind: "template";
   templateType: string;
+  templateTypeRange: SourceRange;
   name: string;
+  nameRange: SourceRange;
   headerTokens: string[];
 }
 
 export interface FilterDeclaration extends DeclarationBase {
   kind: "filter";
   name: string;
+  nameRange: SourceRange;
 }
 
 export interface FunctionDeclaration extends DeclarationBase {
   kind: "function";
   name: string;
+  nameRange: SourceRange;
 }
 
 export type BirdDeclaration =
@@ -128,6 +138,9 @@ const createRange = (
 
 const createTokenRange = (start: LexToken, end: LexToken): SourceRange =>
   createRange(start.line, start.column, end.endLine, end.endColumn);
+
+const toRange = (token: LexToken): SourceRange =>
+  createRange(token.line, token.column, token.endLine, token.endColumn);
 
 const isWordLikeToken = (token: LexToken): boolean =>
   token.kind === "keyword" || token.kind === "identifier" || token.kind === "number";
@@ -351,11 +364,11 @@ const findMatchingBrace = (tokens: LexToken[], openBraceIndex: number): number =
 
 const stripQuotes = (value: string): string => value.replace(/^['"]|['"]$/g, "");
 
-const collectHeaderWords = (tokens: LexToken[], startIndex: number, endIndex: number): string[] =>
-  tokens
-    .slice(startIndex, endIndex)
-    .filter((token) => isWordLikeToken(token))
-    .map((token) => token.value);
+const collectHeaderWordTokens = (
+  tokens: LexToken[],
+  startIndex: number,
+  endIndex: number,
+): LexToken[] => tokens.slice(startIndex, endIndex).filter((token) => isWordLikeToken(token));
 
 const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: ParseIssue[] } => {
   const declarations: BirdDeclaration[] = [];
@@ -400,6 +413,7 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
       declarations.push({
         kind: "include",
         path: pathToken ? stripQuotes(pathToken.value) : "",
+        pathRange: pathToken ? toRange(pathToken) : toRange(token),
         ...createTokenRange(token, endToken),
       });
 
@@ -415,6 +429,7 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
       declarations.push({
         kind: "define",
         name: nameToken?.value ?? "unknown",
+        nameRange: nameToken ? toRange(nameToken) : toRange(token),
         ...createTokenRange(token, endToken),
       });
 
@@ -456,38 +471,62 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
         endIndex = closeBraceIndex + 1;
       }
 
-      const headerWords = collectHeaderWords(tokens, i + 1, openBraceIndex);
+      const headerTokenList = collectHeaderWordTokens(tokens, i + 1, openBraceIndex);
+      const headerWords = headerTokenList.map((entry) => entry.value);
 
       if (keyword === "protocol") {
-        const fromIdx = headerWords.findIndex((word) => word.toLowerCase() === "from");
-        const headerBeforeFrom = fromIdx >= 0 ? headerWords.slice(0, fromIdx) : headerWords;
+        const fromIdx = headerTokenList.findIndex((word) => word.value.toLowerCase() === "from");
+        const headerBeforeFrom = fromIdx >= 0 ? headerTokenList.slice(0, fromIdx) : headerTokenList;
+
+        const protocolTypeToken = headerBeforeFrom[0] ?? token;
+        const nameToken =
+          headerBeforeFrom[headerBeforeFrom.length - 1] ?? headerBeforeFrom[0] ?? token;
+        const fromTemplateToken = fromIdx >= 0 ? headerTokenList[fromIdx + 1] : undefined;
 
         declarations.push({
           kind: "protocol",
-          protocolType: headerBeforeFrom[0] ?? "unknown",
-          name: headerBeforeFrom[headerBeforeFrom.length - 1] ?? headerBeforeFrom[0] ?? "unknown",
-          fromTemplate: fromIdx >= 0 ? headerWords[fromIdx + 1] : undefined,
+          protocolType: protocolTypeToken.value,
+          protocolTypeRange: toRange(protocolTypeToken),
+          name: nameToken.value,
+          nameRange: toRange(nameToken),
+          fromTemplate: fromTemplateToken?.value,
+          fromTemplateRange: fromTemplateToken ? toRange(fromTemplateToken) : undefined,
           headerTokens: headerWords,
+          bodyTokens: tokens
+            .slice(openBraceIndex + 1, closeBraceIndex)
+            .filter((entry) => isWordLikeToken(entry))
+            .map((entry) => entry.value),
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "template") {
+        const templateTypeToken = headerTokenList[0] ?? token;
+        const nameToken = headerTokenList[headerTokenList.length - 1] ?? templateTypeToken;
+
         declarations.push({
           kind: "template",
-          templateType: headerWords[0] ?? "unknown",
-          name: headerWords[headerWords.length - 1] ?? headerWords[0] ?? "unknown",
+          templateType: templateTypeToken.value,
+          templateTypeRange: toRange(templateTypeToken),
+          name: nameToken.value,
+          nameRange: toRange(nameToken),
           headerTokens: headerWords,
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "filter") {
+        const nameToken = headerTokenList[0] ?? token;
+
         declarations.push({
           kind: "filter",
-          name: headerWords[0] ?? "unknown",
+          name: nameToken.value,
+          nameRange: toRange(nameToken),
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "function") {
+        const nameToken = headerTokenList[0] ?? token;
+
         declarations.push({
           kind: "function",
-          name: headerWords[0] ?? "unknown",
+          name: nameToken.value,
+          nameRange: toRange(nameToken),
           ...createTokenRange(token, tokens[endIndex]),
         });
       }

@@ -47,8 +47,15 @@ importers:
       '@birdcc/lsp':
         specifier: workspace:*
         version: link:../lsp
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
 
-  packages/@birdcc/core: {}
+  packages/@birdcc/core:
+    dependencies:
+      '@birdcc/parser':
+        specifier: workspace:*
+        version: link:../parser
 
   packages/@birdcc/linter:
     dependencies:
