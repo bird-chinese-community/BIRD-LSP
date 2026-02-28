@@ -1,0 +1,24 @@
+{
+  "name": "@birdcc/linter",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@birdcc/core": "workspace:*",
+    "@birdcc/parser": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings src test",
+    "test": "vitest run",
+    "format": "oxfmt --check src test"
+  }
+}

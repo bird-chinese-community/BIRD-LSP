@@ -424,3 +424,21 @@ birdcc lsp --stdio
 3. 以 `16-20 周 MVP / 24-30 周完整版` 管理预期，避免低估工期造成返工。
 
 该方案在风险、工期与可维护性之间更平衡，适合作为下一阶段实施依据。
+
+---
+
+## 18. 执行进展（2026-03-01）
+
+本轮已按 `vibe-coding-github-sop` 与 `turborepo` 原则启动落地，完成“16. 立即行动建议”中的本周事项：
+
+- [x] 启动 `@birdcc/parser` 原型，并完成多词短语识别（`local as`、`next hop self` 等）与单测验证。
+- [x] 定义 `@birdcc/core` 与 `@birdcc/linter` 的接口边界，落地最小语义诊断与协议规则诊断。
+- [x] 完成 `bird -p` 诊断解析器最小实现（支持 `file:line:col` 与 `Parse error ..., line N:` 两类输出）。
+
+配套工程化已就绪：
+
+- [x] Turborepo + pnpm monorepo 基础结构（根脚本仅 `turbo run`，任务逻辑均在包内）。
+- [x] 自动化检查可执行：`pnpm lint`、`pnpm test`、`pnpm build`、`pnpm format`。
+- [x] 配置 DSL 主干声明解析已接入 parser（`include/define/protocol/template/filter/function`）。
+- [x] `sample/*.conf` fixtures 已接入 parser 测试覆盖（`basic/bgp_advanced/bogon/protocol_phrases`）。
+- [x] `birdcc` 聚合 CLI 已打通 `lint/fmt/lsp --stdio`，其中 `lsp --stdio` 已可启动最小诊断服务。

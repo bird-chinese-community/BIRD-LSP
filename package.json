@@ -1,0 +1,24 @@
+{
+  "name": "bird-lsp",
+  "private": true,
+  "packageManager": "pnpm@10.18.3",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "turbo run format"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@j178/prek": "^0.3.4",
+    "@types/node": "^24.3.0",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.26.0",
+    "turbo": "^2.8.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
