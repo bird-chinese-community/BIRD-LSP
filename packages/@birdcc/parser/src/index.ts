@@ -128,6 +128,14 @@ const KEYWORDS = new Set([
 const isWordStart = (char: string): boolean => /[A-Za-z_]/.test(char);
 const isWord = (char: string): boolean => /[A-Za-z0-9_-]/.test(char);
 const isNumber = (char: string): boolean => /[0-9]/.test(char);
+const isEscapedQuote = (input: string, quoteIndex: number): boolean => {
+  let slashCount = 0;
+  for (let i = quoteIndex - 1; i >= 0 && input[i] === "\\"; i -= 1) {
+    slashCount += 1;
+  }
+
+  return slashCount % 2 === 1;
+};
 
 const createRange = (
   line: number,
@@ -215,7 +223,7 @@ export const tokenizeBird = (input: string): LexToken[] => {
         }
 
         column += 1;
-        if (current === '"') {
+        if (current === '"' && !isEscapedQuote(input, i - 1)) {
           break;
         }
       }

@@ -58,4 +58,15 @@ describe("@birdcc/parser prototype", () => {
       expect(protocol.fromTemplate).toBe("edge_tpl");
     }
   });
+
+  it("keeps escaped quote inside string token", () => {
+    const sample = String.raw`include "dir/\"edge\".conf";`;
+    const parsed = parseBirdConfig(sample);
+    const includeDecl = parsed.program.declarations.find((item) => item.kind === "include");
+
+    expect(includeDecl).toBeDefined();
+    if (includeDecl?.kind === "include") {
+      expect(includeDecl.path).toBe(String.raw`dir/\"edge\".conf`);
+    }
+  });
 });

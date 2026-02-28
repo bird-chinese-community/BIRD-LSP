@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import type { BirdDiagnostic } from "@birdcc/core";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig } from "@birdcc/linter";
+import { createBirdRunnerErrorMessage } from "./messages.js";
 
 export interface BirdValidateResult {
   command: string;
@@ -42,13 +43,10 @@ export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
   const legacyPattern = /^(?<file>.+),\s+line\s+(?<line>\d+):(?<column>\d+)\s+(?<message>.+)$/i;
 
   for (const lineText of lines) {
-    let matched = lineText.match(colonPattern);
-    if (!matched) {
-      matched = lineText.match(parseErrorPattern);
-    }
-    if (!matched) {
-      matched = lineText.match(legacyPattern);
-    }
+    const matched =
+      lineText.match(colonPattern) ??
+      lineText.match(parseErrorPattern) ??
+      lineText.match(legacyPattern);
 
     if (!matched?.groups) {
       diagnostics.push({
@@ -90,7 +88,7 @@ export const runBirdValidation = (
   });
 
   if (result.error) {
-    const message = `执行 bird 校验失败: ${result.error.message}`;
+    const message = createBirdRunnerErrorMessage(result.error.message);
     return {
       command,
       exitCode: 1,

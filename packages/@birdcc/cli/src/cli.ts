@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { runFmt, runLint, runLspStdio } from "./index.js";
+import { CLI_MESSAGES } from "./messages.js";
 
 interface LintOptions {
   format?: "json" | "text";
@@ -37,7 +38,7 @@ cli
       console.log(JSON.stringify(result, null, 2));
     } else {
       if (result.diagnostics.length === 0) {
-        console.log("无诊断问题");
+        console.log(CLI_MESSAGES.lintNoDiagnostics);
       }
 
       for (const diagnostic of result.diagnostics) {
@@ -57,7 +58,7 @@ cli
   .option("--write", "Write formatted output to file")
   .action((file: string, options: FmtOptions) => {
     if (options.check && options.write) {
-      console.error("不能同时使用 --check 与 --write");
+      console.error(CLI_MESSAGES.fmtCheckWriteConflict);
       process.exitCode = 1;
       return;
     }
@@ -66,17 +67,17 @@ cli
     const result = runFmt(file, { write: writeMode });
 
     if (writeMode) {
-      console.log(result.changed ? "已格式化文件" : "文件已是规范格式");
+      console.log(result.changed ? CLI_MESSAGES.fmtWritten : CLI_MESSAGES.fmtAlreadyFormatted);
       return;
     }
 
     if (result.changed) {
-      console.error("格式检查失败，请执行 `birdcc fmt <file> --write`");
+      console.error(CLI_MESSAGES.fmtCheckFailed);
       process.exitCode = 1;
       return;
     }
 
-    console.log("格式检查通过");
+    console.log(CLI_MESSAGES.fmtCheckPassed);
   });
 
 cli
@@ -84,7 +85,7 @@ cli
   .option("--stdio", "Use stdio transport")
   .action((options: LspOptions) => {
     if (!options.stdio) {
-      console.error("当前仅支持 `birdcc lsp --stdio`");
+      console.error(CLI_MESSAGES.lspRequiresStdio);
       process.exitCode = 1;
       return;
     }
@@ -93,10 +94,4 @@ cli
   });
 
 cli.help();
-
-if (process.argv.length <= 2) {
-  cli.outputHelp();
-  process.exit(0);
-}
-
 cli.parse();
