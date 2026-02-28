@@ -1,10 +1,30 @@
 {
   "version": 1,
   "skills": {
+    "rust-engineer": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "computedHash": "d88f327bdb51590405f90c0e440ab6a7ccbba6f41eae3525196455b3ecbc250d"
+    },
     "turborepo": {
       "source": "vercel/turborepo",
       "sourceType": "github",
       "computedHash": "43f716868178e2a0ccd91fd31ff33f19cdd0ecdea399a0341308964f732604d1"
+    },
+    "typescript-e2e-testing": {
+      "source": "bmad-labs/skills",
+      "sourceType": "github",
+      "computedHash": "7077a0a19bd5625dc3033db4cfa8260a13d882949ce04ca78b10610a6e4f3548"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "669c7275f7e1379b06b2bcfa593603aead4c983b951c7e8edbc09640aa38d0a1"
+    },
+    "vscode-extension-builder": {
+      "source": "kjgarza/marketplace-claude",
+      "sourceType": "github",
+      "computedHash": "db8784fee8a773116a36e88dcc028a61fc523b34f98d3fe63208dce17425f8c6"
     }
   }
 }
