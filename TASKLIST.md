@@ -300,7 +300,7 @@ birdcc lsp --stdio
 
 ```json
 {
-  "$schema": "https://birdcc.dev/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
   "formatter": {
     "engine": "dprint",
     "safeMode": true

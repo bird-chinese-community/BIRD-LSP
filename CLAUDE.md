@@ -4,169 +4,199 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **BIRD2 LSP + Formatter toolchain** project - a developer tool suite for the BIRD2 (BIRD Internet Routing Daemon) configuration language. The project is currently in the planning/design phase.
+**BIRD-LSP** 是一个为 BIRD2（BIRD Internet Routing Daemon）配置文件提供 Language Server Protocol (LSP) 支持的工具链项目，包含语法高亮、诊断、格式化、代码补全等功能。
 
-**Target deliverables:**
-
-- `@birdcc/parser` - Tree-sitter based parser with WASM adapter
-- `@birdcc/core` - AST, Symbol Table, Type Checker
-- `@birdcc/linter` - Rules and diagnostics engine
-- `@birdcc/lsp` - LSP server implementation
-- `@birdcc/formatter` - dprint plugin for formatting
-- `@birdcc/cli` - Aggregated CLI (`birdcc lint/fmt/lsp`)
+- **技术栈**: TypeScript + Tree-sitter + dprint + vscode-languageserver-node
+- **架构**: Turborepo 管理的 monorepo
+- **包管理器**: pnpm
+- **测试框架**: Vitest
 
 ## Repository Structure
 
 ```
-├── refer/                          # Reference code as git submodules
-│   ├── BIRD-source-code/           # BIRD official C source (gitlab.nic.cz/labs/bird.git)
-│   ├── BIRD-tm-language-grammar/   # TextMate grammar for BIRD2
-│   └── BIRD2-vim-grammar/          # Vim syntax highlighting
-├── vibe-coding-github-sop/         # Vibe Coding SOP documentation
-│   └── SKILL.md                    # Standardized workflow for GitHub Projects
-└── TASKLIST.md                     # Main implementation report (read this first)
+packages/
+  @birdcc/parser/      # Tree-sitter grammar + WASM + JS adapter
+  @birdcc/core/        # AST / Symbol Table / Type Checker
+  @birdcc/linter/      # Lint rules / Diagnostics
+  @birdcc/lsp/         # LSP server implementation
+  @birdcc/formatter/   # dprint plugin for formatting
+  @birdcc/cli/         # birdcc CLI (lint/fmt/lsp commands)
+
+refer/                 # Git submodules - reference materials
+  BIRD-source-code/    # Official BIRD daemon C source
+  BIRD-tm-language-grammar/  # Existing TextMate grammar
+  BIRD2-vim-grammar/   # Vim syntax highlighting
+
+.agents/skills/        # Claude Code skills for this project
 ```
 
-## Key Documents
+## Common Commands
 
-- **TASKLIST.md** - Primary technical specification containing:
-  - Technology selection (Tree-sitter, dprint, vscode-languageserver-node)
-  - Architecture design and package structure
-  - Milestone planning (MVP 16-20 weeks, Full 24-30 weeks)
-  - Linter rule system design
-  - BIRD integration strategy (`bird -p` / `birdc`)
-
-- **vibe-coding-github-sop/SKILL.md** - Project management SOP:
-  - GitHub Projects v2 workflow
-  - Issue/PR labeling conventions
-  - Conventional Commits format
-  - Agent collaboration guidelines
-
-## Git Submodules
-
-This repository uses git submodules for reference code:
+### Development
 
 ```bash
-# Initialize submodules
-git submodule update --init --recursive
+# Install dependencies
+pnpm install
 
-# Update submodules to latest
-git submodule update --remote
+# Build all packages
+pnpm build
+
+# Run all tests
+pnpm test
+
+# Run tests for a specific package
+pnpm --filter @birdcc/parser test
+
+# Run single test file
+pnpm vitest run packages/@birdcc/parser/src/index.test.ts
+
+# Run tests in watch mode
+pnpm vitest
+
+# Lint code
+pnpm lint
+
+# Format code
+pnpm format
 ```
 
-**Submodules:**
-
-- `refer/BIRD-source-code` - BIRD daemon source for parser reference
-- `refer/BIRD-tm-language-grammar` - TextMate grammar (has its own pre-commit hooks)
-- `refer/BIRD2-vim-grammar` - Vim syntax files
-
-## Development Commands
-
-**Currently, the main project has no build commands** (planning phase). The submodules have their own workflows:
-
-### BIRD-tm-language-grammar submodule
-
-Uses `prek` (pre-commit runner):
+### CLI Commands (after build)
 
 ```bash
-cd refer/BIRD-tm-language-grammar
+# Lint BIRD2 config files
+node packages/@birdcc/cli/bin/birdcc.js lint sample/basic.conf --format json --max-warnings 0
 
-# Install hooks
-prek install --install-hooks --hook-type pre-commit --hook-type pre-push --hook-type commit-msg
+# Format check
+node packages/@birdcc/cli/bin/birdcc.js fmt sample/basic.conf --check
 
-# Run checks
-prek run --files grammars/bird2.tmLanguage.json
-prek run --all-files
+# Format write
+node packages/@birdcc/cli/bin/birdcc.js fmt sample/basic.conf --write
 
-# Version bump
-node scripts/bump-version.js --dry-run
-node scripts/bump-version.js
+# Start LSP server
+node packages/@birdcc/cli/bin/birdcc.js lsp --stdio
 ```
 
-### BIRD-source-code submodule
-
-Standard autotools C project:
+### Turborepo Commands
 
 ```bash
-cd refer/BIRD-source-code
-./configure
-make
-make install
+# Run build for affected packages
+turbo run build --affected
+
+# Run tests with cache
+turbo run test
+
+# Force rebuild without cache
+turbo run build --force
 ```
 
 ## Architecture
 
-**Parser Layer:** Tree-sitter handles incremental parsing and error recovery
-**Semantic Layer:** Custom Symbol Table + Type Checker in TypeScript
-**LSP Layer:** vscode-languageserver-node for editor integration
-**Formatter:** dprint plugin (WASM-based for distribution)
-**BIRD Integration:** Progressive - `bird -p` (MVP) → `birdc` readonly (M4) → Socket (future)
-
-## BIRD2 Language Characteristics
-
-BIRD2 config has a **dual-layer language model**:
-
-1. **Config DSL layer** - `protocol/template/filter/function` structures
-2. **Filter expression layer** - Complex type system (15+ types), control flow, operator overloading, method calls
-
-Key syntax elements:
-
-- `router id`, `log syslog`
-- `define` for constants
-- `protocol bgp/ospf/static` blocks
-- `filter` blocks with complex expressions
-- `include` for file inclusion
-- Template inheritance
-
-## Planned Package Structure
+### 分层架构
 
 ```
-packages/
-  @birdcc/parser/      # Tree-sitter grammar + WASM + JS adapter
-  @birdcc/core/        # AST / Symbol / Type Checker
-  @birdcc/linter/      # Rules / Diagnostics
-  @birdcc/lsp/         # LSP server
-  @birdcc/formatter/   # dprint plugin
-  @birdcc/cli/         # birdcc lint/fmt/lsp commands
-shared/
-  config/
-tests/
-  fixtures/
-  snapshots/
+Editors (VSCode/Neovim)
+         |
+         v
+    @birdcc/lsp
+ (diagnostics/hover/completion)
+     |                      \
+     v                       v
+  @birdcc/linter        @birdcc/formatter
+ (Rules/Diagnostics)      (dprint plugin)
+     ^                       ^
+     |                       |
+  @birdcc/core  <-----------+
+(AST/Symbol/TypeChecker)
+     ^
+     |
+  @birdcc/parser
+(tree-sitter + wasm adapter)
+     |
+     v
+bird -p / birdc adapter
 ```
 
-## CLI Design (Planned)
+### 关键设计决策
+
+1. **Parser**: Tree-sitter 负责语法解析，产出 CST/AST
+2. **语义层**: `@birdcc/core` 负责符号表、类型检查
+3. **规则层**: `@birdcc/linter` 负责协议/安全/性能规则
+4. **Formatter**: dprint 插件为主，Prettier 仅作兼容层
+5. **BIRD 集成**: MVP 使用 `bird -p` 子进程验证，后续考虑 `birdc`
+
+### 双层语言模型
+
+BIRD2 配置包含两个层次：
+
+1. **配置声明层**: `protocol/template/filter/function` 结构
+2. **Filter 表达式层**: 15+ 类型、控制流、运算符重载、方法调用
+
+Tree-sitter 负责结构解析，类型语义交给 `@birdcc/core`，协议规则交给 `@birdcc/linter`。
+
+## Git Submodules
+
+项目依赖以下参考仓库：
 
 ```bash
-birdcc lint sample/basic.conf --format json --max-warnings 0
-birdcc fmt sample/basic.conf --check
-birdcc fmt sample/basic.conf --write
-birdcc lsp --stdio
+# 初始化 submodules
+git submodule update --init --recursive
+
+# 更新 submodules
+git submodule update --recursive --remote
 ```
 
-## Milestones
+- `refer/BIRD-source-code`: BIRD 官方源码，用于参考 parser 实现
+- `refer/BIRD-tm-language-grammar`: 现有 TextMate 语法
+- `refer/BIRD2-vim-grammar`: Vim 语法高亮
 
-| Phase | Timeline   | Key Goals                                                  |
-| ----- | ---------- | ---------------------------------------------------------- |
-| M1    | 4-5 weeks  | Tree-sitter grammar (config DSL) + fixtures                |
-| M2    | 6-7 weeks  | LSP basics + error recovery + `bird -p` PoC                |
-| M3    | 6-8 weeks  | Symbol/Type Checker + include support + `bird -p` blocking |
-| M4    | 8-10 weeks | Protocol rules + dprint stable + `birdc` readonly          |
+## Development Workflow
 
-## Technology Preferences
+### 里程碑规划
 
-- **Parser:** Tree-sitter (incremental parsing, error recovery)
-- **LSP:** vscode-languageserver-node
-- **Formatter:** dprint (performance, WASM distribution)
-- **Language:** TypeScript with ESM modules
-- **Icons:** lucide (if UI needed)
-- **Animation:** motion or gsap
-- **Validation:** zod (avoid regex)
+- **M1** (4-5 周): Tree-sitter grammar + fixtures
+- **M2** (6-7 周): LSP 基础 + 错误恢复 + `bird -p` PoC
+- **M3** (6-8 周): Symbol/Type Checker + include 支持
+- **M4** (8-10 周): 协议规则 + dprint 稳定 + `birdc` 集成
 
-## Notes
+### Linter 规则分级
 
-- Project is in planning phase - no active code yet
-- Tree-sitter grammar development is the first priority
-- BIRD2 Filter expressions are complex - treat as a programming language, not simple config
-- BIRD integration starts with `bird -p` subprocess, not direct parser reuse
-- npm scope and CLI name: `birdcc`
+| 分类            | 默认级别 | CI 策略 |
+| --------------- | -------- | ------- |
+| `syntax/*`      | error    | 阻塞    |
+| `semantic/*`    | error    | 阻塞    |
+| `security/*`    | error    | 阻塞    |
+| `structure/*`   | warning  | 非阻塞  |
+| `protocol/*`    | warning  | 非阻塞  |
+| `performance/*` | info     | 非阻塞  |
+
+## Configuration
+
+项目配置位于 `birdcc.config.json`:
+
+```json
+{
+  "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
+  "formatter": {
+    "engine": "dprint",
+    "safeMode": true
+  },
+  "linter": {
+    "rules": {
+      "security/*": "error",
+      "performance/*": "info"
+    }
+  },
+  "bird": {
+    "validateCommand": "bird -p -c {file}"
+  }
+}
+```
+
+## References
+
+- `TASKLIST.md`: 详细的实施计划和技术选型报告
+- `.agents/skills/`: Claude Code skills for specialized tasks
+  - `vscode-extension-builder/`: VS Code 扩展开发指南
+  - `turborepo/`: Turborepo 最佳实践
+  - `vitest/`: 测试指南
+  - `typescript-e2e-testing/`: E2E 测试指南
