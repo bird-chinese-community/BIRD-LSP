@@ -44,10 +44,10 @@ refer/                 # Git submodules - reference materials
 # Install dependencies
 pnpm install
 
-# Build all packages
+# Build all packages (depends on ^build, outputs to dist/)
 pnpm build
 
-# Run all tests
+# Run all tests (depends on build)
 pnpm test
 
 # Run tests for a specific package
@@ -59,27 +59,32 @@ pnpm vitest run packages/@birdcc/parser/src/index.test.ts
 # Run tests in watch mode
 pnpm vitest
 
-# Lint code
+# Type check all packages
+pnpm typecheck
+
+# Lint code (uses oxlint)
 pnpm lint
 
-# Format code
+# Format check (uses oxfmt)
 pnpm format
 ```
 
 ### CLI Commands (after build)
 
+CLI 入口位于 `packages/@birdcc/cli/dist/cli.js`:
+
 ```bash
 # Lint BIRD2 config files
-node packages/@birdcc/cli/bin/birdcc.js lint sample/basic.conf --format json --max-warnings 0
+node packages/@birdcc/cli/dist/cli.js lint <file.conf> --format json --max-warnings 0
 
 # Format check
-node packages/@birdcc/cli/bin/birdcc.js fmt sample/basic.conf --check
+node packages/@birdcc/cli/dist/cli.js fmt <file.conf> --check
 
 # Format write
-node packages/@birdcc/cli/bin/birdcc.js fmt sample/basic.conf --write
+node packages/@birdcc/cli/dist/cli.js fmt <file.conf> --write
 
 # Start LSP server
-node packages/@birdcc/cli/bin/birdcc.js lsp --stdio
+node packages/@birdcc/cli/dist/cli.js lsp --stdio
 ```
 
 ### Turborepo Commands
@@ -155,6 +160,32 @@ git submodule update --recursive --remote
 - `refer/BIRD-tm-language-grammar`: 现有 TextMate 语法
 - `refer/BIRD2-vim-grammar`: Vim 语法高亮
 
+## Current Implementation Status
+
+基于 TASKLIST.md 的执行进展:
+
+- **M1 进行中**: Tree-sitter grammar 原型已完成，支持多词短语识别（`local as`、`next hop self` 等）
+- **Parser**: 配置 DSL 主干声明解析已接入（`include/define/protocol/template/filter/function`）
+- **CLI**: `birdcc lint/fmt/lsp --stdio` 已打通，`lsp --stdio` 可启动最小诊断服务
+- **BIRD 集成**: `bird -p` 诊断解析器已实现（支持 `file:line:col` 与 `Parse error ..., line N:` 两类输出）
+- **Fixtures**: `sample/*.conf` 已接入 parser 测试覆盖
+
+## Package Dependency Graph
+
+```
+@birdcc/parser (底层)
+    ↑
+@birdcc/core (依赖 parser)
+    ↑
+@birdcc/linter (依赖 core, parser)
+    ↑
+@birdcc/lsp (依赖 core, linter)
+
+@birdcc/cli (聚合入口，依赖 core, lsp, linter)
+```
+
+所有包使用 `type: "module"` (ESM) 和 `workspace:*` 协议进行内部依赖管理。
+
 ## Development Workflow
 
 ### 里程碑规划
@@ -174,6 +205,13 @@ git submodule update --recursive --remote
 | `structure/*`   | warning  | 非阻塞  |
 | `protocol/*`    | warning  | 非阻塞  |
 | `performance/*` | info     | 非阻塞  |
+
+## Tooling Stack
+
+- **Linter**: [oxlint](https://oxc.rs/docs/guide/usage/linter.html) - 高性能 JavaScript/TypeScript linter
+- **Formatter**: [oxfmt](https://oxc.rs/docs/guide/usage/linter.html) - 代码格式化工具
+- **Test**: [Vitest](https://vitest.dev/) - 单元测试框架，配置在每个包的 `package.json` 中
+- **Build**: TypeScript `tsc` - 每个包独立编译到 `dist/` 目录
 
 ## Configuration
 
