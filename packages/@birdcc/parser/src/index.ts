@@ -378,6 +378,19 @@ const collectHeaderWordTokens = (
   endIndex: number,
 ): LexToken[] => tokens.slice(startIndex, endIndex).filter((token) => isWordLikeToken(token));
 
+const pushMissingSymbolIssue = (
+  issues: ParseIssue[],
+  message: string,
+  start: LexToken,
+  end: LexToken,
+): void => {
+  issues.push({
+    code: "parser/missing-symbol",
+    message,
+    ...createTokenRange(start, end),
+  });
+};
+
 const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: ParseIssue[] } => {
   const declarations: BirdDeclaration[] = [];
   const issues: ParseIssue[] = [];
@@ -418,6 +431,10 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
       const pathToken = tokens.slice(i + 1, endIndex + 1).find((item) => item.kind === "string");
       const endToken = tokens[endIndex];
 
+      if (!pathToken) {
+        pushMissingSymbolIssue(issues, "Missing path for include declaration", token, endToken);
+      }
+
       declarations.push({
         kind: "include",
         path: pathToken ? stripQuotes(pathToken.value) : "",
@@ -434,9 +451,13 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
       const nameToken = tokens.slice(i + 1, endIndex + 1).find((item) => isWordLikeToken(item));
       const endToken = tokens[endIndex];
 
+      if (!nameToken) {
+        pushMissingSymbolIssue(issues, "Missing name for define declaration", token, endToken);
+      }
+
       declarations.push({
         kind: "define",
-        name: nameToken?.value ?? "unknown",
+        name: nameToken?.value ?? "",
         nameRange: nameToken ? toRange(nameToken) : toRange(token),
         ...createTokenRange(token, endToken),
       });
@@ -486,17 +507,43 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
         const fromIdx = headerTokenList.findIndex((word) => word.value.toLowerCase() === "from");
         const headerBeforeFrom = fromIdx >= 0 ? headerTokenList.slice(0, fromIdx) : headerTokenList;
 
-        const protocolTypeToken = headerBeforeFrom[0] ?? token;
-        const nameToken =
-          headerBeforeFrom[headerBeforeFrom.length - 1] ?? headerBeforeFrom[0] ?? token;
+        const protocolTypeToken = headerBeforeFrom[0];
+        const nameToken = headerBeforeFrom[1];
         const fromTemplateToken = fromIdx >= 0 ? headerTokenList[fromIdx + 1] : undefined;
+
+        if (!protocolTypeToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing protocol type for protocol declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
+
+        if (!nameToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing name for protocol declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
+
+        if (fromIdx >= 0 && !fromTemplateToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing template name after from clause",
+            token,
+            tokens[endIndex],
+          );
+        }
 
         declarations.push({
           kind: "protocol",
-          protocolType: protocolTypeToken.value,
-          protocolTypeRange: toRange(protocolTypeToken),
-          name: nameToken.value,
-          nameRange: toRange(nameToken),
+          protocolType: protocolTypeToken?.value ?? "",
+          protocolTypeRange: protocolTypeToken ? toRange(protocolTypeToken) : toRange(token),
+          name: nameToken?.value ?? "",
+          nameRange: nameToken ? toRange(nameToken) : toRange(token),
           fromTemplate: fromTemplateToken?.value,
           fromTemplateRange: fromTemplateToken ? toRange(fromTemplateToken) : undefined,
           headerTokens: headerWords,
@@ -507,34 +554,70 @@ const parseProgram = (tokens: LexToken[]): { program: BirdProgram; issues: Parse
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "template") {
-        const templateTypeToken = headerTokenList[0] ?? token;
-        const nameToken = headerTokenList[headerTokenList.length - 1] ?? templateTypeToken;
+        const templateTypeToken = headerTokenList[0];
+        const nameToken = headerTokenList[1];
+
+        if (!templateTypeToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing template type for template declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
+
+        if (!nameToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing name for template declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
 
         declarations.push({
           kind: "template",
-          templateType: templateTypeToken.value,
-          templateTypeRange: toRange(templateTypeToken),
-          name: nameToken.value,
-          nameRange: toRange(nameToken),
+          templateType: templateTypeToken?.value ?? "",
+          templateTypeRange: templateTypeToken ? toRange(templateTypeToken) : toRange(token),
+          name: nameToken?.value ?? "",
+          nameRange: nameToken ? toRange(nameToken) : toRange(token),
           headerTokens: headerWords,
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "filter") {
-        const nameToken = headerTokenList[0] ?? token;
+        const nameToken = headerTokenList[0];
+
+        if (!nameToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing name for filter declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
 
         declarations.push({
           kind: "filter",
-          name: nameToken.value,
-          nameRange: toRange(nameToken),
+          name: nameToken?.value ?? "",
+          nameRange: nameToken ? toRange(nameToken) : toRange(token),
           ...createTokenRange(token, tokens[endIndex]),
         });
       } else if (keyword === "function") {
-        const nameToken = headerTokenList[0] ?? token;
+        const nameToken = headerTokenList[0];
+
+        if (!nameToken) {
+          pushMissingSymbolIssue(
+            issues,
+            "Missing name for function declaration",
+            token,
+            tokens[endIndex],
+          );
+        }
 
         declarations.push({
           kind: "function",
-          name: nameToken.value,
-          nameRange: toRange(nameToken),
+          name: nameToken?.value ?? "",
+          nameRange: nameToken ? toRange(nameToken) : toRange(token),
           ...createTokenRange(token, tokens[endIndex]),
         });
       }

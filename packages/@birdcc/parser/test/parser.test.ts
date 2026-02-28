@@ -69,4 +69,36 @@ describe("@birdcc/parser prototype", () => {
       expect(includeDecl.path).toBe(String.raw`dir/\"edge\".conf`);
     }
   });
+
+  it("reports missing declaration symbols for incomplete headers", () => {
+    const sample = `
+      include;
+      define;
+      protocol bgp {
+      }
+      template bgp {
+      }
+      filter {
+      }
+      function {
+      }
+    `;
+
+    const parsed = parseBirdConfig(sample);
+    const messages = parsed.issues.map((item) => item.message);
+
+    expect(messages).toContain("Missing path for include declaration");
+    expect(messages).toContain("Missing name for define declaration");
+    expect(messages).toContain("Missing name for protocol declaration");
+    expect(messages).toContain("Missing name for template declaration");
+    expect(messages).toContain("Missing name for filter declaration");
+    expect(messages).toContain("Missing name for function declaration");
+
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("bgp");
+      expect(protocol.name).toBe("");
+    }
+  });
 });
