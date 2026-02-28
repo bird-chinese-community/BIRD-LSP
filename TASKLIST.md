@@ -8,7 +8,7 @@
 - 语义层：自定义 `Symbol Table + Type Checker`（TypeScript）
 - Linter 层：`@birdcc/linter`（Rules/Diagnostics）
 - LSP 层：`vscode-languageserver-node`
-- Formatter：`dprint` 插件（WASM）
+- Formatter：`dprint` 插件
 - BIRD 集成：MVP 采用 `bird -p` 子进程，后续渐进到 `birdc`
 
 核心判断：BIRD2 的 Filter 层不是普通配置 DSL，而是接近完整编程语言。必须将“语法解析”和“语义验证”分层，先稳住语法与诊断，再逐步提高语义覆盖。
@@ -45,23 +45,23 @@
 
 ### 2.1 可复用资产
 
-| 资产 | 路径 | 可复用方向 |
-| --- | --- | --- |
-| TextMate 语法 | `grammars/bird2.tmLanguage.json` | 关键字与短语词表 |
-| Vim 语法 | `external/bird2.vim/syntax/bird2.vim` | 历史兼容短语 |
-| 样例配置 | `sample/*.conf` | fixtures 与回归样本 |
-| 协议分析 | `docs/protocol_analysis_report.md` | 规则来源与协议缺口 |
-| 文档快照 | `BIRD.docs.md` | hover 与诊断文案 |
+| 资产          | 路径                                  | 可复用方向          |
+| ------------- | ------------------------------------- | ------------------- |
+| TextMate 语法 | `grammars/bird2.tmLanguage.json`      | 关键字与短语词表    |
+| Vim 语法      | `external/bird2.vim/syntax/bird2.vim` | 历史兼容短语        |
+| 样例配置      | `sample/*.conf`                       | fixtures 与回归样本 |
+| 协议分析      | `docs/protocol_analysis_report.md`    | 规则来源与协议缺口  |
+| 文档快照      | `BIRD.docs.md`                        | hover 与诊断文案    |
 
 ### 2.2 当前缺口
 
-| 能力 | 现状 | 影响 |
-| --- | --- | --- |
-| Parser/CST/AST | 缺失 | 无法做稳定格式化与诊断 |
+| 能力                | 现状 | 影响                     |
+| ------------------- | ---- | ------------------------ |
+| Parser/CST/AST      | 缺失 | 无法做稳定格式化与诊断   |
 | Symbol/Type Checker | 缺失 | 无法做定义跳转与类型规则 |
-| LSP Server | 缺失 | 无补全、无语义诊断 |
-| Formatter | 缺失 | 无统一格式化标准 |
-| BIRD 原生验证集成 | 缺失 | 无法与生产语义校验对齐 |
+| LSP Server          | 缺失 | 无补全、无语义诊断       |
+| Formatter           | 缺失 | 无统一格式化标准         |
+| BIRD 原生验证集成   | 缺失 | 无法与生产语义校验对齐   |
 
 ---
 
@@ -69,22 +69,22 @@
 
 ### 3.1 Parser 技术对比结论
 
-| 方案 | 综合结论 | 工期预估 | 风险 | 推荐度 |
-| --- | --- | --- | --- | --- |
-| Tree-sitter | 增量解析、错误恢复、生态成熟 | 9-13 周（Parser层） | 低 | ✅ 首选 |
-| BIRD 官方源码复用 | 适合参考设计，不适合直接嵌入 | 3-4 周（独立进程集成） | 中高 | ⚠️ 参考 |
-| 手写递归下降 | 可控但开发/维护成本过高 | 17-25 周 | 高 | ❌ 不推荐 |
-| ANTLR4 | 工程化可行，生态次优 | 9-12 周 | 中 | ⚠️ 备选 |
+| 方案              | 综合结论                     | 工期预估               | 风险 | 推荐度    |
+| ----------------- | ---------------------------- | ---------------------- | ---- | --------- |
+| Tree-sitter       | 增量解析、错误恢复、生态成熟 | 9-13 周（Parser层）    | 低   | ✅ 首选   |
+| BIRD 官方源码复用 | 适合参考设计，不适合直接嵌入 | 3-4 周（独立进程集成） | 中高 | ⚠️ 参考   |
+| 手写递归下降      | 可控但开发/维护成本过高      | 17-25 周               | 高   | ❌ 不推荐 |
+| ANTLR4            | 工程化可行，生态次优         | 9-12 周                | 中   | ⚠️ 备选   |
 
 ### 3.2 LSP 与 Formatter 选型
 
-| 领域 | 方案 | 结论 | 说明 |
-| --- | --- | --- | --- |
-| LSP | `vscode-languageserver-node` | ✅ 首选 | 与当前生态最贴合 |
-| LSP | `pygls` | ⚠️ 可行但非主线 | 可作为实验分支，不作为主交付 |
-| Formatter | `dprint-plugin-birdcc` | ✅ 首选 | 性能高，WASM 易分发 |
-| Formatter | `Topiary` | ⚠️ 备选 | 适合快速 PoC |
-| Formatter | `Prettier` | ⚠️ 兼容层 | 仅前端生态强依赖时启用 |
+| 领域      | 方案                         | 结论            | 说明                         |
+| --------- | ---------------------------- | --------------- | ---------------------------- |
+| LSP       | `vscode-languageserver-node` | ✅ 首选         | 与当前生态最贴合             |
+| LSP       | `pygls`                      | ⚠️ 可行但非主线 | 可作为实验分支，不作为主交付 |
+| Formatter | `dprint-plugin-birdcc`       | ✅ 首选         | 性能高，WASM 易分发          |
+| Formatter | `Topiary`                    | ⚠️ 备选         | 适合快速 PoC                 |
+| Formatter | `Prettier`                   | ⚠️ 兼容层       | 仅前端生态强依赖时启用       |
 
 ### 3.3 BIRD 官方 parser 复用策略
 
@@ -158,6 +158,7 @@ tests/
 3. 协议验证器：由 `@birdcc/linter` 按 BGP/OSPF/Babel/BFD 分模块验证短语合法性。
 
 实施细则：
+
 1. 高频且语义稳定短语可使用复合 token。
 2. 变体较多短语保持分离，在语义层做组合校验。
 
@@ -180,12 +181,12 @@ tests/
 
 ## 6. Type Checker 分期
 
-| 阶段 | 内容 | 工时 |
-| --- | --- | --- |
-| P1 | 基础架构、变量声明与引用检查 | 1-2 周 |
-| P2 | 表达式类型推导 | 2-3 周 |
-| P3 | `~` 运算符重载 + `bgppath` 方法语义 | 2-3 周 |
-| P4 | Set 语义与高级特性 | 2-3 周 |
+| 阶段 | 内容                                | 工时   |
+| ---- | ----------------------------------- | ------ |
+| P1   | 基础架构、变量声明与引用检查        | 1-2 周 |
+| P2   | 表达式类型推导                      | 2-3 周 |
+| P3   | `~` 运算符重载 + `bgppath` 方法语义 | 2-3 周 |
+| P4   | Set 语义与高级特性                  | 2-3 周 |
 
 ---
 
@@ -193,24 +194,24 @@ tests/
 
 ### 7.1 里程碑功能矩阵
 
-| 功能 | M2 | M3 | M4 |
-| --- | --- | --- | --- |
-| `textDocument/publishDiagnostics` | ✅ | ✅ | ✅ |
-| `textDocument/completion`（关键字） | ✅ | ✅ | ✅ |
-| `textDocument/hover` | ✅ | ✅ | ✅ |
-| `textDocument/documentSymbol` | ❌ | ✅ | ✅ |
-| `textDocument/definition` | ❌ | ✅ | ✅ |
-| `textDocument/formatting` | ✅ 基础 | ✅ 稳定 | ✅ 语义保护 |
-| `textDocument/codeAction` | ❌ | ⚠️ 部分 | ✅ |
+| 功能                                | M2      | M3      | M4          |
+| ----------------------------------- | ------- | ------- | ----------- |
+| `textDocument/publishDiagnostics`   | ✅      | ✅      | ✅          |
+| `textDocument/completion`（关键字） | ✅      | ✅      | ✅          |
+| `textDocument/hover`                | ✅      | ✅      | ✅          |
+| `textDocument/documentSymbol`       | ❌      | ✅      | ✅          |
+| `textDocument/definition`           | ❌      | ✅      | ✅          |
+| `textDocument/formatting`           | ✅ 基础 | ✅ 稳定 | ✅ 语义保护 |
+| `textDocument/codeAction`           | ❌      | ⚠️ 部分 | ✅          |
 
 ### 7.2 诊断来源
 
-| 诊断类型 | 来源 |
-| --- | --- |
-| 词法/语法错误 | `@birdcc/parser` + 错误处理器 |
-| 类型与符号诊断 | `@birdcc/core` |
-| 协议/安全/性能规则 | `@birdcc/linter` |
-| 原生 BIRD 校验错误 | `bird -p` 适配器 |
+| 诊断类型           | 来源                          |
+| ------------------ | ----------------------------- |
+| 词法/语法错误      | `@birdcc/parser` + 错误处理器 |
+| 类型与符号诊断     | `@birdcc/core`                |
+| 协议/安全/性能规则 | `@birdcc/linter`              |
+| 原生 BIRD 校验错误 | `bird -p` 适配器              |
 
 ---
 
@@ -218,12 +219,12 @@ tests/
 
 ### 8.1 渐进式集成（含里程碑映射）
 
-| 集成阶段 | 方式 | 里程碑映射 | 工作量 | 能力 |
-| --- | --- | --- | --- | --- |
-| MVP-PoC | `bird -p` 子进程调用 | M2 | ~2 周 | 原生语法校验接入与诊断转译 |
-| MVP-Stable | `bird -p` 阻塞校验 | M3 | ~2 周 | CI/LSP 稳定校验通路 |
-| Enhanced | `birdc` 只读集成 | M4 | ~6 周 | 运行时信息与上下文增强 |
-| Long-term | Socket 直连（评估） | Post-M4 | ~14 周 | 高性能交互与重载能力 |
+| 集成阶段   | 方式                 | 里程碑映射 | 工作量 | 能力                       |
+| ---------- | -------------------- | ---------- | ------ | -------------------------- |
+| MVP-PoC    | `bird -p` 子进程调用 | M2         | ~2 周  | 原生语法校验接入与诊断转译 |
+| MVP-Stable | `bird -p` 阻塞校验   | M3         | ~2 周  | CI/LSP 稳定校验通路        |
+| Enhanced   | `birdc` 只读集成     | M4         | ~6 周  | 运行时信息与上下文增强     |
+| Long-term  | Socket 直连（评估）  | Post-M4    | ~14 周 | 高性能交互与重载能力       |
 
 ### 8.2 MVP 推荐实现要点
 
@@ -253,15 +254,15 @@ tests/
 
 ### 10.1 规则分级
 
-| 分类 | 默认级别 | CI 策略 |
-| --- | --- | --- |
-| `syntax/*` | error | 阻塞 |
-| `structure/*` | warning | 非阻塞 |
-| `semantic/*` | error | 阻塞 |
-| `protocol/*` | warning | 非阻塞 |
-| `security/*` | error | 阻塞 |
-| `performance/*` | info | 非阻塞 |
-| `style/*` | info | 非阻塞 |
+| 分类            | 默认级别 | CI 策略 |
+| --------------- | -------- | ------- |
+| `syntax/*`      | error    | 阻塞    |
+| `structure/*`   | warning  | 非阻塞  |
+| `semantic/*`    | error    | 阻塞    |
+| `protocol/*`    | warning  | 非阻塞  |
+| `security/*`    | error    | 阻塞    |
+| `performance/*` | info     | 非阻塞  |
+| `style/*`       | info     | 非阻塞  |
 
 ### 10.2 首批 12 条规则
 
@@ -323,12 +324,12 @@ birdcc lsp --stdio
 
 ### 12.1 测试层次
 
-| 层次 | 内容 |
-| --- | --- |
-| 单元测试 | parser/core/linter/formatter |
+| 层次          | 内容                           |
+| ------------- | ------------------------------ |
+| 单元测试      | parser/core/linter/formatter   |
 | fixtures 测试 | `sample/*.conf` + 协议缺口样本 |
-| 快照测试 | 格式化输出稳定性 |
-| 端到端测试 | LSP + CLI + `bird -p` 适配器 |
+| 快照测试      | 格式化输出稳定性               |
+| 端到端测试    | LSP + CLI + `bird -p` 适配器   |
 
 ### 12.2 CI 建议
 
@@ -343,19 +344,19 @@ birdcc lsp --stdio
 
 ### 13.1 MVP 路径（16-20 周）
 
-| 阶段 | 周期 | 关键目标 |
-| --- | --- | --- |
-| M1 | 4-5 周 | Tree-sitter grammar（配置 DSL 主干）+ fixtures |
-| M2 | 6-7 周 | LSP 基础能力 + 错误恢复处理器 + `bird -p` PoC（非阻塞） |
-| M3 | 6-8 周 | Symbol/Type Checker 基础 + include 简化支持 + `bird -p` 阻塞校验 |
+| 阶段 | 周期   | 关键目标                                                         |
+| ---- | ------ | ---------------------------------------------------------------- |
+| M1   | 4-5 周 | Tree-sitter grammar（配置 DSL 主干）+ fixtures                   |
+| M2   | 6-7 周 | LSP 基础能力 + 错误恢复处理器 + `bird -p` PoC（非阻塞）          |
+| M3   | 6-8 周 | Symbol/Type Checker 基础 + include 简化支持 + `bird -p` 阻塞校验 |
 
 ### 13.2 完整版路径（24-30 周）
 
 在 MVP 基础上增加 M4：
 
-| 阶段 | 周期 | 关键目标 |
-| --- | --- | --- |
-| M4 | 8-10 周 | 协议规则完善 + dprint 稳定化 + `birdc` 只读集成 + 发布体系 |
+| 阶段 | 周期    | 关键目标                                                   |
+| ---- | ------- | ---------------------------------------------------------- |
+| M4   | 8-10 周 | 协议规则完善 + dprint 稳定化 + `birdc` 只读集成 + 发布体系 |
 
 ### 13.3 与第 8 章集成映射对齐
 
@@ -368,14 +369,14 @@ birdcc lsp --stdio
 
 ## 14. 风险与缓解
 
-| 风险 | 概率 | 影响 | 平滑策略 |
-| --- | --- | --- | --- |
-| Filter 语义复杂度被低估 | 高 | 高 | 配置 DSL 优先，Filter 语义分期上线 |
-| 多词短语冲突 | 中 | 中 | 语法识别与语义验证分离，强化 fixtures |
-| 上下文敏感规则误报 | 中 | 高 | 复杂判断后移到 `@birdcc/linter` |
-| BIRD 版本更新 | 高 | 中 | 版本探测 + 适配层 |
-| 格式化误改生产配置 | 中 | 高 | `--check` 默认 + safe mode + 备份 |
-| 大文件性能退化 | 中 | 中 | 基准测试 + 增量解析 + 性能阈值报警 |
+| 风险                    | 概率 | 影响 | 平滑策略                              |
+| ----------------------- | ---- | ---- | ------------------------------------- |
+| Filter 语义复杂度被低估 | 高   | 高   | 配置 DSL 优先，Filter 语义分期上线    |
+| 多词短语冲突            | 中   | 中   | 语法识别与语义验证分离，强化 fixtures |
+| 上下文敏感规则误报      | 中   | 高   | 复杂判断后移到 `@birdcc/linter`       |
+| BIRD 版本更新           | 高   | 中   | 版本探测 + 适配层                     |
+| 格式化误改生产配置      | 中   | 高   | `--check` 默认 + safe mode + 备份     |
+| 大文件性能退化          | 中   | 中   | 基准测试 + 增量解析 + 性能阈值报警    |
 
 ---
 
@@ -423,4 +424,3 @@ birdcc lsp --stdio
 3. 以 `16-20 周 MVP / 24-30 周完整版` 管理预期，避免低估工期造成返工。
 
 该方案在风险、工期与可维护性之间更平衡，适合作为下一阶段实施依据。
-
