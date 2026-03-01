@@ -35,6 +35,9 @@ const createProtocolDiagnostic = (
 const isBgpProtocol = (declaration: ProtocolDeclaration): boolean =>
   declaration.protocolType.toLowerCase() === "bgp";
 
+const isOspfProtocol = (declaration: ProtocolDeclaration): boolean =>
+  declaration.protocolType.toLowerCase() === "ospf";
+
 const protocolDeclarations = (parsed: ParsedBirdDocument): ProtocolDeclaration[] =>
   parsed.program.declarations.filter(
     (declaration): declaration is ProtocolDeclaration => declaration.kind === "protocol",
@@ -86,7 +89,33 @@ const bgpNeighborRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
-const defaultRules: BirdRule[] = [bgpLocalAsRule, bgpNeighborRule];
+const ospfAreaRequiredRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+
+  for (const declaration of protocolDeclarations(parsed)) {
+    if (!isOspfProtocol(declaration)) {
+      continue;
+    }
+
+    const hasArea = declaration.statements.some(
+      (statement) => statement.kind === "other" && /^area\b/i.test(statement.text.trim()),
+    );
+
+    if (!hasArea) {
+      diagnostics.push(
+        createProtocolDiagnostic(
+          "protocol/ospf-area-required",
+          `OSPF protocol '${declaration.name}' missing area configuration`,
+          declaration,
+        ),
+      );
+    }
+  }
+
+  return diagnostics;
+};
+
+const defaultRules: BirdRule[] = [bgpLocalAsRule, bgpNeighborRule, ospfAreaRequiredRule];
 
 /** Runs parser + core + lint rules and returns merged diagnostics. */
 export const lintBirdConfig = async (text: string): Promise<LintResult> => {
