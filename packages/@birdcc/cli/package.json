@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@birdcc/core": "workspace:*",
+    "@birdcc/formatter": "workspace:*",
     "@birdcc/lsp": "workspace:*",
     "@birdcc/linter": "workspace:*",
     "cac": "^6.7.14"

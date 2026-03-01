@@ -41,6 +41,9 @@ importers:
       '@birdcc/core':
         specifier: workspace:*
         version: link:../core
+      '@birdcc/formatter':
+        specifier: workspace:*
+        version: link:../formatter
       '@birdcc/linter':
         specifier: workspace:*
         version: link:../linter
@@ -59,6 +62,8 @@ importers:
       fast-cidr-tools:
         specifier: ^0.3.4
         version: 0.3.4
+
+  packages/@birdcc/formatter: {}
 
   packages/@birdcc/linter:
     dependencies:
