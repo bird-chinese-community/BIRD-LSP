@@ -13,9 +13,10 @@ export interface BirdDiagnostic {
   severity: BirdDiagnosticSeverity;
   source: "parser" | "core" | "linter" | "bird";
   range: BirdRange;
+  uri?: string;
 }
 
-export type BirdSymbolKind = "protocol" | "template" | "filter" | "function";
+export type BirdSymbolKind = "protocol" | "template" | "filter" | "function" | "table";
 
 export interface SymbolDefinition {
   kind: BirdSymbolKind;
@@ -62,10 +63,30 @@ export interface CrossFileDocumentInput {
   text: string;
 }
 
+export interface CrossFileResolutionStats {
+  loadedFromMemory: number;
+  loadedFromFileSystem: number;
+  skippedByDepth: number;
+  skippedByFileLimit: number;
+  missingIncludes: number;
+}
+
+export interface CrossFileResolveOptions {
+  entryUri: string;
+  documents?: CrossFileDocumentInput[];
+  maxDepth?: number;
+  maxFiles?: number;
+  loadFromFileSystem?: boolean;
+  typeCheck?: TypeCheckOptions;
+  readFileText?: (uri: string) => Promise<string>;
+}
+
 export interface CrossFileResolutionResult {
   entryUri: string;
   visitedUris: string[];
   symbolTable: SymbolTable;
   snapshots: Record<string, CoreSnapshot>;
+  documents: Record<string, string>;
   diagnostics: BirdDiagnostic[];
+  stats: CrossFileResolutionStats;
 }

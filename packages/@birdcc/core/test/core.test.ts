@@ -315,4 +315,89 @@ describe("@birdcc/core boundaries", () => {
       true,
     );
   });
+
+  it("loads include files through readFileText fallback", async () => {
+    const readFileText = async (uri: string): Promise<string> => {
+      if (uri === "file:///workspace/templates/common.conf") {
+        return `
+          template bgp edge_tpl {
+          }
+        `;
+      }
+
+      throw new Error(`missing ${uri}`);
+    };
+
+    const result = await resolveCrossFileReferences({
+      entryUri: "file:///workspace/main.conf",
+      documents: [
+        {
+          uri: "file:///workspace/main.conf",
+          text: `
+            include "./templates/common.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+      ],
+      readFileText,
+    });
+
+    expect(result.visitedUris).toContain("file:///workspace/templates/common.conf");
+    expect(result.stats.loadedFromFileSystem).toBe(1);
+    expect(result.diagnostics.some((item) => item.code === "semantic/undefined-reference")).toBe(
+      false,
+    );
+  });
+
+  it("emits include warning when max depth is reached", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `include "a.conf";`,
+        },
+        {
+          uri: "/workspace/a.conf",
+          text: `include "b.conf";`,
+        },
+        {
+          uri: "/workspace/b.conf",
+          text: `template bgp edge_tpl { }`,
+        },
+      ],
+      maxDepth: 0,
+    });
+
+    expect(result.stats.skippedByDepth).toBeGreaterThan(0);
+    expect(result.diagnostics.some((item) => item.message.includes("max depth"))).toBe(true);
+  });
+
+  it("emits include warning when max files limit is reached", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `
+            include "a.conf";
+            include "b.conf";
+          `,
+        },
+        {
+          uri: "/workspace/a.conf",
+          text: `template bgp a_tpl { }`,
+        },
+        {
+          uri: "/workspace/b.conf",
+          text: `template bgp b_tpl { }`,
+        },
+      ],
+      maxFiles: 1,
+    });
+
+    expect(result.stats.skippedByFileLimit).toBeGreaterThan(0);
+    expect(result.diagnostics.some((item) => item.message.includes("max files"))).toBe(true);
+  });
 });

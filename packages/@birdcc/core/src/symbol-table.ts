@@ -44,6 +44,10 @@ const declarationToSymbol = (
     return toSymbol("function", declaration.name, declaration.nameRange);
   }
 
+  if (declaration.kind === "table") {
+    return toSymbol("table", declaration.name, declaration.nameRange);
+  }
+
   return null;
 };
 
@@ -131,6 +135,7 @@ export const pushSymbolTableDiagnostics = (
         message: `${symbol.kind} '${symbol.name}' is already defined`,
         severity: "error",
         source: "core",
+        uri: symbol.uri,
         range: createRange(symbol.line, symbol.column, symbol.name.length),
       });
       continue;
@@ -150,6 +155,7 @@ export const pushSymbolTableDiagnostics = (
       message: `Undefined template reference '${reference.name}'`,
       severity: "error",
       source: "core",
+      uri: reference.uri,
       range: createRange(reference.line, reference.column, reference.name.length),
     });
   }
