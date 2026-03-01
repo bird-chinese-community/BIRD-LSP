@@ -287,18 +287,13 @@ export const findTemplateByName = (
 
 export const hasSymbolKind = (
   core: CoreSnapshot,
-  kind: "protocol" | "template" | "filter" | "function",
+  kind: "protocol" | "template" | "filter" | "function" | "table",
   name: string,
 ): boolean => {
   const lowered = name.toLowerCase();
   return core.symbols.some(
     (symbol) => symbol.kind === kind && symbol.name.toLowerCase() === lowered,
   );
-};
-
-export const hasTableSymbol = (parsed: ParsedBirdDocument, name: string): boolean => {
-  const lowered = name.toLowerCase();
-  return tableDeclarations(parsed).some((table) => table.name.toLowerCase() === lowered);
 };
 
 export const createProtocolDiagnostic = (
