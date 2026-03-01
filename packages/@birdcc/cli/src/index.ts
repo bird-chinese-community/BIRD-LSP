@@ -381,6 +381,36 @@ export const runLint = async (
     diagnostics.push(...birdResult.diagnostics);
   }
 
+  if (options.withBirdc) {
+    const statusResult = runBirdcReadOnlyQuery("show status", options.birdcCommand);
+    diagnostics.push(...statusResult.diagnostics);
+
+    if (statusResult.diagnostics.length === 0) {
+      const statusDiagnostics = parseBirdcStatusOutput(
+        statusResult.stdout,
+        statusResult.stderr,
+        statusResult.exitCode,
+      );
+      diagnostics.push(...statusDiagnostics);
+      const statusReady = statusDiagnostics.length === 0;
+
+      if (!statusReady) {
+        return { diagnostics };
+      }
+
+      const protocolsResult = runBirdcReadOnlyQuery("show protocols", options.birdcCommand);
+      diagnostics.push(...protocolsResult.diagnostics);
+
+      if (protocolsResult.diagnostics.length === 0) {
+        const runtimeState: BirdcRuntimeState = {
+          statusReady,
+          protocols: parseBirdcProtocolsOutput(protocolsResult.stdout),
+        };
+        diagnostics.push(...createBirdcDiagnostics(lintResult.parsed, runtimeState));
+      }
+    }
+  }
+
   return { diagnostics };
 };
 
