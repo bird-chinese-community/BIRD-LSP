@@ -11,10 +11,10 @@ export const CLI_MESSAGES = {
 } as const;
 
 export const createBirdRunnerErrorMessage = (reason: string): string =>
-  `birdc validation error: ${reason}`;
+  `bird validation error: ${reason}`;
 
 export const createBirdcRunnerWarningMessage = (reason: string): string =>
-  `birdc read‑only query failed: ${reason}`;
+  `birdc read-only query failed: ${reason}`;
 
 export const createBirdcStatusWarningMessage = (): string =>
   "Unexpected birdc status output: 'ready' state not detected";
