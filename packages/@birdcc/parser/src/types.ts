@@ -9,6 +9,7 @@ export interface SourceRange {
 /** Parser issue emitted from Tree-sitter syntax recovery or runtime initialization. */
 export interface ParseIssue extends SourceRange {
   code:
+    | "syntax/missing-semicolon"
     | "syntax/unbalanced-brace"
     | "parser/missing-symbol"
     | "parser/syntax-error"

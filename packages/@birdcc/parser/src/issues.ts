@@ -29,9 +29,18 @@ export const collectTreeIssues = (
     }
 
     if (current.isMissing) {
-      const code = current.type === "}" ? "syntax/unbalanced-brace" : "parser/missing-symbol";
+      const code =
+        current.type === "}"
+          ? "syntax/unbalanced-brace"
+          : current.type === ";"
+            ? "syntax/missing-semicolon"
+            : "parser/missing-symbol";
       const message =
-        current.type === "}" ? "Missing '}' to close block" : `Missing symbol '${current.type}'`;
+        current.type === "}"
+          ? "Missing '}' to close block"
+          : current.type === ";"
+            ? "Missing ';' at end of statement"
+            : `Missing symbol '${current.type}'`;
 
       issues.push({
         code,

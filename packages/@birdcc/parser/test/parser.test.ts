@@ -290,4 +290,16 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(sample);
     expect(parsed.issues.some((item) => item.code === "syntax/unbalanced-brace")).toBe(true);
   });
+
+  it("reports missing semicolon recovery issues", async () => {
+    const sample = `
+      protocol bgp edge {
+        local as 65001
+        neighbor 192.0.2.1 as 65002;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues.some((item) => item.code === "syntax/missing-semicolon")).toBe(true);
+  });
 });
