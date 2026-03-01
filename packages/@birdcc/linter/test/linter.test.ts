@@ -31,4 +31,78 @@ describe("@birdcc/linter", () => {
 
     expect(protocolDiagnostics).toHaveLength(0);
   });
+
+  it("reports missing area for OSPF protocols", async () => {
+    const sample = `
+      protocol ospf core {
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    expect(result.diagnostics.some((item) => item.code === "protocol/ospf-area-required")).toBe(
+      true,
+    );
+  });
+
+  it("passes OSPF area required rule when area is configured", async () => {
+    const sample = `
+      protocol ospf core {
+        area 0;
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    const ospfDiagnostics = result.diagnostics.filter(
+      (item) => item.code === "protocol/ospf-area-required",
+    );
+    expect(ospfDiagnostics).toHaveLength(0);
+  });
+
+  it("passes BGP next hop form checks for valid channel clauses", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          next hop self;
+          next hop address;
+          next hop keep;
+          next hop 192.0.2.2;
+        };
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    const nextHopDiagnostics = result.diagnostics.filter(
+      (item) => item.code === "protocol/bgp-next-hop-form",
+    );
+
+    expect(nextHopDiagnostics).toHaveLength(0);
+  });
+
+  it("reports invalid and misplaced BGP next hop clauses", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        next hop self;
+        ipv4 {
+          next hop foo;
+        };
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    const nextHopDiagnostics = result.diagnostics.filter(
+      (item) => item.code === "protocol/bgp-next-hop-form",
+    );
+
+    expect(nextHopDiagnostics).toHaveLength(2);
+    expect(nextHopDiagnostics.some((item) => item.message.includes("outside channel block"))).toBe(
+      true,
+    );
+    expect(nextHopDiagnostics.some((item) => item.message.includes("invalid next hop form"))).toBe(
+      true,
+    );
+  });
 });
