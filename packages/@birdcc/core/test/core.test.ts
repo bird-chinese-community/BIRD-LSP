@@ -214,6 +214,52 @@ describe("@birdcc/core boundaries", () => {
     expect(snapshot.typeDiagnostics).toHaveLength(0);
   });
 
+  it("does not infer non-set int membership as bool", async () => {
+    const sample = `
+      function calc() -> int {
+        int value = 65001 ~ 65002;
+        return value;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+
+    expect(snapshot.typeDiagnostics).toHaveLength(0);
+  });
+
+  it("supports string regex-style membership inference", async () => {
+    const sample = `
+      function calc() -> bool {
+        bool matched = "edge-01" ~ "edge-.*";
+        return matched;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+
+    expect(snapshot.typeDiagnostics).toHaveLength(0);
+  });
+
+  it("reports mismatch when string membership result is assigned to int", async () => {
+    const sample = `
+      function calc() -> int {
+        int mismatch = "edge-01" ~ "edge-.*";
+        return mismatch;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+    const mismatchDiagnostics = snapshot.typeDiagnostics.filter(
+      (item) => item.code === "type/mismatch",
+    );
+
+    expect(mismatchDiagnostics).toHaveLength(1);
+    expect(mismatchDiagnostics[0]?.message).toContain("expected int, got bool");
+  });
+
   it("resolves include/template references across files", async () => {
     const result = await resolveCrossFileReferences({
       entryUri: "/workspace/main.conf",

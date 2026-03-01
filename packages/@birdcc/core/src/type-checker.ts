@@ -36,6 +36,33 @@ const trimSingleEnclosingParentheses = (value: string): string => {
   return depth === 0 ? current.slice(1, -1).trim() : current;
 };
 
+const isQuotedLiteral = (value: string, quote: "'" | '"'): boolean => {
+  if (!value.startsWith(quote) || !value.endsWith(quote) || value.length < 2) {
+    return false;
+  }
+
+  let escaping = false;
+  for (let index = 1; index < value.length - 1; index += 1) {
+    const char = value[index];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (char === quote) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const splitTopLevelBinary = (
   value: string,
   operators: string[],
@@ -146,45 +173,39 @@ const splitTopLevelList = (value: string): string[] => {
       continue;
     }
 
-    if (char === "(") {
-      depthParen += 1;
-      continue;
-    }
-
-    if (char === ")") {
-      if (depthParen > 0) {
-        depthParen -= 1;
-      }
-      continue;
-    }
-
-    if (char === "[") {
-      depthBracket += 1;
-      continue;
-    }
-
-    if (char === "]") {
-      if (depthBracket > 0) {
-        depthBracket -= 1;
-      }
-      continue;
-    }
-
-    if (char === "{") {
-      depthBrace += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      if (depthBrace > 0) {
-        depthBrace -= 1;
-      }
-      continue;
-    }
-
-    if (char === "," && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
-      items.push(value.slice(segmentStart, index).trim());
-      segmentStart = index + 1;
+    switch (char) {
+      case "(":
+        depthParen += 1;
+        continue;
+      case ")":
+        if (depthParen > 0) {
+          depthParen -= 1;
+        }
+        continue;
+      case "[":
+        depthBracket += 1;
+        continue;
+      case "]":
+        if (depthBracket > 0) {
+          depthBracket -= 1;
+        }
+        continue;
+      case "{":
+        depthBrace += 1;
+        continue;
+      case "}":
+        if (depthBrace > 0) {
+          depthBrace -= 1;
+        }
+        continue;
+      case ",":
+        if (depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+          items.push(value.slice(segmentStart, index).trim());
+          segmentStart = index + 1;
+        }
+        continue;
+      default:
+        break;
     }
   }
 
@@ -274,10 +295,7 @@ const inferValueType = (
     return "int";
   }
 
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
+  if (isQuotedLiteral(value, '"') || isQuotedLiteral(value, "'")) {
     return "string";
   }
 
@@ -340,7 +358,7 @@ const inferValueType = (
     }
 
     const rightType = inferValueType(matchExpression.right, variableTypes, depth + 1);
-    return rightType !== "unknown" && rightType === leftType ? "bool" : "unknown";
+    return leftType === "string" && rightType === "string" ? "bool" : "unknown";
   }
 
   const additiveExpression = splitTopLevelBinary(value, ["+", "-"]);
