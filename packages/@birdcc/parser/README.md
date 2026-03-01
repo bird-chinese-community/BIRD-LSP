@@ -54,20 +54,38 @@ Key types:
 ## Grammar workflow
 
 ```bash
-# regenerate parser.c / grammar.json / node-types.json
+# regenerate tree-sitter generated artifacts locally
 pnpm --filter @birdcc/parser run build:grammar
 
 # rebuild wasm (requires emscripten toolchain or docker-enabled tree-sitter build env)
 pnpm --filter @birdcc/parser run build:wasm
 ```
 
-Generated assets:
+Source-of-truth grammar files (tracked):
+
+- `grammar.js`
+- `tree-sitter.json`
+- parser runtime and TS source files under `src/` (except generated C artifacts)
+
+Generated artifacts (not tracked by Git):
 
 - `src/parser.c`
 - `src/grammar.json`
 - `src/node-types.json`
 - `src/tree_sitter/*.h`
-- `src/tree-sitter-birdcc.wasm`
+
+Tracked runtime artifact:
+
+- `src/tree-sitter-birdcc.wasm`  
+  Kept in Git so parser runtime and tests work in environments without Docker / emscripten.
+
+Local validation after grammar changes:
+
+```bash
+pnpm --filter @birdcc/parser run build:grammar
+pnpm --filter @birdcc/parser run test
+pnpm --filter @birdcc/parser run build
+```
 
 ## Development
 
