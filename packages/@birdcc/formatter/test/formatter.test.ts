@@ -114,6 +114,14 @@ describe("@birdcc/formatter", () => {
     expect(result.text).toContain("  accept;");
   });
 
+  it("does not treat keyword substrings as high-risk expressions", async () => {
+    const input = "define iffy = 1;   \n";
+    const output = await __formatBirdConfigBuiltinForTest(input);
+
+    expect(output.stats.highRiskLines).toBe(0);
+    expect(output.text).toBe("define iffy = 1;\n");
+  });
+
   it("keeps correct indentation level after standalone closing braces", async () => {
     const input = [
       "protocol bgp edge {",
