@@ -110,12 +110,15 @@ const includePathCompletionItems = (
   }));
 };
 
-const templateCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] => {
+const collectDeclarationCompletionItems = (
+  parsed: ParsedBirdDocument,
+  predicate: (declaration: ParsedBirdDocument["program"]["declarations"][number]) => boolean,
+): CompletionItem[] => {
   const items: CompletionItem[] = [];
   const seen = new Set<string>();
 
   for (const declaration of parsed.program.declarations) {
-    if (declaration.kind !== "template") {
+    if (!predicate(declaration)) {
       continue;
     }
 
@@ -135,25 +138,11 @@ const templateCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] =
   return items;
 };
 
+const templateCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] =>
+  collectDeclarationCompletionItems(parsed, (declaration) => declaration.kind === "template");
+
 const declarationCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] => {
-  const items: CompletionItem[] = [];
-  const seen = new Set<string>();
-
-  for (const declaration of parsed.program.declarations) {
-    const metadata = declarationMetadata(declaration);
-    if (!metadata?.completionLabel || seen.has(metadata.completionLabel)) {
-      continue;
-    }
-
-    seen.add(metadata.completionLabel);
-    items.push({
-      label: metadata.completionLabel,
-      kind: metadata.completionKind ?? CompletionItemKind.Reference,
-      detail: metadata.completionDetail ?? metadata.detail,
-    });
-  }
-
-  return items;
+  return collectDeclarationCompletionItems(parsed, () => true);
 };
 
 export const createCompletionItemsFromParsed = (
@@ -174,6 +163,5 @@ export const createCompletionItemsFromParsed = (
     ...keywordCompletionItems(),
     ...snippetCompletionItems(),
     ...declarationCompletionItems(parsed),
-    ...includePathCompletionItems(parsed, { quoteWrapped: false }),
   ];
 };
