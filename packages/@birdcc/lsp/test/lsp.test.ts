@@ -109,8 +109,10 @@ describe("@birdcc/lsp", () => {
 
   it("creates completion items with keywords and symbols", async () => {
     const parsed = await parseBirdConfig(`
+      include "base.conf";
       define ASN = 65001;
       ipv4 table main4;
+      router id 1.1.1.1;
       template bgp edge_tpl {}
       filter export_policy { accept; }
     `);
@@ -121,8 +123,10 @@ describe("@birdcc/lsp", () => {
     expect(labels).toContain("define");
     expect(labels).toContain("protocol");
     expect(labels).toContain("template");
+    expect(labels).toContain("base.conf");
     expect(labels).toContain("ASN");
     expect(labels).toContain("main4");
+    expect(labels).toContain("router id 1.1.1.1");
     expect(labels).toContain("edge_tpl");
     expect(labels).toContain("export_policy");
   });
