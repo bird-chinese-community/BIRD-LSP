@@ -152,6 +152,17 @@ const formatSpawnError = (error: NodeJS.ErrnoException): string => {
   return error.message;
 };
 
+const isCommandPathSafe = (filePath: string): boolean => {
+  for (const character of filePath) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint === 0 || codePoint === 10 || codePoint === 13) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 interface CommandExecResult {
   command: string;
   exitCode: number;
@@ -199,6 +210,10 @@ const expandValidateCommandArgs = (
   commandTokens: string[],
   filePath: string,
 ): { executable: string; args: string[] } | null => {
+  if (!isCommandPathSafe(filePath)) {
+    return null;
+  }
+
   if (commandTokens.length === 0) {
     return null;
   }
@@ -270,7 +285,7 @@ export const runBirdValidation = (
   const expandedCommand = expandValidateCommandArgs(commandTokens, filePath);
   if (!expandedCommand) {
     const message = createBirdRunnerErrorMessage(
-      "invalid bird command template: {file} cannot be used as executable",
+      "invalid bird command template or unsafe file path for command execution",
     );
     return {
       command: validateTemplate,

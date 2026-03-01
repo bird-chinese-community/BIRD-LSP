@@ -65,6 +65,13 @@ describe("@birdcc/cli bird parser", () => {
     }
   });
 
+  it("rejects unsafe file path control characters in bird validation command args", () => {
+    const result = runBirdValidation("/tmp/bird.conf\nmalicious");
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].code).toBe("bird/runner-error");
+    expect(result.diagnostics[0].message).toContain("unsafe file path");
+  });
+
   it("enables cross-file lint by default and resolves include symbols", async () => {
     const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-cross-file-"));
     const entryFile = join(workspaceDir, "main.conf");
