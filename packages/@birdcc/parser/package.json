@@ -15,6 +15,7 @@
     "build:grammar": "tree-sitter generate && oxfmt src/grammar.json src/node-types.json && node scripts/sync-wasm-paths.mjs",
     "build:wasm": "tree-sitter build --wasm && node scripts/sync-wasm-paths.mjs",
     "build": "tsc -p tsconfig.json && node scripts/sync-wasm-paths.mjs",
+    "ci:parser": "pnpm run build:grammar && pnpm run lint && pnpm run test && pnpm run build && pnpm run typecheck && pnpm run format",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
