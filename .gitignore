@@ -12,3 +12,5 @@ coverage
 
 .DS_Store
 .env
+
+refer/docs/*.md
