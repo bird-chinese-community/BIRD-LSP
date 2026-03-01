@@ -442,3 +442,11 @@ birdcc lsp --stdio
 - [x] 配置 DSL 主干声明解析已接入 parser（`include/define/protocol/template/filter/function`）。
 - [x] `sample/*.conf` fixtures 已接入 parser 测试覆盖（`basic/bgp_advanced/bogon/protocol_phrases`）。
 - [x] `birdcc` 聚合 CLI 已打通 `lint/fmt/lsp --stdio`，其中 `lsp --stdio` 已可启动最小诊断服务。
+
+本轮补充推进（Tree-sitter 迁移与功能对齐）：
+
+- [x] `@birdcc/parser` 已切换到 Tree-sitter grammar + WASM，替换旧 tokenizer 原型。
+- [x] parser AST 已升级为 V2（声明节点 + 协议常见语句节点 + Tree-sitter 错误恢复 issue）。
+- [x] `parseBirdConfig` / `buildCoreSnapshot` / `lintBirdConfig` 已改为异步 Promise 接口。
+- [x] `@birdcc/cli` 与 `@birdcc/lsp` 已完成 async 调用链改造，LSP 诊断增加“最后写入 wins”防竞态。
+- [x] 全仓回归通过：`pnpm lint && pnpm test && pnpm build && pnpm typecheck && pnpm format`。
