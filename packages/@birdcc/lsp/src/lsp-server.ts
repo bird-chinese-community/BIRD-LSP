@@ -1,4 +1,9 @@
-import { resolveCrossFileReferences, type SymbolTable } from "@birdcc/core";
+import {
+  DEFAULT_CROSS_FILE_MAX_DEPTH,
+  DEFAULT_CROSS_FILE_MAX_FILES,
+  resolveCrossFileReferences,
+  type SymbolTable,
+} from "@birdcc/core";
 import {
   createConnection,
   type Diagnostic,
@@ -20,8 +25,8 @@ import { createReferenceLocations } from "./references.js";
 import { createValidationScheduler } from "./validation.js";
 
 const VALIDATION_DEBOUNCE_MS = 120;
-const INCLUDE_MAX_DEPTH = 16;
-const INCLUDE_MAX_FILES = 256;
+const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
+const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
 
 interface ParsedCacheEntry {
   version: number;
