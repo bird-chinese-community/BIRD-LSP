@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBirdConfigText, parseBirdStderr } from "../src/index.js";
+import { formatBirdConfigText, parseBirdStderr, runBirdValidation } from "../src/index.js";
 
 describe("@birdcc/cli bird parser", () => {
   it("parses bird colon format diagnostics", () => {
@@ -26,5 +26,23 @@ describe("@birdcc/cli bird parser", () => {
 
     expect(result.changed).toBe(true);
     expect(result.formattedText).toBe("router id 192.0.2.1;\n\nprotocol bgp test {}\n");
+  });
+
+  it("uses BIRD_BIN environment variable when validate command is omitted", async () => {
+    const previousBirdBin = process.env.BIRD_BIN;
+    process.env.BIRD_BIN = "/definitely-not-existing-bird-binary";
+
+    try {
+      const result = runBirdValidation("/tmp/bird.conf");
+      expect(result.command).toBe("/definitely-not-existing-bird-binary -p -c /tmp/bird.conf");
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result.diagnostics[0].code).toBe("bird/runner-error");
+    } finally {
+      if (previousBirdBin) {
+        process.env.BIRD_BIN = previousBirdBin;
+      } else {
+        delete process.env.BIRD_BIN;
+      }
+    }
   });
 });
