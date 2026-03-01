@@ -1,0 +1,50 @@
+# BIRD2 & BIRD3 containers for CI and local debugging
+#
+# Usage:
+#   docker compose -f docker/compose.yml build
+#   docker compose -f docker/compose.yml up bird2
+#   docker compose -f docker/compose.yml run --rm bird2 -p -c /etc/bird.conf   # syntax check
+#   docker compose -f docker/compose.yml run --rm bird3 -p -c /etc/bird.conf   # syntax check
+
+services:
+  bird2:
+    build:
+      context: ./bird2
+    image: birdcc/bird2
+    container_name: birdcc-bird2
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+    cap_drop:
+      - ALL
+    volumes:
+      - ./bird2/bird.conf:/etc/bird.conf:ro
+      - bird2-run:/run/bird
+    tmpfs:
+      - /tmp:size=10m
+    mem_limit: 64m
+    restart: "no"
+
+  bird3:
+    build:
+      context: ./bird3
+    image: birdcc/bird3
+    container_name: birdcc-bird3
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+    cap_drop:
+      - ALL
+    volumes:
+      - ./bird3/bird.conf:/etc/bird.conf:ro
+      - bird3-run:/run/bird
+    tmpfs:
+      - /tmp:size=10m
+    mem_limit: 64m
+    restart: "no"
+
+volumes:
+  bird2-run:
+  bird3-run:
