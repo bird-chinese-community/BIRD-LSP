@@ -43,6 +43,7 @@ export const toLspDiagnostic = (diagnostic: BirdDiagnostic): Diagnostic => ({
 export const startLspServer = (): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
+  const validationTickets = new Map<string, number>();
 
   connection.onInitialize(
     (): InitializeResult => ({
@@ -52,24 +53,56 @@ export const startLspServer = (): void => {
     }),
   );
 
-  const validateDocument = (textDocument: TextDocument): void => {
-    const result = lintBirdConfig(textDocument.getText());
+  const validateDocument = async (textDocument: TextDocument): Promise<void> => {
+    const uri = textDocument.uri;
+    const ticket = (validationTickets.get(uri) ?? 0) + 1;
+    validationTickets.set(uri, ticket);
 
-    connection.sendDiagnostics({
-      uri: textDocument.uri,
-      diagnostics: result.diagnostics.map(toLspDiagnostic),
-    });
+    try {
+      const result = await lintBirdConfig(textDocument.getText());
+      if (validationTickets.get(uri) !== ticket) {
+        return;
+      }
+
+      connection.sendDiagnostics({
+        uri,
+        diagnostics: result.diagnostics.map(toLspDiagnostic),
+      });
+    } catch (error) {
+      if (validationTickets.get(uri) !== ticket) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+
+      connection.sendDiagnostics({
+        uri,
+        diagnostics: [
+          {
+            code: "lsp/internal-error",
+            message,
+            severity: DiagnosticSeverity.Error,
+            source: "lsp",
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 1 },
+            },
+          },
+        ],
+      });
+    }
   };
 
   documents.onDidOpen((event) => {
-    validateDocument(event.document);
+    void validateDocument(event.document);
   });
 
   documents.onDidChangeContent((event) => {
-    validateDocument(event.document);
+    void validateDocument(event.document);
   });
 
   documents.onDidClose((event) => {
+    validationTickets.delete(event.document.uri);
     connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
   });
 

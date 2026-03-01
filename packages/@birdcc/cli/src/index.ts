@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import type { BirdDiagnostic } from "@birdcc/core";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig } from "@birdcc/linter";
@@ -126,9 +126,12 @@ export interface BirdccLintOutput {
   diagnostics: BirdDiagnostic[];
 }
 
-export const runLint = (filePath: string, options: LintOptions = {}): BirdccLintOutput => {
-  const text = readFileSync(filePath, "utf8");
-  const lintResult = lintBirdConfig(text);
+export const runLint = async (
+  filePath: string,
+  options: LintOptions = {},
+): Promise<BirdccLintOutput> => {
+  const text = await readFile(filePath, "utf8");
+  const lintResult = await lintBirdConfig(text);
   const diagnostics = [...lintResult.diagnostics];
 
   if (options.withBird) {
@@ -178,17 +181,17 @@ export interface FmtOptions {
   write?: boolean;
 }
 
-export const runFmt = (filePath: string, options: FmtOptions = {}): FmtResult => {
-  const text = readFileSync(filePath, "utf8");
+export const runFmt = async (filePath: string, options: FmtOptions = {}): Promise<FmtResult> => {
+  const text = await readFile(filePath, "utf8");
   const result = formatBirdConfigText(text);
 
   if (options.write && result.changed) {
-    writeFileSync(filePath, result.formattedText, "utf8");
+    await writeFile(filePath, result.formattedText, "utf8");
   }
 
   return result;
 };
 
-export const runLspStdio = (): void => {
+export const runLspStdio = async (): Promise<void> => {
   startLspServer();
 };

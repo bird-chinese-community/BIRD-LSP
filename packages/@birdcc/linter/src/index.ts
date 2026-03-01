@@ -35,28 +35,6 @@ const createProtocolDiagnostic = (
 const isBgpProtocol = (declaration: ProtocolDeclaration): boolean =>
   declaration.protocolType.toLowerCase() === "bgp";
 
-const hasTokenSequence = (tokens: string[], sequence: string[]): boolean => {
-  if (tokens.length < sequence.length) {
-    return false;
-  }
-
-  for (let i = 0; i <= tokens.length - sequence.length; i += 1) {
-    let matched = true;
-    for (let j = 0; j < sequence.length; j += 1) {
-      if (tokens[i + j] !== sequence[j]) {
-        matched = false;
-        break;
-      }
-    }
-
-    if (matched) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 const protocolDeclarations = (parsed: ParsedBirdDocument): ProtocolDeclaration[] =>
   parsed.program.declarations.filter(
     (declaration): declaration is ProtocolDeclaration => declaration.kind === "protocol",
@@ -70,8 +48,8 @@ const bgpLocalAsRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const bodyTokens = declaration.bodyTokens.map((token) => token.toLowerCase());
-    if (!hasTokenSequence(bodyTokens, ["local", "as"])) {
+    const hasLocalAs = declaration.statements.some((statement) => statement.kind === "local-as");
+    if (!hasLocalAs) {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-local-as",
@@ -93,8 +71,8 @@ const bgpNeighborRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const bodyTokens = declaration.bodyTokens.map((token) => token.toLowerCase());
-    if (!bodyTokens.includes("neighbor")) {
+    const hasNeighbor = declaration.statements.some((statement) => statement.kind === "neighbor");
+    if (!hasNeighbor) {
       diagnostics.push(
         createProtocolDiagnostic(
           "protocol/bgp-missing-neighbor",
@@ -110,16 +88,29 @@ const bgpNeighborRule: BirdRule = ({ parsed }) => {
 
 const defaultRules: BirdRule[] = [bgpLocalAsRule, bgpNeighborRule];
 
-export const lintBirdConfig = (text: string): LintResult => {
-  const parsed = parseBirdConfig(text);
+export const lintBirdConfig = async (text: string): Promise<LintResult> => {
+  const parsed = await parseBirdConfig(text);
   const core = buildCoreSnapshotFromParsed(parsed);
   const context: RuleContext = { text, parsed, core };
+
+  const parserDiagnostics: BirdDiagnostic[] = parsed.issues.map((issue) => ({
+    code: issue.code,
+    message: issue.message,
+    severity: "error",
+    source: "parser",
+    range: {
+      line: issue.line,
+      column: issue.column,
+      endLine: issue.endLine,
+      endColumn: issue.endColumn,
+    },
+  }));
 
   const ruleDiagnostics = defaultRules.flatMap((rule) => rule(context));
 
   return {
     parsed,
     core,
-    diagnostics: [...core.diagnostics, ...ruleDiagnostics],
+    diagnostics: [...parserDiagnostics, ...core.diagnostics, ...ruleDiagnostics],
   };
 };
