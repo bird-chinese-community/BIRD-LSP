@@ -71,6 +71,24 @@ describe("@birdcc/cli config", () => {
     await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow("Invalid birdcc config");
   });
 
+  it("rejects out-of-range formatter options", async () => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-out-of-range-"));
+    const targetFile = join(workspaceDir, "bird.conf");
+    await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
+    await writeFile(
+      join(workspaceDir, "birdcc.config.json"),
+      JSON.stringify({
+        formatter: {
+          indentSize: 32,
+          lineWidth: 10,
+        },
+      }),
+      "utf8",
+    );
+
+    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow("Invalid birdcc config");
+  });
+
   it("resolves exact and wildcard severity overrides", () => {
     const rules = {
       "cfg/*": "warning",

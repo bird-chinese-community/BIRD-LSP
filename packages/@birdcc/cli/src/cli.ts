@@ -49,7 +49,11 @@ const withCommandErrorHandling = <TOptions extends object>(action: CommandAction
 };
 
 const cli = cac("birdcc");
-const FMT_ENGINE_SET = new Set(["dprint", "builtin"]);
+const FMT_ENGINES = ["dprint", "builtin"] as const;
+type CliFormatterEngine = (typeof FMT_ENGINES)[number];
+const FMT_ENGINE_SET = new Set<string>(FMT_ENGINES);
+const isCliFormatterEngine = (value: string): value is CliFormatterEngine =>
+  FMT_ENGINE_SET.has(value);
 
 const parseOptionalPositiveInteger = (
   optionName: string,
@@ -137,17 +141,21 @@ cli
       }
 
       const configuredEngine = loadedConfig.config.formatter?.engine;
-      const engine = options.engine?.toLowerCase() ?? configuredEngine;
-      if (engine && !FMT_ENGINE_SET.has(engine)) {
-        console.error(CLI_MESSAGES.fmtInvalidEngine(engine));
-        process.exitCode = 1;
-        return;
+      let engine: CliFormatterEngine | undefined = configuredEngine;
+      if (options.engine) {
+        const normalizedEngine = options.engine.toLowerCase();
+        if (!isCliFormatterEngine(normalizedEngine)) {
+          console.error(CLI_MESSAGES.fmtInvalidEngine(normalizedEngine));
+          process.exitCode = 1;
+          return;
+        }
+        engine = normalizedEngine;
       }
 
       const writeMode = Boolean(options.write);
       const result = await runFmt(file, {
         write: writeMode,
-        engine: engine as "dprint" | "builtin" | undefined,
+        engine,
         indentSize: loadedConfig.config.formatter?.indentSize,
         lineWidth: loadedConfig.config.formatter?.lineWidth,
         safeMode: loadedConfig.config.formatter?.safeMode,

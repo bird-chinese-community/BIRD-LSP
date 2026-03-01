@@ -13,8 +13,8 @@ const birdccConfigSchema = z
     formatter: z
       .object({
         engine: z.enum(["dprint", "builtin"]).optional(),
-        indentSize: z.number().int().positive().optional(),
-        lineWidth: z.number().int().positive().optional(),
+        indentSize: z.number().int().min(1).max(16).optional(),
+        lineWidth: z.number().int().min(20).max(1000).optional(),
         safeMode: z.boolean().optional(),
       })
       .passthrough()
