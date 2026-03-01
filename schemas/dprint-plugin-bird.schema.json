@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/dprint-plugin-bird.schema.json",
+  "title": "dprint-plugin-bird config",
+  "description": "Configuration schema for the dprint BIRD formatter plugin.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lineWidth": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 1000,
+      "default": 80,
+      "description": "Preferred line width used by the formatter."
+    },
+    "indentWidth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 2,
+      "description": "Number of spaces used for one indentation level."
+    },
+    "safeMode": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, formatter keeps conservative behavior around risky expressions."
+    }
+  }
+}

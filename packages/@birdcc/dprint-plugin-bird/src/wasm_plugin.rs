@@ -46,8 +46,9 @@ impl SyncPluginHandler<Configuration> for BirdccPluginHandler {
             version: env!("CARGO_PKG_VERSION").to_string(),
             config_key: "birdcc".to_string(),
             help_url: "https://github.com/bird-chinese-community/BIRD-LSP".to_string(),
-            config_schema_url: "https://birdcc.link/schemas/dprint-plugin-bird.schema.json"
-                .to_string(),
+            config_schema_url:
+                "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/dprint-plugin-bird.schema.json"
+                    .to_string(),
             update_url: None,
         }
     }
@@ -68,3 +69,18 @@ impl SyncPluginHandler<Configuration> for BirdccPluginHandler {
 }
 
 generate_plugin_code!(BirdccPluginHandler, BirdccPluginHandler);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exposes_raw_github_schema_url() {
+        let mut handler = BirdccPluginHandler;
+        let plugin_info = handler.plugin_info();
+        assert_eq!(
+            plugin_info.config_schema_url,
+            "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/dprint-plugin-bird.schema.json"
+        );
+    }
+}
