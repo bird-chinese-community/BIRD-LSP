@@ -11,7 +11,7 @@ export const CLI_MESSAGES = {
 } as const;
 
 export const createBirdRunnerErrorMessage = (reason: string): string =>
-  `bird validation error: ${reason}`;
+  `birdc validation error: ${reason}`;
 
 export const createBirdcRunnerWarningMessage = (reason: string): string =>
   `birdc read-only query failed: ${reason}`;
