@@ -264,20 +264,85 @@ tests/
 | `performance/*` | info     | 非阻塞  |
 | `style/*`       | info     | 非阻塞  |
 
-### 10.2 首批 12 条规则
+### 10.2 完整 32 条规则（对齐 BIRD 源码，含源码位置）
 
-1. `syntax/missing-semicolon`
-2. `syntax/unbalanced-brace`
-3. `structure/invalid-statement-in-protocol`
-4. `semantic/duplicate-definition`
-5. `semantic/undefined-reference`
-6. `semantic/circular-template`
-7. `protocol/bgp-next-hop-form`
-8. `protocol/ospf-area-required`
-9. `protocol/bgp-missing-local-as`
-10. `protocol/bgp-missing-neighbor`
-11. `security/missing-authentication`
-12. `performance/large-filter-expression`
+**源码 base**: refer/BIRD-source-code/...
+
+规则命名对齐 BIRD 内部标识：`SYM_*` → `sym/`, `cf_error()` → `cfg/`, `T_*` → `type/`, `NET_*` → `net/`
+
+#### sym/\* - 符号表相关（7条）
+
+对应 BIRD `SYM_*` 符号类型
+
+| #   | 规则代码                  | BIRD 源码位置                                  | 说明                                                 |
+| --- | ------------------------- | ---------------------------------------------- | ---------------------------------------------------- |
+| 1   | `sym/undefined`           | `conf/confbase.Y:40-49`                        | 引用未定义符号（`cf_error("Unknown symbol '%s'")`）  |
+| 2   | `sym/duplicate`           | `conf/conf.c:573-580`                          | 符号重复定义（`cf_error("Symbol already defined")`） |
+| 3   | `sym/proto-type-mismatch` | `conf/confbase.Y:40`, `nest/proto.c:2346-2350` | 协议类型不匹配（`SYM_PROTO`）                        |
+| 4   | `sym/filter-required`     | `conf/confbase.Y:44`                           | 需要filter名称（`SYM_FILTER`）                       |
+| 5   | `sym/function-required`   | `conf/confbase.Y:42`                           | 需要function名称（`SYM_FUNCTION`）                   |
+| 6   | `sym/table-required`      | `conf/confbase.Y:45`                           | 需要table名称（`SYM_TABLE`）                         |
+| 7   | `sym/variable-scope`      | `conf/confbase.Y:48`, `filter/config.Y`        | 变量作用域错误（`SYM_VARIABLE`）                     |
+
+#### cfg/\* - 配置错误（9条）
+
+对应 BIRD `cf_error()` 配置验证错误
+
+| #   | 规则代码                    | BIRD 源码位置                    | 说明                                                             |
+| --- | --------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| 8   | `cfg/no-protocol`           | `conf/conf.c:149`                | 未配置任何协议（`cf_error("No protocol is specified")`）         |
+| 9   | `cfg/missing-router-id`     | `conf/conf.c:153`                | 缺少router id（`cf_error("Router ID must be configured")`）      |
+| 10  | `cfg/syntax-error`          | `conf/confbase.Y:34`, `cf-lex.l` | 语法错误（通用）                                                 |
+| 11  | `cfg/value-out-of-range`    | `conf/confbase.Y:34`             | 数值超出范围（`cf_error("Value %u out of range")`）              |
+| 12  | `cfg/switch-value-expected` | `conf/confbase.Y:260`            | 需要布尔值（`cf_error("Switch value expected")`）                |
+| 13  | `cfg/number-expected`       | `conf/confbase.Y:75`             | 需要数值（`cf_error("Number expected")`）                        |
+| 14  | `cfg/incompatible-type`     | `conf/confbase.Y:75`             | 类型不兼容（`cf_error("%s expected")`）                          |
+| 15  | `cfg/ip-network-mismatch`   | `conf/confbase.Y:396-414`        | IP网络类型不匹配（`cf_error("IPv4/IPv6 network expected")`）     |
+| 16  | `cfg/circular-template`     | `nest/proto.c:1193-1196`         | 模板循环继承（`cf_error("Can't copy from different protocol")`） |
+
+#### net/\* - 网络地址相关（4条）
+
+对应 BIRD `NET_*` 和网络验证
+
+| #   | 规则代码                    | BIRD 源码位置                              | 说明                                                           |
+| --- | --------------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| 17  | `net/invalid-prefix-length` | `conf/confbase.Y:288`, `306`, `319`, `322` | 前缀长度错误（`cf_error("Invalid prefix length %u")`）         |
+| 18  | `net/invalid-ipv4-prefix`   | `conf/confbase.Y:299`                      | IPv4前缀错误（`cf_error("Invalid IPv4 prefix %I4/%d")`）       |
+| 19  | `net/invalid-ipv6-prefix`   | `conf/confbase.Y:312`                      | IPv6前缀错误（`cf_error("Invalid IPv6 prefix %I6/%d")`）       |
+| 20  | `net/max-prefix-length`     | `conf/confbase.Y:352`, `360`               | 最大前缀长度错误（`cf_error("Invalid max prefix length %u")`） |
+
+#### type/\* - 类型系统（3条）
+
+对应 BIRD `T_*` 类型系统
+
+| #   | 规则代码                | BIRD 源码位置                                                           | 说明                                                       |
+| --- | ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 21  | `type/mismatch`         | `filter/f-inst.c`, `cf_error("Argument %u of '%s' must be %s, got %s")` | 类型不匹配                                                 |
+| 22  | `type/not-iterable`     | `filter/config.Y`                                                       | 不可迭代类型（`cf_error("Type %s is not iterable")`）      |
+| 23  | `type/set-incompatible` | `filter/config.Y`                                                       | 集合类型不兼容（`cf_error("Set-incompatible type (%s)")`） |
+
+#### bgp/\* - BGP协议（5条）
+
+对应 `proto/bgp/config.Y`
+
+| #   | 规则代码                | BIRD 源码位置                | 说明                                                      |
+| --- | ----------------------- | ---------------------------- | --------------------------------------------------------- |
+| 24  | `bgp/missing-local-as`  | `proto/bgp/config.Y:425-430` | 缺少local AS（`cf_error("Local AS number must be set")`） |
+| 25  | `bgp/missing-neighbor`  | `proto/bgp/config.Y:425-430` | 缺少neighbor（`cf_error("Neighbor must be configured")`） |
+| 26  | `bgp/missing-remote-as` | `proto/bgp/config.Y:425-430` | 缺少remote AS（`cf_error("Remote AS must be set")`）      |
+| 27  | `bgp/as-mismatch`       | `proto/bgp/config.Y:425-430` | AS不匹配（`cf_error("IBGP cannot have different ASNs")`） |
+| 28  | `bgp/timer-invalid`     | `proto/bgp/config.Y:600-650` | 定时器无效（`cf_error("Hold time must be in range")`）    |
+
+#### ospf/\* - OSPF协议（4条）
+
+对应 `proto/ospf/config.Y`
+
+| #   | 规则代码                 | BIRD 源码位置                 | 说明                                                             |
+| --- | ------------------------ | ----------------------------- | ---------------------------------------------------------------- |
+| 29  | `ospf/missing-area`      | `proto/ospf/config.Y:200-250` | 缺少area（`cf_error("No configured areas")`）                    |
+| 30  | `ospf/backbone-stub`     | `proto/ospf/config.Y:300-350` | backbone配置为stub（`cf_error("Backbone area cannot be stub")`） |
+| 31  | `ospf/vlink-in-backbone` | `proto/ospf/config.Y:400-450` | vlink在backbone（`cf_error("Vlink cannot be in backbone")`）     |
+| 32  | `ospf/asbr-stub-area`    | `proto/ospf/config.Y:350-400` | ASBR在stub area（`cf_error("ASBR must be in non-stub area")`）   |
 
 ---
 
@@ -354,8 +419,8 @@ birdcc lsp --stdio
 
 在 MVP 基础上增加 M4：
 
-| 阶段 | 周期    | 关键目标                                                   |
-| ---- | ------- | ---------------------------------------------------------- |
+| 阶段 | 周期    | 关键目标                                |
+| ---- | ------- | --------------------------------------- |
 | M4   | 8-10 周 | 协议规则完善 + dprint 稳定化 + 发布体系 |
 
 ### 13.3 与第 8 章集成映射对齐
