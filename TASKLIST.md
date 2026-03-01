@@ -450,3 +450,9 @@ birdcc lsp --stdio
 - [x] `parseBirdConfig` / `buildCoreSnapshot` / `lintBirdConfig` 已改为异步 Promise 接口。
 - [x] `@birdcc/cli` 与 `@birdcc/lsp` 已完成 async 调用链改造，LSP 诊断增加“最后写入 wins”防竞态。
 - [x] 全仓回归通过：`pnpm lint && pnpm test && pnpm build && pnpm typecheck && pnpm format`。
+
+本轮补充推进（M4 `birdc` 只读集成）：
+
+- [x] `birdcc lint` 新增 `--birdc` 与 `--birdc-command`，支持 `birdc -r` 只读查询链路。
+- [x] CLI 已接入 `show status` 与 `show protocols` 检查，并产出 `birdc/*` warning 诊断。
+- [x] `birdc` 不可用或连接失败时默认降级为 warning，lint 流程继续执行不阻塞。
