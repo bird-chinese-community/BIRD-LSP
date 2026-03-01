@@ -10,6 +10,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { BirdDiagnostic } from "@birdcc/core";
 import { lintBirdConfig } from "@birdcc/linter";
+import { createValidationScheduler } from "./validation.js";
 
 const toLspSeverity = (severity: BirdDiagnostic["severity"]): DiagnosticSeverity => {
   if (severity === "error") {
@@ -23,6 +24,7 @@ const toLspSeverity = (severity: BirdDiagnostic["severity"]): DiagnosticSeverity
   return DiagnosticSeverity.Information;
 };
 
+/** Maps Bird diagnostic schema into LSP Diagnostic schema. */
 export const toLspDiagnostic = (diagnostic: BirdDiagnostic): Diagnostic => ({
   code: diagnostic.code,
   message: diagnostic.message,
@@ -40,10 +42,23 @@ export const toLspDiagnostic = (diagnostic: BirdDiagnostic): Diagnostic => ({
   },
 });
 
+const VALIDATION_DEBOUNCE_MS = 120;
+
+const toInternalErrorDiagnostic = (error: unknown): Diagnostic => ({
+  code: "lsp/internal-error",
+  message: error instanceof Error ? error.message : String(error),
+  severity: DiagnosticSeverity.Error,
+  source: "lsp",
+  range: {
+    start: { line: 0, character: 0 },
+    end: { line: 0, character: 1 },
+  },
+});
+
+/** Starts the stdio LSP server with async lint validation and last-write-wins scheduling. */
 export const startLspServer = (): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
-  const validationTickets = new Map<string, number>();
 
   connection.onInitialize(
     (): InitializeResult => ({
@@ -53,57 +68,31 @@ export const startLspServer = (): void => {
     }),
   );
 
-  const validateDocument = async (textDocument: TextDocument): Promise<void> => {
-    const uri = textDocument.uri;
-    const ticket = (validationTickets.get(uri) ?? 0) + 1;
-    validationTickets.set(uri, ticket);
-
-    try {
-      const result = await lintBirdConfig(textDocument.getText());
-      if (validationTickets.get(uri) !== ticket) {
-        return;
+  const scheduler = createValidationScheduler<TextDocument, Diagnostic>({
+    debounceMs: VALIDATION_DEBOUNCE_MS,
+    validate: async (textDocument): Promise<Diagnostic[]> => {
+      try {
+        const result = await lintBirdConfig(textDocument.getText());
+        return result.diagnostics.map(toLspDiagnostic);
+      } catch (error) {
+        return [toInternalErrorDiagnostic(error)];
       }
-
-      connection.sendDiagnostics({
-        uri,
-        diagnostics: result.diagnostics.map(toLspDiagnostic),
-      });
-    } catch (error) {
-      if (validationTickets.get(uri) !== ticket) {
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-
-      connection.sendDiagnostics({
-        uri,
-        diagnostics: [
-          {
-            code: "lsp/internal-error",
-            message,
-            severity: DiagnosticSeverity.Error,
-            source: "lsp",
-            range: {
-              start: { line: 0, character: 0 },
-              end: { line: 0, character: 1 },
-            },
-          },
-        ],
-      });
-    }
-  };
+    },
+    publish: (uri, diagnostics) => {
+      connection.sendDiagnostics({ uri, diagnostics });
+    },
+  });
 
   documents.onDidOpen((event) => {
-    void validateDocument(event.document);
+    scheduler.schedule(event.document);
   });
 
   documents.onDidChangeContent((event) => {
-    void validateDocument(event.document);
+    scheduler.schedule(event.document);
   });
 
   documents.onDidClose((event) => {
-    validationTickets.delete(event.document.uri);
-    connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
+    scheduler.close(event.document.uri);
   });
 
   documents.listen(connection);
