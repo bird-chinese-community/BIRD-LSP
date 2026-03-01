@@ -146,7 +146,7 @@ export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSna
   };
 };
 
-export const buildCoreSnapshot = (text: string): CoreSnapshot => {
-  const parsed = parseBirdConfig(text);
+export const buildCoreSnapshot = async (text: string): Promise<CoreSnapshot> => {
+  const parsed = await parseBirdConfig(text);
   return buildCoreSnapshotFromParsed(parsed);
 };
