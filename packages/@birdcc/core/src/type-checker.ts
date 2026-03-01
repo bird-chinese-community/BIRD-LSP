@@ -228,7 +228,7 @@ const inferSetLiteralElementType = (
   }
 
   const items = splitTopLevelList(inner);
-  if (items.length === 0 || items.length > SET_LITERAL_MAX_ITEMS) {
+  if (items.length > SET_LITERAL_MAX_ITEMS) {
     return "unknown";
   }
 
@@ -357,8 +357,7 @@ const inferValueType = (
       return leftType === rightSetElementType ? "bool" : "unknown";
     }
 
-    const rightType = inferValueType(matchExpression.right, variableTypes, depth + 1);
-    return leftType === "string" && rightType === "string" ? "bool" : "unknown";
+    return "unknown";
   }
 
   const additiveExpression = splitTopLevelBinary(value, ["+", "-"]);
