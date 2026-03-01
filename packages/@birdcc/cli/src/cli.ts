@@ -7,8 +7,6 @@ interface LintOptions {
   format?: "json" | "text";
   bird?: boolean;
   validateCommand?: string;
-  birdc?: boolean;
-  birdcCommand?: string;
 }
 
 interface FmtOptions {
@@ -56,16 +54,12 @@ cli
   })
   .option("--bird", "Run bird -p validation")
   .option("--validate-command <command>", "Validation command template")
-  .option("--birdc", "Run birdc read-only runtime checks")
-  .option("--birdc-command <command>", "birdc command template")
   .action(
     withActionErrorHandling(async (file: string, options: LintOptions) => {
       const format = options.format === "json" ? "json" : "text";
       const result = await runLint(file, {
         withBird: Boolean(options.bird),
         validateCommand: options.validateCommand,
-        withBirdc: Boolean(options.birdc),
-        birdcCommand: options.birdcCommand,
       });
 
       if (format === "json") {
