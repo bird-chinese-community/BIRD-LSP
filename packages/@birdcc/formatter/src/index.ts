@@ -114,8 +114,9 @@ const normalizeDeclaration = (declaration: BirdDeclaration): unknown => {
   return stripRangeKeys(declaration);
 };
 
-const createSemanticFingerprint = async (text: string): Promise<string> => {
-  const parsed = await parseBirdConfig(text);
+const createSemanticFingerprintFromParsed = (
+  parsed: Awaited<ReturnType<typeof parseBirdConfig>>,
+): string => {
   const hasRuntimeIssue = parsed.issues.some((issue) => issue.code === "parser/runtime-error");
 
   if (hasRuntimeIssue) {
@@ -133,13 +134,22 @@ const createSemanticFingerprint = async (text: string): Promise<string> => {
   });
 };
 
-const assertSafeModeSemanticEquivalence = async (before: string, after: string): Promise<void> => {
-  const [beforeFingerprint, afterFingerprint] = await Promise.all([
-    createSemanticFingerprint(before),
+const createSemanticFingerprint = async (text: string): Promise<string> => {
+  const parsed = await parseBirdConfig(text);
+  return createSemanticFingerprintFromParsed(parsed);
+};
+
+const assertSafeModeSemanticEquivalence = async (
+  before: string,
+  after: string,
+  beforeFingerprint?: string,
+): Promise<void> => {
+  const [resolvedBeforeFingerprint, afterFingerprint] = await Promise.all([
+    beforeFingerprint ? Promise.resolve(beforeFingerprint) : createSemanticFingerprint(before),
     createSemanticFingerprint(after),
   ]);
 
-  if (beforeFingerprint !== afterFingerprint) {
+  if (resolvedBeforeFingerprint !== afterFingerprint) {
     throw new Error("Formatter safe mode rejected output because semantic fingerprint changed");
   }
 };
@@ -233,8 +243,9 @@ const collectProtocolProtectedLines = (
     }));
 };
 
-const collectParserProtectedLines = async (text: string): Promise<Set<number>> => {
-  const parsed = await parseBirdConfig(text);
+const collectParserProtectedLinesFromParsed = (
+  parsed: Awaited<ReturnType<typeof parseBirdConfig>>,
+): Set<number> => {
   const protectedLines = new Set<number>();
 
   for (const issue of parsed.issues) {
@@ -267,8 +278,8 @@ const collectParserProtectedLines = async (text: string): Promise<Set<number>> =
 const normalizeTextWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
+  parserProtectedLines: Set<number>,
 ): Promise<BuiltinFormatOutput> => {
-  const parserProtectedLines = await collectParserProtectedLines(text);
   const stats: BuiltinFormatStats = {
     linesTotal: 0,
     linesTouched: 0,
@@ -401,9 +412,21 @@ const formatWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
 ): Promise<BirdFormatResult> => {
-  const builtinOutput = await normalizeTextWithBuiltin(text, options);
+  let beforeFingerprint: string | undefined;
+  let parserProtectedLines: Set<number>;
+
+  if (options.safeMode) {
+    const beforeParsed = await parseBirdConfig(text);
+    beforeFingerprint = createSemanticFingerprintFromParsed(beforeParsed);
+    parserProtectedLines = collectParserProtectedLinesFromParsed(beforeParsed);
+  } else {
+    const parsed = await parseBirdConfig(text);
+    parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
+  }
+
+  const builtinOutput = await normalizeTextWithBuiltin(text, options, parserProtectedLines);
   if (options.safeMode && builtinOutput.text !== text) {
-    await assertSafeModeSemanticEquivalence(text, builtinOutput.text);
+    await assertSafeModeSemanticEquivalence(text, builtinOutput.text, beforeFingerprint);
   }
 
   return {
@@ -446,7 +469,11 @@ export const checkBirdConfigFormat = async (
 export const __formatBirdConfigBuiltinForTest = async (
   text: string,
   options: FormatBirdConfigOptions = {},
-): Promise<BuiltinFormatOutput> => normalizeTextWithBuiltin(text, resolveOptions(options));
+): Promise<BuiltinFormatOutput> => {
+  const parsed = await parseBirdConfig(text);
+  const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
+  return normalizeTextWithBuiltin(text, resolveOptions(options), parserProtectedLines);
+};
 
 /** Internal-only helper for deterministic unit tests. */
 export const __resetFormatterStateForTest = (): void => {
