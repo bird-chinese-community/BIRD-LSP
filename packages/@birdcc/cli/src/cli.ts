@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { cac } from "cac";
+import { loadBirdccConfigForFile } from "./config.js";
 import { runFmt, runLint, runLspStdio } from "./index.js";
 import { CLI_MESSAGES, createInvalidPositiveIntegerOptionMessage } from "./messages.js";
 
@@ -80,6 +81,7 @@ cli
   .option("--validate-command <command>", "Validation command template")
   .action(
     withActionErrorHandling(async (file: string, options: LintOptions) => {
+      const loadedConfig = await loadBirdccConfigForFile(file);
       const format = options.format === "json" ? "json" : "text";
       const includeMaxDepth = parseOptionalPositiveInteger(
         "--include-max-depth",
@@ -94,7 +96,8 @@ cli
         crossFile: options.crossFile !== false,
         includeMaxDepth,
         includeMaxFiles,
-        validateCommand: options.validateCommand,
+        validateCommand: options.validateCommand ?? loadedConfig.config.bird?.validateCommand,
+        severityOverrides: loadedConfig.config.linter?.rules,
       });
 
       if (format === "json") {
@@ -126,13 +129,15 @@ cli
   .option("--engine <engine>", "Formatter engine: dprint | builtin")
   .action(
     withActionErrorHandling(async (file: string, options: FmtOptions) => {
+      const loadedConfig = await loadBirdccConfigForFile(file);
       if (options.check && options.write) {
         console.error(CLI_MESSAGES.fmtCheckWriteConflict);
         process.exitCode = 1;
         return;
       }
 
-      const engine = options.engine?.toLowerCase();
+      const configuredEngine = loadedConfig.config.formatter?.engine;
+      const engine = options.engine?.toLowerCase() ?? configuredEngine;
       if (engine && !FMT_ENGINE_SET.has(engine)) {
         console.error(CLI_MESSAGES.fmtInvalidEngine(engine));
         process.exitCode = 1;
@@ -143,6 +148,9 @@ cli
       const result = await runFmt(file, {
         write: writeMode,
         engine: engine as "dprint" | "builtin" | undefined,
+        indentSize: loadedConfig.config.formatter?.indentSize,
+        lineWidth: loadedConfig.config.formatter?.lineWidth,
+        safeMode: loadedConfig.config.formatter?.safeMode,
       });
 
       if (writeMode) {
