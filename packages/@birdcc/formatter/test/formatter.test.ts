@@ -99,6 +99,23 @@ describe("@birdcc/formatter", () => {
     expect(result.text).toContain("  accept;");
   });
 
+  it("keeps correct indentation level after standalone closing braces", () => {
+    const input = [
+      "protocol bgp edge {",
+      "ipv4 {",
+      "import all;",
+      "}",
+      "router id 192.0.2.1;",
+      "}",
+      "",
+    ].join("\n");
+
+    const result = formatBirdConfig(input, { engine: "builtin" });
+    const lines = result.text.split("\n");
+    expect(lines[4]).toBe("  router id 192.0.2.1;");
+    expect(lines[5]).toBe("}");
+  });
+
   it("exposes builtin formatting stats for regression assertions", () => {
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge{}\n";
     const output = __formatBirdConfigBuiltinForTest(input);

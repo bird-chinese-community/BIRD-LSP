@@ -43,6 +43,11 @@ const countToken = (text: string, token: string): number => {
   return count;
 };
 
+const countLeadingCloseBraces = (text: string): number => {
+  const matched = text.match(/^}+/);
+  return matched?.[0]?.length ?? 0;
+};
+
 const isCommentLine = (line: string): boolean => line.trimStart().startsWith("#");
 
 const isHighRiskExpressionLine = (line: string): boolean => {
@@ -114,12 +119,10 @@ const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
 
     blankStreak = 0;
 
-    const leadingCloseCount = countToken(line, "}");
-    const leadingOpenCount = countToken(line, "{");
-    if (line.startsWith("}")) {
-      const drop = Math.min(indentLevel, Math.max(1, leadingCloseCount));
-      indentLevel = Math.max(0, indentLevel - drop);
-    }
+    const openCount = countToken(line, "{");
+    const closeCount = countToken(line, "}");
+    const leadingCloseCount = Math.min(indentLevel, countLeadingCloseBraces(line));
+    indentLevel = Math.max(0, indentLevel - leadingCloseCount);
 
     const highRiskLine = isHighRiskExpressionLine(line);
     if (highRiskLine) {
@@ -138,9 +141,8 @@ const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
 
     formattedLines.push(formattedLine);
 
-    const openCount = leadingOpenCount;
-    const closeCount = leadingCloseCount;
-    const delta = openCount - closeCount;
+    const postCloseCount = Math.max(0, closeCount - leadingCloseCount);
+    const delta = openCount - postCloseCount;
     indentLevel = Math.max(0, indentLevel + delta);
   }
 
