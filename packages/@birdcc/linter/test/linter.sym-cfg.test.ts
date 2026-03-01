@@ -1,0 +1,179 @@
+import { describe, expect, it } from "vitest";
+import { lintBirdConfig } from "../src/index.js";
+
+const codesOf = async (text: string): Promise<string[]> => {
+  const result = await lintBirdConfig(text);
+  return result.diagnostics.map((item) => item.code);
+};
+
+describe("@birdcc/linter sym+cfg rules", () => {
+  it("hits sym/duplicate", async () => {
+    const codes = await codesOf(`
+      filter dup_policy { accept; }
+      filter dup_policy { reject; }
+    `);
+
+    expect(codes).toContain("sym/duplicate");
+  });
+
+  it("hits sym/undefined", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge from missing_tpl {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).toContain("sym/undefined");
+  });
+
+  it("hits sym/proto-type-mismatch", async () => {
+    const codes = await codesOf(`
+      template ospf base_tpl { }
+      protocol bgp edge from base_tpl {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).toContain("sym/proto-type-mismatch");
+  });
+
+  it("hits sym/filter-required", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        import filter missing_policy;
+      }
+    `);
+
+    expect(codes).toContain("sym/filter-required");
+  });
+
+  it("hits sym/function-required", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        missing_fn(1);
+        accept;
+      }
+    `);
+
+    expect(codes).toContain("sym/function-required");
+  });
+
+  it("hits sym/table-required", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          table missing_table;
+        };
+      }
+    `);
+
+    expect(codes).toContain("sym/table-required");
+  });
+
+  it("hits sym/variable-scope", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        x = 1;
+        accept;
+      }
+    `);
+
+    expect(codes).toContain("sym/variable-scope");
+  });
+
+  it("hits cfg/no-protocol and cfg/missing-router-id", async () => {
+    const codes = await codesOf(`
+      filter only_filter {
+        accept;
+      }
+    `);
+
+    expect(codes).toContain("cfg/no-protocol");
+    expect(codes).toContain("cfg/missing-router-id");
+  });
+
+  it("hits cfg/syntax-error", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001
+    `);
+
+    expect(codes).toContain("cfg/syntax-error");
+  });
+
+  it("hits cfg/value-out-of-range", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 5000000000;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).toContain("cfg/value-out-of-range");
+  });
+
+  it("hits cfg/switch-value-expected", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          import keep filtered maybe;
+        };
+      }
+    `);
+
+    expect(codes).toContain("cfg/switch-value-expected");
+  });
+
+  it("hits cfg/number-expected", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as abc;
+        neighbor 192.0.2.1 as hello;
+      }
+    `);
+
+    expect(codes).toContain("cfg/number-expected");
+  });
+
+  it("hits cfg/incompatible-type", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor neighbor-host as 65002;
+      }
+    `);
+
+    expect(codes).toContain("cfg/incompatible-type");
+  });
+
+  it("hits cfg/ip-network-mismatch", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          next hop 2001:db8::1;
+        };
+      }
+    `);
+
+    expect(codes).toContain("cfg/ip-network-mismatch");
+  });
+
+  it("hits cfg/circular-template", async () => {
+    const codes = await codesOf(`
+      template bgp a from b { }
+      template bgp b from a { }
+    `);
+
+    expect(codes).toContain("cfg/circular-template");
+  });
+});
