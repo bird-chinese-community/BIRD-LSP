@@ -15,10 +15,11 @@ interface PrefixParts {
   raw: string;
 }
 
-const prefixPattern = /([0-9A-Za-z:.]+\/[^\s,;{}[\]]+)/g;
+const PREFIX_PATTERN_SOURCE = "([0-9A-Za-z:.]+\\/[^\\s,;{}[\\]]+)";
 
 const extractPrefixes = (text: string): PrefixParts[] => {
   const prefixes: PrefixParts[] = [];
+  const prefixPattern = new RegExp(PREFIX_PATTERN_SOURCE, "g");
   let matched = prefixPattern.exec(text);
 
   while (matched) {
