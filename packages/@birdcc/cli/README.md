@@ -99,8 +99,8 @@ birdcc fmt bird.conf --check
 # 格式化并写入文件
 birdcc fmt bird.conf --write
 
-# 从 stdin 读取，输出到 stdout
-cat bird.conf | birdcc fmt --stdin
+# 指定格式化引擎（dprint | builtin）
+birdcc fmt bird.conf --check --engine dprint
 ```
 
 **选项说明：**
@@ -109,7 +109,7 @@ cat bird.conf | birdcc fmt --stdin
 | --------- | ---- | -------------------- |
 | `--check` | `-c` | 检查格式，不写入文件 |
 | `--write` | `-w` | 格式化并写入文件     |
-| `--stdin` | `-s` | 从标准输入读取       |
+| `--engine` | - | 格式化引擎：`dprint`（默认）或 `builtin` |
 | `--help`  | `-h` | 显示帮助信息         |
 
 ---
