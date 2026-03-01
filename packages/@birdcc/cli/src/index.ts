@@ -109,11 +109,23 @@ export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
   return diagnostics;
 };
 
-const shellEscape = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+const COMMAND_TIMEOUT_MS = 10_000;
 const BIRDC_DEFAULT_COMMAND = "birdc -r";
 const BIRDC_COMMON_ERROR_PATTERN =
-  /(unable to connect|connection refused|no such file|not found|failed|error)/i;
-const BIRDC_NON_UP_STATES = new Set(["start", "down", "stop", "flush", "feed"]);
+  /(unable to connect|connection refused|cannot connect|cannot open|no such file|not found|failed|error|timeout|timed out|broken pipe)/i;
+const BIRDC_NON_UP_STATES = new Set([
+  "start",
+  "down",
+  "stop",
+  "flush",
+  "feed",
+  "idle",
+  "active",
+  "connect",
+  "opensent",
+  "openconfirm",
+  "passive",
+]);
 
 const sanitizeBirdcLine = (lineText: string): string =>
   lineText.replace(/^\d{4}(?:[-\s]|$)/, "").trim();
@@ -127,10 +139,35 @@ const firstMeaningfulLine = (...parts: (string | undefined)[]): string | null =>
   return lines[0] ?? null;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+interface ProtocolDeclarationShape {
+  kind: "protocol";
+  name: string;
+  protocolType: string;
+  nameRange: Record<string, unknown>;
+}
+
+const isProtocolDeclaration = (declaration: unknown): declaration is ProtocolDeclarationShape => {
+  if (!isRecord(declaration)) {
+    return false;
+  }
+
+  return (
+    declaration.kind === "protocol" &&
+    typeof declaration.name === "string" &&
+    typeof declaration.protocolType === "string" &&
+    isRecord(declaration.nameRange)
+  );
+};
+
 const protocolDeclarationsFromParsed = (parsed: unknown) => {
-  const declarations = (parsed as { program?: { declarations?: unknown[] } })?.program
-    ?.declarations;
-  if (!Array.isArray(declarations)) {
+  if (
+    !isRecord(parsed) ||
+    !isRecord(parsed.program) ||
+    !Array.isArray(parsed.program.declarations)
+  ) {
     return [] as Array<{
       name: string;
       protocolType: string;
@@ -138,42 +175,139 @@ const protocolDeclarationsFromParsed = (parsed: unknown) => {
     }>;
   }
 
-  return declarations
-    .filter((declaration): declaration is Record<string, unknown> => Boolean(declaration))
-    .filter(
-      (declaration) =>
-        declaration.kind === "protocol" &&
-        typeof declaration.name === "string" &&
-        typeof declaration.protocolType === "string" &&
-        typeof declaration.nameRange === "object" &&
-        declaration.nameRange !== null,
-    )
-    .map((declaration) => {
-      const range = declaration.nameRange as Record<string, unknown>;
-      return {
-        name: declaration.name as string,
-        protocolType: declaration.protocolType as string,
-        nameRange: {
-          line: toNumber(String(range.line ?? "1"), 1),
-          column: toNumber(String(range.column ?? "1"), 1),
-          endLine: toNumber(String(range.endLine ?? range.line ?? "1"), 1),
-          endColumn: toNumber(String(range.endColumn ?? range.column ?? "1"), 1),
-        },
-      };
-    });
+  return parsed.program.declarations.filter(isProtocolDeclaration).map((declaration) => {
+    const range = declaration.nameRange;
+    return {
+      name: declaration.name,
+      protocolType: declaration.protocolType,
+      nameRange: {
+        line: toNumber(String(range.line ?? "1"), 1),
+        column: toNumber(String(range.column ?? "1"), 1),
+        endLine: toNumber(String(range.endLine ?? range.line ?? "1"), 1),
+        endColumn: toNumber(String(range.endColumn ?? range.column ?? "1"), 1),
+      },
+    };
+  });
+};
+
+const parseCommandTokens = (command: string): string[] | null => {
+  const tokens: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | null = null;
+  let escaping = false;
+
+  for (const char of command) {
+    if (escaping) {
+      current += char;
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      if (quote === "'") {
+        current += char;
+        continue;
+      }
+      escaping = true;
+      continue;
+    }
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+        continue;
+      }
+      current += char;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      if (current.length > 0) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (escaping || quote) {
+    return null;
+  }
+
+  if (current.length > 0) {
+    tokens.push(current);
+  }
+
+  return tokens;
+};
+
+const formatSpawnError = (error: NodeJS.ErrnoException): string => {
+  if (error.code === "ETIMEDOUT") {
+    return `process timed out after ${COMMAND_TIMEOUT_MS}ms`;
+  }
+
+  return error.message;
+};
+
+interface CommandExecResult {
+  command: string;
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+  errorReason?: string;
+}
+
+const runCommand = (commandTokens: string[], input?: string): CommandExecResult => {
+  if (commandTokens.length === 0) {
+    return {
+      command: "",
+      exitCode: 1,
+      stdout: "",
+      stderr: "",
+      errorReason: "empty command",
+    };
+  }
+
+  const [executable, ...args] = commandTokens;
+  const result = spawnSync(executable, args, {
+    encoding: "utf8",
+    input,
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: "SIGTERM",
+  });
+
+  if (result.error) {
+    return {
+      command: commandTokens.join(" "),
+      exitCode: 1,
+      stdout: "",
+      stderr: "",
+      errorReason: formatSpawnError(result.error as NodeJS.ErrnoException),
+    };
+  }
+
+  return {
+    command: commandTokens.join(" "),
+    exitCode: result.status ?? 1,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
 };
 
 export const runBirdcReadOnlyQuery = (
   query: string,
   command = BIRDC_DEFAULT_COMMAND,
 ): BirdcQueryResult => {
-  const result = spawnSync("sh", ["-c", command], {
-    encoding: "utf8",
-    input: `${query}\nquit\n`,
-  });
-
-  if (result.error) {
-    const message = createBirdcRunnerWarningMessage(result.error.message);
+  const commandTokens = parseCommandTokens(command);
+  if (!commandTokens || commandTokens.length === 0) {
+    const message = createBirdcRunnerWarningMessage("invalid birdc command template");
     return {
       command,
       query,
@@ -184,9 +318,20 @@ export const runBirdcReadOnlyQuery = (
     };
   }
 
-  const stdout = result.stdout ?? "";
-  const stderr = result.stderr ?? "";
-  const exitCode = result.status ?? 1;
+  const execResult = runCommand(commandTokens, `${query}\nquit\n`);
+  if (execResult.errorReason) {
+    const message = createBirdcRunnerWarningMessage(execResult.errorReason);
+    return {
+      command: execResult.command,
+      query,
+      exitCode: execResult.exitCode,
+      stdout: execResult.stdout,
+      stderr: message,
+      diagnostics: [createWarningDiagnostic("birdc/runner-warning", message)],
+    };
+  }
+
+  const { stdout, stderr, exitCode } = execResult;
 
   if (exitCode !== 0 || BIRDC_COMMON_ERROR_PATTERN.test(stderr)) {
     const hint = firstMeaningfulLine(stderr, stdout) ?? `exit code ${exitCode}`;
@@ -235,10 +380,11 @@ export const parseBirdcStatusOutput = (
 
 export const parseBirdcProtocolsOutput = (stdout: string): BirdcProtocolRuntimeState[] => {
   const protocols: BirdcProtocolRuntimeState[] = [];
+  const protocolRowPattern = /^(?<name>\S+)\s+(?<protocol>\S+)\s+\S+\s+(?<state>\S+)/;
   const lines = stdout
     .split(/\r?\n/)
     .map(sanitizeBirdcLine)
-    .map((line) => line.replace(/\s+/g, " ").trim())
+    .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
   for (const lineText of lines) {
@@ -251,15 +397,17 @@ export const parseBirdcProtocolsOutput = (stdout: string): BirdcProtocolRuntimeS
       continue;
     }
 
-    const columns = lineText.split(" ");
-    if (columns.length < 4) {
+    if (/^name\s+proto\s+table\s+state\b/i.test(lineText)) {
       continue;
     }
 
-    const [name, protocol, , state] = columns;
-    if (!name || !protocol || !state) {
+    const matched = lineText.match(protocolRowPattern);
+    if (!matched?.groups) {
       continue;
     }
+    const name = matched.groups.name;
+    const protocol = matched.groups.protocol;
+    const state = matched.groups.state;
 
     if (!/^[a-z][a-z0-9_-]*$/i.test(state)) {
       continue;
@@ -320,16 +468,11 @@ export const runBirdValidation = (
   filePath: string,
   validateCommand = "bird -p -c {file}",
 ): BirdValidateResult => {
-  const command = validateCommand.replaceAll("{file}", shellEscape(filePath));
-
-  const result = spawnSync("sh", ["-c", command], {
-    encoding: "utf8",
-  });
-
-  if (result.error) {
-    const message = createBirdRunnerErrorMessage(result.error.message);
+  const commandTokens = parseCommandTokens(validateCommand);
+  if (!commandTokens || commandTokens.length === 0) {
+    const message = createBirdRunnerErrorMessage("invalid bird command template");
     return {
-      command,
+      command: validateCommand,
       exitCode: 1,
       stdout: "",
       stderr: message,
@@ -345,12 +488,34 @@ export const runBirdValidation = (
     };
   }
 
-  const stderr = result.stderr ?? "";
+  const replacedCommandTokens = commandTokens.map((token) => token.replaceAll("{file}", filePath));
+  const execResult = runCommand(replacedCommandTokens);
+
+  if (execResult.errorReason) {
+    const message = createBirdRunnerErrorMessage(execResult.errorReason);
+    return {
+      command: execResult.command,
+      exitCode: 1,
+      stdout: "",
+      stderr: message,
+      diagnostics: [
+        {
+          code: "bird/runner-error",
+          message,
+          severity: "error",
+          source: "bird",
+          range: createRange(1, 1),
+        },
+      ],
+    };
+  }
+
+  const stderr = execResult.stderr;
 
   return {
-    command,
-    exitCode: result.status ?? 1,
-    stdout: result.stdout ?? "",
+    command: execResult.command,
+    exitCode: execResult.exitCode,
+    stdout: execResult.stdout,
     stderr,
     diagnostics: parseBirdStderr(stderr),
   };

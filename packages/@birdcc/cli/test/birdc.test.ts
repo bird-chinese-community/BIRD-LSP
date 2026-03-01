@@ -17,7 +17,7 @@ vi.mock("@birdcc/linter", () => ({
   lintBirdConfig: lintBirdConfigMock,
 }));
 
-import { parseBirdcProtocolsOutput, runLint } from "../src/index.js";
+import { parseBirdcProtocolsOutput, runBirdValidation, runLint } from "../src/index.js";
 
 const createLintResult = () => ({
   parsed: {
@@ -72,6 +72,43 @@ describe("@birdcc/cli birdc runtime checks", () => {
     expect(result.diagnostics.some((item) => item.code === "birdc/runner-warning")).toBe(true);
   });
 
+  it("passes custom birdc command and timeout options to spawnSync", async () => {
+    spawnSyncMock
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: "BIRD 2.0.0 ready.",
+        stderr: "",
+        error: undefined,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: `
+          Name       Proto      Table      State  Since       Info
+          edge_peer  BGP        master4    up     2026-03-01
+          core_ospf  OSPF       ---        up     2026-03-01
+        `,
+        stderr: "",
+        error: undefined,
+      });
+
+    await runLint("/tmp/bird.conf", {
+      withBirdc: true,
+      birdcCommand: "birdc -r -s /run/bird/bird.ctl",
+    });
+
+    expect(spawnSyncMock).toHaveBeenNthCalledWith(
+      1,
+      "birdc",
+      ["-r", "-s", "/run/bird/bird.ctl"],
+      expect.objectContaining({
+        encoding: "utf8",
+        input: "show status\nquit\n",
+        timeout: 10000,
+        killSignal: "SIGTERM",
+      }),
+    );
+  });
+
   it("reports status warning when status output is abnormal", async () => {
     spawnSyncMock.mockReturnValue({
       status: 0,
@@ -112,6 +149,58 @@ describe("@birdcc/cli birdc runtime checks", () => {
     expect(codes).toContain("birdc/protocol-not-found");
   });
 
+  it("matches protocol names case-insensitively", async () => {
+    spawnSyncMock
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: "BIRD 2.0.0 ready.",
+        stderr: "",
+        error: undefined,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: `
+          Name       Proto      Table      State  Since       Info
+          Edge_Peer  BGP        master4    down   2026-03-01  Connect
+          CORE_OSPF  OSPF       ---        up     2026-03-01
+        `,
+        stderr: "",
+        error: undefined,
+      });
+
+    const result = await runLint("/tmp/bird.conf", { withBirdc: true });
+    const codes = result.diagnostics.map((item) => item.code);
+
+    expect(codes).toContain("birdc/protocol-not-up");
+    expect(codes).not.toContain("birdc/protocol-not-found");
+  });
+
+  it("does not emit protocol warnings when all runtime protocols are up", async () => {
+    spawnSyncMock
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: "BIRD 2.0.0 ready.",
+        stderr: "",
+        error: undefined,
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: `
+          Name       Proto      Table      State  Since       Info
+          edge_peer  BGP        master4    up     2026-03-01
+          core_ospf  OSPF       ---        up     2026-03-01
+        `,
+        stderr: "",
+        error: undefined,
+      });
+
+    const result = await runLint("/tmp/bird.conf", { withBirdc: true });
+    const birdcProtocolDiagnostics = result.diagnostics.filter((item) =>
+      item.code.startsWith("birdc/protocol-"),
+    );
+    expect(birdcProtocolDiagnostics).toHaveLength(0);
+  });
+
   it("supports combining bird -p and birdc checks", async () => {
     spawnSyncMock
       .mockReturnValueOnce({
@@ -144,17 +233,60 @@ describe("@birdcc/cli birdc runtime checks", () => {
     expect(codes).toContain("birdc/protocol-not-up");
   });
 
+  it("treats stderr errors as runner warnings even with exit code 0", async () => {
+    spawnSyncMock.mockReturnValue({
+      status: 0,
+      stdout: "",
+      stderr: "Unable to connect to server control socket",
+      error: undefined,
+    });
+
+    const result = await runLint("/tmp/bird.conf", { withBirdc: true });
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "birdc/runner-warning",
+        severity: "warning",
+      }),
+    );
+    expect(spawnSyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("parses validate command without shell and keeps file placeholder as single arg", () => {
+    spawnSyncMock.mockReturnValue({
+      status: 0,
+      stdout: "",
+      stderr: "",
+      error: undefined,
+    });
+
+    runBirdValidation("/tmp/dir with space/bird.conf", 'bird -p -c "{file}"');
+
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      "bird",
+      ["-p", "-c", "/tmp/dir with space/bird.conf"],
+      expect.objectContaining({
+        encoding: "utf8",
+        timeout: 10000,
+        killSignal: "SIGTERM",
+      }),
+    );
+  });
+
   it("parses birdc show protocols table rows", () => {
     const runtime = parseBirdcProtocolsOutput(`
       BIRD 2.0.0 ready.
       Name       Proto      Table      State  Since       Info
       edge_peer  BGP        master4    down   2026-03-01  Connect
       core_ospf  OSPF       ---        up     2026-03-01
+      malformed
+      edge_peer\tBGP\tmaster4\tstart
     `);
 
     expect(runtime).toEqual([
       { name: "edge_peer", protocol: "BGP", state: "down" },
       { name: "core_ospf", protocol: "OSPF", state: "up" },
+      { name: "edge_peer", protocol: "BGP", state: "start" },
     ]);
   });
 });
