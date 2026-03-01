@@ -1,90 +1,105 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const spawnSyncMock = vi.hoisted(() => vi.fn());
+const createContextMock = vi.hoisted(() => vi.fn());
+const getBufferMock = vi.hoisted(() => vi.fn());
 
-vi.mock("node:child_process", () => ({
-  spawnSync: spawnSyncMock,
+const addPluginMock = vi.hoisted(() => vi.fn());
+const formatTextMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@dprint/formatter", () => ({
+  createContext: createContextMock,
+}));
+
+vi.mock("@birdcc/dprint-plugin-bird", () => ({
+  getBuffer: getBufferMock,
 }));
 
 import {
   __formatBirdConfigBuiltinForTest,
+  __resetFormatterStateForTest,
   checkBirdConfigFormat,
   formatBirdConfig,
 } from "../src/index.js";
 
 describe("@birdcc/formatter", () => {
   beforeEach(() => {
-    spawnSyncMock.mockReset();
+    addPluginMock.mockReset();
+    formatTextMock.mockReset();
+    createContextMock.mockReset();
+    getBufferMock.mockReset();
+
+    getBufferMock.mockReturnValue(new Uint8Array([0, 97, 115, 109]));
+    formatTextMock.mockImplementation(({ fileText }: { fileText: string }) => fileText);
+    createContextMock.mockReturnValue({
+      addPlugin: addPluginMock,
+      formatText: formatTextMock,
+    });
+    __resetFormatterStateForTest();
   });
 
-  it("formats text with builtin fallback", () => {
+  it("formats text with builtin fallback", async () => {
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge {}\t\n";
-    const result = formatBirdConfig(input, { engine: "builtin" });
+    const result = await formatBirdConfig(input, { engine: "builtin" });
 
     expect(result.changed).toBe(true);
     expect(result.engine).toBe("builtin");
     expect(result.text).toBe("router id 192.0.2.1;\n\nprotocol bgp edge {}\n");
   });
 
-  it("uses dprint when available and sets timeout options", () => {
-    spawnSyncMock.mockReturnValue({
-      error: undefined,
-      status: 0,
-      stdout: "protocol bgp edge {}\n",
-      stderr: "",
-    });
+  it("uses embedded dprint context when available", async () => {
+    formatTextMock.mockReturnValueOnce("protocol bgp edge {}\n");
 
-    const result = formatBirdConfig("protocol bgp edge {}\n");
+    const result = await formatBirdConfig("protocol bgp edge{}\n");
 
     expect(result.engine).toBe("dprint");
-    expect(spawnSyncMock).toHaveBeenCalledWith(
-      "dprint",
-      ["fmt", "--stdin", "bird.conf"],
+    expect(createContextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024,
+        indentWidth: 2,
+        lineWidth: 80,
+      }),
+    );
+    expect(addPluginMock).toHaveBeenCalledWith(
+      expect.any(Uint8Array),
+      expect.objectContaining({
+        indentWidth: 2,
+        lineWidth: 80,
+        safeMode: true,
       }),
     );
   });
 
-  it("falls back to builtin when dprint fails in default mode", () => {
-    spawnSyncMock.mockReturnValueOnce({
-      error: new Error("dprint not found"),
-      status: 1,
-      stdout: "",
-      stderr: "",
+  it("falls back to builtin when dprint fails in default mode", async () => {
+    createContextMock.mockImplementationOnce(() => {
+      throw new Error("plugin load failed");
     });
 
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge {}\t\n";
-    const result = formatBirdConfig(input);
+    const result = await formatBirdConfig(input);
 
     expect(result.engine).toBe("builtin");
     expect(result.text).toBe("router id 192.0.2.1;\n\nprotocol bgp edge {}\n");
   });
 
-  it("throws when explicit dprint engine fails", () => {
-    spawnSyncMock.mockReturnValue({
-      error: new Error("dprint not found"),
-      status: 1,
-      stdout: "",
-      stderr: "",
+  it("throws when explicit dprint engine fails", async () => {
+    createContextMock.mockImplementationOnce(() => {
+      throw new Error("plugin load failed");
     });
 
-    expect(() => formatBirdConfig("protocol bgp edge {}\n", { engine: "dprint" })).toThrow(
+    await expect(formatBirdConfig("protocol bgp edge {}\n", { engine: "dprint" })).rejects.toThrow(
       "Formatting with 'dprint' failed",
     );
   });
 
-  it("is idempotent after formatting", () => {
+  it("is idempotent after formatting", async () => {
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge {}\t\n";
-    const first = formatBirdConfig(input, { engine: "builtin" });
-    const second = formatBirdConfig(first.text, { engine: "builtin" });
+    const first = await formatBirdConfig(input, { engine: "builtin" });
+    const second = await formatBirdConfig(first.text, { engine: "builtin" });
 
     expect(second.changed).toBe(false);
     expect(second.text).toBe(first.text);
   });
 
-  it("keeps high-risk filter expressions structure while normalizing indentation", () => {
+  it("keeps high-risk filter expressions structure while normalizing indentation", async () => {
     const input = [
       "filter test {",
       "if ( net ~ [ 192.0.2.0/24 ] ) then {",
@@ -93,13 +108,13 @@ describe("@birdcc/formatter", () => {
       "}",
       "",
     ].join("\n");
-    const result = formatBirdConfig(input, { engine: "builtin" });
+    const result = await formatBirdConfig(input, { engine: "builtin" });
 
     expect(result.text).toContain("if ( net ~ [ 192.0.2.0/24 ] ) then {");
     expect(result.text).toContain("  accept;");
   });
 
-  it("keeps correct indentation level after standalone closing braces", () => {
+  it("keeps correct indentation level after standalone closing braces", async () => {
     const input = [
       "protocol bgp edge {",
       "ipv4 {",
@@ -110,26 +125,35 @@ describe("@birdcc/formatter", () => {
       "",
     ].join("\n");
 
-    const result = formatBirdConfig(input, { engine: "builtin" });
+    const result = await formatBirdConfig(input, { engine: "builtin" });
     const lines = result.text.split("\n");
     expect(lines[4]).toBe("  router id 192.0.2.1;");
     expect(lines[5]).toBe("}");
   });
 
-  it("exposes builtin formatting stats for regression assertions", () => {
+  it("rejects semantic changes in safe mode", async () => {
+    formatTextMock.mockReturnValueOnce("router id 1;\n");
+
+    await expect(formatBirdConfig("router id 192.0.2.1;\n", { engine: "dprint" })).rejects.toThrow(
+      "safe mode rejected",
+    );
+  });
+
+  it("exposes builtin formatting stats for regression assertions", async () => {
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge{}\n";
-    const output = __formatBirdConfigBuiltinForTest(input);
+    const output = await __formatBirdConfigBuiltinForTest(input);
 
     expect(output.stats.linesTotal).toBeGreaterThan(0);
     expect(output.stats.linesTouched).toBeGreaterThan(0);
     expect(output.stats.blankLinesCollapsed).toBeGreaterThan(0);
+    expect(output.stats.parserProtectedLines).toBeGreaterThanOrEqual(0);
     expect(output.text.endsWith("\n")).toBe(true);
   });
 
-  it("check result is consistent with format result", () => {
+  it("check result is consistent with format result", async () => {
     const input = "protocol bgp edge {}\n";
-    const check = checkBirdConfigFormat(input, { engine: "builtin" });
-    const formatted = formatBirdConfig(input, { engine: "builtin" });
+    const check = await checkBirdConfigFormat(input, { engine: "builtin" });
+    const formatted = await formatBirdConfig(input, { engine: "builtin" });
 
     expect(check.changed).toBe(formatted.changed);
   });

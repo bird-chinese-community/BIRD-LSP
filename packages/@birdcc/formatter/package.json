@@ -11,6 +11,11 @@
       "default": "./dist/index.js"
     }
   },
+  "dependencies": {
+    "@birdcc/dprint-plugin-bird": "workspace:*",
+    "@birdcc/parser": "workspace:*",
+    "@dprint/formatter": "^0.5.1"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

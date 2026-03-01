@@ -1,9 +1,27 @@
-import { spawnSync } from "node:child_process";
+import { createContext } from "@dprint/formatter";
+import { getBuffer as getBirdPluginBuffer } from "@birdcc/dprint-plugin-bird";
+import {
+  parseBirdConfig,
+  type BirdDeclaration,
+  type FilterBodyStatement,
+  type ParseIssue,
+  type ProtocolStatement,
+} from "@birdcc/parser";
 
 export type FormatterEngine = "dprint" | "builtin";
 
 export interface FormatBirdConfigOptions {
   engine?: FormatterEngine;
+  indentSize?: number;
+  lineWidth?: number;
+  safeMode?: boolean;
+}
+
+interface ResolvedFormatOptions {
+  engine: FormatterEngine;
+  indentSize: number;
+  lineWidth: number;
+  safeMode: boolean;
 }
 
 export interface BirdFormatResult {
@@ -22,6 +40,7 @@ interface BuiltinFormatStats {
   blankLinesCollapsed: number;
   indentationAdjustments: number;
   highRiskLines: number;
+  parserProtectedLines: number;
 }
 
 interface BuiltinFormatOutput {
@@ -29,9 +48,106 @@ interface BuiltinFormatOutput {
   stats: BuiltinFormatStats;
 }
 
-const FORMATTER_TIMEOUT_MS = 30_000;
-const FORMATTER_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
-const INDENT = "  ";
+interface EmbeddedDprintContext {
+  addPlugin(pluginWasmBytes: Uint8Array, pluginConfig?: Record<string, unknown>): void;
+  formatText(request: { filePath: string; fileText: string }): string;
+}
+
+const DEFAULT_INDENT_SIZE = 2;
+const DEFAULT_LINE_WIDTH = 80;
+const DEFAULT_SAFE_MODE = true;
+
+const dprintContextCache = new Map<string, EmbeddedDprintContext>();
+
+const normalizePositiveInteger = (value: number | undefined, fallback: number): number => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (!Number.isInteger(value) || value <= 0) {
+    return fallback;
+  }
+
+  return value;
+};
+
+const resolveOptions = (options: FormatBirdConfigOptions = {}): ResolvedFormatOptions => ({
+  engine: options.engine ?? "dprint",
+  indentSize: normalizePositiveInteger(options.indentSize, DEFAULT_INDENT_SIZE),
+  lineWidth: normalizePositiveInteger(options.lineWidth, DEFAULT_LINE_WIDTH),
+  safeMode: options.safeMode ?? DEFAULT_SAFE_MODE,
+});
+
+const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const stripRangeKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripRangeKeys(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    if (typeof value === "string") {
+      return normalizeWhitespace(value);
+    }
+    return value;
+  }
+
+  const output: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (
+      key === "line" ||
+      key === "column" ||
+      key === "endLine" ||
+      key === "endColumn" ||
+      key.endsWith("Range")
+    ) {
+      continue;
+    }
+
+    output[key] = stripRangeKeys(nestedValue);
+  }
+
+  return output;
+};
+
+const normalizeIssue = (issue: ParseIssue): unknown => ({
+  code: issue.code,
+  message: normalizeWhitespace(issue.message),
+});
+
+const normalizeDeclaration = (declaration: BirdDeclaration): unknown => {
+  return stripRangeKeys(declaration);
+};
+
+const createSemanticFingerprint = async (text: string): Promise<string> => {
+  const parsed = await parseBirdConfig(text);
+  const hasRuntimeIssue = parsed.issues.some((issue) => issue.code === "parser/runtime-error");
+
+  if (hasRuntimeIssue) {
+    throw new Error("Parser runtime unavailable while evaluating formatter safe mode");
+  }
+
+  const normalizedProgram = parsed.program.declarations.map((declaration) =>
+    normalizeDeclaration(declaration),
+  );
+  const normalizedIssues = parsed.issues.map((issue) => normalizeIssue(issue));
+
+  return JSON.stringify({
+    declarations: normalizedProgram,
+    issues: normalizedIssues,
+  });
+};
+
+const assertSafeModeSemanticEquivalence = async (before: string, after: string): Promise<void> => {
+  const [beforeFingerprint, afterFingerprint] = await Promise.all([
+    createSemanticFingerprint(before),
+    createSemanticFingerprint(after),
+  ]);
+
+  if (beforeFingerprint !== afterFingerprint) {
+    throw new Error("Formatter safe mode rejected output because semantic fingerprint changed");
+  }
+};
 
 const countToken = (text: string, token: string): number => {
   let count = 0;
@@ -80,13 +196,91 @@ const normalizeNonRiskLine = (line: string): string => {
   return trimmed;
 };
 
-const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
+const collectStatementRanges = (
+  statements: FilterBodyStatement[],
+): Array<{ line: number; endLine: number }> => {
+  return statements.map((statement) => ({
+    line: statement.line,
+    endLine: statement.endLine,
+  }));
+};
+
+const collectProtocolProtectedLines = (
+  statements: ProtocolStatement[],
+): Array<{ line: number; endLine: number }> => {
+  return statements
+    .filter((statement) => {
+      if (statement.kind === "other") {
+        return true;
+      }
+
+      if (statement.kind === "import" || statement.kind === "export") {
+        return statement.mode === "where";
+      }
+
+      if (statement.kind === "channel") {
+        return statement.entries.some((entry) => {
+          if (entry.kind === "other") {
+            return true;
+          }
+          if (entry.kind === "import" || entry.kind === "export") {
+            return entry.mode === "where";
+          }
+          return false;
+        });
+      }
+
+      return false;
+    })
+    .map((statement) => ({
+      line: statement.line,
+      endLine: statement.endLine,
+    }));
+};
+
+const collectParserProtectedLines = async (text: string): Promise<Set<number>> => {
+  const parsed = await parseBirdConfig(text);
+  const protectedLines = new Set<number>();
+
+  for (const issue of parsed.issues) {
+    for (let line = issue.line; line <= issue.endLine; line += 1) {
+      protectedLines.add(line);
+    }
+  }
+
+  for (const declaration of parsed.program.declarations) {
+    const protectedRanges: Array<{ line: number; endLine: number }> = [];
+
+    if (declaration.kind === "filter" || declaration.kind === "function") {
+      protectedRanges.push(...collectStatementRanges(declaration.statements));
+    }
+
+    if (declaration.kind === "protocol") {
+      protectedRanges.push(...collectProtocolProtectedLines(declaration.statements));
+    }
+
+    for (const range of protectedRanges) {
+      for (let line = range.line; line <= range.endLine; line += 1) {
+        protectedLines.add(line);
+      }
+    }
+  }
+
+  return protectedLines;
+};
+
+const normalizeTextWithBuiltin = async (
+  text: string,
+  options: ResolvedFormatOptions,
+): Promise<BuiltinFormatOutput> => {
+  const parserProtectedLines = await collectParserProtectedLines(text);
   const stats: BuiltinFormatStats = {
     linesTotal: 0,
     linesTouched: 0,
     blankLinesCollapsed: 0,
     indentationAdjustments: 0,
     highRiskLines: 0,
+    parserProtectedLines: parserProtectedLines.size,
   };
 
   const sourceLines = text.replace(/\r\n?/g, "\n").split("\n");
@@ -95,8 +289,11 @@ const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
   let blankStreak = 0;
   let indentLevel = 0;
 
-  for (const originalLine of sourceLines) {
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    const originalLine = sourceLines[index] ?? "";
+    const lineNumber = index + 1;
     stats.linesTotal += 1;
+
     const trimmedTrailing = originalLine.replace(/[ \t]+$/g, "");
     const line = trimmedTrailing.trim();
 
@@ -124,13 +321,16 @@ const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
     const leadingCloseCount = Math.min(indentLevel, countLeadingCloseBraces(line));
     indentLevel = Math.max(0, indentLevel - leadingCloseCount);
 
-    const highRiskLine = isHighRiskExpressionLine(line);
+    const highRiskLine =
+      isHighRiskExpressionLine(line) ||
+      parserProtectedLines.has(lineNumber) ||
+      line.length > options.lineWidth;
     if (highRiskLine) {
       stats.highRiskLines += 1;
     }
 
     const normalizedContent = highRiskLine ? line : normalizeNonRiskLine(line);
-    const formattedLine = `${INDENT.repeat(indentLevel)}${normalizedContent}`;
+    const formattedLine = `${" ".repeat(options.indentSize * indentLevel)}${normalizedContent}`;
 
     if (formattedLine !== originalLine) {
       stats.linesTouched += 1;
@@ -157,66 +357,60 @@ const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
   };
 };
 
-const runExternalFormatter = (
-  command: string,
-  args: string[],
-  text: string,
-): { ok: true; output: string } | { ok: false; reason: string } => {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
-    input: text,
-    timeout: FORMATTER_TIMEOUT_MS,
-    maxBuffer: FORMATTER_MAX_BUFFER_BYTES,
-  });
+const contextCacheKey = (options: ResolvedFormatOptions): string =>
+  `${options.indentSize}:${options.lineWidth}:${options.safeMode ? "1" : "0"}`;
 
-  if (result.error) {
-    return { ok: false, reason: result.error.message };
+const getOrCreateDprintContext = (options: ResolvedFormatOptions): EmbeddedDprintContext => {
+  const key = contextCacheKey(options);
+  const cached = dprintContextCache.get(key);
+  if (cached) {
+    return cached;
   }
 
-  if ((result.status ?? 1) !== 0) {
-    const message = result.stderr?.trim() || `exit code ${result.status ?? 1}`;
-    return { ok: false, reason: message };
+  const context = createContext({
+    indentWidth: options.indentSize,
+    lineWidth: options.lineWidth,
+  }) as EmbeddedDprintContext;
+  context.addPlugin(getBirdPluginBuffer(), {
+    lineWidth: options.lineWidth,
+    indentWidth: options.indentSize,
+    safeMode: options.safeMode,
+  });
+
+  dprintContextCache.set(key, context);
+  return context;
+};
+
+const formatWithEmbeddedDprint = async (
+  text: string,
+  options: ResolvedFormatOptions,
+): Promise<BirdFormatResult> => {
+  const context = getOrCreateDprintContext(options);
+  const formattedText = context.formatText({
+    filePath: "bird.conf",
+    fileText: text,
+  });
+
+  if (options.safeMode && formattedText !== text) {
+    await assertSafeModeSemanticEquivalence(text, formattedText);
   }
 
   return {
-    ok: true,
-    output: result.stdout?.length ? result.stdout : text,
+    text: formattedText,
+    changed: formattedText !== text,
+    engine: "dprint",
   };
 };
 
-const tryDprint = (text: string): { ok: true; text: string } | { ok: false; reason: string } => {
-  const result = runExternalFormatter("dprint", ["fmt", "--stdin", "bird.conf"], text);
-  if (!result.ok) {
-    return { ok: false, reason: result.reason };
-  }
-
-  return { ok: true, text: result.output };
-};
-
-export const formatBirdConfig = (
+const formatWithBuiltin = async (
   text: string,
-  options: FormatBirdConfigOptions = {},
-): BirdFormatResult => {
-  const explicitEngine = options.engine;
-  const requestedEngine = explicitEngine ?? "dprint";
-  const allowFallback = explicitEngine === undefined;
-
-  if (requestedEngine === "dprint") {
-    const dprintOutput = tryDprint(text);
-    if (dprintOutput.ok) {
-      return {
-        text: dprintOutput.text,
-        changed: dprintOutput.text !== text,
-        engine: "dprint",
-      };
-    }
-
-    if (!allowFallback) {
-      throw new Error(`Formatting with 'dprint' failed: ${dprintOutput.reason}`);
-    }
+  options: ResolvedFormatOptions,
+): Promise<BirdFormatResult> => {
+  const builtinOutput = await normalizeTextWithBuiltin(text, options);
+  if (options.safeMode && builtinOutput.text !== text) {
+    await assertSafeModeSemanticEquivalence(text, builtinOutput.text);
   }
 
-  const builtinOutput = normalizeTextWithBuiltin(text);
   return {
     text: builtinOutput.text,
     changed: builtinOutput.text !== text,
@@ -224,13 +418,42 @@ export const formatBirdConfig = (
   };
 };
 
-export const checkBirdConfigFormat = (
+export const formatBirdConfig = async (
   text: string,
   options: FormatBirdConfigOptions = {},
-): BirdFormatCheckResult => ({
-  changed: formatBirdConfig(text, options).changed,
+): Promise<BirdFormatResult> => {
+  const resolved = resolveOptions(options);
+  const explicitEngine = options.engine;
+
+  if (resolved.engine === "dprint") {
+    try {
+      return await formatWithEmbeddedDprint(text, resolved);
+    } catch (error) {
+      if (explicitEngine === "dprint") {
+        throw new Error(
+          `Formatting with 'dprint' failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  return formatWithBuiltin(text, resolved);
+};
+
+export const checkBirdConfigFormat = async (
+  text: string,
+  options: FormatBirdConfigOptions = {},
+): Promise<BirdFormatCheckResult> => ({
+  changed: (await formatBirdConfig(text, options)).changed,
 });
 
 /** Internal-only helper for regression tests. */
-export const __formatBirdConfigBuiltinForTest = (text: string): BuiltinFormatOutput =>
-  normalizeTextWithBuiltin(text);
+export const __formatBirdConfigBuiltinForTest = async (
+  text: string,
+  options: FormatBirdConfigOptions = {},
+): Promise<BuiltinFormatOutput> => normalizeTextWithBuiltin(text, resolveOptions(options));
+
+/** Internal-only helper for deterministic unit tests. */
+export const __resetFormatterStateForTest = (): void => {
+  dprintContextCache.clear();
+};
