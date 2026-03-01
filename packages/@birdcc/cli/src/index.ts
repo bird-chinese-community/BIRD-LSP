@@ -4,11 +4,7 @@ import type { BirdDiagnostic } from "@birdcc/core";
 import { formatBirdConfig, type FormatterEngine } from "@birdcc/formatter";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig } from "@birdcc/linter";
-import {
-  createBirdcRunnerWarningMessage,
-  createBirdcStatusWarningMessage,
-  createBirdRunnerErrorMessage,
-} from "./messages.js";
+import { createBirdRunnerErrorMessage } from "./messages.js";
 
 export interface BirdValidateResult {
   command: string;
@@ -18,25 +14,7 @@ export interface BirdValidateResult {
   diagnostics: BirdDiagnostic[];
 }
 
-export interface BirdcQueryResult {
-  command: string;
-  query: string;
-  exitCode: number;
-  stderr: string;
-  stdout: string;
-  diagnostics: BirdDiagnostic[];
-}
-
-interface BirdcProtocolRuntimeState {
-  name: string;
-  protocol: string;
-  state: string;
-}
-
-interface BirdcRuntimeState {
-  statusReady: boolean;
-  protocols: BirdcProtocolRuntimeState[];
-}
+const COMMAND_TIMEOUT_MS = 10_000;
 
 const toNumber = (value: string | undefined, fallback = 1): number => {
   if (!value) {
@@ -52,14 +30,6 @@ const createRange = (line: number, column: number, width = 1) => ({
   column,
   endLine: line,
   endColumn: column + width,
-});
-
-const createWarningDiagnostic = (code: string, message: string): BirdDiagnostic => ({
-  code,
-  message,
-  severity: "warning",
-  source: "bird",
-  range: createRange(1, 1),
 });
 
 const normalizeMessage = (message: string): string => message.replace(/^bird:\s*/i, "").trim();
@@ -107,87 +77,6 @@ export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
   }
 
   return diagnostics;
-};
-
-const COMMAND_TIMEOUT_MS = 10_000;
-const BIRDC_DEFAULT_COMMAND = "birdc -r";
-const BIRDC_COMMON_ERROR_PATTERN =
-  /(unable to connect|connection refused|cannot connect|cannot open|no such file|not found|failed|error|timeout|timed out|broken pipe)/i;
-const BIRDC_NON_UP_STATES = new Set([
-  "start",
-  "down",
-  "stop",
-  "flush",
-  "feed",
-  "idle",
-  "active",
-  "connect",
-  "opensent",
-  "openconfirm",
-  "passive",
-]);
-
-const sanitizeBirdcLine = (lineText: string): string =>
-  lineText.replace(/^\d{4}(?:[-\s]|$)/, "").trim();
-
-const firstMeaningfulLine = (...parts: (string | undefined)[]): string | null => {
-  const lines = parts
-    .join("\n")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return lines[0] ?? null;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-interface ProtocolDeclarationShape {
-  kind: "protocol";
-  name: string;
-  protocolType: string;
-  nameRange: Record<string, unknown>;
-}
-
-const isProtocolDeclaration = (declaration: unknown): declaration is ProtocolDeclarationShape => {
-  if (!isRecord(declaration)) {
-    return false;
-  }
-
-  return (
-    declaration.kind === "protocol" &&
-    typeof declaration.name === "string" &&
-    typeof declaration.protocolType === "string" &&
-    isRecord(declaration.nameRange)
-  );
-};
-
-const protocolDeclarationsFromParsed = (parsed: unknown) => {
-  if (
-    !isRecord(parsed) ||
-    !isRecord(parsed.program) ||
-    !Array.isArray(parsed.program.declarations)
-  ) {
-    return [] as Array<{
-      name: string;
-      protocolType: string;
-      nameRange: { line: number; column: number; endLine: number; endColumn: number };
-    }>;
-  }
-
-  return parsed.program.declarations.filter(isProtocolDeclaration).map((declaration) => {
-    const range = declaration.nameRange;
-    return {
-      name: declaration.name,
-      protocolType: declaration.protocolType,
-      nameRange: {
-        line: toNumber(String(range.line ?? "1"), 1),
-        column: toNumber(String(range.column ?? "1"), 1),
-        endLine: toNumber(String(range.endLine ?? range.line ?? "1"), 1),
-        endColumn: toNumber(String(range.endColumn ?? range.column ?? "1"), 1),
-      },
-    };
-  });
 };
 
 const parseCommandTokens = (command: string): string[] | null => {
@@ -264,7 +153,7 @@ interface CommandExecResult {
   errorReason?: string;
 }
 
-const runCommand = (commandTokens: string[], input?: string): CommandExecResult => {
+const runCommand = (commandTokens: string[]): CommandExecResult => {
   if (commandTokens.length === 0) {
     return {
       command: "",
@@ -278,7 +167,6 @@ const runCommand = (commandTokens: string[], input?: string): CommandExecResult 
   const [executable, ...args] = commandTokens;
   const result = spawnSync(executable, args, {
     encoding: "utf8",
-    input,
     timeout: COMMAND_TIMEOUT_MS,
     killSignal: "SIGTERM",
   });
@@ -301,174 +189,30 @@ const runCommand = (commandTokens: string[], input?: string): CommandExecResult 
   };
 };
 
-export const runBirdcReadOnlyQuery = (
-  query: string,
-  command = BIRDC_DEFAULT_COMMAND,
-): BirdcQueryResult => {
-  const commandTokens = parseCommandTokens(command);
-  if (!commandTokens || commandTokens.length === 0) {
-    const message = createBirdcRunnerWarningMessage("invalid birdc command template");
-    return {
-      command,
-      query,
-      exitCode: 1,
-      stdout: "",
-      stderr: message,
-      diagnostics: [createWarningDiagnostic("birdc/runner-warning", message)],
-    };
+const resolveValidateTemplate = (validateCommand?: string): string => {
+  if (validateCommand && validateCommand.trim().length > 0) {
+    return validateCommand;
   }
 
-  const execResult = runCommand(commandTokens, `${query}\nquit\n`);
-  if (execResult.errorReason) {
-    const message = createBirdcRunnerWarningMessage(execResult.errorReason);
-    return {
-      command: execResult.command,
-      query,
-      exitCode: execResult.exitCode,
-      stdout: execResult.stdout,
-      stderr: message,
-      diagnostics: [createWarningDiagnostic("birdc/runner-warning", message)],
-    };
+  const birdBin = process.env.BIRD_BIN?.trim();
+  if (birdBin) {
+    return `"${birdBin}" -p -c {file}`;
   }
 
-  const { stdout, stderr, exitCode } = execResult;
-
-  if (exitCode !== 0 || BIRDC_COMMON_ERROR_PATTERN.test(stderr)) {
-    const hint = firstMeaningfulLine(stderr, stdout) ?? `exit code ${exitCode}`;
-    const message = createBirdcRunnerWarningMessage(hint);
-    return {
-      command,
-      query,
-      exitCode,
-      stdout,
-      stderr,
-      diagnostics: [createWarningDiagnostic("birdc/runner-warning", message)],
-    };
-  }
-
-  return {
-    command,
-    query,
-    exitCode,
-    stdout,
-    stderr,
-    diagnostics: [],
-  };
-};
-
-export const parseBirdcStatusOutput = (
-  stdout: string,
-  stderr: string,
-  exitCode: number,
-): BirdDiagnostic[] => {
-  if (exitCode !== 0 || BIRDC_COMMON_ERROR_PATTERN.test(stderr)) {
-    return [];
-  }
-
-  const lines = stdout
-    .split(/\r?\n/)
-    .map(sanitizeBirdcLine)
-    .filter((line) => line.length > 0);
-  const readyDetected = lines.some((line) => /\bready\b/i.test(line));
-
-  if (readyDetected) {
-    return [];
-  }
-
-  return [createWarningDiagnostic("birdc/status-warning", createBirdcStatusWarningMessage())];
-};
-
-export const parseBirdcProtocolsOutput = (stdout: string): BirdcProtocolRuntimeState[] => {
-  const protocols: BirdcProtocolRuntimeState[] = [];
-  const protocolRowPattern = /^(?<name>\S+)\s+(?<protocol>\S+)\s+\S+\s+(?<state>\S+)/;
-  const protocolHeaderPattern = /^name\s+proto\s+table\s+state\b/i;
-  const lines = stdout
-    .split(/\r?\n/)
-    .map(sanitizeBirdcLine)
-    .filter((line) => line.length > 0);
-
-  for (const lineText of lines) {
-    const lowered = lineText.toLowerCase();
-    if (lowered.startsWith("bird ")) {
-      continue;
-    }
-
-    if (protocolHeaderPattern.test(lineText)) {
-      continue;
-    }
-
-    const matched = lineText.match(protocolRowPattern);
-    if (!matched?.groups) {
-      continue;
-    }
-    const name = matched.groups.name;
-    const protocol = matched.groups.protocol;
-    const state = matched.groups.state;
-
-    if (!/^[a-z][a-z0-9_-]*$/i.test(state)) {
-      continue;
-    }
-
-    protocols.push({
-      name,
-      protocol,
-      state: state.toLowerCase(),
-    });
-  }
-
-  return protocols;
-};
-
-export const createBirdcDiagnostics = (
-  parsed: unknown,
-  runtimeState: BirdcRuntimeState,
-): BirdDiagnostic[] => {
-  if (!runtimeState.statusReady) {
-    return [];
-  }
-
-  const diagnostics: BirdDiagnostic[] = [];
-  const runtimeMap = new Map(
-    runtimeState.protocols.map((item) => [item.name.toLowerCase(), item] as const),
-  );
-
-  for (const declaration of protocolDeclarationsFromParsed(parsed)) {
-    const runtimeProtocol = runtimeMap.get(declaration.name.toLowerCase());
-    if (!runtimeProtocol) {
-      diagnostics.push({
-        code: "birdc/protocol-not-found",
-        message: `Protocol '${declaration.name}' not found in birdc runtime output`,
-        severity: "warning",
-        source: "bird",
-        range: declaration.nameRange,
-      });
-      continue;
-    }
-
-    if (BIRDC_NON_UP_STATES.has(runtimeProtocol.state)) {
-      diagnostics.push({
-        code: "birdc/protocol-not-up",
-        message: `Protocol '${declaration.name}' runtime state is '${runtimeProtocol.state}'`,
-        severity: "warning",
-        source: "bird",
-        range: declaration.nameRange,
-      });
-    }
-  }
-
-  return diagnostics;
+  return "bird -p -c {file}";
 };
 
 /** Executes external bird validation command and converts stderr into diagnostics. */
 export const runBirdValidation = (
   filePath: string,
-  validateCommand = "bird -p -c {file}",
+  validateCommand?: string,
 ): BirdValidateResult => {
-  const commandTokens = parseCommandTokens(validateCommand);
+  const validateTemplate = resolveValidateTemplate(validateCommand);
+  const commandTokens = parseCommandTokens(validateTemplate);
   if (!commandTokens || commandTokens.length === 0) {
     const message = createBirdRunnerErrorMessage("invalid bird command template");
     return {
-      command: validateCommand,
+      command: validateTemplate,
       exitCode: 1,
       stdout: "",
       stderr: message,
@@ -520,15 +264,13 @@ export const runBirdValidation = (
 export interface LintOptions {
   withBird?: boolean;
   validateCommand?: string;
-  withBirdc?: boolean;
-  birdcCommand?: string;
 }
 
 export interface BirdccLintOutput {
   diagnostics: BirdDiagnostic[];
 }
 
-/** Lints one config file and optionally appends diagnostics from `bird -p` and `birdc`. */
+/** Lints one config file and optionally appends diagnostics from `bird -p`. */
 export const runLint = async (
   filePath: string,
   options: LintOptions = {},
@@ -540,36 +282,6 @@ export const runLint = async (
   if (options.withBird) {
     const birdResult = runBirdValidation(filePath, options.validateCommand);
     diagnostics.push(...birdResult.diagnostics);
-  }
-
-  if (options.withBirdc) {
-    const statusResult = runBirdcReadOnlyQuery("show status", options.birdcCommand);
-    diagnostics.push(...statusResult.diagnostics);
-
-    if (statusResult.diagnostics.length === 0) {
-      const statusDiagnostics = parseBirdcStatusOutput(
-        statusResult.stdout,
-        statusResult.stderr,
-        statusResult.exitCode,
-      );
-      diagnostics.push(...statusDiagnostics);
-      const statusReady = statusDiagnostics.length === 0;
-
-      if (!statusReady) {
-        return { diagnostics };
-      }
-
-      const protocolsResult = runBirdcReadOnlyQuery("show protocols", options.birdcCommand);
-      diagnostics.push(...protocolsResult.diagnostics);
-
-      if (protocolsResult.diagnostics.length === 0) {
-        const runtimeState: BirdcRuntimeState = {
-          statusReady,
-          protocols: parseBirdcProtocolsOutput(protocolsResult.stdout),
-        };
-        diagnostics.push(...createBirdcDiagnostics(lintResult.parsed, runtimeState));
-      }
-    }
   }
 
   return { diagnostics };
