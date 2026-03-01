@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildCoreSnapshot } from "../src/index.js";
+import {
+  buildCoreSnapshot,
+  buildCoreSnapshotFromParsed,
+  checkTypes,
+  resolveCrossFileReferences,
+} from "../src/index.js";
+import { parseBirdConfig } from "@birdcc/parser";
 
 describe("@birdcc/core boundaries", () => {
   it("reports duplicate symbol definitions", async () => {
@@ -95,5 +101,71 @@ describe("@birdcc/core boundaries", () => {
     expect(errorCodes).not.toContain("semantic/invalid-router-id");
     expect(errorCodes).not.toContain("semantic/invalid-neighbor-address");
     expect(errorCodes).not.toContain("semantic/invalid-cidr");
+  });
+
+  it("emits type diagnostics for assignment mismatch and undefined variable", async () => {
+    const sample = `
+      filter export_policy {
+        int limit = 42;
+        limit = "too-big";
+        unknown_var = 5;
+        accept;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+
+    expect(snapshot.typeDiagnostics.some((item) => item.code === "type/mismatch")).toBe(true);
+    expect(snapshot.typeDiagnostics.some((item) => item.code === "type/undefined-variable")).toBe(
+      true,
+    );
+  });
+
+  it("checkTypes works with explicit program + symbolTable input", async () => {
+    const sample = `
+      function calc() -> int {
+        int value = 1;
+        value = 2;
+        return value;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+    const diagnostics = checkTypes(parsed.program, snapshot.symbolTable);
+
+    expect(diagnostics).toHaveLength(0);
+  });
+
+  it("resolves include/template references across files", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `
+            include "templates/common.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "/workspace/templates/common.conf",
+          text: `
+            template bgp edge_tpl {
+            }
+          `,
+        },
+      ],
+    });
+
+    const undefinedTemplateDiagnostics = result.diagnostics.filter(
+      (item) => item.code === "semantic/undefined-reference",
+    );
+
+    expect(result.visitedUris).toContain("/workspace/main.conf");
+    expect(result.visitedUris).toContain("/workspace/templates/common.conf");
+    expect(undefinedTemplateDiagnostics).toHaveLength(0);
   });
 });

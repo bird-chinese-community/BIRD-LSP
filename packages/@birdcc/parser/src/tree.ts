@@ -8,8 +8,14 @@ const byteOffsetToCodeUnitIndex = (bytes: Buffer, byteOffset: number): number =>
 
 let cachedSourceForBytes: string | null = null;
 let cachedUtf8Bytes: Buffer | null = null;
+const UTF8_CACHE_LIMIT_BYTES = 4 * 1024 * 1024;
 
 const utf8BytesOf = (source: string): Buffer => {
+  const estimatedBytes = Buffer.byteLength(source, "utf8");
+  if (estimatedBytes > UTF8_CACHE_LIMIT_BYTES) {
+    return Buffer.from(source, "utf8");
+  }
+
   if (cachedSourceForBytes !== source || !cachedUtf8Bytes) {
     cachedSourceForBytes = source;
     cachedUtf8Bytes = Buffer.from(source, "utf8");
