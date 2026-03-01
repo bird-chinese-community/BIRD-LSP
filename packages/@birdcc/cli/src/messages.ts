@@ -1,14 +1,20 @@
 export const CLI_MESSAGES = {
-  lintNoDiagnostics: "无诊断问题",
-  fmtCheckWriteConflict: "不能同时使用 --check 与 --write",
+  lintNoDiagnostics: "No problems found during linting",
+  fmtCheckWriteConflict: "--check and --write cannot be used together",
   fmtInvalidEngine: (engine: string): string =>
-    `无效格式化引擎: ${engine}（可选: dprint | builtin）`,
-  fmtWritten: "已格式化文件",
-  fmtAlreadyFormatted: "文件已是规范格式",
-  fmtCheckFailed: "格式检查失败，请执行 `birdcc fmt <file> --write`",
-  fmtCheckPassed: "格式检查通过",
-  lspRequiresStdio: "当前仅支持 `birdcc lsp --stdio`",
+    `Invalid formatter engine: "${engine}" (choose from: dprint, builtin)`,
+  fmtWritten: "Files formatted successfully",
+  fmtAlreadyFormatted: "All files are already properly formatted",
+  fmtCheckFailed: "Format check failed. Run `birdcc fmt <file> --write` to fix.",
+  fmtCheckPassed: "Format check passed — all files look good",
+  lspRequiresStdio: "Only `birdcc lsp --stdio` is currently supported",
 } as const;
 
 export const createBirdRunnerErrorMessage = (reason: string): string =>
-  `执行 bird 校验失败: ${reason}`;
+  `birdc validation error: ${reason}`;
+
+export const createBirdcRunnerWarningMessage = (reason: string): string =>
+  `birdc read‑only query failed: ${reason}`;
+
+export const createBirdcStatusWarningMessage = (): string =>
+  "Unexpected birdc status output: 'ready' state not detected";
