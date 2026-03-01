@@ -58,6 +58,19 @@ describe("@birdcc/linter", () => {
     expect(ospfDiagnostics).toHaveLength(0);
   });
 
+  it("does not treat comments as OSPF area configuration", async () => {
+    const sample = `
+      protocol ospf core {
+        # area 0;
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    expect(result.diagnostics.some((item) => item.code === "protocol/ospf-area-required")).toBe(
+      true,
+    );
+  });
+
   it("passes BGP next hop form checks for valid channel clauses", async () => {
     const sample = `
       protocol bgp edge_peer {
@@ -68,6 +81,13 @@ describe("@birdcc/linter", () => {
           next hop address;
           next hop keep;
           next hop 192.0.2.2;
+          next hop ipv4 192.0.2.3;
+          next hop prefer global;
+        };
+        ipv6 {
+          next hop 2001:db8::2;
+          next hop ipv6 2001:db8::3;
+          next hop prefer local;
         };
       }
     `;

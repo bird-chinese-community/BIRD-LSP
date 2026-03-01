@@ -211,8 +211,16 @@ const bgpNextHopFormRule: BirdRule = ({ parsed }) => {
 
         const value = clause.replace(/^next\s+hop\s*/i, "").trim();
         const lowered = value.toLowerCase();
+        const ipv4OrIpv6Prefixed =
+          lowered.startsWith("ipv4 ") || lowered.startsWith("ipv6 ") ? value.slice(5).trim() : null;
         const isValidValue =
-          lowered === "self" || lowered === "address" || lowered === "keep" || isIP(value) !== 0;
+          lowered === "self" ||
+          lowered === "address" ||
+          lowered === "keep" ||
+          lowered === "prefer global" ||
+          lowered === "prefer local" ||
+          isIP(value) !== 0 ||
+          (ipv4OrIpv6Prefixed !== null && isIP(ipv4OrIpv6Prefixed) !== 0);
 
         if (isValidValue) {
           continue;

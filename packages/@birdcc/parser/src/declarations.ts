@@ -478,6 +478,7 @@ const parseProtocolStatements = (
         text: textOf(statementNode, source),
         ...statementRange,
       });
+      continue;
     }
   }
 
@@ -526,7 +527,6 @@ const parseProtocolStatements = (
       continue;
     }
 
-    const startRow = currentNode.startPosition.row;
     let endIndex = index;
 
     while (endIndex + 1 < childNodes.length) {
@@ -535,11 +535,7 @@ const parseProtocolStatements = (
         break;
       }
 
-      if (
-        PROTOCOL_STATEMENT_TYPES.has(nextNode.type) ||
-        fallbackChannelIndices.has(endIndex + 1) ||
-        nextNode.startPosition.row !== startRow
-      ) {
+      if (PROTOCOL_STATEMENT_TYPES.has(nextNode.type) || fallbackChannelIndices.has(endIndex + 1)) {
         break;
       }
 
