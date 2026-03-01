@@ -9,7 +9,7 @@
 - Linter 层：`@birdcc/linter`（Rules/Diagnostics）
 - LSP 层：`vscode-languageserver-node`
 - Formatter：`dprint` 插件
-- BIRD 集成：MVP 采用 `bird -p` 子进程，后续渐进到 `birdc`
+- BIRD 集成：以 `bird -p` 子进程为主，`birdc` 运行态能力暂不纳入 LSP/linter 主链路
 
 核心判断：BIRD2 的 Filter 层不是普通配置 DSL，而是接近完整编程语言。必须将“语法解析”和“语义验证”分层，先稳住语法与诊断，再逐步提高语义覆盖。
 
@@ -120,7 +120,7 @@
  (tree-sitter + wasm adapter)
          |
          v
-  bird -p / birdc adapter (渐进集成)
+  bird -p adapter（主链路）
 ```
 
 ### 4.2 精简包结构（避免过度工程）
@@ -219,12 +219,12 @@ tests/
 
 ### 8.1 渐进式集成（含里程碑映射）
 
-| 集成阶段   | 方式                 | 里程碑映射 | 工作量 | 能力                       |
-| ---------- | -------------------- | ---------- | ------ | -------------------------- |
-| MVP-PoC    | `bird -p` 子进程调用 | M2         | ~2 周  | 原生语法校验接入与诊断转译 |
-| MVP-Stable | `bird -p` 阻塞校验   | M3         | ~2 周  | CI/LSP 稳定校验通路        |
-| Enhanced   | `birdc` 只读集成     | M4         | ~6 周  | 运行时信息与上下文增强     |
-| Long-term  | Socket 直连（评估）  | Post-M4    | ~14 周 | 高性能交互与重载能力       |
+| 集成阶段   | 方式                 | 里程碑映射 | 工作量 | 能力                               |
+| ---------- | -------------------- | ---------- | ------ | ---------------------------------- |
+| MVP-PoC    | `bird -p` 子进程调用 | M2         | ~2 周  | 原生语法校验接入与诊断转译         |
+| MVP-Stable | `bird -p` 阻塞校验   | M3         | ~2 周  | CI/LSP 稳定校验通路                |
+| Deferred   | `birdc`（暂缓）      | Backlog    | -      | 运维运行态信息，不进入编辑期主链路 |
+| Long-term  | Socket 直连（评估）  | Post-M4    | ~14 周 | 高性能交互与重载能力               |
 
 ### 8.2 MVP 推荐实现要点
 
@@ -356,14 +356,14 @@ birdcc lsp --stdio
 
 | 阶段 | 周期    | 关键目标                                                   |
 | ---- | ------- | ---------------------------------------------------------- |
-| M4   | 8-10 周 | 协议规则完善 + dprint 稳定化 + `birdc` 只读集成 + 发布体系 |
+| M4   | 8-10 周 | 协议规则完善 + dprint 稳定化 + 发布体系 |
 
 ### 13.3 与第 8 章集成映射对齐
 
 1. M2：`bird -p` 接入为 PoC，默认非阻塞。
 2. M3：`bird -p` 进入稳定阻塞链路（CLI/LSP/CI）。
-3. M4：新增 `birdc` 只读集成。
-4. Post-M4：再评估 Socket 直连。
+3. M4：聚焦规则与发布体系，不引入 `birdc` 编辑期集成。
+4. Post-M4：按需求再评估 `birdc`/Socket 运行态通道。
 
 ---
 
@@ -451,8 +451,7 @@ birdcc lsp --stdio
 - [x] `@birdcc/cli` 与 `@birdcc/lsp` 已完成 async 调用链改造，LSP 诊断增加“最后写入 wins”防竞态。
 - [x] 全仓回归通过：`pnpm lint && pnpm test && pnpm build && pnpm typecheck && pnpm format`。
 
-本轮补充推进（M4 `birdc` 只读集成）：
+本轮补充推进（M4 范围收敛）：
 
-- [x] `birdcc lint` 新增 `--birdc` 与 `--birdc-command`，支持 `birdc -r` 只读查询链路。
-- [x] CLI 已接入 `show status` 与 `show protocols` 检查，并产出 `birdc/*` warning 诊断。
-- [x] `birdc` 不可用或连接失败时默认降级为 warning，lint 流程继续执行不阻塞。
+- [x] 评估后确认当前阶段以静态能力为主，聚焦 `bird -p` + parser/core/linter。
+- [x] 回退 `birdc` 只读运行态集成，避免将运维状态监控耦合到编辑期 lint 场景。
