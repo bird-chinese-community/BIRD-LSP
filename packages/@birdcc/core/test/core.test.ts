@@ -138,6 +138,45 @@ describe("@birdcc/core boundaries", () => {
     expect(diagnostics).toHaveLength(0);
   });
 
+  it("infers expression types for arithmetic comparison and boolean logic", async () => {
+    const sample = `
+      filter export_policy {
+        int threshold = 24;
+        bool in_range = (threshold + 1) >= 20;
+        bool ok = in_range && true;
+        bool mismatch = threshold + 1;
+        int wrong = in_range;
+        accept;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+    const mismatchDiagnostics = snapshot.typeDiagnostics.filter(
+      (item) => item.code === "type/mismatch",
+    );
+
+    expect(mismatchDiagnostics).toHaveLength(2);
+  });
+
+  it("infers nested expressions and reports mismatch on incompatible assignment", async () => {
+    const sample = `
+      function calc() -> bool {
+        int value = 3;
+        bool ok = !(value < 1) || ((value + 2) > 4);
+        int mismatch = value > 1;
+        return ok;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+    const diagnostics = checkTypes(parsed.program, snapshot.symbolTable);
+    const mismatchDiagnostics = diagnostics.filter((item) => item.code === "type/mismatch");
+
+    expect(mismatchDiagnostics).toHaveLength(1);
+  });
+
   it("resolves include/template references across files", async () => {
     const result = await resolveCrossFileReferences({
       entryUri: "/workspace/main.conf",
