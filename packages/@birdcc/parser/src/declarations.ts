@@ -519,9 +519,6 @@ const parseProtocolStatements = (
 
   for (let index = 0; index < childNodes.length; index += 1) {
     const currentNode = childNodes[index];
-    if (!currentNode) {
-      continue;
-    }
 
     if (PROTOCOL_STATEMENT_TYPES.has(currentNode.type) || fallbackChannelIndices.has(index)) {
       continue;
@@ -531,10 +528,6 @@ const parseProtocolStatements = (
 
     while (endIndex + 1 < childNodes.length) {
       const nextNode = childNodes[endIndex + 1];
-      if (!nextNode) {
-        break;
-      }
-
       if (PROTOCOL_STATEMENT_TYPES.has(nextNode.type) || fallbackChannelIndices.has(endIndex + 1)) {
         break;
       }
@@ -542,7 +535,7 @@ const parseProtocolStatements = (
       endIndex += 1;
     }
 
-    const lastNode = childNodes[endIndex] ?? currentNode;
+    const lastNode = childNodes[endIndex];
     const text = source.slice(currentNode.startIndex, lastNode.endIndex).trim();
 
     if (text.length > 0) {

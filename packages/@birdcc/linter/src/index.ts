@@ -58,6 +58,13 @@ const createRangeDiagnostic = (
 });
 
 const normalizeClause = (text: string): string => text.trim().replace(/\s+/g, " ").toLowerCase();
+const VALID_BGP_NEXT_HOP_KEYWORDS = new Set([
+  "self",
+  "address",
+  "keep",
+  "prefer global",
+  "prefer local",
+]);
 
 const isBgpProtocol = (declaration: ProtocolDeclaration): boolean =>
   declaration.protocolType.toLowerCase() === "bgp";
@@ -273,12 +280,7 @@ const bgpNextHopFormRule: BirdRule = ({ parsed }) => {
         });
       }
 
-      for (const line of [...groupedByLine.keys()].sort((a, b) => a - b)) {
-        const grouped = groupedByLine.get(line);
-        if (!grouped) {
-          continue;
-        }
-
+      for (const [, grouped] of [...groupedByLine.entries()].sort(([a], [b]) => a - b)) {
         const clause = grouped.parts.join(" ").replace(/\s+/g, " ").trim();
         if (!/^next\s+hop\b/i.test(clause)) {
           continue;
@@ -286,19 +288,19 @@ const bgpNextHopFormRule: BirdRule = ({ parsed }) => {
 
         const value = clause.replace(/^next\s+hop\s*/i, "").trim();
         const lowered = value.toLowerCase();
-        const ipv4OrIpv6Prefixed =
-          lowered.startsWith("ipv4 ") || lowered.startsWith("ipv6 ") ? value.slice(5).trim() : null;
-        const isValidValue =
-          lowered === "self" ||
-          lowered === "address" ||
-          lowered === "keep" ||
-          lowered === "prefer global" ||
-          lowered === "prefer local" ||
-          isIP(value) !== 0 ||
-          (ipv4OrIpv6Prefixed !== null && isIP(ipv4OrIpv6Prefixed) !== 0);
-
-        if (isValidValue) {
+        if (VALID_BGP_NEXT_HOP_KEYWORDS.has(lowered)) {
           continue;
+        }
+
+        if (isIP(value) !== 0) {
+          continue;
+        }
+
+        if (lowered.startsWith("ipv4 ") || lowered.startsWith("ipv6 ")) {
+          const ipPart = value.slice(5).trim();
+          if (isIP(ipPart) !== 0) {
+            continue;
+          }
         }
 
         diagnostics.push(
