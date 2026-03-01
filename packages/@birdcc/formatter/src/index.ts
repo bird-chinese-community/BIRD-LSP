@@ -16,34 +16,143 @@ export interface BirdFormatCheckResult {
   changed: boolean;
 }
 
+interface BuiltinFormatStats {
+  linesTotal: number;
+  linesTouched: number;
+  blankLinesCollapsed: number;
+  indentationAdjustments: number;
+  highRiskLines: number;
+}
+
+interface BuiltinFormatOutput {
+  text: string;
+  stats: BuiltinFormatStats;
+}
+
 const FORMATTER_TIMEOUT_MS = 30_000;
 const FORMATTER_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+const INDENT = "  ";
 
-const normalizeTextWithBuiltin = (text: string): string => {
-  const lines = text.split(/\r?\n/).map((line) => line.replace(/[ \t]+$/g, ""));
-  const compacted: string[] = [];
+const countToken = (text: string, token: string): number => {
+  let count = 0;
+  for (const char of text) {
+    if (char === token) {
+      count += 1;
+    }
+  }
+  return count;
+};
+
+const isCommentLine = (line: string): boolean => line.trimStart().startsWith("#");
+
+const isHighRiskExpressionLine = (line: string): boolean => {
+  const normalized = line.trim();
+  if (normalized.length === 0 || isCommentLine(normalized)) {
+    return false;
+  }
+
+  return /\b(if|then|else|return)\b|[~&|?:]|\[[^\]]*\]|\(/i.test(normalized);
+};
+
+const normalizeNonRiskLine = (line: string): string => {
+  const trimmed = line.trim();
+  if (trimmed.length === 0 || isCommentLine(trimmed)) {
+    return trimmed;
+  }
+
+  if (trimmed === "}" || trimmed === "};") {
+    return trimmed;
+  }
+
+  if (trimmed.endsWith("{")) {
+    return `${trimmed.slice(0, -1).trimEnd()} {`;
+  }
+
+  if (trimmed.endsWith(";")) {
+    return `${trimmed.slice(0, -1).trimEnd()};`;
+  }
+
+  return trimmed;
+};
+
+const normalizeTextWithBuiltin = (text: string): BuiltinFormatOutput => {
+  const stats: BuiltinFormatStats = {
+    linesTotal: 0,
+    linesTouched: 0,
+    blankLinesCollapsed: 0,
+    indentationAdjustments: 0,
+    highRiskLines: 0,
+  };
+
+  const sourceLines = text.replace(/\r\n?/g, "\n").split("\n");
+  const formattedLines: string[] = [];
 
   let blankStreak = 0;
-  for (const line of lines) {
+  let indentLevel = 0;
+
+  for (const originalLine of sourceLines) {
+    stats.linesTotal += 1;
+    const trimmedTrailing = originalLine.replace(/[ \t]+$/g, "");
+    const line = trimmedTrailing.trim();
+
     if (line.length === 0) {
       blankStreak += 1;
       if (blankStreak > 1) {
+        stats.blankLinesCollapsed += 1;
+        if (originalLine !== "") {
+          stats.linesTouched += 1;
+        }
         continue;
       }
-      compacted.push("");
+
+      formattedLines.push("");
+      if (trimmedTrailing !== originalLine) {
+        stats.linesTouched += 1;
+      }
       continue;
     }
 
     blankStreak = 0;
-    compacted.push(line);
+
+    const leadingCloseCount = countToken(line, "}");
+    const leadingOpenCount = countToken(line, "{");
+    if (line.startsWith("}")) {
+      const drop = Math.min(indentLevel, Math.max(1, leadingCloseCount));
+      indentLevel = Math.max(0, indentLevel - drop);
+    }
+
+    const highRiskLine = isHighRiskExpressionLine(line);
+    if (highRiskLine) {
+      stats.highRiskLines += 1;
+    }
+
+    const normalizedContent = highRiskLine ? line : normalizeNonRiskLine(line);
+    const formattedLine = `${INDENT.repeat(indentLevel)}${normalizedContent}`;
+
+    if (formattedLine !== originalLine) {
+      stats.linesTouched += 1;
+      if (originalLine.trimStart() !== normalizedContent) {
+        stats.indentationAdjustments += 1;
+      }
+    }
+
+    formattedLines.push(formattedLine);
+
+    const openCount = leadingOpenCount;
+    const closeCount = leadingCloseCount;
+    const delta = openCount - closeCount;
+    indentLevel = Math.max(0, indentLevel + delta);
   }
 
-  let formattedText = compacted.join("\n");
-  if (!formattedText.endsWith("\n")) {
-    formattedText += "\n";
+  while (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === "") {
+    formattedLines.pop();
   }
 
-  return formattedText;
+  const formattedText = `${formattedLines.join("\n")}\n`;
+  return {
+    text: formattedText,
+    stats,
+  };
 };
 
 const runExternalFormatter = (
@@ -105,19 +214,10 @@ export const formatBirdConfig = (
     }
   }
 
-  if (requestedEngine === "builtin") {
-    const builtinOutput = normalizeTextWithBuiltin(text);
-    return {
-      text: builtinOutput,
-      changed: builtinOutput !== text,
-      engine: "builtin",
-    };
-  }
-
   const builtinOutput = normalizeTextWithBuiltin(text);
   return {
-    text: builtinOutput,
-    changed: builtinOutput !== text,
+    text: builtinOutput.text,
+    changed: builtinOutput.text !== text,
     engine: "builtin",
   };
 };
@@ -128,3 +228,7 @@ export const checkBirdConfigFormat = (
 ): BirdFormatCheckResult => ({
   changed: formatBirdConfig(text, options).changed,
 });
+
+/** Internal-only helper for regression tests. */
+export const __formatBirdConfigBuiltinForTest = (text: string): BuiltinFormatOutput =>
+  normalizeTextWithBuiltin(text);
