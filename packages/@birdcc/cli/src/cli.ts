@@ -18,6 +18,19 @@ interface LspOptions {
   stdio?: boolean;
 }
 
+type FileAction<TOptions extends object> = (file: string, options: TOptions) => Promise<void>;
+
+const withActionErrorHandling = <TOptions extends object>(action: FileAction<TOptions>) => {
+  return async (file: string, options: TOptions): Promise<void> => {
+    try {
+      await action(file, options);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  };
+};
+
 const cli = cac("birdcc");
 
 cli
@@ -27,8 +40,8 @@ cli
   })
   .option("--bird", "Run bird -p validation")
   .option("--validate-command <command>", "Validation command template")
-  .action(async (file: string, options: LintOptions) => {
-    try {
+  .action(
+    withActionErrorHandling(async (file: string, options: LintOptions) => {
       const format = options.format === "json" ? "json" : "text";
       const result = await runLint(file, {
         withBird: Boolean(options.bird),
@@ -51,18 +64,15 @@ cli
 
       const hasError = result.diagnostics.some((item) => item.severity === "error");
       process.exitCode = hasError ? 1 : 0;
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
-    }
-  });
+    }),
+  );
 
 cli
   .command("fmt <file>", "Format BIRD config file")
   .option("--check", "Only check formatting")
   .option("--write", "Write formatted output to file")
-  .action(async (file: string, options: FmtOptions) => {
-    try {
+  .action(
+    withActionErrorHandling(async (file: string, options: FmtOptions) => {
       if (options.check && options.write) {
         console.error(CLI_MESSAGES.fmtCheckWriteConflict);
         process.exitCode = 1;
@@ -84,11 +94,8 @@ cli
       }
 
       console.log(CLI_MESSAGES.fmtCheckPassed);
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
-    }
-  });
+    }),
+  );
 
 cli
   .command("lsp", "Run language server")
