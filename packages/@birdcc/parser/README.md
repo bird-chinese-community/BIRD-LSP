@@ -7,9 +7,14 @@
 - Tree-sitter grammar + WASM runtime (`web-tree-sitter`)
 - Async parse API
 - Top-level declaration extraction:
-  - `include`, `define`, `protocol`, `template`, `filter`, `function`
+  - `include`, `define`, `router id`, `table`, `protocol`, `template`, `filter`, `function`
 - Protocol common statement extraction:
-  - `local as`, `neighbor ... as ...`, `import ...`, `export ...`
+  - `local as`, `neighbor ... as ...`, `import ...`, `export ...`, `ipv4/ipv6/... channel`
+- Channel statement extraction:
+  - `table`, `import/export all|none|filter|where`, `import/receive/export limit`, `debug`, `import keep filtered`
+- Filter/function lightweight statement skeleton extraction:
+  - `if`, `accept`, `reject`, `return`, `case`
+  - extracted `ip` / `prefix` literals and `~` match expressions for semantic validation
 - Error recovery diagnostics from Tree-sitter (`ERROR` / `MISSING`) with source ranges
 
 ## Usage
