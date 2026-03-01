@@ -13,9 +13,9 @@ interface MockDocument extends ValidationDocument {
   text: string;
 }
 
-const createDocument = (uri: string, text: string): MockDocument => ({
+const createDocument = (uri: string, text: string, version = 1): MockDocument => ({
   uri,
-  version: 1,
+  version,
   text,
   getText(): string {
     return this.text;
@@ -88,6 +88,50 @@ describe("@birdcc/lsp validation scheduler", () => {
       uri,
       version: 1,
       diagnostics: [],
+    });
+  });
+
+  it("publishes reopened document diagnostics after close while dropping older in-flight results", async () => {
+    vi.useFakeTimers();
+
+    let resolveFirstValidation: ((value: MockDiagnostic[]) => void) | null = null;
+    const validate = vi.fn((document: MockDocument): Promise<MockDiagnostic[]> => {
+      if (document.version === 1) {
+        return new Promise((resolve) => {
+          resolveFirstValidation = resolve;
+        });
+      }
+
+      return Promise.resolve([{ code: `v${document.version}` }]);
+    });
+    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+    const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
+      debounceMs: 1,
+      validate,
+      publish,
+    });
+
+    const uri = "file:///bird.conf";
+    scheduler.schedule(createDocument(uri, "v1", 1));
+    await vi.advanceTimersByTimeAsync(1);
+    scheduler.close(uri);
+
+    scheduler.schedule(createDocument(uri, "v2", 2));
+    await vi.advanceTimersByTimeAsync(1);
+
+    resolveFirstValidation?.([{ code: "stale-v1" }]);
+    await Promise.resolve();
+
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(publish.mock.calls[0]?.[0]).toEqual({
+      uri,
+      version: 1,
+      diagnostics: [],
+    });
+    expect(publish.mock.calls[1]?.[0]).toEqual({
+      uri,
+      version: 2,
+      diagnostics: [{ code: "v2" }],
     });
   });
 });
