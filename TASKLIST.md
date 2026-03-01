@@ -82,7 +82,7 @@
 | --------- | ---------------------------- | --------------- | ---------------------------- |
 | LSP       | `vscode-languageserver-node` | ✅ 首选         | 与当前生态最贴合             |
 | LSP       | `pygls`                      | ⚠️ 可行但非主线 | 可作为实验分支，不作为主交付 |
-| Formatter | `dprint-plugin-birdcc`       | ✅ 首选         | 性能高，WASM 易分发          |
+| Formatter | `dprint-plugin-bird`         | ✅ 首选         | 性能高，WASM 易分发          |
 | Formatter | `Topiary`                    | ⚠️ 备选         | 适合快速 PoC                 |
 | Formatter | `Prettier`                   | ⚠️ 兼容层       | 仅前端生态强依赖时启用       |
 
@@ -464,6 +464,7 @@ birdcc lsp --stdio
 2. 版本策略：主版本同步，允许 `@birdcc/parser` 小版本先行。
 3. 标签策略：`alpha`、`beta`、`latest`。
 4. 版本号示例：`v0.1.0-alpha.1` -> `v0.1.0-beta.1` -> `v0.1.0`。
+5. Formatter 插件命名策略：开发期使用 workspace 包 `@birdcc/dprint-plugin-bird`，稳定后优先发布并保留非 scope 包名 `dprint-plugin-bird` 以提升生态认知度。
 
 ### 15.2 文档同步
 
