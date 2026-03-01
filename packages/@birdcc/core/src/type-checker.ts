@@ -7,10 +7,161 @@ const VARIABLE_DECLARE_PATTERN =
   /^\s*(?:var\s+)?(int|bool|string|ip|prefix)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*(.+?))?\s*;?\s*$/i;
 const VARIABLE_ASSIGN_PATTERN = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$/;
 
+const trimEnclosingParentheses = (value: string): string => {
+  let current = value.trim();
+
+  while (current.startsWith("(") && current.endsWith(")")) {
+    let depth = 0;
+    let valid = true;
+
+    for (let index = 0; index < current.length; index += 1) {
+      const char = current[index];
+      if (char === "(") {
+        depth += 1;
+      } else if (char === ")") {
+        depth -= 1;
+        if (depth < 0) {
+          valid = false;
+          break;
+        }
+
+        if (depth === 0 && index < current.length - 1) {
+          valid = false;
+          break;
+        }
+      }
+    }
+
+    if (!valid || depth !== 0) {
+      break;
+    }
+
+    current = current.slice(1, -1).trim();
+  }
+
+  return current;
+};
+
+const splitTopLevelBinary = (
+  value: string,
+  operators: string[],
+): { left: string; operator: string; right: string } | null => {
+  let depth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let escaping = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (!inDoubleQuote && char === "'") {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (!inSingleQuote && char === '"') {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote) {
+      continue;
+    }
+
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === ")") {
+      if (depth > 0) {
+        depth -= 1;
+      }
+      continue;
+    }
+
+    if (depth !== 0) {
+      continue;
+    }
+
+    for (const operator of operators) {
+      if (!value.startsWith(operator, index)) {
+        continue;
+      }
+
+      const left = value.slice(0, index).trim();
+      const right = value.slice(index + operator.length).trim();
+
+      if (left.length === 0 || right.length === 0) {
+        continue;
+      }
+
+      return { left, operator, right };
+    }
+  }
+
+  return null;
+};
+
 const inferValueType = (rawValue: string, variableTypes: Map<string, TypeValue>): TypeValue => {
-  const value = rawValue.trim();
+  const value = trimEnclosingParentheses(rawValue);
   if (value.length === 0) {
     return "unknown";
+  }
+
+  if (value.startsWith("!")) {
+    const operandType = inferValueType(value.slice(1), variableTypes);
+    return operandType === "bool" ? "bool" : "unknown";
+  }
+
+  const booleanExpression = splitTopLevelBinary(value, ["||", "&&"]);
+  if (booleanExpression) {
+    const leftType = inferValueType(booleanExpression.left, variableTypes);
+    const rightType = inferValueType(booleanExpression.right, variableTypes);
+    return leftType === "bool" && rightType === "bool" ? "bool" : "unknown";
+  }
+
+  const comparisonExpression = splitTopLevelBinary(value, ["==", "!=", "<=", ">=", "<", ">"]);
+  if (comparisonExpression) {
+    const leftType = inferValueType(comparisonExpression.left, variableTypes);
+    const rightType = inferValueType(comparisonExpression.right, variableTypes);
+
+    if (
+      comparisonExpression.operator === "<" ||
+      comparisonExpression.operator === ">" ||
+      comparisonExpression.operator === "<=" ||
+      comparisonExpression.operator === ">="
+    ) {
+      return leftType === "int" && rightType === "int" ? "bool" : "unknown";
+    }
+
+    return leftType !== "unknown" && rightType !== "unknown" && leftType === rightType
+      ? "bool"
+      : "unknown";
+  }
+
+  const additiveExpression = splitTopLevelBinary(value, ["+", "-"]);
+  if (additiveExpression) {
+    const leftType = inferValueType(additiveExpression.left, variableTypes);
+    const rightType = inferValueType(additiveExpression.right, variableTypes);
+    return leftType === "int" && rightType === "int" ? "int" : "unknown";
+  }
+
+  const multiplicativeExpression = splitTopLevelBinary(value, ["*", "/"]);
+  if (multiplicativeExpression) {
+    const leftType = inferValueType(multiplicativeExpression.left, variableTypes);
+    const rightType = inferValueType(multiplicativeExpression.right, variableTypes);
+    return leftType === "int" && rightType === "int" ? "int" : "unknown";
   }
 
   const lowered = value.toLowerCase();
