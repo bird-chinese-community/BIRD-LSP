@@ -171,13 +171,45 @@ const countLeadingCloseBraces = (text: string): number => {
 
 const isCommentLine = (line: string): boolean => line.trimStart().startsWith("#");
 
+const HIGH_RISK_KEYWORDS = ["if", "then", "else", "return"] as const;
+const HIGH_RISK_OPERATORS = ["~", "&", "|", "?", ":", "(", "[", "]"] as const;
+
+const isWordCharacter = (value: string): boolean => /[A-Za-z0-9_]/.test(value);
+
+const containsKeywordAsWord = (text: string, keyword: string): boolean => {
+  let startIndex = 0;
+  while (startIndex <= text.length) {
+    const foundIndex = text.indexOf(keyword, startIndex);
+    if (foundIndex === -1) {
+      return false;
+    }
+
+    const endIndex = foundIndex + keyword.length;
+    const leftChar = foundIndex === 0 ? "" : (text[foundIndex - 1] ?? "");
+    const rightChar = endIndex >= text.length ? "" : (text[endIndex] ?? "");
+    const leftOk = leftChar === "" || !isWordCharacter(leftChar);
+    const rightOk = rightChar === "" || !isWordCharacter(rightChar);
+
+    if (leftOk && rightOk) {
+      return true;
+    }
+
+    startIndex = endIndex;
+  }
+
+  return false;
+};
+
 const isHighRiskExpressionLine = (line: string): boolean => {
   const normalized = line.trim();
   if (normalized.length === 0 || isCommentLine(normalized)) {
     return false;
   }
 
-  return /\b(if|then|else|return)\b|[~&|?:]|\[[^\]]*\]|\(/i.test(normalized);
+  const lowered = normalized.toLowerCase();
+  const keywordRisk = HIGH_RISK_KEYWORDS.some((keyword) => containsKeywordAsWord(lowered, keyword));
+  const operatorRisk = HIGH_RISK_OPERATORS.some((operator) => normalized.includes(operator));
+  return keywordRisk || operatorRisk;
 };
 
 const normalizeNonRiskLine = (line: string): string => {

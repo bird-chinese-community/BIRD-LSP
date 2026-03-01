@@ -122,6 +122,20 @@ describe("@birdcc/formatter", () => {
     expect(output.text).toBe("define iffy = 1;\n");
   });
 
+  it("detects high-risk keywords case-insensitively in builtin formatter", async () => {
+    const input = [
+      "filter test {",
+      "IF ( net ~ [ 192.0.2.0/24 ] ) Then {",
+      "accept;",
+      "}",
+      "}",
+    ].join("\n");
+    const output = await __formatBirdConfigBuiltinForTest(`${input}\n`);
+
+    expect(output.stats.highRiskLines).toBeGreaterThan(0);
+    expect(output.text).toContain("IF ( net ~ [ 192.0.2.0/24 ] ) Then {");
+  });
+
   it("keeps correct indentation level after standalone closing braces", async () => {
     const input = [
       "protocol bgp edge {",
