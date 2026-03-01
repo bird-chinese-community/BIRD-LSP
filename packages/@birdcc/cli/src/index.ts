@@ -1,9 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
-import type { BirdDiagnostic } from "@birdcc/core";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { resolveCrossFileReferences, type BirdDiagnostic } from "@birdcc/core";
 import { formatBirdConfig, type FormatterEngine } from "@birdcc/formatter";
 import { startLspServer } from "@birdcc/lsp";
-import { lintBirdConfig } from "@birdcc/linter";
+import { lintBirdConfig, lintResolvedCrossFileGraph } from "@birdcc/linter";
 import { createBirdRunnerErrorMessage } from "./messages.js";
 
 export interface BirdValidateResult {
@@ -263,6 +265,9 @@ export const runBirdValidation = (
 
 export interface LintOptions {
   withBird?: boolean;
+  crossFile?: boolean;
+  includeMaxDepth?: number;
+  includeMaxFiles?: number;
   validateCommand?: string;
 }
 
@@ -270,14 +275,70 @@ export interface BirdccLintOutput {
   diagnostics: BirdDiagnostic[];
 }
 
+const toFileUri = (filePath: string): string => pathToFileURL(resolve(filePath)).toString();
+
+const diagnosticDedupKey = (diagnostic: BirdDiagnostic): string =>
+  [
+    diagnostic.code,
+    diagnostic.message,
+    diagnostic.uri ?? "",
+    diagnostic.range.line,
+    diagnostic.range.column,
+    diagnostic.range.endLine,
+    diagnostic.range.endColumn,
+  ].join(":");
+
+const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
+  const seen = new Set<string>();
+  const output: BirdDiagnostic[] = [];
+
+  for (const diagnostic of diagnostics) {
+    const key = diagnosticDedupKey(diagnostic);
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(diagnostic);
+  }
+
+  return output;
+};
+
+const runCrossFileLint = async (
+  filePath: string,
+  options: LintOptions,
+): Promise<BirdccLintOutput> => {
+  const entryText = await readFile(filePath, "utf8");
+  const entryUri = toFileUri(filePath);
+  const crossFile = await resolveCrossFileReferences({
+    entryUri,
+    documents: [{ uri: entryUri, text: entryText }],
+    maxDepth: options.includeMaxDepth,
+    maxFiles: options.includeMaxFiles,
+    loadFromFileSystem: true,
+  });
+
+  const lintResult = await lintResolvedCrossFileGraph(crossFile);
+  return { diagnostics: dedupeDiagnostics(lintResult.diagnostics) };
+};
+
 /** Lints one config file and optionally appends diagnostics from `bird -p`. */
 export const runLint = async (
   filePath: string,
   options: LintOptions = {},
 ): Promise<BirdccLintOutput> => {
-  const text = await readFile(filePath, "utf8");
-  const lintResult = await lintBirdConfig(text);
-  const diagnostics = [...lintResult.diagnostics];
+  const crossFile = options.crossFile !== false;
+  const lintOutput = crossFile
+    ? await runCrossFileLint(filePath, options)
+    : await (async () => {
+        const text = await readFile(filePath, "utf8");
+        const uri = toFileUri(filePath);
+        const lintResult = await lintBirdConfig(text, { uri });
+        return { diagnostics: lintResult.diagnostics };
+      })();
+
+  const diagnostics = [...lintOutput.diagnostics];
 
   if (options.withBird) {
     const birdResult = runBirdValidation(filePath, options.validateCommand);
