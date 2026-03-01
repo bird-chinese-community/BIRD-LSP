@@ -58,14 +58,14 @@
 
 ## ✨ 功能特性
 
-| 功能 | 描述 | 状态 |
-|------|------|------|
-| 🎨 **语法高亮** | 基于 Tree-sitter 的高精度语法解析 | ✅ 已实现 |
-| 🔍 **实时诊断** | 集成 `bird -p` 的原生配置验证 | ✅ 已实现 |
-| 📝 **代码格式化** | dprint 插件，支持自定义样式 | 🚧 开发中 |
-| 💡 **智能补全** | Protocol/Filter/Function 自动补全 | 🚧 开发中 |
-| 🔎 **悬停提示** | 类型信息、文档说明即时展示 | 📋 计划中 |
-| 🏗️ **符号导航** | 跳转到定义、查找引用 | 📋 计划中 |
+| 功能              | 描述                              | 状态      |
+| ----------------- | --------------------------------- | --------- |
+| 🎨 **语法高亮**   | 基于 Tree-sitter 的高精度语法解析 | ✅ 已实现 |
+| 🔍 **实时诊断**   | 集成 `bird -p` 的原生配置验证     | ✅ 已实现 |
+| 📝 **代码格式化** | dprint 插件，支持自定义样式       | 🚧 开发中 |
+| 💡 **智能补全**   | Protocol/Filter/Function 自动补全 | 🚧 开发中 |
+| 🔎 **悬停提示**   | 类型信息、文档说明即时展示        | 📋 计划中 |
+| 🏗️ **符号导航**   | 跳转到定义、查找引用              | 📋 计划中 |
 
 ### 近期进展（2026-03-01）
 
@@ -204,14 +204,14 @@ VS Code 扩展正在开发中，敬请期待！
 
 ### 核心包说明
 
-| 包名 | 职责 | 技术栈 |
-|------|------|--------|
-| `@birdcc/parser` | Tree-sitter Grammar + WASM 绑定 + JS 适配器 | Tree-sitter, WASM, TypeScript |
-| `@birdcc/core` | AST 遍历、符号表构建、类型检查 | TypeScript |
-| `@birdcc/linter` | Lint 规则、诊断生成、BIRD 集成 | TypeScript |
-| `@birdcc/lsp` | LSP 处理器、消息路由、IDE 功能 | vscode-languageserver-node |
-| `@birdcc/formatter` | dprint 格式化插件 | dprint, TypeScript |
-| `@birdcc/cli` | 命令行入口、配置解析、服务编排 | Commander.js |
+| 包名                | 职责                                        | 技术栈                        |
+| ------------------- | ------------------------------------------- | ----------------------------- |
+| `@birdcc/parser`    | Tree-sitter Grammar + WASM 绑定 + JS 适配器 | Tree-sitter, WASM, TypeScript |
+| `@birdcc/core`      | AST 遍历、符号表构建、类型检查              | TypeScript                    |
+| `@birdcc/linter`    | Lint 规则、诊断生成、BIRD 集成              | TypeScript                    |
+| `@birdcc/lsp`       | LSP 处理器、消息路由、IDE 功能              | vscode-languageserver-node    |
+| `@birdcc/formatter` | dprint 格式化插件                           | dprint, TypeScript            |
+| `@birdcc/cli`       | 命令行入口、配置解析、服务编排              | Commander.js                  |
 
 ---
 
@@ -299,16 +299,19 @@ BIRD-LSP/
 1. **Fork 仓库** 并克隆到本地
 
 2. **创建功能分支**
+
    ```bash
    git checkout -b feature/amazing-feature
    ```
 
 3. **提交更改**（遵循 Conventional Commits）
+
    ```bash
    git commit -m "feat(parser): add support for multi-word phrases"
    ```
 
 4. **推送分支**
+
    ```bash
    git push origin feature/amazing-feature
    ```
@@ -317,16 +320,16 @@ BIRD-LSP/
 
 ### 提交规范
 
-| 类型 | 描述 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | 修复 Bug |
-| `docs` | 文档更新 |
-| `style` | 代码风格（不影响功能）|
-| `refactor` | 代码重构 |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `chore` | 构建/工具链 |
+| 类型       | 描述                   |
+| ---------- | ---------------------- |
+| `feat`     | 新功能                 |
+| `fix`      | 修复 Bug               |
+| `docs`     | 文档更新               |
+| `style`    | 代码风格（不影响功能） |
+| `refactor` | 代码重构               |
+| `perf`     | 性能优化               |
+| `test`     | 测试相关               |
+| `chore`    | 构建/工具链            |
 
 ### 代码规范
 
