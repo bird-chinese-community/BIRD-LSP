@@ -155,8 +155,8 @@ interface CommandExecResult {
   errorReason?: string;
 }
 
-const runCommand = (commandTokens: string[]): CommandExecResult => {
-  if (commandTokens.length === 0) {
+const runCommand = (executable: string, args: string[]): CommandExecResult => {
+  if (!executable) {
     return {
       command: "",
       exitCode: 1,
@@ -166,7 +166,6 @@ const runCommand = (commandTokens: string[]): CommandExecResult => {
     };
   }
 
-  const [executable, ...args] = commandTokens;
   const result = spawnSync(executable, args, {
     encoding: "utf8",
     timeout: COMMAND_TIMEOUT_MS,
@@ -175,7 +174,7 @@ const runCommand = (commandTokens: string[]): CommandExecResult => {
 
   if (result.error) {
     return {
-      command: commandTokens.join(" "),
+      command: [executable, ...args].join(" "),
       exitCode: 1,
       stdout: "",
       stderr: "",
@@ -184,10 +183,43 @@ const runCommand = (commandTokens: string[]): CommandExecResult => {
   }
 
   return {
-    command: commandTokens.join(" "),
+    command: [executable, ...args].join(" "),
     exitCode: result.status ?? 1,
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
+  };
+};
+
+const expandValidateCommandArgs = (
+  commandTokens: string[],
+  filePath: string,
+): { executable: string; args: string[] } | null => {
+  if (commandTokens.length === 0) {
+    return null;
+  }
+
+  const [executable, ...args] = commandTokens;
+  if (executable.includes("{file}")) {
+    return null;
+  }
+
+  let replaced = false;
+  const expandedArgs = args.map((token) => {
+    if (!token.includes("{file}")) {
+      return token;
+    }
+
+    replaced = true;
+    return token.replaceAll("{file}", filePath);
+  });
+
+  if (!replaced) {
+    expandedArgs.push(filePath);
+  }
+
+  return {
+    executable,
+    args: expandedArgs,
   };
 };
 
@@ -230,8 +262,29 @@ export const runBirdValidation = (
     };
   }
 
-  const replacedCommandTokens = commandTokens.map((token) => token.replaceAll("{file}", filePath));
-  const execResult = runCommand(replacedCommandTokens);
+  const expandedCommand = expandValidateCommandArgs(commandTokens, filePath);
+  if (!expandedCommand) {
+    const message = createBirdRunnerErrorMessage(
+      "invalid bird command template: {file} cannot be used as executable",
+    );
+    return {
+      command: validateTemplate,
+      exitCode: 1,
+      stdout: "",
+      stderr: message,
+      diagnostics: [
+        {
+          code: "bird/runner-error",
+          message,
+          severity: "error",
+          source: "bird",
+          range: createRange(1, 1),
+        },
+      ],
+    };
+  }
+
+  const execResult = runCommand(expandedCommand.executable, expandedCommand.args);
 
   if (execResult.errorReason) {
     const message = createBirdRunnerErrorMessage(execResult.errorReason);
