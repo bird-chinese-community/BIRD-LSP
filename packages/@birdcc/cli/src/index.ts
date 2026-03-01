@@ -381,23 +381,19 @@ export const parseBirdcStatusOutput = (
 export const parseBirdcProtocolsOutput = (stdout: string): BirdcProtocolRuntimeState[] => {
   const protocols: BirdcProtocolRuntimeState[] = [];
   const protocolRowPattern = /^(?<name>\S+)\s+(?<protocol>\S+)\s+\S+\s+(?<state>\S+)/;
+  const protocolHeaderPattern = /^name\s+proto\s+table\s+state\b/i;
   const lines = stdout
     .split(/\r?\n/)
     .map(sanitizeBirdcLine)
-    .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
   for (const lineText of lines) {
     const lowered = lineText.toLowerCase();
-    if (
-      lowered.startsWith("bird ") ||
-      lowered.startsWith("name proto table state") ||
-      lowered === "0000"
-    ) {
+    if (lowered.startsWith("bird ")) {
       continue;
     }
 
-    if (/^name\s+proto\s+table\s+state\b/i.test(lineText)) {
+    if (protocolHeaderPattern.test(lineText)) {
       continue;
     }
 
