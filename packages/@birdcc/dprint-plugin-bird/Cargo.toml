@@ -1,0 +1,32 @@
+[package]
+name = "dprint-plugin-bird"
+version = "0.0.1"
+authors = ["bird-chinese-community"]
+edition = "2021"
+license = "MIT"
+description = "BIRD config formatter plugin for dprint"
+repository = "https://github.com/bird-chinese-community/BIRD-LSP"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = true
+debug-assertions = false
+overflow-checks = false
+panic = "abort"
+
+[features]
+default = []
+wasm = ["dprint-core/wasm", "serde_json"]
+
+[dependencies]
+anyhow = "1.0.95"
+dprint-core = { version = "0.67.4", features = ["formatting"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = { version = "1.0.149", optional = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

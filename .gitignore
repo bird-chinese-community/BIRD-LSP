@@ -20,3 +20,6 @@ packages/@birdcc/parser/src/tree_sitter/*.h
 .env
 
 refer/docs/**
+
+# Rust
+target
