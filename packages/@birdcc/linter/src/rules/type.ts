@@ -178,9 +178,15 @@ const typeSetIncompatibleRule: BirdRule = ({ parsed, text }) => {
       evaluateSetCompatibility(match.left, match.right, match);
     }
 
-    const sourceText = declarationText(text, declaration);
-    for (const match of extractMatches(sourceText)) {
-      evaluateSetCompatibility(match.left, match.right, declaration);
+    const hasTruncatedSetMatch = declaration.matches.some(
+      (match) => match.right.includes("[") && !match.right.includes("]"),
+    );
+
+    if (hasTruncatedSetMatch) {
+      const sourceText = declarationText(text, declaration);
+      for (const match of extractMatches(sourceText)) {
+        evaluateSetCompatibility(match.left, match.right, declaration);
+      }
     }
   }
 

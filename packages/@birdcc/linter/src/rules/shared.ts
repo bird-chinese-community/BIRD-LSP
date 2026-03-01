@@ -2,7 +2,6 @@ import { isIP } from "node:net";
 import type { BirdDiagnostic, BirdDiagnosticSeverity, CoreSnapshot } from "@birdcc/core";
 import type {
   BirdDeclaration,
-  ChannelEntry,
   FilterBodyStatement,
   FilterDeclaration,
   FunctionDeclaration,
@@ -205,7 +204,9 @@ export const extractFunctionCalls = (text: string): string[] => {
 
   while (current) {
     const name = current[1] ?? "";
-    if (name.length > 0 && !ignored.has(name.toLowerCase())) {
+    const matchIndex = current.index ?? -1;
+    const isMethodCall = matchIndex > 0 && text[matchIndex - 1] === ".";
+    if (name.length > 0 && !ignored.has(name.toLowerCase()) && !isMethodCall) {
       names.push(name);
     }
     current = pattern.exec(text);
@@ -317,6 +318,3 @@ export const createProtocolDiagnostic = (
     endColumn: declaration.nameRange.endColumn,
   },
 });
-
-export const lineFromStatement = (statement: ProtocolStatement | ChannelEntry): number =>
-  statement.line;

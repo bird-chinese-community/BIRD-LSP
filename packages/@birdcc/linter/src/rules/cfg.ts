@@ -16,7 +16,8 @@ import {
   type BirdRule,
 } from "./shared.js";
 
-const MAX_ASN = 4_294_967_295;
+const MAX_ASN = 4_294_967_294;
+const MAX_ROUTE_LIMIT = 10_000_000;
 
 const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   if (protocolDeclarations(parsed).length > 0) {
@@ -223,7 +224,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
             "limit",
             numericValue(entry.value),
             0,
-            MAX_ASN,
+            MAX_ROUTE_LIMIT,
           );
         }
 
@@ -246,7 +247,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
           "max prefix",
           numericValue(token),
           0,
-          MAX_ASN,
+          MAX_ROUTE_LIMIT,
         );
       }
     }
