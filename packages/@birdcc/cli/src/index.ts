@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -150,6 +150,32 @@ const formatSpawnError = (error: NodeJS.ErrnoException): string => {
   }
 
   return error.message;
+};
+
+const formatIoError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const readUtf8File = async (filePath: string): Promise<string> => {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    throw new Error(`Failed to read file '${filePath}': ${formatIoError(error)}`);
+  }
+};
+
+const createTempFilePath = (filePath: string): string =>
+  `${filePath}.birdcc-tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const writeUtf8FileAtomically = async (filePath: string, content: string): Promise<void> => {
+  const tempPath = createTempFilePath(filePath);
+
+  try {
+    await writeFile(tempPath, content, "utf8");
+    await rename(tempPath, filePath);
+  } catch (error) {
+    await unlink(tempPath).catch(() => {});
+    throw new Error(`Failed to write file '${filePath}': ${formatIoError(error)}`);
+  }
 };
 
 const isCommandPathSafe = (filePath: string): boolean => {
@@ -410,7 +436,7 @@ const runCrossFileLint = async (
   filePath: string,
   options: LintOptions,
 ): Promise<BirdccLintOutput> => {
-  const entryText = await readFile(filePath, "utf8");
+  const entryText = await readUtf8File(filePath);
   const entryUri = toFileUri(filePath);
   const crossFile = await resolveCrossFileReferences({
     entryUri,
@@ -433,7 +459,7 @@ export const runLint = async (
   const lintOutput = crossFile
     ? await runCrossFileLint(filePath, options)
     : await (async () => {
-        const text = await readFile(filePath, "utf8");
+        const text = await readUtf8File(filePath);
         const uri = toFileUri(filePath);
         const lintResult = await lintBirdConfig(text, { uri });
         return { diagnostics: lintResult.diagnostics };
@@ -499,7 +525,7 @@ const formatWithFormatterPackage = async (
 
 /** Formats one file and writes back when `options.write` is enabled. */
 export const runFmt = async (filePath: string, options: FmtOptions = {}): Promise<FmtResult> => {
-  const text = await readFile(filePath, "utf8");
+  const text = await readUtf8File(filePath);
   let result: FmtResult;
 
   try {
@@ -518,7 +544,7 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
   }
 
   if (options.write && result.changed) {
-    await writeFile(filePath, result.formattedText, "utf8");
+    await writeUtf8FileAtomically(filePath, result.formattedText);
   }
 
   return result;

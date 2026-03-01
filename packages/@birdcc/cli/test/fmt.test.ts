@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const readFileMock = vi.hoisted(() => vi.fn());
 const writeFileMock = vi.hoisted(() => vi.fn());
+const renameMock = vi.hoisted(() => vi.fn());
+const unlinkMock = vi.hoisted(() => vi.fn());
 const formatBirdConfigMock = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs/promises", () => ({
   readFile: readFileMock,
   writeFile: writeFileMock,
+  rename: renameMock,
+  unlink: unlinkMock,
 }));
 
 vi.mock("@birdcc/formatter", () => ({
@@ -19,10 +23,14 @@ describe("@birdcc/cli fmt runtime", () => {
   beforeEach(() => {
     readFileMock.mockReset();
     writeFileMock.mockReset();
+    renameMock.mockReset();
+    unlinkMock.mockReset();
     formatBirdConfigMock.mockReset();
 
     readFileMock.mockResolvedValue("protocol bgp edge {}\n");
     writeFileMock.mockResolvedValue(undefined);
+    renameMock.mockResolvedValue(undefined);
+    unlinkMock.mockResolvedValue(undefined);
     formatBirdConfigMock.mockReturnValue({
       changed: false,
       text: "protocol bgp edge {}\n",
@@ -86,5 +94,42 @@ describe("@birdcc/cli fmt runtime", () => {
       engine: "builtin",
     });
     expect(errorSpy).toHaveBeenCalledOnce();
+  });
+
+  it("wraps read file errors with a readable message", async () => {
+    readFileMock.mockRejectedValueOnce(new Error("EACCES"));
+    await expect(runFmt("/tmp/no-access.conf")).rejects.toThrow(
+      "Failed to read file '/tmp/no-access.conf': EACCES",
+    );
+  });
+
+  it("writes formatted output atomically in write mode", async () => {
+    formatBirdConfigMock.mockReturnValueOnce({
+      changed: true,
+      text: "protocol bgp edge {\n}\n",
+      engine: "dprint",
+    });
+
+    const result = await runFmt("/tmp/bird.conf", { write: true });
+
+    expect(result.changed).toBe(true);
+    expect(writeFileMock).toHaveBeenCalledTimes(1);
+    expect(renameMock).toHaveBeenCalledTimes(1);
+    expect(unlinkMock).not.toHaveBeenCalled();
+  });
+
+  it("cleans temporary file and wraps write errors", async () => {
+    formatBirdConfigMock.mockReturnValueOnce({
+      changed: true,
+      text: "protocol bgp edge {\n}\n",
+      engine: "dprint",
+    });
+    renameMock.mockRejectedValueOnce(new Error("EXDEV"));
+
+    await expect(runFmt("/tmp/bird.conf", { write: true })).rejects.toThrow(
+      "Failed to write file '/tmp/bird.conf': EXDEV",
+    );
+
+    expect(unlinkMock).toHaveBeenCalledTimes(1);
   });
 });
