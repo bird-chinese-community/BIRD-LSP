@@ -6,6 +6,18 @@ const byteOffsetToCodeUnitIndex = (bytes: Buffer, byteOffset: number): number =>
   return bytes.subarray(0, clampedOffset).toString("utf8").length;
 };
 
+let cachedSourceForBytes: string | null = null;
+let cachedUtf8Bytes: Buffer | null = null;
+
+const utf8BytesOf = (source: string): Buffer => {
+  if (cachedSourceForBytes !== source || !cachedUtf8Bytes) {
+    cachedSourceForBytes = source;
+    cachedUtf8Bytes = Buffer.from(source, "utf8");
+  }
+
+  return cachedUtf8Bytes;
+};
+
 const nodeCodeUnitSpan = (
   node: SyntaxNode,
   source: string,
@@ -21,7 +33,7 @@ const nodeCodeUnitSpan = (
     return { startIndex, endIndex };
   }
 
-  const bytes = Buffer.from(source, "utf8");
+  const bytes = utf8BytesOf(source);
   return {
     startIndex: byteOffsetToCodeUnitIndex(bytes, startIndex),
     endIndex: byteOffsetToCodeUnitIndex(bytes, endIndex),
