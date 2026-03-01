@@ -37,6 +37,16 @@ describe("@birdcc/linter net+type rules", () => {
     expect(codes).toContain("net/invalid-ipv6-prefix");
   });
 
+  it("hits net/invalid-ipv4-prefix for unknown address token", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        if net ~ [example/24] then accept;
+      }
+    `);
+
+    expect(codes).toContain("net/invalid-ipv4-prefix");
+  });
+
   it("hits net/max-prefix-length", async () => {
     const codes = await codesOf(`
       filter f1 {
@@ -45,6 +55,20 @@ describe("@birdcc/linter net+type rules", () => {
     `);
 
     expect(codes).toContain("net/max-prefix-length");
+  });
+
+  it("hits net/invalid-prefix-length for negative max prefix", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          max prefix -100;
+        };
+      }
+    `);
+
+    expect(codes).toContain("net/invalid-prefix-length");
   });
 
   it("hits type/mismatch", async () => {
