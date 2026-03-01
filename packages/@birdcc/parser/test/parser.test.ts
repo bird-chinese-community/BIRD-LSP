@@ -142,6 +142,26 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("preserves generic protocol statements as other entries", async () => {
+    const sample = `
+      protocol ospf core {
+        area 0;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const otherStatement = protocol.statements.find((item) => item.kind === "other");
+      expect(otherStatement?.kind).toBe("other");
+      if (otherStatement?.kind === "other") {
+        expect(otherStatement.text.toLowerCase()).toContain("area");
+      }
+    }
+  });
+
   it("keeps invalid neighbor IP as ip-like candidate for semantic validation", async () => {
     const sample = `
       protocol bgp edge_peer {

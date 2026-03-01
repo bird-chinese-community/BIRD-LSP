@@ -30,6 +30,7 @@ const PROTOCOL_STATEMENT_TYPES = new Set([
   "import_statement",
   "export_statement",
   "channel_statement",
+  "expression_statement",
 ]);
 
 const TABLE_TYPES = new Set([
@@ -404,6 +405,8 @@ const parseProtocolStatements = (
 ): ProtocolStatement[] => {
   const statements: ProtocolStatement[] = [];
   const nodes = protocolStatementNodesOf(blockNode);
+  const childNodes = blockNode.namedChildren;
+  const fallbackChannelIndices = new Set<number>();
 
   for (const statementNode of nodes) {
     const statementRange = toRange(statementNode, source);
@@ -466,10 +469,18 @@ const parseProtocolStatements = (
         entries: isPresentNode(channelBodyNode) ? parseChannelEntries(channelBodyNode, source) : [],
         ...statementRange,
       });
+      continue;
+    }
+
+    if (statementNode.type === "expression_statement") {
+      statements.push({
+        kind: "other",
+        text: textOf(statementNode, source),
+        ...statementRange,
+      });
     }
   }
 
-  const childNodes = blockNode.namedChildren;
   for (let index = 0; index < childNodes.length - 1; index += 1) {
     const maybeChannelTypeNode = childNodes[index];
     const maybeChannelBodyNode = childNodes[index + 1];
@@ -500,7 +511,53 @@ const parseProtocolStatements = (
       ...channelRange,
     });
 
+    fallbackChannelIndices.add(index);
+    fallbackChannelIndices.add(index + 1);
     index += 1;
+  }
+
+  for (let index = 0; index < childNodes.length; index += 1) {
+    const currentNode = childNodes[index];
+    if (!currentNode) {
+      continue;
+    }
+
+    if (PROTOCOL_STATEMENT_TYPES.has(currentNode.type) || fallbackChannelIndices.has(index)) {
+      continue;
+    }
+
+    const startRow = currentNode.startPosition.row;
+    let endIndex = index;
+
+    while (endIndex + 1 < childNodes.length) {
+      const nextNode = childNodes[endIndex + 1];
+      if (!nextNode) {
+        break;
+      }
+
+      if (
+        PROTOCOL_STATEMENT_TYPES.has(nextNode.type) ||
+        fallbackChannelIndices.has(endIndex + 1) ||
+        nextNode.startPosition.row !== startRow
+      ) {
+        break;
+      }
+
+      endIndex += 1;
+    }
+
+    const lastNode = childNodes[endIndex] ?? currentNode;
+    const text = source.slice(currentNode.startIndex, lastNode.endIndex).trim();
+
+    if (text.length > 0) {
+      statements.push({
+        kind: "other",
+        text,
+        ...mergeRanges(toRange(currentNode, source), toRange(lastNode, source)),
+      });
+    }
+
+    index = endIndex;
   }
 
   return statements;

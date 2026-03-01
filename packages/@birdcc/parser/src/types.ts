@@ -189,12 +189,18 @@ export interface ChannelStatement extends StatementBase {
   entries: ChannelEntry[];
 }
 
+export interface OtherProtocolStatement extends SourceRange {
+  kind: "other";
+  text: string;
+}
+
 export type ProtocolStatement =
   | LocalAsStatement
   | NeighborStatement
   | ImportStatement
   | ExportStatement
-  | ChannelStatement;
+  | ChannelStatement
+  | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {
   kind: "protocol";
