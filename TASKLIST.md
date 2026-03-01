@@ -173,9 +173,9 @@ tests/
 
 ### 5.4 include 与模板继承路线
 
-1. Phase 1（MVP）：单文件完整能力；`include/template` 仅语法识别，不展开。
-2. Phase 2：支持 include 展开（不含通配符）和跨文件引用。
-3. Phase 3：支持模板继承链与覆盖语义验证。
+1. Phase 1（MVP）：单文件完整能力；`include/template` 仅语法识别，不展开。✅
+2. Phase 2：支持 include 展开（不含通配符）和跨文件引用。✅（CLI 默认开启，LSP 全链路接入）
+3. Phase 3：支持模板继承链与覆盖语义验证。🟡（已覆盖循环继承检测，覆盖语义继续推进）
 
 ---
 
@@ -194,15 +194,16 @@ tests/
 
 ### 7.1 里程碑功能矩阵
 
-| 功能                                | M2      | M3      | M4          |
-| ----------------------------------- | ------- | ------- | ----------- |
-| `textDocument/publishDiagnostics`   | ✅      | ✅      | ✅          |
-| `textDocument/completion`（关键字） | ✅      | ✅      | ✅          |
-| `textDocument/hover`                | ✅      | ✅      | ✅          |
-| `textDocument/documentSymbol`       | ❌      | ✅      | ✅          |
-| `textDocument/definition`           | ❌      | ✅      | ✅          |
-| `textDocument/formatting`           | ✅ 基础 | ✅ 稳定 | ✅ 语义保护 |
-| `textDocument/codeAction`           | ❌      | ⚠️ 部分 | ✅          |
+| 功能                                | M2      | M3      | M4           |
+| ----------------------------------- | ------- | ------- | ------------ |
+| `textDocument/publishDiagnostics`   | ✅      | ✅      | ✅           |
+| `textDocument/completion`（关键字） | ✅      | ✅      | ✅           |
+| `textDocument/hover`                | ✅      | ✅      | ✅           |
+| `textDocument/documentSymbol`       | ❌      | ✅      | ✅           |
+| `textDocument/definition`           | ❌      | ✅      | ✅（跨文件） |
+| `textDocument/references`           | ❌      | ⚠️ 部分 | ✅（跨文件） |
+| `textDocument/formatting`           | ✅ 基础 | ✅ 稳定 | ✅ 语义保护  |
+| `textDocument/codeAction`           | ❌      | ⚠️ 部分 | ✅           |
 
 ### 7.2 诊断来源
 
@@ -254,14 +255,14 @@ tests/
 
 ### 10.1 规则分级
 
-| 分类            | 默认级别 | CI 策略 |
-| --------------- | -------- | ------- |
-| `sym/*`         | error    | 阻塞    |
-| `cfg/*`         | error    | 阻塞    |
-| `net/*`         | error    | 阻塞    |
-| `type/*`        | error    | 阻塞    |
-| `bgp/*`         | warning  | 非阻塞  |
-| `ospf/*`        | warning  | 非阻塞  |
+| 分类     | 默认级别 | CI 策略 |
+| -------- | -------- | ------- |
+| `sym/*`  | error    | 阻塞    |
+| `cfg/*`  | error    | 阻塞    |
+| `net/*`  | error    | 阻塞    |
+| `type/*` | error    | 阻塞    |
+| `bgp/*`  | warning  | 非阻塞  |
+| `ospf/*` | warning  | 非阻塞  |
 
 ### 10.2 完整 32 条规则（对齐 BIRD 源码，含源码位置）
 
@@ -431,6 +432,14 @@ birdcc lsp --stdio
 2. M3：`bird -p` 进入稳定阻塞链路（CLI/LSP/CI）。
 3. M4：聚焦规则与发布体系，不引入 `birdc` 编辑期集成。
 4. Post-M4：按需求再评估 `birdc`/Socket 运行态通道。
+
+### 13.4 M3-M4 桥接执行快照（2026-03-01）
+
+1. ✅ include 跨文件链路已落地：`@birdcc/core`（fs + 内存混合加载、深度/文件数限制、降级诊断）。
+2. ✅ `birdcc lint` 默认开启跨文件，新增 `--no-cross-file` / `--include-max-depth` / `--include-max-files`。
+3. ✅ LSP 能力扩展：跨文件 diagnostics 发布、`definition`/`references`、跨文件 completion 声明池。
+4. ✅ formatter Phase1 完成：结构化 builtin 主能力 + dprint 失败回退 + 幂等回归测试。
+5. ✅ 新增性能基线观测（small/medium/large），超过 2x 阈值仅告警不阻塞。
 
 ---
 
