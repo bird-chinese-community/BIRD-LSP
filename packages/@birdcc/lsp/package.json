@@ -15,7 +15,8 @@
     "@birdcc/core": "workspace:*",
     "@birdcc/linter": "workspace:*",
     "vscode-languageserver": "^9.0.1",
-    "vscode-languageserver-textdocument": "^1.0.12"
+    "vscode-languageserver-textdocument": "^1.0.12",
+    "@birdcc/parser": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
