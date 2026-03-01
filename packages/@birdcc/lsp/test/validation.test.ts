@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createValidationScheduler, type ValidationDocument } from "../src/validation.js";
+import {
+  createValidationScheduler,
+  type ValidationDocument,
+  type ValidationPublishPayload,
+} from "../src/validation.js";
 
 interface MockDiagnostic {
   code: string;
@@ -11,6 +15,7 @@ interface MockDocument extends ValidationDocument {
 
 const createDocument = (uri: string, text: string): MockDocument => ({
   uri,
+  version: 1,
   text,
   getText(): string {
     return this.text;
@@ -27,7 +32,7 @@ describe("@birdcc/lsp validation scheduler", () => {
     const validate = vi.fn(async (document: MockDocument): Promise<MockDiagnostic[]> => {
       return [{ code: document.getText() }];
     });
-    const publish = vi.fn<(uri: string, diagnostics: MockDiagnostic[]) => void>();
+    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
     const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
       debounceMs: 100,
       validate,
@@ -45,7 +50,11 @@ describe("@birdcc/lsp validation scheduler", () => {
     expect(validate).toHaveBeenCalledTimes(1);
     expect(validate).toHaveBeenCalledWith(docV2);
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish).toHaveBeenCalledWith("file:///bird.conf", [{ code: "v2" }]);
+    expect(publish).toHaveBeenCalledWith({
+      uri: "file:///bird.conf",
+      version: 1,
+      diagnostics: [{ code: "v2" }],
+    });
   });
 
   it("drops stale validation result after close", async () => {
@@ -59,7 +68,7 @@ describe("@birdcc/lsp validation scheduler", () => {
           void document;
         }),
     );
-    const publish = vi.fn<(uri: string, diagnostics: MockDiagnostic[]) => void>();
+    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
     const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
       debounceMs: 1,
       validate,
@@ -75,6 +84,10 @@ describe("@birdcc/lsp validation scheduler", () => {
     await Promise.resolve();
 
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(publish).toHaveBeenCalledWith(uri, []);
+    expect(publish).toHaveBeenCalledWith({
+      uri,
+      version: 1,
+      diagnostics: [],
+    });
   });
 });

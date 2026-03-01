@@ -1,12 +1,19 @@
 export interface ValidationDocument {
   uri: string;
+  version: number;
   getText(): string;
+}
+
+export interface ValidationPublishPayload<TDiagnostic> {
+  uri: string;
+  version?: number;
+  diagnostics: TDiagnostic[];
 }
 
 export interface ValidationSchedulerOptions<TDocument extends ValidationDocument, TDiagnostic> {
   debounceMs: number;
   validate(document: TDocument): Promise<TDiagnostic[]>;
-  publish(uri: string, diagnostics: TDiagnostic[]): void;
+  publish(payload: ValidationPublishPayload<TDiagnostic>): void;
 }
 
 export interface ValidationScheduler<TDocument extends ValidationDocument> {
@@ -19,6 +26,7 @@ export const createValidationScheduler = <TDocument extends ValidationDocument, 
 ): ValidationScheduler<TDocument> => {
   const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const latestTicketByUri = new Map<string, number>();
+  const latestVersionByUri = new Map<string, number>();
   let nextTicket = 0;
 
   const clearPending = (uri: string): void => {
@@ -35,13 +43,14 @@ export const createValidationScheduler = <TDocument extends ValidationDocument, 
     const uri = document.uri;
     const ticket = ++nextTicket;
     latestTicketByUri.set(uri, ticket);
+    latestVersionByUri.set(uri, document.version);
 
     const diagnostics = await options.validate(document);
     if (latestTicketByUri.get(uri) !== ticket) {
       return;
     }
 
-    options.publish(uri, diagnostics);
+    options.publish({ uri, version: document.version, diagnostics });
   };
 
   return {
@@ -58,7 +67,12 @@ export const createValidationScheduler = <TDocument extends ValidationDocument, 
     close: (uri: string): void => {
       clearPending(uri);
       latestTicketByUri.set(uri, ++nextTicket);
-      options.publish(uri, []);
+      options.publish({
+        uri,
+        version: latestVersionByUri.get(uri),
+        diagnostics: [],
+      });
+      latestVersionByUri.delete(uri);
     },
   };
 };
