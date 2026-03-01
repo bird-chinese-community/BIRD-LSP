@@ -1,2 +1,5 @@
 packages:
   - packages/@birdcc/*
+
+onlyBuiltDependencies:
+  - tree-sitter-cli

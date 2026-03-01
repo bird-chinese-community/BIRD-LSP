@@ -86,6 +86,10 @@ importers:
       web-tree-sitter:
         specifier: ^0.26.6
         version: 0.26.6
+    devDependencies:
+      tree-sitter-cli:
+        specifier: 0.25.10
+        version: 0.25.10
 
 packages:
 
@@ -1255,6 +1259,11 @@ packages:
     resolution: {integrity: sha512-azl+t0z7pw/z958Gy9svOTuzqIk6xq+NSheJzn5MMWtWTFywIacg2wUlzKFGtt3cthx0r2SxMK0yzJOR0IES7Q==}
     engines: {node: '>=14.0.0'}
 
+  tree-sitter-cli@0.25.10:
+    resolution: {integrity: sha512-KoebQguKMCIghisEOdA372TIbrUl0kdnfZ9YQIBRAeOvNSKe85XbU4LuFW7hduRUwJj0rAG7pX5wo9sZhbBF1g==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
+
   tunnel@0.0.6:
     resolution: {integrity: sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg==}
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
@@ -2394,6 +2403,8 @@ snapshots:
   tinyrainbow@2.0.0: {}
 
   tinyspy@4.0.4: {}
+
+  tree-sitter-cli@0.25.10: {}
 
   tunnel@0.0.6: {}
 
