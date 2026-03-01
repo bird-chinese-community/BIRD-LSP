@@ -69,6 +69,8 @@ export interface CrossFileResolutionStats {
   skippedByDepth: number;
   skippedByFileLimit: number;
   missingIncludes: number;
+  parsedCacheHits: number;
+  parsedCacheMisses: number;
 }
 
 export interface CrossFileResolveOptions {
@@ -77,6 +79,8 @@ export interface CrossFileResolveOptions {
   maxDepth?: number;
   maxFiles?: number;
   loadFromFileSystem?: boolean;
+  workspaceRootUri?: string;
+  allowIncludeOutsideWorkspace?: boolean;
   typeCheck?: TypeCheckOptions;
   readFileText?: (uri: string) => Promise<string>;
 }
