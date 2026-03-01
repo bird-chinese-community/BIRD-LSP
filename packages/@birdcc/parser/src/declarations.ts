@@ -3,18 +3,94 @@ import type { BirdDeclaration, ParseIssue, ProtocolStatement } from "./types.js"
 import { isPresentNode, mergeRanges, stripQuotes, textOf, toRange } from "./tree.js";
 import { pushMissingFieldIssue } from "./issues.js";
 
+type IncludeDeclaration = Extract<BirdDeclaration, { kind: "include" }>;
+type DefineDeclaration = Extract<BirdDeclaration, { kind: "define" }>;
+type ProtocolDeclaration = Extract<BirdDeclaration, { kind: "protocol" }>;
+type TemplateDeclaration = Extract<BirdDeclaration, { kind: "template" }>;
+type FilterDeclaration = Extract<BirdDeclaration, { kind: "filter" }>;
+type FunctionDeclaration = Extract<BirdDeclaration, { kind: "function" }>;
+
+const PROTOCOL_STATEMENT_TYPES = new Set([
+  "local_as_statement",
+  "neighbor_statement",
+  "import_statement",
+  "export_statement",
+]);
+
+const protocolStatementNodesOf = (blockNode: SyntaxNode): SyntaxNode[] => {
+  return blockNode.namedChildren.filter((child) => PROTOCOL_STATEMENT_TYPES.has(child.type));
+};
+
+const protocolTypeTextAndRange = (
+  protocolTypeNode: SyntaxNode | null,
+  protocolVariantNode: SyntaxNode | null,
+  source: string,
+  declarationRange: ReturnType<typeof toRange>,
+): { protocolType: string; protocolTypeRange: ReturnType<typeof toRange> } => {
+  const protocolType = isPresentNode(protocolTypeNode)
+    ? [
+        textOf(protocolTypeNode, source),
+        isPresentNode(protocolVariantNode) ? textOf(protocolVariantNode, source) : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+
+  const protocolTypeRange =
+    isPresentNode(protocolTypeNode) && isPresentNode(protocolVariantNode)
+      ? mergeRanges(toRange(protocolTypeNode), toRange(protocolVariantNode))
+      : isPresentNode(protocolTypeNode)
+        ? toRange(protocolTypeNode)
+        : declarationRange;
+
+  return { protocolType, protocolTypeRange };
+};
+
+const parseIncludeDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): IncludeDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const pathNode = declarationNode.childForFieldName("path");
+  if (!isPresentNode(pathNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing path for include declaration");
+  }
+
+  return {
+    kind: "include",
+    path: isPresentNode(pathNode) ? stripQuotes(textOf(pathNode, source)) : "",
+    pathRange: isPresentNode(pathNode) ? toRange(pathNode) : declarationRange,
+    ...declarationRange,
+  };
+};
+
+const parseDefineDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): DefineDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const nameNode = declarationNode.childForFieldName("name");
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing name for define declaration");
+  }
+
+  return {
+    kind: "define",
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
+    ...declarationRange,
+  };
+};
+
 const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
   issues: ParseIssue[],
 ): ProtocolStatement[] => {
   const statements: ProtocolStatement[] = [];
-  const nodes = blockNode.descendantsOfType([
-    "local_as_statement",
-    "neighbor_statement",
-    "import_statement",
-    "export_statement",
-  ]);
+  const nodes = protocolStatementNodesOf(blockNode);
 
   for (const statementNode of nodes) {
     const statementRange = toRange(statementNode);
@@ -92,6 +168,163 @@ const parseProtocolStatements = (
   return statements;
 };
 
+const parseProtocolDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): ProtocolDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const protocolTypeNode = declarationNode.childForFieldName("protocol_type");
+  const protocolVariantNode = declarationNode.childForFieldName("protocol_variant");
+  const nameNode = declarationNode.childForFieldName("name");
+  const fromTemplateNode = declarationNode.childForFieldName("from_template");
+  const bodyNode = declarationNode.childForFieldName("body");
+  const hasFromKeyword = declarationNode.children.some((entry) => entry.type === "from");
+
+  if (!isPresentNode(protocolTypeNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing protocol type for protocol declaration",
+    );
+  }
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing name for protocol declaration");
+  }
+
+  if (hasFromKeyword && !isPresentNode(fromTemplateNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing template name after from clause");
+  }
+
+  if (!isPresentNode(bodyNode)) {
+    issues.push({
+      code: "parser/unbalanced-brace",
+      message: "Missing '{' for protocol declaration",
+      ...declarationRange,
+    });
+  }
+
+  const { protocolType, protocolTypeRange } = protocolTypeTextAndRange(
+    protocolTypeNode,
+    protocolVariantNode,
+    source,
+    declarationRange,
+  );
+
+  return {
+    kind: "protocol",
+    protocolType,
+    protocolTypeRange,
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
+    fromTemplate: isPresentNode(fromTemplateNode) ? textOf(fromTemplateNode, source) : undefined,
+    fromTemplateRange: isPresentNode(fromTemplateNode) ? toRange(fromTemplateNode) : undefined,
+    statements: isPresentNode(bodyNode) ? parseProtocolStatements(bodyNode, source, issues) : [],
+    ...declarationRange,
+  };
+};
+
+const parseTemplateDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): TemplateDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const templateTypeNode = declarationNode.childForFieldName("template_type");
+  const nameNode = declarationNode.childForFieldName("name");
+  const bodyNode = declarationNode.childForFieldName("body");
+
+  if (!isPresentNode(templateTypeNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing template type for template declaration",
+    );
+  }
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing name for template declaration");
+  }
+
+  if (!isPresentNode(bodyNode)) {
+    issues.push({
+      code: "parser/unbalanced-brace",
+      message: "Missing '{' for template declaration",
+      ...declarationRange,
+    });
+  }
+
+  return {
+    kind: "template",
+    templateType: isPresentNode(templateTypeNode) ? textOf(templateTypeNode, source) : "",
+    templateTypeRange: isPresentNode(templateTypeNode)
+      ? toRange(templateTypeNode)
+      : declarationRange,
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
+    ...declarationRange,
+  };
+};
+
+const parseFilterDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): FilterDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const nameNode = declarationNode.childForFieldName("name");
+  const bodyNode = declarationNode.childForFieldName("body");
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing name for filter declaration");
+  }
+
+  if (!isPresentNode(bodyNode)) {
+    issues.push({
+      code: "parser/unbalanced-brace",
+      message: "Missing '{' for filter declaration",
+      ...declarationRange,
+    });
+  }
+
+  return {
+    kind: "filter",
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
+    ...declarationRange,
+  };
+};
+
+const parseFunctionDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): FunctionDeclaration => {
+  const declarationRange = toRange(declarationNode);
+  const nameNode = declarationNode.childForFieldName("name");
+  const bodyNode = declarationNode.childForFieldName("body");
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(issues, declarationNode, "Missing name for function declaration");
+  }
+
+  if (!isPresentNode(bodyNode)) {
+    issues.push({
+      code: "parser/unbalanced-brace",
+      message: "Missing '{' for function declaration",
+      ...declarationRange,
+    });
+  }
+
+  return {
+    kind: "function",
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
+    ...declarationRange,
+  };
+};
+
 export const parseDeclarations = (
   rootNode: SyntaxNode,
   source: string,
@@ -100,177 +333,33 @@ export const parseDeclarations = (
   const declarations: BirdDeclaration[] = [];
 
   for (const child of rootNode.namedChildren) {
-    const declarationRange = toRange(child);
-
     if (child.type === "include_declaration") {
-      const pathNode = child.childForFieldName("path");
-      if (!isPresentNode(pathNode)) {
-        pushMissingFieldIssue(issues, child, "Missing path for include declaration");
-      }
-
-      declarations.push({
-        kind: "include",
-        path: isPresentNode(pathNode) ? stripQuotes(textOf(pathNode, source)) : "",
-        pathRange: isPresentNode(pathNode) ? toRange(pathNode) : declarationRange,
-        ...declarationRange,
-      });
+      declarations.push(parseIncludeDeclaration(child, source, issues));
       continue;
     }
 
     if (child.type === "define_declaration") {
-      const nameNode = child.childForFieldName("name");
-      if (!isPresentNode(nameNode)) {
-        pushMissingFieldIssue(issues, child, "Missing name for define declaration");
-      }
-
-      declarations.push({
-        kind: "define",
-        name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-        nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
-        ...declarationRange,
-      });
+      declarations.push(parseDefineDeclaration(child, source, issues));
       continue;
     }
 
     if (child.type === "protocol_declaration") {
-      const protocolTypeNode = child.childForFieldName("protocol_type");
-      const protocolVariantNode = child.childForFieldName("protocol_variant");
-      const nameNode = child.childForFieldName("name");
-      const fromTemplateNode = child.childForFieldName("from_template");
-      const bodyNode = child.childForFieldName("body");
-      const hasFromKeyword = child.children.some((entry) => entry.type === "from");
-
-      if (!isPresentNode(protocolTypeNode)) {
-        pushMissingFieldIssue(issues, child, "Missing protocol type for protocol declaration");
-      }
-
-      if (!isPresentNode(nameNode)) {
-        pushMissingFieldIssue(issues, child, "Missing name for protocol declaration");
-      }
-
-      if (hasFromKeyword && !isPresentNode(fromTemplateNode)) {
-        pushMissingFieldIssue(issues, child, "Missing template name after from clause");
-      }
-
-      if (!isPresentNode(bodyNode)) {
-        issues.push({
-          code: "parser/unbalanced-brace",
-          message: "Missing '{' for protocol declaration",
-          ...declarationRange,
-        });
-      }
-
-      declarations.push({
-        kind: "protocol",
-        protocolType: isPresentNode(protocolTypeNode)
-          ? [
-              textOf(protocolTypeNode, source),
-              isPresentNode(protocolVariantNode) ? textOf(protocolVariantNode, source) : "",
-            ]
-              .filter((item) => item.length > 0)
-              .join(" ")
-          : "",
-        protocolTypeRange:
-          isPresentNode(protocolTypeNode) && isPresentNode(protocolVariantNode)
-            ? mergeRanges(toRange(protocolTypeNode), toRange(protocolVariantNode))
-            : isPresentNode(protocolTypeNode)
-              ? toRange(protocolTypeNode)
-              : declarationRange,
-        name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-        nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
-        fromTemplate: isPresentNode(fromTemplateNode)
-          ? textOf(fromTemplateNode, source)
-          : undefined,
-        fromTemplateRange: isPresentNode(fromTemplateNode) ? toRange(fromTemplateNode) : undefined,
-        statements: isPresentNode(bodyNode)
-          ? parseProtocolStatements(bodyNode, source, issues)
-          : [],
-        ...declarationRange,
-      });
+      declarations.push(parseProtocolDeclaration(child, source, issues));
       continue;
     }
 
     if (child.type === "template_declaration") {
-      const templateTypeNode = child.childForFieldName("template_type");
-      const nameNode = child.childForFieldName("name");
-      const bodyNode = child.childForFieldName("body");
-
-      if (!isPresentNode(templateTypeNode)) {
-        pushMissingFieldIssue(issues, child, "Missing template type for template declaration");
-      }
-
-      if (!isPresentNode(nameNode)) {
-        pushMissingFieldIssue(issues, child, "Missing name for template declaration");
-      }
-
-      if (!isPresentNode(bodyNode)) {
-        issues.push({
-          code: "parser/unbalanced-brace",
-          message: "Missing '{' for template declaration",
-          ...declarationRange,
-        });
-      }
-
-      declarations.push({
-        kind: "template",
-        templateType: isPresentNode(templateTypeNode) ? textOf(templateTypeNode, source) : "",
-        templateTypeRange: isPresentNode(templateTypeNode)
-          ? toRange(templateTypeNode)
-          : declarationRange,
-        name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-        nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
-        ...declarationRange,
-      });
+      declarations.push(parseTemplateDeclaration(child, source, issues));
       continue;
     }
 
     if (child.type === "filter_declaration") {
-      const nameNode = child.childForFieldName("name");
-      const bodyNode = child.childForFieldName("body");
-
-      if (!isPresentNode(nameNode)) {
-        pushMissingFieldIssue(issues, child, "Missing name for filter declaration");
-      }
-
-      if (!isPresentNode(bodyNode)) {
-        issues.push({
-          code: "parser/unbalanced-brace",
-          message: "Missing '{' for filter declaration",
-          ...declarationRange,
-        });
-      }
-
-      declarations.push({
-        kind: "filter",
-        name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-        nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
-        ...declarationRange,
-      });
+      declarations.push(parseFilterDeclaration(child, source, issues));
       continue;
     }
 
     if (child.type === "function_declaration") {
-      const nameNode = child.childForFieldName("name");
-      const bodyNode = child.childForFieldName("body");
-
-      if (!isPresentNode(nameNode)) {
-        pushMissingFieldIssue(issues, child, "Missing name for function declaration");
-      }
-
-      if (!isPresentNode(bodyNode)) {
-        issues.push({
-          code: "parser/unbalanced-brace",
-          message: "Missing '{' for function declaration",
-          ...declarationRange,
-        });
-      }
-
-      declarations.push({
-        kind: "function",
-        name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-        nameRange: isPresentNode(nameNode) ? toRange(nameNode) : declarationRange,
-        ...declarationRange,
-      });
+      declarations.push(parseFunctionDeclaration(child, source, issues));
     }
   }
 
