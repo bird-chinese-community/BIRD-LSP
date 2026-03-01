@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-export type FormatterEngine = "dprint" | "prettier" | "builtin";
+export type FormatterEngine = "dprint" | "builtin";
 
 export interface FormatBirdConfigOptions {
   engine?: FormatterEngine;
@@ -82,15 +82,6 @@ const tryDprint = (text: string): { ok: true; text: string } | { ok: false; reas
   return { ok: true, text: result.output };
 };
 
-const tryPrettier = (text: string): { ok: true; text: string } | { ok: false; reason: string } => {
-  const result = runExternalFormatter("prettier", ["--stdin-filepath", "bird.conf"], text);
-  if (!result.ok) {
-    return { ok: false, reason: result.reason };
-  }
-
-  return { ok: true, text: result.output };
-};
-
 export const formatBirdConfig = (
   text: string,
   options: FormatBirdConfigOptions = {},
@@ -111,21 +102,6 @@ export const formatBirdConfig = (
 
     if (!allowFallback) {
       throw new Error(`Formatting with 'dprint' failed: ${dprintOutput.reason}`);
-    }
-  }
-
-  if (requestedEngine === "dprint" || requestedEngine === "prettier") {
-    const prettierOutput = tryPrettier(text);
-    if (prettierOutput.ok) {
-      return {
-        text: prettierOutput.text,
-        changed: prettierOutput.text !== text,
-        engine: "prettier",
-      };
-    }
-
-    if (!allowFallback && requestedEngine === "prettier") {
-      throw new Error(`Formatting with 'prettier' failed: ${prettierOutput.reason}`);
     }
   }
 

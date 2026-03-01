@@ -43,24 +43,19 @@ describe("@birdcc/formatter", () => {
     );
   });
 
-  it("falls back to prettier when dprint fails in default mode", () => {
-    spawnSyncMock
-      .mockReturnValueOnce({
-        error: new Error("dprint not found"),
-        status: 1,
-        stdout: "",
-        stderr: "",
-      })
-      .mockReturnValueOnce({
-        error: undefined,
-        status: 0,
-        stdout: "protocol bgp edge {}\n",
-        stderr: "",
-      });
+  it("falls back to builtin when dprint fails in default mode", () => {
+    spawnSyncMock.mockReturnValueOnce({
+      error: new Error("dprint not found"),
+      status: 1,
+      stdout: "",
+      stderr: "",
+    });
 
-    const result = formatBirdConfig("protocol bgp edge {}\n");
+    const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge {}\t\n";
+    const result = formatBirdConfig(input);
 
-    expect(result.engine).toBe("prettier");
+    expect(result.engine).toBe("builtin");
+    expect(result.text).toBe("router id 192.0.2.1;\n\nprotocol bgp edge {}\n");
   });
 
   it("throws when explicit dprint engine fails", () => {
@@ -73,19 +68,6 @@ describe("@birdcc/formatter", () => {
 
     expect(() => formatBirdConfig("protocol bgp edge {}\n", { engine: "dprint" })).toThrow(
       "Formatting with 'dprint' failed",
-    );
-  });
-
-  it("throws when explicit prettier engine fails", () => {
-    spawnSyncMock.mockReturnValue({
-      error: new Error("prettier not found"),
-      status: 1,
-      stdout: "",
-      stderr: "",
-    });
-
-    expect(() => formatBirdConfig("protocol bgp edge {}\n", { engine: "prettier" })).toThrow(
-      "Formatting with 'prettier' failed",
     );
   });
 
