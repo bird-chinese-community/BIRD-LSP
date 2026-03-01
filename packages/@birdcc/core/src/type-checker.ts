@@ -8,6 +8,7 @@ const VARIABLE_DECLARE_PATTERN =
 const VARIABLE_ASSIGN_PATTERN = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$/;
 const MAX_TYPE_INFER_DEPTH = 64;
 const MAX_TYPE_EXPRESSION_LENGTH = 4096;
+const SET_LITERAL_MAX_ITEMS = 256;
 
 const trimSingleEnclosingParentheses = (value: string): string => {
   const current = value.trim();
@@ -108,6 +109,130 @@ const splitTopLevelBinary = (
   return lastMatch;
 };
 
+const splitTopLevelList = (value: string): string[] => {
+  const items: string[] = [];
+  let depthParen = 0;
+  let depthBracket = 0;
+  let depthBrace = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let escaping = false;
+  let segmentStart = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (!inDoubleQuote && char === "'") {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (!inSingleQuote && char === '"') {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote) {
+      continue;
+    }
+
+    if (char === "(") {
+      depthParen += 1;
+      continue;
+    }
+
+    if (char === ")") {
+      if (depthParen > 0) {
+        depthParen -= 1;
+      }
+      continue;
+    }
+
+    if (char === "[") {
+      depthBracket += 1;
+      continue;
+    }
+
+    if (char === "]") {
+      if (depthBracket > 0) {
+        depthBracket -= 1;
+      }
+      continue;
+    }
+
+    if (char === "{") {
+      depthBrace += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      if (depthBrace > 0) {
+        depthBrace -= 1;
+      }
+      continue;
+    }
+
+    if (char === "," && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+      items.push(value.slice(segmentStart, index).trim());
+      segmentStart = index + 1;
+    }
+  }
+
+  items.push(value.slice(segmentStart).trim());
+  return items;
+};
+
+const inferSetLiteralElementType = (
+  rawValue: string,
+  variableTypes: Map<string, TypeValue>,
+  depth: number,
+): TypeValue => {
+  if (!rawValue.startsWith("[") || !rawValue.endsWith("]")) {
+    return "unknown";
+  }
+
+  const inner = rawValue.slice(1, -1).trim();
+  if (inner.length === 0) {
+    return "unknown";
+  }
+
+  const items = splitTopLevelList(inner);
+  if (items.length === 0 || items.length > SET_LITERAL_MAX_ITEMS) {
+    return "unknown";
+  }
+
+  let elementType: TypeValue | null = null;
+
+  for (const item of items) {
+    if (item.length === 0) {
+      return "unknown";
+    }
+
+    const inferredItemType = inferValueType(item, variableTypes, depth + 1);
+    if (inferredItemType === "unknown" || inferredItemType === "bool") {
+      return "unknown";
+    }
+
+    if (elementType && inferredItemType !== elementType) {
+      return "unknown";
+    }
+
+    elementType = inferredItemType;
+  }
+
+  return elementType ?? "unknown";
+};
+
 const inferValueType = (
   rawValue: string,
   variableTypes: Map<string, TypeValue>,
@@ -137,6 +262,35 @@ const inferValueType = (
     if (operandType === "int") {
       return "int";
     }
+  }
+
+  const lowered = value.toLowerCase();
+
+  if (lowered === "true" || lowered === "false") {
+    return "bool";
+  }
+
+  if (/^\d+$/.test(value)) {
+    return "int";
+  }
+
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return "string";
+  }
+
+  if (isIP(value) !== 0) {
+    return "ip";
+  }
+
+  if (isValidPrefixLiteral(value)) {
+    return "prefix";
+  }
+
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+    return variableTypes.get(value) ?? "unknown";
   }
 
   const logicalOrExpression = splitTopLevelBinary(value, ["||"]);
@@ -169,6 +323,26 @@ const inferValueType = (
     return leftType === "int" && rightType === "int" ? "bool" : "unknown";
   }
 
+  const matchExpression = splitTopLevelBinary(value, ["!~", "~"]);
+  if (matchExpression) {
+    const leftType = inferValueType(matchExpression.left, variableTypes, depth + 1);
+    if (leftType === "unknown") {
+      return "unknown";
+    }
+
+    const rightSetElementType = inferSetLiteralElementType(
+      matchExpression.right,
+      variableTypes,
+      depth + 1,
+    );
+    if (rightSetElementType !== "unknown") {
+      return leftType === rightSetElementType ? "bool" : "unknown";
+    }
+
+    const rightType = inferValueType(matchExpression.right, variableTypes, depth + 1);
+    return rightType !== "unknown" && rightType === leftType ? "bool" : "unknown";
+  }
+
   const additiveExpression = splitTopLevelBinary(value, ["+", "-"]);
   if (additiveExpression) {
     const leftType = inferValueType(additiveExpression.left, variableTypes, depth + 1);
@@ -181,35 +355,6 @@ const inferValueType = (
     const leftType = inferValueType(multiplicativeExpression.left, variableTypes, depth + 1);
     const rightType = inferValueType(multiplicativeExpression.right, variableTypes, depth + 1);
     return leftType === "int" && rightType === "int" ? "int" : "unknown";
-  }
-
-  const lowered = value.toLowerCase();
-
-  if (lowered === "true" || lowered === "false") {
-    return "bool";
-  }
-
-  if (/^\d+$/.test(value)) {
-    return "int";
-  }
-
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return "string";
-  }
-
-  if (isIP(value) !== 0) {
-    return "ip";
-  }
-
-  if (isValidPrefixLiteral(value)) {
-    return "prefix";
-  }
-
-  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
-    return variableTypes.get(value) ?? "unknown";
   }
 
   return "unknown";
