@@ -53,6 +53,10 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
           version: 10.18.3
