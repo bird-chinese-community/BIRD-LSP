@@ -19,4 +19,4 @@ packages/@birdcc/parser/src/tree_sitter/*.h
 .DS_Store
 .env
 
-refer/docs/*.md
+refer/docs/**
