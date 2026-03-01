@@ -288,6 +288,6 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    expect(parsed.issues.some((item) => item.code === "parser/unbalanced-brace")).toBe(true);
+    expect(parsed.issues.some((item) => item.code === "syntax/unbalanced-brace")).toBe(true);
   });
 });

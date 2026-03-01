@@ -1210,7 +1210,7 @@ const parseProtocolDeclaration = (
 
   if (!isPresentNode(bodyNode)) {
     issues.push({
-      code: "parser/unbalanced-brace",
+      code: "syntax/unbalanced-brace",
       message: "Missing '{' for protocol declaration",
       ...declarationRange,
     });
@@ -1263,7 +1263,7 @@ const parseTemplateDeclaration = (
 
   if (!isPresentNode(bodyNode)) {
     issues.push({
-      code: "parser/unbalanced-brace",
+      code: "syntax/unbalanced-brace",
       message: "Missing '{' for template declaration",
       ...declarationRange,
     });
@@ -1296,7 +1296,7 @@ const parseFilterDeclaration = (
 
   if (!isPresentNode(bodyNode)) {
     issues.push({
-      code: "parser/unbalanced-brace",
+      code: "syntax/unbalanced-brace",
       message: "Missing '{' for filter declaration",
       ...declarationRange,
     });
@@ -1332,7 +1332,7 @@ const parseFunctionDeclaration = (
 
   if (!isPresentNode(bodyNode)) {
     issues.push({
-      code: "parser/unbalanced-brace",
+      code: "syntax/unbalanced-brace",
       message: "Missing '{' for function declaration",
       ...declarationRange,
     });
