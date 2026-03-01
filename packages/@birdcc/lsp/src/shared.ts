@@ -67,15 +67,20 @@ export const isPositionInRange = (position: Position, range: SourceRange): boole
 export const declarationMetadata = (
   declaration: BirdDeclaration,
 ): LspDeclarationMetadata | null => {
+  const escapeMarkdownCode = (text: string): string =>
+    text.replaceAll("\\", "\\\\").replaceAll("`", "\\`");
+
   switch (declaration.kind) {
     case "protocol": {
-      const fromTemplate = declaration.fromTemplate ? ` from \`${declaration.fromTemplate}\`` : "";
+      const fromTemplate = declaration.fromTemplate
+        ? ` from \`${escapeMarkdownCode(declaration.fromTemplate)}\``
+        : "";
       return {
         symbolName: declaration.name,
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Module,
         detail: `protocol ${declaration.protocolType}`,
-        hoverMarkdown: `**protocol** \`${declaration.name}\`\n\nType: \`${declaration.protocolType}\`${fromTemplate}`,
+        hoverMarkdown: `**protocol** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.protocolType)}\`${fromTemplate}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: `protocol ${declaration.protocolType}`,
@@ -87,7 +92,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Class,
         detail: `template ${declaration.templateType}`,
-        hoverMarkdown: `**template** \`${declaration.name}\`\n\nType: \`${declaration.templateType}\``,
+        hoverMarkdown: `**template** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.templateType)}\``,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: `template ${declaration.templateType}`,
@@ -98,7 +103,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Method,
         detail: "filter",
-        hoverMarkdown: `**filter** \`${declaration.name}\``,
+        hoverMarkdown: `**filter** \`${escapeMarkdownCode(declaration.name)}\``,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: "filter",
@@ -109,7 +114,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Function,
         detail: "function",
-        hoverMarkdown: `**function** \`${declaration.name}\``,
+        hoverMarkdown: `**function** \`${escapeMarkdownCode(declaration.name)}\``,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: "function",
@@ -120,7 +125,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Constant,
         detail: "define",
-        hoverMarkdown: `**define** \`${declaration.name}\``,
+        hoverMarkdown: `**define** \`${escapeMarkdownCode(declaration.name)}\``,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Constant,
         completionDetail: "define",
@@ -131,7 +136,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Object,
         detail: `table ${declaration.tableType}`,
-        hoverMarkdown: `**table** \`${declaration.name}\`\n\nType: \`${declaration.tableType}\``,
+        hoverMarkdown: `**table** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.tableType)}\``,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Variable,
         completionDetail: `table ${declaration.tableType}`,
@@ -142,7 +147,7 @@ export const declarationMetadata = (
         selectionRange: declaration.pathRange,
         symbolKind: SymbolKind.File,
         detail: "include",
-        hoverMarkdown: `**include** \`${declaration.path}\``,
+        hoverMarkdown: `**include** \`${escapeMarkdownCode(declaration.path)}\``,
       };
     case "router-id": {
       const fromSource = declaration.fromSource ? ` (${declaration.fromSource})` : "";
@@ -151,7 +156,7 @@ export const declarationMetadata = (
         selectionRange: declaration.valueRange,
         symbolKind: SymbolKind.Property,
         detail: `router-id ${declaration.valueKind}`,
-        hoverMarkdown: `**router id** \`${declaration.value}\`${fromSource}`,
+        hoverMarkdown: `**router id** \`${escapeMarkdownCode(declaration.value)}\`${fromSource}`,
       };
     }
     default:

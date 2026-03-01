@@ -74,6 +74,19 @@ describe("@birdcc/lsp", () => {
     expect(hover?.contents).toBeDefined();
   });
 
+  it("escapes markdown code content in include hover", async () => {
+    const text = 'include "unsafe`name.conf";';
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 12 });
+
+    expect(hover?.contents).toBeDefined();
+    expect(hover && typeof hover.contents !== "string" ? hover.contents.value : "").toContain(
+      "unsafe\\`name.conf",
+    );
+  });
+
   it("creates hover for multi-word keyword phrase", async () => {
     const text = `protocol bgp edge { local as 65001; }`;
     const parsed = await parseBirdConfig(text);
@@ -146,6 +159,29 @@ describe("@birdcc/lsp", () => {
     expect(labels).toContain("base.conf");
     expect(labels).toContain("upstream/edge.conf");
     expect(labels).not.toContain("template");
+  });
+
+  it("returns empty completion list for include context without include declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      template bgp edge_tpl {}
+    `);
+
+    const items = createCompletionItemsFromParsed(parsed, { linePrefix: 'include "' });
+
+    expect(items).toEqual([]);
+  });
+
+  it("returns empty completion list for from context without template declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      define ASN = 65001;
+      filter export_policy { accept; }
+    `);
+
+    const items = createCompletionItemsFromParsed(parsed, {
+      linePrefix: "protocol bgp edge from ",
+    });
+
+    expect(items).toEqual([]);
   });
 
   it("includes snippet completion items in generic context", async () => {

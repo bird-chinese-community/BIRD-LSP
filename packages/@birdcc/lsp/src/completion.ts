@@ -163,17 +163,11 @@ export const createCompletionItemsFromParsed = (
   const linePrefix = options.linePrefix ?? "";
 
   if (isIncludePathContext(linePrefix)) {
-    const includeItems = includePathCompletionItems(parsed, { quoteWrapped: true });
-    if (includeItems.length > 0) {
-      return includeItems;
-    }
+    return includePathCompletionItems(parsed, { quoteWrapped: true });
   }
 
   if (isFromTemplateContext(linePrefix)) {
-    const templateItems = templateCompletionItems(parsed);
-    if (templateItems.length > 0) {
-      return templateItems;
-    }
+    return templateCompletionItems(parsed);
   }
 
   return [
