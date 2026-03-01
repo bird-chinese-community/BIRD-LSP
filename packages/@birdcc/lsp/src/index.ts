@@ -1,16 +1,54 @@
 import {
+  CompletionItemKind,
   createConnection,
   DiagnosticSeverity,
+  type CompletionItem,
   type Diagnostic,
+  type DocumentSymbol,
+  type Hover,
   type InitializeResult,
+  type Position,
+  type Range,
+  SymbolKind,
   ProposedFeatures,
   TextDocuments,
   TextDocumentSyncKind,
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import type { BirdDeclaration, ParsedBirdDocument, SourceRange } from "@birdcc/parser";
+import { parseBirdConfig } from "@birdcc/parser";
 import type { BirdDiagnostic } from "@birdcc/core";
 import { lintBirdConfig } from "@birdcc/linter";
 import { createValidationScheduler } from "./validation.js";
+
+const KEYWORD_DOCS: Record<string, string> = {
+  protocol: "Define a protocol instance. Example: `protocol bgp edge { ... }`.",
+  template: "Define a reusable protocol template.",
+  filter: "Define route filtering logic.",
+  function: "Define reusable logic callable from filters.",
+  include: "Include another configuration file.",
+  import: "Control import policy for routes.",
+  export: "Control export policy for routes.",
+  neighbor: "Configure protocol neighbor endpoint and ASN.",
+  "local as": "Configure local ASN via `local as <asn>;`.",
+  "router id": "Set explicit router ID or select from runtime source.",
+};
+
+const COMPLETION_KEYWORDS = [
+  "protocol",
+  "template",
+  "filter",
+  "function",
+  "include",
+  "import",
+  "export",
+  "neighbor",
+  "local as",
+  "router id",
+  "table",
+  "ipv4",
+  "ipv6",
+];
 
 const toLspSeverity = (severity: BirdDiagnostic["severity"]): DiagnosticSeverity => {
   if (severity === "error") {
@@ -22,6 +60,177 @@ const toLspSeverity = (severity: BirdDiagnostic["severity"]): DiagnosticSeverity
   }
 
   return DiagnosticSeverity.Information;
+};
+
+const toLspRange = (range: SourceRange): Range => ({
+  start: {
+    line: Math.max(range.line - 1, 0),
+    character: Math.max(range.column - 1, 0),
+  },
+  end: {
+    line: Math.max(range.endLine - 1, 0),
+    character: Math.max(range.endColumn - 1, 0),
+  },
+});
+
+const declarationNameRange = (declaration: BirdDeclaration): SourceRange | null => {
+  if (
+    declaration.kind === "protocol" ||
+    declaration.kind === "template" ||
+    declaration.kind === "filter" ||
+    declaration.kind === "function"
+  ) {
+    return declaration.nameRange;
+  }
+
+  return null;
+};
+
+const declarationSymbolKind = (declaration: BirdDeclaration): SymbolKind | null => {
+  if (declaration.kind === "protocol") {
+    return SymbolKind.Module;
+  }
+
+  if (declaration.kind === "template") {
+    return SymbolKind.Class;
+  }
+
+  if (declaration.kind === "filter") {
+    return SymbolKind.Method;
+  }
+
+  if (declaration.kind === "function") {
+    return SymbolKind.Function;
+  }
+
+  return null;
+};
+
+const declarationDetail = (declaration: BirdDeclaration): string => {
+  if (declaration.kind === "protocol") {
+    return `protocol ${declaration.protocolType}`;
+  }
+
+  if (declaration.kind === "template") {
+    return `template ${declaration.templateType}`;
+  }
+
+  if (declaration.kind === "filter") {
+    return "filter";
+  }
+
+  if (declaration.kind === "function") {
+    return "function";
+  }
+
+  return declaration.kind;
+};
+
+const hoverMarkdownForDeclaration = (declaration: BirdDeclaration): string => {
+  if (declaration.kind === "protocol") {
+    const fromTemplate = declaration.fromTemplate ? ` from \`${declaration.fromTemplate}\`` : "";
+    return `**protocol** \`${declaration.name}\`\n\nType: \`${declaration.protocolType}\`${fromTemplate}`;
+  }
+
+  if (declaration.kind === "template") {
+    return `**template** \`${declaration.name}\`\n\nType: \`${declaration.templateType}\``;
+  }
+
+  if (declaration.kind === "filter") {
+    return `**filter** \`${declaration.name}\``;
+  }
+
+  if (declaration.kind === "function") {
+    return `**function** \`${declaration.name}\``;
+  }
+
+  return `**${declaration.kind}**`;
+};
+
+const isPositionInRange = (position: Position, range: SourceRange): boolean => {
+  const line = position.line + 1;
+  const character = position.character + 1;
+
+  if (line < range.line || line > range.endLine) {
+    return false;
+  }
+
+  if (line === range.line && character < range.column) {
+    return false;
+  }
+
+  if (line === range.endLine && character > range.endColumn) {
+    return false;
+  }
+
+  return true;
+};
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const keywordAtPosition = (
+  document: TextDocument,
+  position: Position,
+): { word: string; range: Range } | null => {
+  const text = document.getText();
+  const positionOffset = document.offsetAt(position);
+
+  if (positionOffset < 0 || positionOffset > text.length) {
+    return null;
+  }
+
+  const keywords = Object.keys(KEYWORD_DOCS).sort((left, right) => right.length - left.length);
+  for (const keyword of keywords) {
+    const keywordPattern = new RegExp(
+      `\\b${escapeRegExp(keyword).replaceAll("\\ ", "\\\\s+")}\\b`,
+      "gi",
+    );
+    let match = keywordPattern.exec(text);
+
+    while (match) {
+      const start = match.index;
+      const end = start + match[0].length;
+      if (positionOffset >= start && positionOffset <= end) {
+        return {
+          word: keyword,
+          range: {
+            start: document.positionAt(start),
+            end: document.positionAt(end),
+          },
+        };
+      }
+
+      match = keywordPattern.exec(text);
+    }
+  }
+
+  const isWordChar = (char: string): boolean => /[A-Za-z_]/.test(char);
+
+  let start = positionOffset;
+  while (start > 0 && isWordChar(text[start - 1] ?? "")) {
+    start -= 1;
+  }
+
+  let end = positionOffset;
+  while (end < text.length && isWordChar(text[end] ?? "")) {
+    end += 1;
+  }
+
+  if (start === end) {
+    return null;
+  }
+
+  const word = text.slice(start, end).toLowerCase();
+  const startPosition = document.positionAt(start);
+  const endPosition = document.positionAt(end);
+
+  return {
+    word,
+    range: {
+      start: startPosition,
+      end: endPosition,
+    },
+  };
 };
 
 /** Maps Bird diagnostic schema into LSP Diagnostic schema. */
@@ -41,6 +250,112 @@ export const toLspDiagnostic = (diagnostic: BirdDiagnostic): Diagnostic => ({
     },
   },
 });
+
+export const createDocumentSymbolsFromParsed = (parsed: ParsedBirdDocument): DocumentSymbol[] => {
+  const symbols: DocumentSymbol[] = [];
+
+  for (const declaration of parsed.program.declarations) {
+    const range = declarationNameRange(declaration);
+    const kind = declarationSymbolKind(declaration);
+
+    if (!range || !kind) {
+      continue;
+    }
+
+    const name =
+      declaration.kind === "protocol" ||
+      declaration.kind === "template" ||
+      declaration.kind === "filter" ||
+      declaration.kind === "function"
+        ? declaration.name
+        : declaration.kind;
+
+    symbols.push({
+      name,
+      detail: declarationDetail(declaration),
+      kind,
+      range: toLspRange(declaration),
+      selectionRange: toLspRange(range),
+      children: [],
+    });
+  }
+
+  return symbols;
+};
+
+export const createCompletionItemsFromParsed = (parsed: ParsedBirdDocument): CompletionItem[] => {
+  const completionItems: CompletionItem[] = COMPLETION_KEYWORDS.map((keyword) => ({
+    label: keyword,
+    kind: CompletionItemKind.Keyword,
+    detail: "BIRD keyword",
+  }));
+
+  const seenSymbols = new Set<string>();
+
+  for (const declaration of parsed.program.declarations) {
+    if (
+      declaration.kind !== "protocol" &&
+      declaration.kind !== "template" &&
+      declaration.kind !== "filter" &&
+      declaration.kind !== "function"
+    ) {
+      continue;
+    }
+
+    const symbolName = declaration.name;
+    if (symbolName.length === 0 || seenSymbols.has(symbolName)) {
+      continue;
+    }
+
+    seenSymbols.add(symbolName);
+    completionItems.push({
+      label: symbolName,
+      kind: CompletionItemKind.Reference,
+      detail: declarationDetail(declaration),
+    });
+  }
+
+  return completionItems;
+};
+
+export const createHoverFromParsed = (
+  parsed: ParsedBirdDocument,
+  document: TextDocument,
+  position: Position,
+): Hover | null => {
+  for (const declaration of parsed.program.declarations) {
+    const nameRange = declarationNameRange(declaration);
+    if (!nameRange || !isPositionInRange(position, nameRange)) {
+      continue;
+    }
+
+    return {
+      contents: {
+        kind: "markdown",
+        value: hoverMarkdownForDeclaration(declaration),
+      },
+      range: toLspRange(nameRange),
+    };
+  }
+
+  const keyword = keywordAtPosition(document, position);
+  if (!keyword) {
+    return null;
+  }
+
+  const keywordDoc = KEYWORD_DOCS[keyword.word];
+  if (!keywordDoc) {
+    return null;
+  }
+
+  return {
+    contents: {
+      kind: "markdown",
+      value: `**${keyword.word}**\n\n${keywordDoc}`,
+    },
+    range: keyword.range,
+  };
+};
 
 const VALIDATION_DEBOUNCE_MS = 120;
 
@@ -67,6 +382,7 @@ const warmupParserRuntime = async (): Promise<void> => {
 export const startLspServer = (): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
+  const parsedByUri = new Map<string, { version: number; parsed: ParsedBirdDocument }>();
   let hasShutdownBeenRequested = false;
 
   void warmupParserRuntime();
@@ -75,6 +391,12 @@ export const startLspServer = (): void => {
     (): InitializeResult => ({
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
+        documentSymbolProvider: true,
+        hoverProvider: true,
+        completionProvider: {
+          resolveProvider: false,
+          triggerCharacters: [" ", "."],
+        },
       },
     }),
   );
@@ -84,6 +406,10 @@ export const startLspServer = (): void => {
     validate: async (textDocument): Promise<Diagnostic[]> => {
       try {
         const result = await lintBirdConfig(textDocument.getText());
+        parsedByUri.set(textDocument.uri, {
+          version: textDocument.version,
+          parsed: result.parsed,
+        });
         return result.diagnostics.map(toLspDiagnostic);
       } catch (error) {
         return [toInternalErrorDiagnostic(error)];
@@ -103,7 +429,52 @@ export const startLspServer = (): void => {
   });
 
   documents.onDidClose((event) => {
+    parsedByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
+  });
+
+  const getParsedDocument = async (document: TextDocument): Promise<ParsedBirdDocument> => {
+    const cached = parsedByUri.get(document.uri);
+    if (cached && cached.version === document.version) {
+      return cached.parsed;
+    }
+
+    const parsed = await parseBirdConfig(document.getText());
+    parsedByUri.set(document.uri, {
+      version: document.version,
+      parsed,
+    });
+    return parsed;
+  };
+
+  connection.onDocumentSymbol(async (params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return [];
+    }
+
+    const parsed = await getParsedDocument(document);
+    return createDocumentSymbolsFromParsed(parsed);
+  });
+
+  connection.onHover(async (params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return null;
+    }
+
+    const parsed = await getParsedDocument(document);
+    return createHoverFromParsed(parsed, document, params.position);
+  });
+
+  connection.onCompletion(async (params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return [];
+    }
+
+    const parsed = await getParsedDocument(document);
+    return createCompletionItemsFromParsed(parsed);
   });
 
   connection.onShutdown(() => {

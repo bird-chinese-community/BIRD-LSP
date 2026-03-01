@@ -77,6 +77,9 @@ importers:
       '@birdcc/linter':
         specifier: workspace:*
         version: link:../linter
+      '@birdcc/parser':
+        specifier: workspace:*
+        version: link:../parser
       vscode-languageserver:
         specifier: ^9.0.1
         version: 9.0.1
