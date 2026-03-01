@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { dirname, normalize, resolve } from "node:path";
+import { dirname, isAbsolute, normalize, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { SourceRange } from "@birdcc/parser";
+import type { ParsedBirdDocument, SourceRange } from "@birdcc/parser";
 import { parseBirdConfig } from "@birdcc/parser";
 import type {
   BirdDiagnostic,
@@ -15,8 +15,12 @@ import { buildCoreSnapshotFromParsed } from "./snapshot.js";
 import { mergeSymbolTables, pushSymbolTableDiagnostics } from "./symbol-table.js";
 import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
 
-const DEFAULT_MAX_DEPTH = 16;
-const DEFAULT_MAX_FILES = 256;
+export const DEFAULT_CROSS_FILE_MAX_DEPTH = 16;
+export const DEFAULT_CROSS_FILE_MAX_FILES = 256;
+
+const PARSED_DOCUMENT_CACHE_LIMIT = 512;
+const parsedDocumentCache = new Map<string, { text: string; parsed: ParsedBirdDocument }>();
+
 const DEFAULT_RANGE = {
   line: 1,
   column: 1,
@@ -38,6 +42,36 @@ const toFilePath = (uri: string): string | null => {
   return null;
 };
 
+const normalizeUriForPrefixMatch = (uri: string): string => uri.replace(/\/+$/, "");
+
+const toDefaultWorkspaceRootUri = (entryUri: string): string => {
+  const entryPath = toFilePath(entryUri);
+  if (entryPath) {
+    return pathToFileURL(dirname(entryPath)).toString();
+  }
+
+  return normalize(dirname(entryUri));
+};
+
+const isWithinWorkspaceRoot = (candidateUri: string, workspaceRootUri: string): boolean => {
+  const candidatePath = toFilePath(candidateUri);
+  const workspaceRootPath = toFilePath(workspaceRootUri);
+
+  if (candidatePath && workspaceRootPath) {
+    const resolvedRoot = normalize(workspaceRootPath);
+    const resolvedCandidate = normalize(candidatePath);
+    const relPath = relative(resolvedRoot, resolvedCandidate);
+
+    return relPath.length === 0 || (!relPath.startsWith("..") && !isAbsolute(relPath));
+  }
+
+  const normalizedRoot = normalizeUriForPrefixMatch(normalize(workspaceRootUri));
+  const normalizedCandidate = normalizeUriForPrefixMatch(normalize(candidateUri));
+  return (
+    normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+  );
+};
+
 const defaultReadFileText = async (uri: string): Promise<string> => {
   const filePath = toFilePath(uri);
   if (!filePath) {
@@ -49,21 +83,7 @@ const defaultReadFileText = async (uri: string): Promise<string> => {
 
 const resolveIncludeUri = (baseUri: string, includePath: string): string => {
   if (includePath.startsWith("file://")) {
-    return includePath;
-  }
-
-  if (
-    includePath.startsWith("/") ||
-    includePath.startsWith("./") ||
-    includePath.startsWith("../")
-  ) {
-    if (isFileUri(baseUri)) {
-      const basePath = fileURLToPath(baseUri);
-      const resolvedPath = resolve(dirname(basePath), includePath);
-      return pathToFileURL(resolvedPath).toString();
-    }
-
-    return normalize(resolve(dirname(baseUri), includePath));
+    return pathToFileURL(normalize(fileURLToPath(includePath))).toString();
   }
 
   if (isFileUri(baseUri)) {
@@ -119,6 +139,31 @@ const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
   return output;
 };
 
+const parseDocumentWithCache = async (
+  uri: string,
+  text: string,
+  stats: CrossFileResolutionStats,
+): Promise<ParsedBirdDocument> => {
+  const cached = parsedDocumentCache.get(uri);
+  if (cached && cached.text === text) {
+    stats.parsedCacheHits += 1;
+    return cached.parsed;
+  }
+
+  stats.parsedCacheMisses += 1;
+  const parsed = await parseBirdConfig(text);
+
+  if (parsedDocumentCache.size >= PARSED_DOCUMENT_CACHE_LIMIT) {
+    const oldestKey = parsedDocumentCache.keys().next().value;
+    if (oldestKey) {
+      parsedDocumentCache.delete(oldestKey);
+    }
+  }
+
+  parsedDocumentCache.set(uri, { text, parsed });
+  return parsed;
+};
+
 interface QueueItem {
   uri: string;
   depth: number;
@@ -127,10 +172,12 @@ interface QueueItem {
 export const resolveCrossFileReferences = async (
   options: CrossFileResolveOptions,
 ): Promise<CrossFileResolutionResult> => {
-  const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
-  const maxFiles = options.maxFiles ?? DEFAULT_MAX_FILES;
+  const maxDepth = options.maxDepth ?? DEFAULT_CROSS_FILE_MAX_DEPTH;
+  const maxFiles = options.maxFiles ?? DEFAULT_CROSS_FILE_MAX_FILES;
   const loadFromFileSystem = options.loadFromFileSystem ?? true;
   const readFileText = options.readFileText ?? defaultReadFileText;
+  const workspaceRootUri = options.workspaceRootUri ?? toDefaultWorkspaceRootUri(options.entryUri);
+  const allowIncludeOutsideWorkspace = options.allowIncludeOutsideWorkspace ?? false;
 
   const stats: CrossFileResolutionStats = {
     loadedFromMemory: options.documents?.length ?? 0,
@@ -138,6 +185,8 @@ export const resolveCrossFileReferences = async (
     skippedByDepth: 0,
     skippedByFileLimit: 0,
     missingIncludes: 0,
+    parsedCacheHits: 0,
+    parsedCacheMisses: 0,
   };
 
   const documentMap = new Map(
@@ -146,7 +195,7 @@ export const resolveCrossFileReferences = async (
       { uri: document.uri, text: document.text },
     ]),
   );
-  const parsedDocuments = new Map<string, Awaited<ReturnType<typeof parseBirdConfig>>>();
+  const parsedDocuments = new Map<string, ParsedBirdDocument>();
   const snapshots: Record<string, CoreSnapshot> = {};
   const queue: QueueItem[] = [{ uri: options.entryUri, depth: 0 }];
   const queued = new Set<string>([options.entryUri]);
@@ -222,7 +271,7 @@ export const resolveCrossFileReferences = async (
       continue;
     }
 
-    const parsed = await parseBirdConfig(document.text);
+    const parsed = await parseDocumentWithCache(current.uri, document.text, stats);
     parsedDocuments.set(current.uri, parsed);
     snapshots[current.uri] = buildCoreSnapshotFromParsed(parsed, {
       uri: current.uri,
@@ -236,6 +285,17 @@ export const resolveCrossFileReferences = async (
 
       const includeUri = resolveIncludeUri(current.uri, declaration.path);
       const includeRange = declaration.pathRange;
+
+      if (!allowIncludeOutsideWorkspace && !isWithinWorkspaceRoot(includeUri, workspaceRootUri)) {
+        diagnostics.push(
+          includeDiagnostic(
+            current.uri,
+            `Include skipped outside workspace root '${workspaceRootUri}': '${declaration.path}'`,
+            includeRange,
+          ),
+        );
+        continue;
+      }
 
       if (visited.has(includeUri) || queued.has(includeUri)) {
         continue;

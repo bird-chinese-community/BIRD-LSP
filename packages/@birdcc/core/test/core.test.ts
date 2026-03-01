@@ -400,4 +400,74 @@ describe("@birdcc/core boundaries", () => {
     expect(result.stats.skippedByFileLimit).toBeGreaterThan(0);
     expect(result.diagnostics.some((item) => item.message.includes("max files"))).toBe(true);
   });
+
+  it("skips include paths outside workspace root by default", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `
+            include "../outside.conf";
+            include "inside.conf";
+          `,
+        },
+        {
+          uri: "/workspace/inside.conf",
+          text: `template bgp inside_tpl { }`,
+        },
+        {
+          uri: "/outside.conf",
+          text: `template bgp outside_tpl { }`,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain("/workspace/inside.conf");
+    expect(result.visitedUris).not.toContain("/outside.conf");
+    expect(result.diagnostics.some((item) => item.message.includes("outside workspace root"))).toBe(
+      true,
+    );
+  });
+
+  it("allows include paths outside workspace root when explicitly enabled", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      allowIncludeOutsideWorkspace: true,
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `include "../outside.conf";`,
+        },
+        {
+          uri: "/outside.conf",
+          text: `template bgp outside_tpl { }`,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain("/outside.conf");
+  });
+
+  it("reuses parsed document cache across repeated cross-file resolution calls", async () => {
+    const options = {
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `include "inside.conf";`,
+        },
+        {
+          uri: "/workspace/inside.conf",
+          text: `template bgp cached_tpl { }`,
+        },
+      ],
+    };
+
+    const first = await resolveCrossFileReferences(options);
+    const second = await resolveCrossFileReferences(options);
+
+    expect(first.stats.parsedCacheMisses).toBeGreaterThan(0);
+    expect(second.stats.parsedCacheHits).toBeGreaterThan(0);
+  });
 });

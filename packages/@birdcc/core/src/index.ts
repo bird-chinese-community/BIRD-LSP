@@ -27,7 +27,11 @@ export {
   pushSymbolTableDiagnostics,
 } from "./symbol-table.js";
 export { buildCoreSnapshotFromParsed } from "./snapshot.js";
-export { resolveCrossFileReferences } from "./cross-file.js";
+export {
+  DEFAULT_CROSS_FILE_MAX_DEPTH,
+  DEFAULT_CROSS_FILE_MAX_FILES,
+  resolveCrossFileReferences,
+} from "./cross-file.js";
 
 /** Parses and builds semantic snapshot in one async call. */
 export const buildCoreSnapshot = async (text: string) => {
