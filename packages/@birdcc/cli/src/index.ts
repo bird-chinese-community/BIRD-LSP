@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import type { BirdDiagnostic } from "@birdcc/core";
-import { formatBirdConfig } from "@birdcc/formatter";
+import { formatBirdConfig, type FormatterEngine } from "@birdcc/formatter";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig } from "@birdcc/linter";
 import { createBirdRunnerErrorMessage } from "./messages.js";
@@ -151,43 +151,22 @@ export interface FmtResult {
   formattedText: string;
 }
 
-/** Legacy deterministic formatter used only when formatter package fails unexpectedly. */
+/** Builtin deterministic formatter wrapper used for safe fallback paths. */
 export const formatBirdConfigText = (text: string): FmtResult => {
-  const lines = text.split(/\r?\n/).map((line) => line.replace(/[ \t]+$/g, ""));
-  const compacted: string[] = [];
-
-  let blankStreak = 0;
-  for (const line of lines) {
-    if (line.length === 0) {
-      blankStreak += 1;
-      if (blankStreak > 1) {
-        continue;
-      }
-      compacted.push("");
-      continue;
-    }
-
-    blankStreak = 0;
-    compacted.push(line);
-  }
-
-  let formattedText = compacted.join("\n");
-  if (!formattedText.endsWith("\n")) {
-    formattedText += "\n";
-  }
-
+  const result = formatBirdConfig(text, { engine: "builtin" });
   return {
-    changed: formattedText !== text,
-    formattedText,
+    changed: result.changed,
+    formattedText: result.text,
   };
 };
 
 export interface FmtOptions {
   write?: boolean;
+  engine?: FormatterEngine;
 }
 
-const formatWithFormatterPackage = (text: string): FmtResult => {
-  const result = formatBirdConfig(text);
+const formatWithFormatterPackage = (text: string, engine?: FormatterEngine): FmtResult => {
+  const result = formatBirdConfig(text, engine ? { engine } : {});
   return {
     changed: result.changed,
     formattedText: result.text,
@@ -200,10 +179,14 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
   let result: FmtResult;
 
   try {
-    result = formatWithFormatterPackage(text);
+    result = formatWithFormatterPackage(text, options.engine);
   } catch (error) {
+    if (options.engine) {
+      throw error;
+    }
+
     console.error(
-      `Formatting with @birdcc/formatter failed, falling back to legacy formatter: ${
+      `Formatting with @birdcc/formatter failed, falling back to builtin formatter: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
