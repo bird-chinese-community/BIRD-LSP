@@ -2,6 +2,7 @@ import type { ParsedBirdDocument } from "@birdcc/parser";
 import type { CoreSnapshot, TypeCheckOptions } from "./types.js";
 import { buildSymbolTableFromParsed, pushSymbolTableDiagnostics } from "./symbol-table.js";
 import { collectSemanticDiagnostics } from "./semantic-diagnostics.js";
+import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
 import { checkTypes } from "./type-checker.js";
 
 export const buildCoreSnapshotFromParsed = (
@@ -10,6 +11,7 @@ export const buildCoreSnapshotFromParsed = (
 ): CoreSnapshot => {
   const symbolTable = buildSymbolTableFromParsed(parsed, { uri: options.uri });
   const diagnostics = collectSemanticDiagnostics(parsed);
+  diagnostics.push(...collectCircularTemplateDiagnostics([parsed]));
   pushSymbolTableDiagnostics(symbolTable, diagnostics);
 
   const typeDiagnostics = checkTypes(parsed.program, symbolTable, {

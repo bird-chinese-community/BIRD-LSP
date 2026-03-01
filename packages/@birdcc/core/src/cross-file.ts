@@ -10,6 +10,7 @@ import type {
 } from "./types.js";
 import { buildCoreSnapshotFromParsed } from "./snapshot.js";
 import { mergeSymbolTables, pushSymbolTableDiagnostics } from "./symbol-table.js";
+import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
 
 const isFileUri = (uri: string): boolean => uri.startsWith("file://");
 
@@ -85,6 +86,7 @@ export const resolveCrossFileReferences = async (options: {
 }): Promise<CrossFileResolutionResult> => {
   const maxDepth = options.maxDepth ?? 16;
   const documentMap = new Map(options.documents.map((document) => [document.uri, document]));
+  const parsedDocuments = new Map<string, Awaited<ReturnType<typeof parseBirdConfig>>>();
   const snapshots: Record<string, CoreSnapshot> = {};
   const queue: Array<{ uri: string; depth: number }> = [{ uri: options.entryUri, depth: 0 }];
   const visited = new Set<string>();
@@ -107,6 +109,7 @@ export const resolveCrossFileReferences = async (options: {
     }
 
     const parsed = await parseBirdConfig(document.text);
+    parsedDocuments.set(current.uri, parsed);
     snapshots[current.uri] = buildCoreSnapshotFromParsed(parsed, {
       uri: current.uri,
       typeCheck: options.typeCheck,
@@ -135,7 +138,8 @@ export const resolveCrossFileReferences = async (options: {
     for (const diagnostic of snapshot.diagnostics) {
       if (
         diagnostic.code === "semantic/duplicate-definition" ||
-        diagnostic.code === "semantic/undefined-reference"
+        diagnostic.code === "semantic/undefined-reference" ||
+        diagnostic.code === "semantic/circular-template"
       ) {
         continue;
       }
@@ -145,6 +149,7 @@ export const resolveCrossFileReferences = async (options: {
   }
 
   diagnostics.push(...(await collectMissingIncludeDiagnostics(snapshots, documentMap)));
+  diagnostics.push(...collectCircularTemplateDiagnostics([...parsedDocuments.values()]));
 
   return {
     entryUri: options.entryUri,

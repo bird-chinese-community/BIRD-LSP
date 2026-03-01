@@ -1297,9 +1297,19 @@ const parseTemplateDeclaration = (
   issues: ParseIssue[],
 ): TemplateDeclaration => {
   const declarationRange = toRange(declarationNode, source);
+  const declarationText = textOf(declarationNode, source);
+  const declarationHeader = declarationText.split("{", 1)[0] ?? declarationText;
   const templateTypeNode = declarationNode.childForFieldName("template_type");
   const nameNode = declarationNode.childForFieldName("name");
+  const fromTemplateNode = declarationNode.childForFieldName("from_template");
   const bodyNode = declarationNode.childForFieldName("body");
+  const inferredFromTemplateMatch = declarationHeader.match(
+    /\bfrom\s+([A-Za-z_][A-Za-z0-9_-]*)\b/i,
+  );
+  const inferredFromTemplate = inferredFromTemplateMatch?.[1];
+  const hasFromKeyword =
+    declarationNode.children.some((entry) => entry.type === "from") ||
+    /\bfrom\b/i.test(declarationHeader);
 
   if (!isPresentNode(templateTypeNode)) {
     pushMissingFieldIssue(
@@ -1312,6 +1322,15 @@ const parseTemplateDeclaration = (
 
   if (!isPresentNode(nameNode)) {
     pushMissingFieldIssue(issues, declarationNode, "Missing name for template declaration", source);
+  }
+
+  if (hasFromKeyword && !isPresentNode(fromTemplateNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing template name after from clause",
+      source,
+    );
   }
 
   if (!isPresentNode(bodyNode)) {
@@ -1330,6 +1349,14 @@ const parseTemplateDeclaration = (
       : declarationRange,
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
     nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
+    fromTemplate: isPresentNode(fromTemplateNode)
+      ? textOf(fromTemplateNode, source)
+      : inferredFromTemplate,
+    fromTemplateRange: isPresentNode(fromTemplateNode)
+      ? toRange(fromTemplateNode, source)
+      : inferredFromTemplate
+        ? declarationRange
+        : undefined,
     ...declarationRange,
   };
 };

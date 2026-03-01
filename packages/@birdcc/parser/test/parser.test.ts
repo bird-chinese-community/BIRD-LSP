@@ -36,6 +36,26 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses template inheritance via from clause", async () => {
+    const sample = `
+      template bgp base_tpl {
+      }
+
+      template bgp edge_tpl from base_tpl {
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const templates = parsed.program.declarations.filter((item) => item.kind === "template");
+    expect(templates).toHaveLength(2);
+
+    const edgeTemplate = templates[1];
+    if (edgeTemplate?.kind === "template") {
+      expect(edgeTemplate.name).toBe("edge_tpl");
+      expect(edgeTemplate.fromTemplate).toBe("base_tpl");
+    }
+  });
+
   it("parses router id and table declarations", async () => {
     const sample = `
       router id 192.0.2.1;

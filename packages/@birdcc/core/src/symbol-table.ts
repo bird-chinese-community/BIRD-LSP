@@ -79,6 +79,25 @@ export const buildSymbolTableFromParsed = (
         uri,
       });
     }
+
+    if (declaration.kind === "template" && declaration.fromTemplate) {
+      const range = declaration.fromTemplateRange ?? {
+        line: declaration.line,
+        column: declaration.column,
+        endLine: declaration.endLine,
+        endColumn: declaration.endColumn,
+      };
+
+      references.push({
+        kind: "template",
+        name: declaration.fromTemplate,
+        line: range.line,
+        column: range.column,
+        endLine: range.endLine,
+        endColumn: range.endColumn,
+        uri,
+      });
+    }
   }
 
   return { definitions, references };
