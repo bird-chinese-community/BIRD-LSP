@@ -12,6 +12,7 @@ interface LintOptions {
 interface FmtOptions {
   check?: boolean;
   write?: boolean;
+  engine?: string;
 }
 
 interface LspOptions {
@@ -44,6 +45,7 @@ const withCommandErrorHandling = <TOptions extends object>(action: CommandAction
 };
 
 const cli = cac("birdcc");
+const FMT_ENGINE_SET = new Set(["dprint", "builtin"]);
 
 cli
   .command("lint <file>", "Lint BIRD config file")
@@ -85,6 +87,7 @@ cli
   .command("fmt <file>", "Format BIRD config file")
   .option("--check", "Only check formatting")
   .option("--write", "Write formatted output to file")
+  .option("--engine <engine>", "Formatter engine: dprint | builtin")
   .action(
     withActionErrorHandling(async (file: string, options: FmtOptions) => {
       if (options.check && options.write) {
@@ -93,8 +96,18 @@ cli
         return;
       }
 
+      const engine = options.engine?.toLowerCase();
+      if (engine && !FMT_ENGINE_SET.has(engine)) {
+        console.error(CLI_MESSAGES.fmtInvalidEngine(engine));
+        process.exitCode = 1;
+        return;
+      }
+
       const writeMode = Boolean(options.write);
-      const result = await runFmt(file, { write: writeMode });
+      const result = await runFmt(file, {
+        write: writeMode,
+        engine: engine as "dprint" | "builtin" | undefined,
+      });
 
       if (writeMode) {
         console.log(result.changed ? CLI_MESSAGES.fmtWritten : CLI_MESSAGES.fmtAlreadyFormatted);
