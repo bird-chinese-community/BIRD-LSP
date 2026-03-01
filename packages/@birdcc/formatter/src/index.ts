@@ -16,6 +16,9 @@ export interface BirdFormatCheckResult {
   changed: boolean;
 }
 
+const FORMATTER_TIMEOUT_MS = 30_000;
+const FORMATTER_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+
 const normalizeTextWithBuiltin = (text: string): string => {
   const lines = text.split(/\r?\n/).map((line) => line.replace(/[ \t]+$/g, ""));
   const compacted: string[] = [];
@@ -47,14 +50,21 @@ const runExternalFormatter = (
   command: string,
   args: string[],
   text: string,
-): { ok: boolean; output: string } => {
+): { ok: true; output: string } | { ok: false; reason: string } => {
   const result = spawnSync(command, args, {
     encoding: "utf8",
     input: text,
+    timeout: FORMATTER_TIMEOUT_MS,
+    maxBuffer: FORMATTER_MAX_BUFFER_BYTES,
   });
 
-  if (result.error || (result.status ?? 1) !== 0) {
-    return { ok: false, output: text };
+  if (result.error) {
+    return { ok: false, reason: result.error.message };
+  }
+
+  if ((result.status ?? 1) !== 0) {
+    const message = result.stderr?.trim() || `exit code ${result.status ?? 1}`;
+    return { ok: false, reason: message };
   }
 
   return {
@@ -63,51 +73,69 @@ const runExternalFormatter = (
   };
 };
 
-const tryDprint = (text: string): string | null => {
+const tryDprint = (text: string): { ok: true; text: string } | { ok: false; reason: string } => {
   const result = runExternalFormatter("dprint", ["fmt", "--stdin", "bird.conf"], text);
-  return result.ok ? result.output : null;
+  if (!result.ok) {
+    return { ok: false, reason: result.reason };
+  }
+
+  return { ok: true, text: result.output };
 };
 
-const tryPrettier = (text: string): string | null => {
+const tryPrettier = (text: string): { ok: true; text: string } | { ok: false; reason: string } => {
   const result = runExternalFormatter("prettier", ["--stdin-filepath", "bird.conf"], text);
-  return result.ok ? result.output : null;
+  if (!result.ok) {
+    return { ok: false, reason: result.reason };
+  }
+
+  return { ok: true, text: result.output };
 };
 
 export const formatBirdConfig = (
   text: string,
   options: FormatBirdConfigOptions = {},
 ): BirdFormatResult => {
-  const requestedEngine = options.engine ?? "dprint";
+  const explicitEngine = options.engine;
+  const requestedEngine = explicitEngine ?? "dprint";
+  const allowFallback = explicitEngine === undefined;
 
   if (requestedEngine === "dprint") {
     const dprintOutput = tryDprint(text);
-    if (dprintOutput !== null) {
+    if (dprintOutput.ok) {
       return {
-        text: dprintOutput,
-        changed: dprintOutput !== text,
+        text: dprintOutput.text,
+        changed: dprintOutput.text !== text,
         engine: "dprint",
       };
     }
 
-    const prettierOutput = tryPrettier(text);
-    if (prettierOutput !== null) {
-      return {
-        text: prettierOutput,
-        changed: prettierOutput !== text,
-        engine: "prettier",
-      };
+    if (!allowFallback) {
+      throw new Error(`Formatting with 'dprint' failed: ${dprintOutput.reason}`);
     }
   }
 
-  if (requestedEngine === "prettier") {
+  if (requestedEngine === "dprint" || requestedEngine === "prettier") {
     const prettierOutput = tryPrettier(text);
-    if (prettierOutput !== null) {
+    if (prettierOutput.ok) {
       return {
-        text: prettierOutput,
-        changed: prettierOutput !== text,
+        text: prettierOutput.text,
+        changed: prettierOutput.text !== text,
         engine: "prettier",
       };
     }
+
+    if (!allowFallback && requestedEngine === "prettier") {
+      throw new Error(`Formatting with 'prettier' failed: ${prettierOutput.reason}`);
+    }
+  }
+
+  if (requestedEngine === "builtin") {
+    const builtinOutput = normalizeTextWithBuiltin(text);
+    return {
+      text: builtinOutput,
+      changed: builtinOutput !== text,
+      engine: "builtin",
+    };
   }
 
   const builtinOutput = normalizeTextWithBuiltin(text);
