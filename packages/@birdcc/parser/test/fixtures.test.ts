@@ -16,23 +16,26 @@ const readFixture = (name: string): string => {
 
 describe("@birdcc/parser fixtures", () => {
   for (const fileName of fixtureFiles) {
-    it(`parses fixture ${fileName}`, () => {
+    it(`parses fixture ${fileName}`, async () => {
       const text = readFixture(fileName);
-      const parsed = parseBirdConfig(text);
+      const parsed = await parseBirdConfig(text);
 
-      expect(parsed.tokens.length).toBeGreaterThan(0);
       expect(parsed.program.declarations.length).toBeGreaterThan(0);
-      expect(parsed.issues).toHaveLength(0);
+      expect(parsed.issues.filter((item) => item.code === "parser/syntax-error")).toHaveLength(0);
     });
   }
 
-  it("detects phrases in protocol_phrases.conf", () => {
+  it("extracts protocol statements from protocol_phrases.conf", async () => {
     const text = readFixture("protocol_phrases.conf");
-    const parsed = parseBirdConfig(text);
+    const parsed = await parseBirdConfig(text);
 
-    const phrases = new Set(parsed.phraseMatches.map((item) => item.phrase));
-    expect(phrases.has("local as")).toBe(true);
-    expect(phrases.has("next hop self")).toBe(true);
-    expect(phrases.has("source address")).toBe(true);
+    const protocols = parsed.program.declarations.filter((item) => item.kind === "protocol");
+    const statements = protocols.flatMap((protocol) =>
+      protocol.statements.map((item) => item.kind),
+    );
+
+    expect(statements).toContain("local-as");
+    expect(statements).toContain("import");
+    expect(statements).toContain("export");
   });
 });

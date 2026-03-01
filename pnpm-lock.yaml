@@ -81,7 +81,11 @@ importers:
         specifier: ^1.0.12
         version: 1.0.12
 
-  packages/@birdcc/parser: {}
+  packages/@birdcc/parser:
+    dependencies:
+      web-tree-sitter:
+        specifier: ^0.26.6
+        version: 0.26.6
 
 packages:
 
@@ -1390,6 +1394,9 @@ packages:
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
+  web-tree-sitter@0.26.6:
+    resolution: {integrity: sha512-fSPR7VBW/fZQdUSp/bXTDLT+i/9dwtbnqgEBMzowrM4U3DzeCwDbY3MKo0584uQxID4m/1xpLflrlT/rLIRPew==}
+
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
@@ -2515,6 +2522,8 @@ snapshots:
     dependencies:
       defaults: 1.0.4
     optional: true
+
+  web-tree-sitter@0.26.6: {}
 
   why-is-node-running@2.3.0:
     dependencies:

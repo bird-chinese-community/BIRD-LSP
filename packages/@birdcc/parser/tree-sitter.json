@@ -1,0 +1,19 @@
+{
+  "grammars": [
+    {
+      "name": "birdcc",
+      "camelcase": "Birdcc",
+      "scope": "source.bird",
+      "path": ".",
+      "file-types": ["conf", "bird"]
+    }
+  ],
+  "metadata": {
+    "version": "0.0.1-alpha.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for BIRD configuration"
+  },
+  "bindings": {
+    "c": true
+  }
+}
