@@ -113,4 +113,52 @@ describe("@birdcc/lsp", () => {
     expect(labels).toContain("edge_tpl");
     expect(labels).toContain("export_policy");
   });
+
+  it("returns template completions in protocol from context", async () => {
+    const parsed = await parseBirdConfig(`
+      template bgp edge_tpl {}
+      template bgp core_tpl {}
+      define ASN = 65001;
+      filter export_policy { accept; }
+    `);
+
+    const items = createCompletionItemsFromParsed(parsed, {
+      linePrefix: "protocol bgp edge from ",
+    });
+    const labels = items.map((item) => item.label);
+
+    expect(labels).toContain("edge_tpl");
+    expect(labels).toContain("core_tpl");
+    expect(labels).not.toContain("ASN");
+    expect(labels).not.toContain("export_policy");
+  });
+
+  it("returns include path candidates inside include string context", async () => {
+    const parsed = await parseBirdConfig(`
+      include "base.conf";
+      include "upstream/edge.conf";
+      template bgp edge_tpl {}
+    `);
+
+    const items = createCompletionItemsFromParsed(parsed, { linePrefix: 'include "' });
+    const labels = items.map((item) => item.label);
+
+    expect(labels).toContain("base.conf");
+    expect(labels).toContain("upstream/edge.conf");
+    expect(labels).not.toContain("template");
+  });
+
+  it("includes snippet completion items in generic context", async () => {
+    const parsed = await parseBirdConfig(`
+      template bgp edge_tpl {}
+    `);
+
+    const items = createCompletionItemsFromParsed(parsed);
+    const labels = items.map((item) => item.label);
+
+    expect(labels).toContain('include "..."');
+    expect(labels).toContain("define NAME = value;");
+    expect(labels).toContain("router id 1.1.1.1;");
+    expect(labels).toContain("protocol bgp ...");
+  });
 });
