@@ -211,4 +211,14 @@ describe("@birdcc/linter sym+cfg rules", () => {
 
     expect(codes).toContain("cfg/circular-template");
   });
+
+  it("hits cfg/circular-template for multi-hop cycle", async () => {
+    const codes = await codesOf(`
+      template bgp a from b { }
+      template bgp b from c { }
+      template bgp c from a { }
+    `);
+
+    expect(codes).toContain("cfg/circular-template");
+  });
 });
