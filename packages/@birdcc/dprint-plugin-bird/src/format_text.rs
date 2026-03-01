@@ -23,10 +23,11 @@ fn is_high_risk_expression_line(line: &str) -> bool {
         return false;
     }
 
-    let keyword_risk = normalized.contains("if ")
-        || normalized.contains(" then")
-        || normalized.contains(" else")
-        || normalized.contains("return ");
+    let lowered = normalized.to_ascii_lowercase();
+    let keyword_risk = lowered.contains("if ")
+        || lowered.contains(" then")
+        || lowered.contains(" else")
+        || lowered.contains("return ");
     let operator_risk = normalized.contains('~')
         || normalized.contains('&')
         || normalized.contains('|')
@@ -162,6 +163,16 @@ mod tests {
             .expect("format should change text");
 
         assert!(output.contains("if ( net ~ [ 192.0.2.0/24 ] ) then {"));
+    }
+
+    #[test]
+    fn detects_high_risk_keywords_case_insensitively() {
+        let input = "filter t {\nIF ( net ~ [ 192.0.2.0/24 ] ) Then {\naccept;\n}\n}\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .expect("format should succeed")
+            .expect("format should change text");
+
+        assert!(output.contains("IF ( net ~ [ 192.0.2.0/24 ] ) Then {"));
     }
 
     #[test]
