@@ -80,6 +80,33 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("does not collect nested protocol statements inside inner blocks", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        import filter {
+          local as 65003;
+          neighbor 198.51.100.1 as 65004;
+        };
+        neighbor 192.0.2.1 as 65002;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const localAsStatements = protocol.statements.filter((item) => item.kind === "local-as");
+      const neighborStatements = protocol.statements.filter((item) => item.kind === "neighbor");
+      const importStatements = protocol.statements.filter((item) => item.kind === "import");
+
+      expect(localAsStatements).toHaveLength(1);
+      expect(neighborStatements).toHaveLength(1);
+      expect(importStatements).toHaveLength(1);
+    }
+  });
+
   it("reports missing declaration symbols for incomplete headers", async () => {
     const sample = `
       include;
