@@ -79,3 +79,12 @@ export const parseFailureIssue = (): ParseIssue => ({
   endLine: 1,
   endColumn: 1,
 });
+
+export const runtimeFailureIssue = (error: unknown): ParseIssue => ({
+  code: "parser/runtime-error",
+  message: `Parser runtime unavailable: ${error instanceof Error ? error.message : String(error)}`,
+  line: 1,
+  column: 1,
+  endLine: 1,
+  endColumn: 1,
+});

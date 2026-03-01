@@ -1,5 +1,10 @@
 import { getParser } from "./runtime.js";
-import { collectTreeIssues, dedupeIssues, parseFailureIssue } from "./issues.js";
+import {
+  collectTreeIssues,
+  dedupeIssues,
+  parseFailureIssue,
+  runtimeFailureIssue,
+} from "./issues.js";
 import { parseDeclarations } from "./declarations.js";
 import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 
@@ -22,8 +27,24 @@ export type {
   TemplateDeclaration,
 } from "./types.js";
 
+/**
+ * Parse one BIRD configuration text into AST V2 declarations and parser diagnostics.
+ * Returns a degraded document with `parser/runtime-error` when Tree-sitter runtime cannot initialize.
+ */
 export const parseBirdConfig = async (input: string): Promise<ParsedBirdDocument> => {
-  const parser = await getParser();
+  let parser;
+  try {
+    parser = await getParser();
+  } catch (error) {
+    return {
+      program: {
+        kind: "program",
+        declarations: [],
+      },
+      issues: [runtimeFailureIssue(error)],
+    };
+  }
+
   const tree = parser.parse(input);
 
   if (!tree) {

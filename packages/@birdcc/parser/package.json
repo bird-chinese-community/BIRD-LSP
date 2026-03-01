@@ -12,12 +12,16 @@
     }
   },
   "scripts": {
-    "build:grammar": "pnpm dlx tree-sitter-cli generate && pnpm dlx tree-sitter-cli build --wasm && node scripts/sync-wasm-paths.mjs",
+    "build:grammar": "tree-sitter generate && oxfmt src/grammar.json src/node-types.json && node scripts/sync-wasm-paths.mjs",
+    "build:wasm": "tree-sitter build --wasm && node scripts/sync-wasm-paths.mjs",
     "build": "tsc -p tsconfig.json && node scripts/sync-wasm-paths.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
     "format": "oxfmt --check src test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
   },
   "dependencies": {
     "web-tree-sitter": "^0.26.6"

@@ -1,3 +1,4 @@
+/** 1-based source range used across parser/core/linter diagnostics. */
 export interface SourceRange {
   line: number;
   column: number;
@@ -5,8 +6,13 @@ export interface SourceRange {
   endColumn: number;
 }
 
+/** Parser issue emitted from Tree-sitter syntax recovery or runtime initialization. */
 export interface ParseIssue extends SourceRange {
-  code: "parser/unbalanced-brace" | "parser/missing-symbol" | "parser/syntax-error";
+  code:
+    | "parser/unbalanced-brace"
+    | "parser/missing-symbol"
+    | "parser/syntax-error"
+    | "parser/runtime-error";
   message: string;
 }
 
@@ -110,6 +116,7 @@ export interface BirdProgram {
   declarations: BirdDeclaration[];
 }
 
+/** Result of parsing one BIRD config document. */
 export interface ParsedBirdDocument {
   program: BirdProgram;
   issues: ParseIssue[];

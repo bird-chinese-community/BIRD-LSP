@@ -8,6 +8,7 @@ coverage
 *.log
 *.wasm
 *.map
+!packages/@birdcc/parser/src/tree-sitter-birdcc.wasm
 
 .DS_Store
 .env
