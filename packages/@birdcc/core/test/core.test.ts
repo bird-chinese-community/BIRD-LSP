@@ -144,6 +144,7 @@ describe("@birdcc/core boundaries", () => {
         int threshold = 24;
         bool in_range = (threshold + 1) >= 20;
         bool ok = in_range && true;
+        bool precedence_ok = 1 < 2 == true;
         bool mismatch = threshold + 1;
         int wrong = in_range;
         accept;
