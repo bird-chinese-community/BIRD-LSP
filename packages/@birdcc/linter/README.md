@@ -42,12 +42,12 @@ console.log(result.diagnostics);
 
 | 分类            | 默认级别 | CI 策略 |
 | --------------- | -------- | ------- |
-| `syntax/*`      | error    | 阻塞    |
-| `semantic/*`    | error    | 阻塞    |
-| `security/*`    | error    | 阻塞    |
-| `structure/*`   | warning  | 非阻塞  |
-| `protocol/*`    | warning  | 非阻塞  |
-| `performance/*` | info     | 非阻塞  |
+| `sym/*`         | error    | 阻塞    |
+| `cfg/*`         | error    | 阻塞    |
+| `net/*`         | error    | 阻塞    |
+| `type/*`        | error    | 阻塞    |
+| `bgp/*`         | warning  | 非阻塞  |
+| `ospf/*`        | warning  | 非阻塞  |
 
 ---
 
