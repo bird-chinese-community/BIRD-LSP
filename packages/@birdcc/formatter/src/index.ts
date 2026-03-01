@@ -1,4 +1,4 @@
-import { createContext } from "@dprint/formatter";
+import { createContext, type FormatterContext } from "@dprint/formatter";
 import { getBuffer as getBirdPluginBuffer } from "@birdcc/dprint-plugin-bird";
 import {
   parseBirdConfig,
@@ -48,16 +48,11 @@ interface BuiltinFormatOutput {
   stats: BuiltinFormatStats;
 }
 
-interface EmbeddedDprintContext {
-  addPlugin(pluginWasmBytes: Uint8Array, pluginConfig?: Record<string, unknown>): void;
-  formatText(request: { filePath: string; fileText: string }): string;
-}
-
 const DEFAULT_INDENT_SIZE = 2;
 const DEFAULT_LINE_WIDTH = 80;
 const DEFAULT_SAFE_MODE = true;
 
-const dprintContextCache = new Map<string, EmbeddedDprintContext>();
+const dprintContextCache = new Map<string, FormatterContext>();
 
 const normalizePositiveInteger = (value: number | undefined, fallback: number): number => {
   if (value === undefined) {
@@ -360,7 +355,7 @@ const normalizeTextWithBuiltin = async (
 const contextCacheKey = (options: ResolvedFormatOptions): string =>
   `${options.indentSize}:${options.lineWidth}:${options.safeMode ? "1" : "0"}`;
 
-const getOrCreateDprintContext = (options: ResolvedFormatOptions): EmbeddedDprintContext => {
+const getOrCreateDprintContext = (options: ResolvedFormatOptions): FormatterContext => {
   const key = contextCacheKey(options);
   const cached = dprintContextCache.get(key);
   if (cached) {
@@ -370,7 +365,7 @@ const getOrCreateDprintContext = (options: ResolvedFormatOptions): EmbeddedDprin
   const context = createContext({
     indentWidth: options.indentSize,
     lineWidth: options.lineWidth,
-  }) as EmbeddedDprintContext;
+  });
   context.addPlugin(getBirdPluginBuffer(), {
     lineWidth: options.lineWidth,
     indentWidth: options.indentSize,
