@@ -63,6 +63,7 @@ const createTypeMismatchDiagnostic = (
 
 export const checkTypes = (
   program: ParsedBirdDocument["program"],
+  // Reserved for upcoming phases (cross-declaration and cross-file type rules).
   _symbolTable: SymbolTable,
   options: TypeCheckOptions = {},
 ): BirdDiagnostic[] => {
