@@ -96,6 +96,22 @@ describe("@birdcc/cli fmt runtime", () => {
     expect(errorSpy).toHaveBeenCalledOnce();
   });
 
+  it("throws readable error when formatter fallback also fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    formatBirdConfigMock
+      .mockImplementationOnce(() => {
+        throw new Error("dprint unavailable");
+      })
+      .mockImplementationOnce(() => {
+        throw new Error("builtin failed");
+      });
+
+    await expect(runFmt("/tmp/bird.conf")).rejects.toThrow(
+      "Formatter fallback failed for '/tmp/bird.conf': builtin failed",
+    );
+    expect(errorSpy).toHaveBeenCalledOnce();
+  });
+
   it("wraps read file errors with a readable message", async () => {
     readFileMock.mockRejectedValueOnce(new Error("EACCES"));
     await expect(runFmt("/tmp/no-access.conf")).rejects.toThrow(

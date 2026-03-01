@@ -45,8 +45,13 @@ const fileExists = async (path: string): Promise<boolean> => {
   try {
     await access(path);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    const ioError = error as NodeJS.ErrnoException;
+    if (ioError.code === "ENOENT") {
+      return false;
+    }
+
+    throw error;
   }
 };
 
