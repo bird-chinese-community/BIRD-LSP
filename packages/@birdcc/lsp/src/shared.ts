@@ -148,6 +148,9 @@ export const declarationMetadata = (
         symbolKind: SymbolKind.File,
         detail: "include",
         hoverMarkdown: `**include** \`${escapeMarkdownCode(declaration.path)}\``,
+        completionLabel: declaration.path,
+        completionKind: CompletionItemKind.File,
+        completionDetail: "include path",
       };
     case "router-id": {
       const fromSource = declaration.fromSource ? ` (${declaration.fromSource})` : "";
@@ -157,6 +160,9 @@ export const declarationMetadata = (
         symbolKind: SymbolKind.Property,
         detail: `router-id ${declaration.valueKind}`,
         hoverMarkdown: `**router id** \`${escapeMarkdownCode(declaration.value)}\`${fromSource}`,
+        completionLabel: `router id ${declaration.value}`,
+        completionKind: CompletionItemKind.Property,
+        completionDetail: `router id ${declaration.valueKind}`,
       };
     }
     default:
