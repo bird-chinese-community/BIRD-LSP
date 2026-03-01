@@ -1,7 +1,13 @@
 import type { ParsedBirdDocument, SourceRange } from "@birdcc/parser";
 import type { BirdDiagnostic } from "./types.js";
 
+interface ParsedDocumentWithUri {
+  uri: string;
+  parsed: ParsedBirdDocument;
+}
+
 interface TemplateInheritanceNode {
+  uri: string;
   name: string;
   key: string;
   parentName?: string;
@@ -10,8 +16,10 @@ interface TemplateInheritanceNode {
 }
 
 const createNode = (
+  uri: string,
   declaration: Extract<ParsedBirdDocument["program"]["declarations"][number], { kind: "template" }>,
 ): TemplateInheritanceNode => ({
+  uri,
   name: declaration.name,
   key: declaration.name.toLowerCase(),
   parentName: declaration.fromTemplate,
@@ -20,17 +28,18 @@ const createNode = (
 });
 
 const collectTemplateInheritanceNodes = (
-  parsedDocuments: ParsedBirdDocument[],
+  parsedDocuments: ParsedDocumentWithUri[],
 ): Map<string, TemplateInheritanceNode> => {
   const nodes = new Map<string, TemplateInheritanceNode>();
 
-  for (const parsed of parsedDocuments) {
+  for (const document of parsedDocuments) {
+    const { uri, parsed } = document;
     for (const declaration of parsed.program.declarations) {
       if (declaration.kind !== "template") {
         continue;
       }
 
-      const node = createNode(declaration);
+      const node = createNode(uri, declaration);
       if (!nodes.has(node.key)) {
         nodes.set(node.key, node);
       }
@@ -40,10 +49,29 @@ const collectTemplateInheritanceNodes = (
   return nodes;
 };
 
+const normalizeParsedDocuments = (
+  parsedDocuments: ParsedBirdDocument[] | ParsedDocumentWithUri[],
+): ParsedDocumentWithUri[] => {
+  if (parsedDocuments.length === 0) {
+    return [];
+  }
+
+  const first = parsedDocuments[0];
+  if ("parsed" in first && "uri" in first) {
+    return parsedDocuments as ParsedDocumentWithUri[];
+  }
+
+  return (parsedDocuments as ParsedBirdDocument[]).map((parsed, index) => ({
+    uri: `memory://document-${index + 1}.conf`,
+    parsed,
+  }));
+};
+
 export const collectCircularTemplateDiagnostics = (
-  parsedDocuments: ParsedBirdDocument[],
+  parsedDocuments: ParsedBirdDocument[] | ParsedDocumentWithUri[],
 ): BirdDiagnostic[] => {
-  const nodes = collectTemplateInheritanceNodes(parsedDocuments);
+  const normalizedDocuments = normalizeParsedDocuments(parsedDocuments);
+  const nodes = collectTemplateInheritanceNodes(normalizedDocuments);
   const diagnostics: BirdDiagnostic[] = [];
   const state = new Map<string, 0 | 1 | 2>();
   const stack: string[] = [];
@@ -80,6 +108,7 @@ export const collectCircularTemplateDiagnostics = (
               message: `Circular template inheritance detected: ${cycleNames.join(" -> ")}`,
               severity: "error",
               source: "core",
+              uri: node.uri,
               range: {
                 line: node.parentRange.line,
                 column: node.parentRange.column,
