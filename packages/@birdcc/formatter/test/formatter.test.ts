@@ -68,6 +68,15 @@ describe("@birdcc/formatter", () => {
     );
   });
 
+  it("loads wasm plugin buffer once across multiple dprint contexts", async () => {
+    await formatBirdConfig("protocol bgp edge{}\n");
+    await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 100 });
+    await formatBirdConfig("protocol bgp edge{}\n");
+
+    expect(createContextMock).toHaveBeenCalledTimes(2);
+    expect(getBufferMock).toHaveBeenCalledTimes(1);
+  });
+
   it("falls back to builtin when dprint fails in default mode", async () => {
     createContextMock.mockImplementationOnce(() => {
       throw new Error("plugin load failed");
