@@ -77,8 +77,6 @@ cli
       const hasError = result.diagnostics.some((item) => item.severity === "error");
       if (hasError) {
         process.exitCode = 1;
-      } else if (process.exitCode == null) {
-        process.exitCode = 0;
       }
     }),
   );
