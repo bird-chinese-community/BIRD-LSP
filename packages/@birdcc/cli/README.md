@@ -70,21 +70,27 @@ birdcc lint bird.conf
 # JSON 输出（适合 CI）
 birdcc lint bird.conf --format json
 
+# 默认启用 include 跨文件解析（可显式关闭）
+birdcc lint bird.conf --no-cross-file
+
+# 调整 include 递归限制
+birdcc lint bird.conf --include-max-depth 24 --include-max-files 512
+
 # 结合 BIRD 运行时验证
 birdcc lint bird.conf --bird
-
-# 设置警告上限
-birdcc lint bird.conf --max-warnings 0
 ```
 
 **选项说明：**
 
-| 选项                 | 简写 | 说明                              |
-| -------------------- | ---- | --------------------------------- |
-| `--format <type>`    | `-f` | 输出格式：`text` (默认) 或 `json` |
-| `--bird`             | `-b` | 同时运行 BIRD 运行时验证          |
-| `--max-warnings <n>` | `-w` | 允许的最大警告数，超出则失败      |
-| `--help`             | `-h` | 显示帮助信息                      |
+| 选项                       | 简写 | 说明                                                             |
+| -------------------------- | ---- | ---------------------------------------------------------------- |
+| `--format <type>`          | `-f` | 输出格式：`text` (默认) 或 `json`                                |
+| `--bird`                   | `-b` | 同时运行 BIRD `bird -p` 运行时验证                               |
+| `--cross-file`             | -    | 启用 include 跨文件分析（默认开启，可用 `--no-cross-file` 关闭） |
+| `--include-max-depth <n>`  | -    | include 递归最大深度（默认 `16`）                                |
+| `--include-max-files <n>`  | -    | include 递归最大文件数（默认 `256`）                             |
+| `--validate-command <cmd>` | -    | 自定义 `bird -p` 验证命令模板（使用 `{file}` 占位）              |
+| `--help`                   | `-h` | 显示帮助信息                                                     |
 
 ---
 
