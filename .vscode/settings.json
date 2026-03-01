@@ -2,7 +2,6 @@
   // Oxc 作为默认 Linter 和 Formatter
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  
   // 针对不同语言的配置
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
@@ -28,8 +27,10 @@
       "source.fixAll.oxc": "explicit"
     }
   },
-  
   // Oxc 插件配置
   "oxc.enable": true,
-  "oxc.trace.server": "off"
+  "oxc.trace.server": "off",
+  "[c]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  }
 }
