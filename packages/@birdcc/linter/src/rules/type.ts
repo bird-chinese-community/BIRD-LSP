@@ -1,8 +1,10 @@
 import type { BirdDiagnostic } from "@birdcc/core";
+import type { FilterBodyStatement, SourceRange } from "@birdcc/parser";
 import {
-  filterAndFunctionDeclarations,
-  scalarTypeOfExpression,
   createRuleDiagnostic,
+  filterAndFunctionDeclarations,
+  pushUniqueDiagnostic,
+  scalarTypeOfExpression,
   type BirdRule,
 } from "./shared.js";
 
@@ -48,57 +50,70 @@ const splitSetItems = (setText: string): string[] => {
     .filter((item) => item.length > 0);
 };
 
-const collectExpressionTexts = (text: string): string[] => {
-  return text
-    .split(/[;\n]/)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
-};
-
-const pushUnique = (diagnostics: BirdDiagnostic[], diagnostic: BirdDiagnostic): void => {
-  if (
-    diagnostics.some(
-      (item) =>
-        item.code === diagnostic.code &&
-        item.message === diagnostic.message &&
-        item.range.line === diagnostic.range.line,
-    )
-  ) {
-    return;
+const statementText = (statement: FilterBodyStatement): string => {
+  if (statement.kind === "expression") {
+    return statement.expressionText;
   }
 
-  diagnostics.push(diagnostic);
+  if (statement.kind === "other") {
+    return statement.text;
+  }
+
+  if (statement.kind === "if") {
+    return statement.conditionText ?? "";
+  }
+
+  if (statement.kind === "return") {
+    return statement.valueText ?? "";
+  }
+
+  return "";
 };
 
-const typeNotIterableRule: BirdRule = ({ text, parsed }) => {
-  const diagnostics: BirdDiagnostic[] = [];
+const declarationText = (source: string, range: SourceRange): string => {
+  const lines = source.split(/\r?\n/);
+  const startLine = Math.max(1, range.line);
+  const endLine = Math.max(startLine, range.endLine);
+  return lines.slice(startLine - 1, endLine).join("\n");
+};
 
-  for (const snippet of collectExpressionTexts(text)) {
-    for (const match of extractMatches(snippet)) {
-      if (match.right.startsWith("[") && match.right.endsWith("]")) {
+const typeNotIterableRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
+
+  for (const declaration of filterAndFunctionDeclarations(parsed)) {
+    for (const statement of declaration.statements) {
+      const text = statementText(statement);
+      if (!text) {
         continue;
       }
 
-      pushUnique(
-        diagnostics,
-        createRuleDiagnostic(
-          "type/not-iterable",
-          `Type '${match.right}' is not iterable in match expression '${match.left} ~ ${match.right}'`,
-          { line: 1, column: 1, endLine: 1, endColumn: 1 },
-        ),
-      );
-    }
-  }
+      for (const match of extractMatches(text)) {
+        if (match.right.startsWith("[") && match.right.endsWith("]")) {
+          continue;
+        }
 
-  for (const declaration of filterAndFunctionDeclarations(parsed)) {
+        pushUniqueDiagnostic(
+          diagnostics,
+          seen,
+          createRuleDiagnostic(
+            "type/not-iterable",
+            `Type '${match.right}' is not iterable in match expression '${match.left} ~ ${match.right}'`,
+            statement,
+          ),
+        );
+      }
+    }
+
     for (const match of declaration.matches) {
       const right = normalizeRightExpression(match.right);
       if (right.startsWith("[") && right.endsWith("]")) {
         continue;
       }
 
-      pushUnique(
+      pushUniqueDiagnostic(
         diagnostics,
+        seen,
         createRuleDiagnostic(
           "type/not-iterable",
           `Type '${right}' is not iterable in match expression '${match.left} ${match.operator} ${match.right}'`,
@@ -111,10 +126,11 @@ const typeNotIterableRule: BirdRule = ({ text, parsed }) => {
   return diagnostics;
 };
 
-const typeSetIncompatibleRule: BirdRule = ({ text, parsed }) => {
+const typeSetIncompatibleRule: BirdRule = ({ parsed, text }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
-  const evaluateSetCompatibility = (left: string, right: string): void => {
+  const evaluateSetCompatibility = (left: string, right: string, range: SourceRange): void => {
     const normalizedRight = normalizeRightExpression(right);
     if (!normalizedRight.startsWith("[") || !normalizedRight.endsWith("]")) {
       return;
@@ -135,25 +151,36 @@ const typeSetIncompatibleRule: BirdRule = ({ text, parsed }) => {
       return;
     }
 
-    pushUnique(
+    pushUniqueDiagnostic(
       diagnostics,
+      seen,
       createRuleDiagnostic(
         "type/set-incompatible",
         `Set-incompatible type (${leftType}) for match set '${normalizedRight}'`,
-        { line: 1, column: 1, endLine: 1, endColumn: 1 },
+        range,
       ),
     );
   };
 
-  for (const snippet of collectExpressionTexts(text)) {
-    for (const match of extractMatches(snippet)) {
-      evaluateSetCompatibility(match.left, match.right);
-    }
-  }
-
   for (const declaration of filterAndFunctionDeclarations(parsed)) {
+    for (const statement of declaration.statements) {
+      const text = statementText(statement);
+      if (!text) {
+        continue;
+      }
+
+      for (const match of extractMatches(text)) {
+        evaluateSetCompatibility(match.left, match.right, statement);
+      }
+    }
+
     for (const match of declaration.matches) {
-      evaluateSetCompatibility(match.left, match.right);
+      evaluateSetCompatibility(match.left, match.right, match);
+    }
+
+    const sourceText = declarationText(text, declaration);
+    for (const match of extractMatches(sourceText)) {
+      evaluateSetCompatibility(match.left, match.right, declaration);
     }
   }
 

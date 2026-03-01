@@ -10,28 +10,13 @@ import {
   isProtocolType,
   numericValue,
   protocolDeclarations,
+  pushUniqueDiagnostic,
   routerIdDeclarations,
   templateDeclarations,
   type BirdRule,
 } from "./shared.js";
 
 const MAX_ASN = 4_294_967_295;
-
-const pushUnique = (diagnostics: BirdDiagnostic[], diagnostic: BirdDiagnostic): void => {
-  if (
-    diagnostics.some(
-      (item) =>
-        item.code === diagnostic.code &&
-        item.range.line === diagnostic.range.line &&
-        item.range.column === diagnostic.range.column &&
-        item.message === diagnostic.message,
-    )
-  ) {
-    return;
-  }
-
-  diagnostics.push(diagnostic);
-};
 
 const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   if (protocolDeclarations(parsed).length > 0) {
@@ -65,6 +50,7 @@ const cfgMissingRouterIdRule: BirdRule = ({ parsed }) => {
 
 const diagnoseNumberExpected = (
   diagnostics: BirdDiagnostic[],
+  seen: Set<string>,
   range: SourceRange,
   declarationName: string,
   fieldName: string,
@@ -78,8 +64,9 @@ const diagnoseNumberExpected = (
     return;
   }
 
-  pushUnique(
+  pushUniqueDiagnostic(
     diagnostics,
+    seen,
     createRuleDiagnostic(
       "cfg/number-expected",
       `Protocol '${declarationName}' expects numeric value for '${fieldName}'`,
@@ -90,6 +77,7 @@ const diagnoseNumberExpected = (
 
 const diagnoseValueOutOfRange = (
   diagnostics: BirdDiagnostic[],
+  seen: Set<string>,
   range: SourceRange,
   declarationName: string,
   fieldName: string,
@@ -105,8 +93,9 @@ const diagnoseValueOutOfRange = (
     return;
   }
 
-  pushUnique(
+  pushUniqueDiagnostic(
     diagnostics,
+    seen,
     createRuleDiagnostic(
       "cfg/value-out-of-range",
       `Protocol '${declarationName}' has out-of-range value for '${fieldName}': ${value}`,
@@ -117,12 +106,14 @@ const diagnoseValueOutOfRange = (
 
 const cfgNumericRules: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
       if (statement.kind === "local-as") {
         diagnoseNumberExpected(
           diagnostics,
+          seen,
           statement.asnRange,
           declaration.name,
           "local as",
@@ -130,6 +121,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
         );
         diagnoseValueOutOfRange(
           diagnostics,
+          seen,
           statement.asnRange,
           declaration.name,
           "local as",
@@ -139,25 +131,25 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
         );
       }
 
-      if (statement.kind === "neighbor") {
-        if (statement.asnRange) {
-          diagnoseNumberExpected(
-            diagnostics,
-            statement.asnRange,
-            declaration.name,
-            "neighbor as",
-            statement.asn,
-          );
-          diagnoseValueOutOfRange(
-            diagnostics,
-            statement.asnRange,
-            declaration.name,
-            "neighbor as",
-            numericValue(statement.asn),
-            1,
-            MAX_ASN,
-          );
-        }
+      if (statement.kind === "neighbor" && statement.asnRange) {
+        diagnoseNumberExpected(
+          diagnostics,
+          seen,
+          statement.asnRange,
+          declaration.name,
+          "neighbor as",
+          statement.asn,
+        );
+        diagnoseValueOutOfRange(
+          diagnostics,
+          seen,
+          statement.asnRange,
+          declaration.name,
+          "neighbor as",
+          numericValue(statement.asn),
+          1,
+          MAX_ASN,
+        );
       }
 
       if (statement.kind === "other") {
@@ -165,10 +157,11 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
         const holdNumber = extractFirstNumberAfterKeyword(lowerText, "hold");
         if (holdNumber === null && /\bhold\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, statement, declaration.name, "hold", "");
+          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "hold", "");
         }
         diagnoseValueOutOfRange(
           diagnostics,
+          seen,
           statement,
           declaration.name,
           "hold",
@@ -179,10 +172,11 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
         const keepaliveNumber = extractFirstNumberAfterKeyword(lowerText, "keepalive");
         if (keepaliveNumber === null && /\bkeepalive\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, statement, declaration.name, "keepalive", "");
+          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "keepalive", "");
         }
         diagnoseValueOutOfRange(
           diagnostics,
+          seen,
           statement,
           declaration.name,
           "keepalive",
@@ -193,9 +187,18 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
         const ttlNumber = extractFirstNumberAfterKeyword(lowerText, "ttl");
         if (ttlNumber === null && /\bttl\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, statement, declaration.name, "ttl", "");
+          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "ttl", "");
         }
-        diagnoseValueOutOfRange(diagnostics, statement, declaration.name, "ttl", ttlNumber, 1, 255);
+        diagnoseValueOutOfRange(
+          diagnostics,
+          seen,
+          statement,
+          declaration.name,
+          "ttl",
+          ttlNumber,
+          1,
+          255,
+        );
       }
 
       if (statement.kind !== "channel") {
@@ -206,6 +209,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
         if (entry.kind === "limit") {
           diagnoseNumberExpected(
             diagnostics,
+            seen,
             entry.valueRange,
             declaration.name,
             "limit",
@@ -213,6 +217,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
           );
           diagnoseValueOutOfRange(
             diagnostics,
+            seen,
             entry.valueRange,
             declaration.name,
             "limit",
@@ -222,22 +227,27 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
           );
         }
 
-        if (entry.kind === "other") {
-          const maxPrefixMatch = entry.text.match(/\bmax\s+prefix\s+([^;\s]+)/i);
-          if (maxPrefixMatch) {
-            const token = maxPrefixMatch[1] ?? "";
-            diagnoseNumberExpected(diagnostics, entry, declaration.name, "max prefix", token);
-            diagnoseValueOutOfRange(
-              diagnostics,
-              entry,
-              declaration.name,
-              "max prefix",
-              numericValue(token),
-              0,
-              MAX_ASN,
-            );
-          }
+        if (entry.kind !== "other") {
+          continue;
         }
+
+        const maxPrefixMatch = entry.text.match(/\bmax\s+prefix\s+([^;\s]+)/i);
+        if (!maxPrefixMatch) {
+          continue;
+        }
+
+        const token = maxPrefixMatch[1] ?? "";
+        diagnoseNumberExpected(diagnostics, seen, entry, declaration.name, "max prefix", token);
+        diagnoseValueOutOfRange(
+          diagnostics,
+          seen,
+          entry,
+          declaration.name,
+          "max prefix",
+          numericValue(token),
+          0,
+          MAX_ASN,
+        );
       }
     }
   }
@@ -247,6 +257,7 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
 const cfgSwitchValueExpectedRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
   const switchPattern =
     /\b(passive|stub|bfd|enabled|disabled|check\s+link|deterministic\s+med)\b\s+([^;\s]+)/i;
 
@@ -257,8 +268,9 @@ const cfgSwitchValueExpectedRule: BirdRule = ({ parsed }) => {
         if (matched) {
           const token = matched[2] ?? "";
           if (!hasBooleanValue(token)) {
-            pushUnique(
+            pushUniqueDiagnostic(
               diagnostics,
+              seen,
               createRuleDiagnostic(
                 "cfg/switch-value-expected",
                 `Protocol '${declaration.name}' expects boolean value for '${matched[1]}'`,
@@ -282,8 +294,9 @@ const cfgSwitchValueExpectedRule: BirdRule = ({ parsed }) => {
           continue;
         }
 
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "cfg/switch-value-expected",
             `Protocol '${declaration.name}' expects boolean value for keep filtered`,
@@ -316,6 +329,7 @@ const extractIps = (text: string): string[] => {
 
 const cfgIpNetworkMismatchRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const entry of channelOtherEntries(declaration)) {
@@ -332,8 +346,9 @@ const cfgIpNetworkMismatchRule: BirdRule = ({ parsed }) => {
           continue;
         }
 
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "cfg/ip-network-mismatch",
             `Protocol '${declaration.name}' channel '${entry.channelType}' contains mismatched address '${value}'`,
@@ -349,12 +364,14 @@ const cfgIpNetworkMismatchRule: BirdRule = ({ parsed }) => {
 
 const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
       if (statement.kind === "neighbor" && statement.addressKind !== "ip") {
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "cfg/incompatible-type",
             `Protocol '${declaration.name}' neighbor address must be an IP literal`,
@@ -367,8 +384,9 @@ const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
         const matched = statement.text.match(/\brouter\s+id\s+([^;\s]+)/i);
         const value = matched?.[1] ?? "";
         if (value && isIP(value) !== 4) {
-          pushUnique(
+          pushUniqueDiagnostic(
             diagnostics,
+            seen,
             createRuleDiagnostic(
               "cfg/incompatible-type",
               `Router id '${value}' must be IPv4`,
@@ -383,34 +401,32 @@ const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
-const visitTemplate = (
-  name: string,
-  graph: Map<string, string>,
-  stack: Set<string>,
-  visited: Set<string>,
-): boolean => {
-  if (stack.has(name)) {
-    return true;
+const hasTemplateCycleFrom = (start: string, graph: Map<string, string>): boolean => {
+  const path = new Set<string>();
+  let current = start;
+  let hops = 0;
+  const maxHops = graph.size + 1;
+
+  while (current.length > 0) {
+    if (path.has(current)) {
+      return true;
+    }
+
+    path.add(current);
+    current = graph.get(current) ?? "";
+    hops += 1;
+
+    if (hops > maxHops) {
+      return true;
+    }
   }
 
-  if (visited.has(name)) {
-    return false;
-  }
-
-  visited.add(name);
-  stack.add(name);
-
-  const next = graph.get(name);
-  if (next && visitTemplate(next, graph, stack, visited)) {
-    return true;
-  }
-
-  stack.delete(name);
   return false;
 };
 
 const cfgCircularTemplateRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
   const templates = templateDeclarations(parsed);
   if (templates.length === 0) {
     return diagnostics;
@@ -420,23 +436,23 @@ const cfgCircularTemplateRule: BirdRule = ({ parsed }) => {
   const ranges = new Map<string, SourceRange>();
 
   for (const template of templates) {
-    ranges.set(template.name.toLowerCase(), template.nameRange);
+    const name = template.name.toLowerCase();
+    ranges.set(name, template.nameRange);
     if (template.fromTemplate) {
-      graph.set(template.name.toLowerCase(), template.fromTemplate.toLowerCase());
+      graph.set(name, template.fromTemplate.toLowerCase());
     }
   }
 
-  const visited = new Set<string>();
-
   for (const template of templates) {
-    const stack = new Set<string>();
-    if (!visitTemplate(template.name.toLowerCase(), graph, stack, visited)) {
+    const name = template.name.toLowerCase();
+    if (!hasTemplateCycleFrom(name, graph)) {
       continue;
     }
 
-    const range = ranges.get(template.name.toLowerCase()) ?? template.nameRange;
-    pushUnique(
+    const range = ranges.get(name) ?? template.nameRange;
+    pushUniqueDiagnostic(
       diagnostics,
+      seen,
       createRuleDiagnostic(
         "cfg/circular-template",
         `Template '${template.name}' is in a circular inheritance chain`,
@@ -450,6 +466,7 @@ const cfgCircularTemplateRule: BirdRule = ({ parsed }) => {
 
 const cfgProtocolSpecificHintRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     if (!isProtocolType(declaration, "bgp")) {
@@ -461,17 +478,20 @@ const cfgProtocolSpecificHintRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (/\bneighbor\s+\S+\s+as\s+[^0-9\s;]+/i.test(statement.text)) {
-        pushUnique(
-          diagnostics,
-          createProtocolDiagnostic(
-            "cfg/number-expected",
-            `Protocol '${declaration.name}' expects numeric ASN in neighbor statement`,
-            declaration,
-            "error",
-          ),
-        );
+      if (!/\bneighbor\s+\S+\s+as\s+[^0-9\s;]+/i.test(statement.text)) {
+        continue;
       }
+
+      pushUniqueDiagnostic(
+        diagnostics,
+        seen,
+        createProtocolDiagnostic(
+          "cfg/number-expected",
+          `Protocol '${declaration.name}' expects numeric ASN in neighbor statement`,
+          declaration,
+          "error",
+        ),
+      );
     }
   }
 

@@ -72,7 +72,5 @@ export const LEGACY_CODE_PATTERNS = [
 ] as const;
 
 export const isRuleCode = (code: string): code is RuleCode => {
-  return (ruleSeverityEntries as ReadonlyArray<readonly [string, BirdDiagnosticSeverity]>).some(
-    ([ruleCode]) => ruleCode === code,
-  );
+  return code in RULE_SEVERITY;
 };
