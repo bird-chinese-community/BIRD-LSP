@@ -258,4 +258,61 @@ describe("@birdcc/core boundaries", () => {
     expect(result.visitedUris).toContain("/workspace/templates/common.conf");
     expect(undefinedTemplateDiagnostics).toHaveLength(0);
   });
+
+  it("reports circular template inheritance in single document", async () => {
+    const sample = `
+      template bgp a from b {
+      }
+      template bgp b from c {
+      }
+      template bgp c from a {
+      }
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    expect(result.diagnostics.some((item) => item.code === "semantic/circular-template")).toBe(
+      true,
+    );
+  });
+
+  it("reports circular template inheritance across includes", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "/workspace/main.conf",
+      documents: [
+        {
+          uri: "/workspace/main.conf",
+          text: `
+            include "templates/a.conf";
+            include "templates/b.conf";
+            include "templates/c.conf";
+          `,
+        },
+        {
+          uri: "/workspace/templates/a.conf",
+          text: `
+            template bgp a from b {
+            }
+          `,
+        },
+        {
+          uri: "/workspace/templates/b.conf",
+          text: `
+            template bgp b from c {
+            }
+          `,
+        },
+        {
+          uri: "/workspace/templates/c.conf",
+          text: `
+            template bgp c from a {
+            }
+          `,
+        },
+      ],
+    });
+
+    expect(result.diagnostics.some((item) => item.code === "semantic/circular-template")).toBe(
+      true,
+    );
+  });
 });

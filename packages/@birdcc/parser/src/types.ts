@@ -9,7 +9,8 @@ export interface SourceRange {
 /** Parser issue emitted from Tree-sitter syntax recovery or runtime initialization. */
 export interface ParseIssue extends SourceRange {
   code:
-    | "parser/unbalanced-brace"
+    | "syntax/missing-semicolon"
+    | "syntax/unbalanced-brace"
     | "parser/missing-symbol"
     | "parser/syntax-error"
     | "parser/runtime-error";
@@ -188,12 +189,18 @@ export interface ChannelStatement extends StatementBase {
   entries: ChannelEntry[];
 }
 
+export interface OtherProtocolStatement extends SourceRange {
+  kind: "other";
+  text: string;
+}
+
 export type ProtocolStatement =
   | LocalAsStatement
   | NeighborStatement
   | ImportStatement
   | ExportStatement
-  | ChannelStatement;
+  | ChannelStatement
+  | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {
   kind: "protocol";
@@ -212,6 +219,8 @@ export interface TemplateDeclaration extends DeclarationBase {
   templateTypeRange: SourceRange;
   name: string;
   nameRange: SourceRange;
+  fromTemplate?: string;
+  fromTemplateRange?: SourceRange;
 }
 
 export interface ExtractedLiteral extends SourceRange {

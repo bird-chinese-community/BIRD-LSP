@@ -36,6 +36,26 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses template inheritance via from clause", async () => {
+    const sample = `
+      template bgp base_tpl {
+      }
+
+      template bgp edge_tpl from base_tpl {
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const templates = parsed.program.declarations.filter((item) => item.kind === "template");
+    expect(templates).toHaveLength(2);
+
+    const edgeTemplate = templates[1];
+    if (edgeTemplate?.kind === "template") {
+      expect(edgeTemplate.name).toBe("edge_tpl");
+      expect(edgeTemplate.fromTemplate).toBe("base_tpl");
+    }
+  });
+
   it("parses router id and table declarations", async () => {
     const sample = `
       router id 192.0.2.1;
@@ -139,6 +159,47 @@ describe("@birdcc/parser tree-sitter", () => {
         expect(channel.entries.some((item) => item.kind === "debug")).toBe(true);
         expect(channel.entries.some((item) => item.kind === "keep-filtered")).toBe(true);
       }
+    }
+  });
+
+  it("preserves generic protocol statements as other entries", async () => {
+    const sample = `
+      protocol ospf core {
+        area 0;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const otherStatement = protocol.statements.find((item) => item.kind === "other");
+      expect(otherStatement?.kind).toBe("other");
+      if (otherStatement?.kind === "other") {
+        expect(otherStatement.text.toLowerCase()).toContain("area");
+      }
+    }
+  });
+
+  it("preserves multi-line protocol statements as a single other entry", async () => {
+    const sample = `
+      protocol ospf core {
+        area 0
+          stub;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const otherStatements = protocol.statements.filter((item) => item.kind === "other");
+      expect(otherStatements).toHaveLength(1);
+      const text = otherStatements[0]?.kind === "other" ? otherStatements[0].text : "";
+      expect(text.toLowerCase()).toContain("area");
+      expect(text.toLowerCase()).toContain("stub");
     }
   });
 
@@ -288,6 +349,18 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    expect(parsed.issues.some((item) => item.code === "parser/unbalanced-brace")).toBe(true);
+    expect(parsed.issues.some((item) => item.code === "syntax/unbalanced-brace")).toBe(true);
+  });
+
+  it("reports missing semicolon recovery issues", async () => {
+    const sample = `
+      protocol bgp edge {
+        local as 65001
+        neighbor 192.0.2.1 as 65002;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues.some((item) => item.code === "syntax/missing-semicolon")).toBe(true);
   });
 });

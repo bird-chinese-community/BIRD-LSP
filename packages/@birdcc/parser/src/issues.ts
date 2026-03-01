@@ -29,9 +29,18 @@ export const collectTreeIssues = (
     }
 
     if (current.isMissing) {
-      const code = current.type === "}" ? "parser/unbalanced-brace" : "parser/missing-symbol";
+      const code =
+        current.type === "}"
+          ? "syntax/unbalanced-brace"
+          : current.type === ";"
+            ? "syntax/missing-semicolon"
+            : "parser/missing-symbol";
       const message =
-        current.type === "}" ? "Missing '}' to close block" : `Missing symbol '${current.type}'`;
+        current.type === "}"
+          ? "Missing '}' to close block"
+          : current.type === ";"
+            ? "Missing ';' at end of statement"
+            : `Missing symbol '${current.type}'`;
 
       issues.push({
         code,
@@ -106,13 +115,13 @@ export const ensureBraceBalanceIssue = (source: string, issues: ParseIssue[]): v
     return;
   }
 
-  const alreadyHasUnbalanced = issues.some((item) => item.code === "parser/unbalanced-brace");
+  const alreadyHasUnbalanced = issues.some((item) => item.code === "syntax/unbalanced-brace");
   if (alreadyHasUnbalanced) {
     return;
   }
 
   issues.push({
-    code: "parser/unbalanced-brace",
+    code: "syntax/unbalanced-brace",
     message: "Missing '}' to close block",
     line: endLine,
     column: endColumn,

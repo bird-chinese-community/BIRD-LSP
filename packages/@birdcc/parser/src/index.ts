@@ -36,6 +36,7 @@ export type {
   LocalAsStatement,
   MatchExpression,
   NeighborStatement,
+  OtherProtocolStatement,
   OtherStatement,
   ParseIssue,
   ParsedBirdDocument,
