@@ -60,6 +60,7 @@ const COMPLETION_SNIPPETS: CompletionSnippet[] = [
 
 export interface CompletionContextOptions {
   linePrefix?: string;
+  additionalDeclarations?: ParsedBirdDocument["program"]["declarations"];
 }
 
 const isFromTemplateContext = (linePrefix: string): boolean =>
@@ -67,6 +68,25 @@ const isFromTemplateContext = (linePrefix: string): boolean =>
 
 const isIncludePathContext = (linePrefix: string): boolean =>
   /\binclude\s+["'][^"']*$/i.test(linePrefix);
+
+const isFilterContext = (linePrefix: string): boolean =>
+  /\b(?:import|export)\s+filter\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) ||
+  /\b(?:import|export)\s+filter\s*$/i.test(linePrefix);
+
+const isTableContext = (linePrefix: string): boolean =>
+  /\btable\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) || /\btable\s*$/i.test(linePrefix);
+
+const allDeclarations = (
+  parsed: ParsedBirdDocument,
+  options: CompletionContextOptions,
+): ParsedBirdDocument["program"]["declarations"] => {
+  const additional = options.additionalDeclarations ?? [];
+  if (additional.length === 0) {
+    return parsed.program.declarations;
+  }
+
+  return [...parsed.program.declarations, ...additional];
+};
 
 const keywordCompletionItems = (): CompletionItem[] =>
   COMPLETION_KEYWORDS.map((keyword) => ({
@@ -87,12 +107,12 @@ const snippetCompletionItems = (): CompletionItem[] =>
   }));
 
 const includePathCompletionItems = (
-  parsed: ParsedBirdDocument,
+  declarations: ParsedBirdDocument["program"]["declarations"],
   options: { quoteWrapped: boolean },
 ): CompletionItem[] => {
   const paths = new Set<string>();
 
-  for (const declaration of parsed.program.declarations) {
+  for (const declaration of declarations) {
     if (declaration.kind !== "include") {
       continue;
     }
@@ -111,13 +131,13 @@ const includePathCompletionItems = (
 };
 
 const collectDeclarationCompletionItems = (
-  parsed: ParsedBirdDocument,
+  declarations: ParsedBirdDocument["program"]["declarations"],
   predicate: (declaration: ParsedBirdDocument["program"]["declarations"][number]) => boolean,
 ): CompletionItem[] => {
   const items: CompletionItem[] = [];
   const seen = new Set<string>();
 
-  for (const declaration of parsed.program.declarations) {
+  for (const declaration of declarations) {
     if (!predicate(declaration)) {
       continue;
     }
@@ -138,11 +158,25 @@ const collectDeclarationCompletionItems = (
   return items;
 };
 
-const templateCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] =>
-  collectDeclarationCompletionItems(parsed, (declaration) => declaration.kind === "template");
+const templateCompletionItems = (
+  declarations: ParsedBirdDocument["program"]["declarations"],
+): CompletionItem[] =>
+  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "template");
 
-const declarationCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] => {
-  return collectDeclarationCompletionItems(parsed, () => true);
+const filterCompletionItems = (
+  declarations: ParsedBirdDocument["program"]["declarations"],
+): CompletionItem[] =>
+  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "filter");
+
+const tableCompletionItems = (
+  declarations: ParsedBirdDocument["program"]["declarations"],
+): CompletionItem[] =>
+  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "table");
+
+const declarationCompletionItems = (
+  declarations: ParsedBirdDocument["program"]["declarations"],
+): CompletionItem[] => {
+  return collectDeclarationCompletionItems(declarations, () => true);
 };
 
 export const createCompletionItemsFromParsed = (
@@ -150,18 +184,27 @@ export const createCompletionItemsFromParsed = (
   options: CompletionContextOptions = {},
 ): CompletionItem[] => {
   const linePrefix = options.linePrefix ?? "";
+  const declarations = allDeclarations(parsed, options);
 
   if (isIncludePathContext(linePrefix)) {
-    return includePathCompletionItems(parsed, { quoteWrapped: true });
+    return includePathCompletionItems(declarations, { quoteWrapped: true });
   }
 
   if (isFromTemplateContext(linePrefix)) {
-    return templateCompletionItems(parsed);
+    return templateCompletionItems(declarations);
+  }
+
+  if (isFilterContext(linePrefix)) {
+    return filterCompletionItems(declarations);
+  }
+
+  if (isTableContext(linePrefix)) {
+    return tableCompletionItems(declarations);
   }
 
   return [
     ...keywordCompletionItems(),
     ...snippetCompletionItems(),
-    ...declarationCompletionItems(parsed),
+    ...declarationCompletionItems(declarations),
   ];
 };

@@ -4,8 +4,10 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { parseBirdConfig } from "@birdcc/parser";
 import {
   createCompletionItemsFromParsed,
+  createDefinitionLocations,
   createDocumentSymbolsFromParsed,
   createHoverFromParsed,
+  createReferenceLocations,
   toLspDiagnostic,
 } from "../src/index.js";
 
@@ -200,5 +202,80 @@ describe("@birdcc/lsp", () => {
     expect(labels).toContain("define NAME = value;");
     expect(labels).toContain("router id 1.1.1.1;");
     expect(labels).toContain("protocol bgp ...");
+  });
+
+  it("merges additional declarations into from/filter/table completion contexts", async () => {
+    const entryParsed = await parseBirdConfig(`
+      protocol bgp edge from 
+    `);
+    const includeParsed = await parseBirdConfig(`
+      template bgp core_tpl {}
+      filter import_policy { accept; }
+      ipv4 table main4;
+    `);
+
+    const additionalDeclarations = includeParsed.program.declarations;
+    const fromItems = createCompletionItemsFromParsed(entryParsed, {
+      linePrefix: "protocol bgp edge from ",
+      additionalDeclarations,
+    });
+    expect(fromItems.map((item) => item.label)).toContain("core_tpl");
+
+    const filterItems = createCompletionItemsFromParsed(entryParsed, {
+      linePrefix: "import filter ",
+      additionalDeclarations,
+    });
+    expect(filterItems.map((item) => item.label)).toContain("import_policy");
+
+    const tableItems = createCompletionItemsFromParsed(entryParsed, {
+      linePrefix: "table ",
+      additionalDeclarations,
+    });
+    expect(tableItems.map((item) => item.label)).toContain("main4");
+  });
+
+  it("resolves cross-file definition and references from merged symbol table", () => {
+    const symbolTable = {
+      definitions: [
+        {
+          kind: "template" as const,
+          name: "edge_tpl",
+          line: 1,
+          column: 14,
+          endLine: 1,
+          endColumn: 22,
+          uri: "file:///templates.conf",
+        },
+      ],
+      references: [
+        {
+          kind: "template" as const,
+          name: "edge_tpl",
+          line: 1,
+          column: 24,
+          endLine: 1,
+          endColumn: 32,
+          uri: "file:///main.conf",
+        },
+      ],
+    };
+
+    const definitionLocations = createDefinitionLocations(
+      symbolTable,
+      "file:///main.conf",
+      { line: 0, character: 25 },
+      "protocol bgp edge from edge_tpl {}",
+    );
+    expect(definitionLocations).toHaveLength(1);
+    expect(definitionLocations[0]?.uri).toBe("file:///templates.conf");
+
+    const referenceLocations = createReferenceLocations(
+      symbolTable,
+      "file:///main.conf",
+      { line: 0, character: 25 },
+      "protocol bgp edge from edge_tpl {}",
+    );
+    expect(referenceLocations.map((item) => item.uri)).toContain("file:///templates.conf");
+    expect(referenceLocations.map((item) => item.uri)).toContain("file:///main.conf");
   });
 });
