@@ -85,34 +85,76 @@ const resolveOptions = (options: FormatBirdConfigOptions = {}): ResolvedFormatOp
 
 const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
 
-const stripRangeKeys = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item) => stripRangeKeys(item));
-  }
+type ObjectLikeValue = Record<string, unknown> | unknown[];
 
-  if (!value || typeof value !== "object") {
+const isObjectLikeValue = (value: unknown): value is ObjectLikeValue =>
+  typeof value === "object" && value !== null;
+
+const shouldStripRangeKey = (key: string): boolean =>
+  key === "line" ||
+  key === "column" ||
+  key === "endLine" ||
+  key === "endColumn" ||
+  key.endsWith("Range");
+
+const createContainer = (value: ObjectLikeValue): ObjectLikeValue =>
+  Array.isArray(value) ? [] : {};
+
+const assignContainerValue = (container: ObjectLikeValue, key: string, value: unknown): void => {
+  (container as Record<string, unknown>)[key] = value;
+};
+
+const stripRangeKeys = (value: unknown): unknown => {
+  if (!isObjectLikeValue(value)) {
     if (typeof value === "string") {
       return normalizeWhitespace(value);
     }
     return value;
   }
 
-  const output: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value)) {
-    if (
-      key === "line" ||
-      key === "column" ||
-      key === "endLine" ||
-      key === "endColumn" ||
-      key.endsWith("Range")
-    ) {
+  const rootOutput = createContainer(value);
+  const visited = new WeakMap<object, ObjectLikeValue>();
+  visited.set(value as object, rootOutput);
+
+  const stack: Array<{ source: ObjectLikeValue; target: ObjectLikeValue }> = [
+    { source: value, target: rootOutput },
+  ];
+
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (!frame) {
       continue;
     }
 
-    output[key] = stripRangeKeys(nestedValue);
+    const { source, target } = frame;
+    for (const [key, nestedValue] of Object.entries(source)) {
+      if (shouldStripRangeKey(key)) {
+        continue;
+      }
+
+      if (!isObjectLikeValue(nestedValue)) {
+        assignContainerValue(
+          target,
+          key,
+          typeof nestedValue === "string" ? normalizeWhitespace(nestedValue) : nestedValue,
+        );
+        continue;
+      }
+
+      const cachedValue = visited.get(nestedValue as object);
+      if (cachedValue) {
+        assignContainerValue(target, key, cachedValue);
+        continue;
+      }
+
+      const nestedOutput = createContainer(nestedValue);
+      visited.set(nestedValue as object, nestedOutput);
+      assignContainerValue(target, key, nestedOutput);
+      stack.push({ source: nestedValue, target: nestedOutput });
+    }
   }
 
-  return output;
+  return rootOutput;
 };
 
 const normalizeIssue = (issue: ParseIssue): unknown => ({
@@ -541,6 +583,9 @@ export const __formatBirdConfigBuiltinForTest = async (
   const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
   return normalizeTextWithBuiltin(text, resolveOptions(options), parserProtectedLines);
 };
+
+/** Internal-only helper for regression tests. */
+export const __stripRangeKeysForTest = (value: unknown): unknown => stripRangeKeys(value);
 
 /** Internal-only helper for deterministic unit tests. */
 export const __resetFormatterStateForTest = (): void => {
