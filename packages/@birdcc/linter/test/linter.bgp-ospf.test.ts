@@ -42,12 +42,24 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     const codes = await codesOf(`
       protocol bgp edge {
         local as 65001;
+        neighbor 192.0.2.9 as internal;
         neighbor 192.0.2.1 as 65002;
-        internal;
       }
     `);
 
     expect(codes).toContain("bgp/as-mismatch");
+  });
+
+  it("does not hit bgp/missing-remote-as for internal/external sessions", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as internal;
+        neighbor 192.0.2.2 as external;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
   });
 
   it("hits bgp/timer-invalid", async () => {
@@ -95,11 +107,23 @@ describe("@birdcc/linter bgp+ospf rules", () => {
   it("hits ospf/asbr-stub-area", async () => {
     const codes = await codesOf(`
       protocol ospf core {
-        area 1 stub;
-        asbr on;
+        area 1 {
+          stub;
+          asbr on;
+        };
       }
     `);
 
     expect(codes).toContain("ospf/asbr-stub-area");
+  });
+
+  it("accepts area 0.0.0.0 as backbone area id", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        area 0.0.0.0 stub;
+      }
+    `);
+
+    expect(codes).toContain("ospf/backbone-stub");
   });
 });

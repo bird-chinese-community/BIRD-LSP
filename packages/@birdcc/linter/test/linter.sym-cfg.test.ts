@@ -51,6 +51,18 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).toContain("sym/filter-required");
   });
 
+  it("does not hit sym/filter-required for built-in filter names", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        import filter all;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/filter-required");
+  });
+
   it("hits sym/function-required", async () => {
     const codes = await codesOf(`
       filter f1 {
@@ -60,6 +72,18 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("sym/function-required");
+  });
+
+  it("does not hit sym/function-required for method calls or builtins", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        bgp_community.contains((65000, 100));
+        len(bgp_path);
+        accept;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/function-required");
   });
 
   it("hits sym/table-required", async () => {
@@ -111,6 +135,17 @@ describe("@birdcc/linter sym+cfg rules", () => {
     const codes = await codesOf(`
       protocol bgp edge {
         local as 5000000000;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).toContain("cfg/value-out-of-range");
+  });
+
+  it("hits cfg/value-out-of-range for reserved ASN 4294967295", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 4294967295;
         neighbor 192.0.2.1 as 65002;
       }
     `);
