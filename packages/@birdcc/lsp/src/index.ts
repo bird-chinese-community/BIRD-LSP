@@ -2,6 +2,7 @@ import {
   CompletionItemKind,
   createConnection,
   DiagnosticSeverity,
+  InsertTextFormat,
   type CompletionItem,
   type Diagnostic,
   type DocumentSymbol,
@@ -88,6 +89,45 @@ interface LspDeclarationMetadata {
   completionKind?: CompletionItemKind;
   completionDetail?: string;
 }
+
+interface CompletionContextOptions {
+  linePrefix?: string;
+}
+
+interface CompletionSnippet {
+  label: string;
+  detail: string;
+  documentation: string;
+  insertText: string;
+}
+
+const COMPLETION_SNIPPETS: CompletionSnippet[] = [
+  {
+    label: 'include "..."',
+    detail: "BIRD snippet",
+    documentation: "Insert include statement.",
+    insertText: 'include "${1:path/to/file.conf}";',
+  },
+  {
+    label: "define NAME = value;",
+    detail: "BIRD snippet",
+    documentation: "Insert define statement.",
+    insertText: "define ${1:NAME} = ${2:value};",
+  },
+  {
+    label: "router id 1.1.1.1;",
+    detail: "BIRD snippet",
+    documentation: "Insert router id statement.",
+    insertText: "router id ${1:1.1.1.1};",
+  },
+  {
+    label: "protocol bgp ...",
+    detail: "BIRD snippet",
+    documentation: "Insert minimal BGP protocol block.",
+    insertText:
+      "protocol bgp ${1:name} {\n  neighbor ${2:192.0.2.1} as ${3:65001};\n  local as ${4:65000};\n}",
+  },
+];
 
 const declarationMetadata = (declaration: BirdDeclaration): LspDeclarationMetadata | null => {
   switch (declaration.kind) {
@@ -180,6 +220,100 @@ const declarationMetadata = (declaration: BirdDeclaration): LspDeclarationMetada
     default:
       return null;
   }
+};
+
+const isFromTemplateContext = (linePrefix: string): boolean =>
+  /\bfrom\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) || /\bfrom\s*$/i.test(linePrefix);
+
+const isIncludePathContext = (linePrefix: string): boolean =>
+  /\binclude\s+["'][^"']*$/i.test(linePrefix);
+
+const keywordCompletionItems = (): CompletionItem[] =>
+  COMPLETION_KEYWORDS.map((keyword) => ({
+    label: keyword,
+    kind: CompletionItemKind.Keyword,
+    detail: "BIRD keyword",
+    documentation: KEYWORD_DOCS[keyword] ?? "",
+  }));
+
+const snippetCompletionItems = (): CompletionItem[] =>
+  COMPLETION_SNIPPETS.map((snippet) => ({
+    label: snippet.label,
+    kind: CompletionItemKind.Snippet,
+    detail: snippet.detail,
+    documentation: snippet.documentation,
+    insertText: snippet.insertText,
+    insertTextFormat: InsertTextFormat.Snippet,
+  }));
+
+const includePathCompletionItems = (
+  parsed: ParsedBirdDocument,
+  options: { quoteWrapped: boolean },
+): CompletionItem[] => {
+  const paths = new Set<string>();
+
+  for (const declaration of parsed.program.declarations) {
+    if (declaration.kind !== "include") {
+      continue;
+    }
+
+    if (declaration.path.length > 0) {
+      paths.add(declaration.path);
+    }
+  }
+
+  return Array.from(paths).map((path) => ({
+    label: path,
+    kind: CompletionItemKind.File,
+    detail: "include path",
+    insertText: options.quoteWrapped ? path : `"${path}"`,
+  }));
+};
+
+const templateCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] => {
+  const items: CompletionItem[] = [];
+  const seen = new Set<string>();
+
+  for (const declaration of parsed.program.declarations) {
+    if (declaration.kind !== "template") {
+      continue;
+    }
+
+    const metadata = declarationMetadata(declaration);
+    if (!metadata?.completionLabel || seen.has(metadata.completionLabel)) {
+      continue;
+    }
+
+    seen.add(metadata.completionLabel);
+    items.push({
+      label: metadata.completionLabel,
+      kind: metadata.completionKind ?? CompletionItemKind.Reference,
+      detail: metadata.completionDetail ?? metadata.detail,
+    });
+  }
+
+  return items;
+};
+
+const declarationCompletionItems = (parsed: ParsedBirdDocument): CompletionItem[] => {
+  const items: CompletionItem[] = [];
+  const seen = new Set<string>();
+
+  for (const declaration of parsed.program.declarations) {
+    const metadata = declarationMetadata(declaration);
+    if (!metadata?.completionLabel || seen.has(metadata.completionLabel)) {
+      continue;
+    }
+
+    seen.add(metadata.completionLabel);
+    items.push({
+      label: metadata.completionLabel,
+      kind: metadata.completionKind ?? CompletionItemKind.Reference,
+      detail: metadata.completionDetail ?? metadata.detail,
+    });
+  }
+
+  return items;
 };
 
 const isPositionInRange = (position: Position, range: SourceRange): boolean => {
@@ -308,35 +442,32 @@ export const createDocumentSymbolsFromParsed = (parsed: ParsedBirdDocument): Doc
   return symbols;
 };
 
-export const createCompletionItemsFromParsed = (parsed: ParsedBirdDocument): CompletionItem[] => {
-  const completionItems: CompletionItem[] = COMPLETION_KEYWORDS.map((keyword) => ({
-    label: keyword,
-    kind: CompletionItemKind.Keyword,
-    detail: "BIRD keyword",
-  }));
+export const createCompletionItemsFromParsed = (
+  parsed: ParsedBirdDocument,
+  options: CompletionContextOptions = {},
+): CompletionItem[] => {
+  const linePrefix = options.linePrefix ?? "";
 
-  const seenSymbols = new Set<string>();
-
-  for (const declaration of parsed.program.declarations) {
-    const metadata = declarationMetadata(declaration);
-    if (!metadata?.completionLabel) {
-      continue;
+  if (isIncludePathContext(linePrefix)) {
+    const includeItems = includePathCompletionItems(parsed, { quoteWrapped: true });
+    if (includeItems.length > 0) {
+      return includeItems;
     }
-
-    const symbolName = metadata.completionLabel;
-    if (symbolName.length === 0 || seenSymbols.has(symbolName)) {
-      continue;
-    }
-
-    seenSymbols.add(symbolName);
-    completionItems.push({
-      label: symbolName,
-      kind: metadata.completionKind ?? CompletionItemKind.Reference,
-      detail: metadata.completionDetail ?? metadata.detail,
-    });
   }
 
-  return completionItems;
+  if (isFromTemplateContext(linePrefix)) {
+    const templateItems = templateCompletionItems(parsed);
+    if (templateItems.length > 0) {
+      return templateItems;
+    }
+  }
+
+  return [
+    ...keywordCompletionItems(),
+    ...snippetCompletionItems(),
+    ...declarationCompletionItems(parsed),
+    ...includePathCompletionItems(parsed, { quoteWrapped: false }),
+  ];
 };
 
 export const createHoverFromParsed = (
@@ -495,7 +626,11 @@ export const startLspServer = (): void => {
     }
 
     const parsed = await getParsedDocument(document);
-    return createCompletionItemsFromParsed(parsed);
+    const linePrefix = document.getText({
+      start: { line: params.position.line, character: 0 },
+      end: params.position,
+    });
+    return createCompletionItemsFromParsed(parsed, { linePrefix });
   });
 
   connection.onShutdown(() => {
