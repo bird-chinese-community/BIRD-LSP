@@ -47,25 +47,31 @@ const normalizeMessage = (code: string, mappedCode: RuleCode, message: string): 
   return `[${code}] ${message}`;
 };
 
-const toNormalizedDiagnostic = (diagnostic: BirdDiagnostic): BirdDiagnostic => {
+const toNormalizedDiagnostic = (
+  diagnostic: BirdDiagnostic,
+  fallbackUri?: string,
+): BirdDiagnostic => {
   const mappedCode = normalizeCode(diagnostic.code);
   return {
     ...diagnostic,
     code: mappedCode,
     severity: RULE_SEVERITY[mappedCode],
     message: normalizeMessage(diagnostic.code, mappedCode, diagnostic.message),
+    uri: diagnostic.uri ?? fallbackUri,
   };
 };
 
 export const normalizeBaseDiagnostics = (
   parsed: ParsedBirdDocument,
   coreDiagnostics: BirdDiagnostic[],
+  options: { uri?: string } = {},
 ): BirdDiagnostic[] => {
   const parserDiagnostics: BirdDiagnostic[] = parsed.issues.map((issue) => ({
     code: issue.code,
     message: issue.message,
     severity: "error",
     source: "parser",
+    uri: options.uri,
     range: {
       line: issue.line,
       column: issue.column,
@@ -74,5 +80,7 @@ export const normalizeBaseDiagnostics = (
     },
   }));
 
-  return [...parserDiagnostics, ...coreDiagnostics].map(toNormalizedDiagnostic);
+  return [...parserDiagnostics, ...coreDiagnostics].map((diagnostic) =>
+    toNormalizedDiagnostic(diagnostic, options.uri),
+  );
 };

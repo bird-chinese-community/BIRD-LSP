@@ -1,3 +1,4 @@
+import type { CrossFileResolutionResult, SymbolTable } from "@birdcc/core";
 import { buildCoreSnapshotFromParsed, type BirdDiagnostic, type CoreSnapshot } from "@birdcc/core";
 import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
 import { collectBgpRuleDiagnostics } from "./rules/bgp.js";
@@ -23,6 +24,7 @@ const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
     const key = [
       diagnostic.code,
       diagnostic.message,
+      diagnostic.uri ?? "",
       diagnostic.range.line,
       diagnostic.range.column,
       diagnostic.range.endLine,
@@ -40,14 +42,50 @@ const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
   return output;
 };
 
+const diagnosticsForUri = (
+  diagnostics: BirdDiagnostic[],
+  uri: string,
+  entryUri: string,
+): BirdDiagnostic[] => {
+  return diagnostics.filter((diagnostic) => (diagnostic.uri ?? entryUri) === uri);
+};
+
+const createMergedCoreSnapshot = (
+  localCore: CoreSnapshot,
+  mergedSymbolTable: SymbolTable,
+  scopedDiagnostics: BirdDiagnostic[],
+): CoreSnapshot => ({
+  ...localCore,
+  symbols: mergedSymbolTable.definitions,
+  references: mergedSymbolTable.references,
+  symbolTable: mergedSymbolTable,
+  diagnostics: scopedDiagnostics,
+});
+
+export interface LintBirdConfigOptions {
+  parsed?: ParsedBirdDocument;
+  core?: CoreSnapshot;
+  uri?: string;
+}
+
+export interface CrossFileLintResult {
+  diagnostics: BirdDiagnostic[];
+  byUri: Record<string, LintResult>;
+}
+
 /** Runs parser + core + normalized 32-rule linter pipeline and returns merged diagnostics. */
-export const lintBirdConfig = async (text: string): Promise<LintResult> => {
-  const parsed = await parseBirdConfig(text);
-  const core = buildCoreSnapshotFromParsed(parsed);
+export const lintBirdConfig = async (
+  text: string,
+  options: LintBirdConfigOptions = {},
+): Promise<LintResult> => {
+  const parsed = options.parsed ?? (await parseBirdConfig(text));
+  const core = options.core ?? buildCoreSnapshotFromParsed(parsed, { uri: options.uri });
 
   const context: RuleContext = { text, parsed, core };
 
-  const normalizedBaseDiagnostics = normalizeBaseDiagnostics(parsed, core.diagnostics);
+  const normalizedBaseDiagnostics = normalizeBaseDiagnostics(parsed, core.diagnostics, {
+    uri: options.uri,
+  });
   const ruleDiagnostics: BirdDiagnostic[] = [
     ...collectSymRuleDiagnostics(context),
     ...collectCfgRuleDiagnostics(context),
@@ -55,11 +93,46 @@ export const lintBirdConfig = async (text: string): Promise<LintResult> => {
     ...collectTypeRuleDiagnostics(context),
     ...collectBgpRuleDiagnostics(context),
     ...collectOspfRuleDiagnostics(context),
-  ];
+  ].map((diagnostic) => ({
+    ...diagnostic,
+    uri: diagnostic.uri ?? options.uri,
+  }));
 
   return {
     parsed,
     core,
     diagnostics: dedupeDiagnostics([...normalizedBaseDiagnostics, ...ruleDiagnostics]),
+  };
+};
+
+export const lintResolvedCrossFileGraph = async (
+  resolution: CrossFileResolutionResult,
+): Promise<CrossFileLintResult> => {
+  const byUri: Record<string, LintResult> = {};
+  const diagnostics: BirdDiagnostic[] = [];
+  const uris = resolution.visitedUris.length > 0 ? resolution.visitedUris : [resolution.entryUri];
+
+  for (const uri of uris) {
+    const text = resolution.documents[uri];
+    const localCore = resolution.snapshots[uri];
+    if (!text || !localCore) {
+      continue;
+    }
+
+    const lintResult = await lintBirdConfig(text, {
+      uri,
+      core: createMergedCoreSnapshot(
+        localCore,
+        resolution.symbolTable,
+        diagnosticsForUri(resolution.diagnostics, uri, resolution.entryUri),
+      ),
+    });
+    byUri[uri] = lintResult;
+    diagnostics.push(...lintResult.diagnostics);
+  }
+
+  return {
+    byUri,
+    diagnostics: dedupeDiagnostics(diagnostics),
   };
 };
