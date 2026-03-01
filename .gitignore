@@ -1,5 +1,13 @@
 node_modules
 .turbo
 dist
+output
+bin
 coverage
+
 *.log
+*.wasm
+*.map
+
+.DS_Store
+.env
