@@ -107,6 +107,28 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("extracts declaration text correctly with non-ASCII content on the same line", async () => {
+    const sample = `include "路由.conf"; protocol bgp edge { local as 65001; };`;
+    const parsed = await parseBirdConfig(sample);
+
+    const includeDeclaration = parsed.program.declarations.find((item) => item.kind === "include");
+    const protocolDeclaration = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(includeDeclaration).toBeDefined();
+    if (includeDeclaration?.kind === "include") {
+      expect(includeDeclaration.path).toBe("路由.conf");
+    }
+
+    expect(protocolDeclaration).toBeDefined();
+    if (protocolDeclaration?.kind === "protocol") {
+      expect(protocolDeclaration.protocolType).toBe("bgp");
+      expect(protocolDeclaration.name).toBe("edge");
+      expect(protocolDeclaration.statements.map((item) => item.kind)).toEqual(["local-as"]);
+    }
+  });
+
   it("reports missing declaration symbols for incomplete headers", async () => {
     const sample = `
       include;

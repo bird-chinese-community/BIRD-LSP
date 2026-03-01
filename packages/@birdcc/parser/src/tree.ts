@@ -1,12 +1,94 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { SourceRange } from "./types.js";
 
-export const toRange = (node: SyntaxNode): SourceRange => ({
-  line: node.startPosition.row + 1,
-  column: node.startPosition.column + 1,
-  endLine: node.endPosition.row + 1,
-  endColumn: node.endPosition.column + 1,
-});
+const byteOffsetToCodeUnitIndex = (bytes: Buffer, byteOffset: number): number => {
+  const clampedOffset = Math.max(0, Math.min(byteOffset, bytes.length));
+  return bytes.subarray(0, clampedOffset).toString("utf8").length;
+};
+
+const nodeCodeUnitSpan = (
+  node: SyntaxNode,
+  source: string,
+): {
+  startIndex: number;
+  endIndex: number;
+} => {
+  const startIndex = node.startIndex;
+  const endIndex = node.endIndex;
+
+  const inBounds = startIndex >= 0 && endIndex >= startIndex && endIndex <= source.length;
+  if (inBounds && source.slice(startIndex, endIndex) === node.text) {
+    return { startIndex, endIndex };
+  }
+
+  const bytes = Buffer.from(source, "utf8");
+  return {
+    startIndex: byteOffsetToCodeUnitIndex(bytes, startIndex),
+    endIndex: byteOffsetToCodeUnitIndex(bytes, endIndex),
+  };
+};
+
+const lineStartsOf = (source: string): number[] => {
+  const starts = [0];
+
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      starts.push(index + 1);
+    }
+  }
+
+  return starts;
+};
+
+const indexToLineColumn = (
+  codeUnitIndex: number,
+  lineStarts: number[],
+): { line: number; column: number } => {
+  let low = 0;
+  let high = lineStarts.length - 1;
+  let bestLineIndex = 0;
+
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const lineStart = lineStarts[middle] ?? 0;
+
+    if (lineStart <= codeUnitIndex) {
+      bestLineIndex = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  const lineStart = lineStarts[bestLineIndex] ?? 0;
+  return {
+    line: bestLineIndex + 1,
+    column: codeUnitIndex - lineStart + 1,
+  };
+};
+
+export const toRange = (node: SyntaxNode, source?: string): SourceRange => {
+  if (!source) {
+    return {
+      line: node.startPosition.row + 1,
+      column: node.startPosition.column + 1,
+      endLine: node.endPosition.row + 1,
+      endColumn: node.endPosition.column + 1,
+    };
+  }
+
+  const { startIndex, endIndex } = nodeCodeUnitSpan(node, source);
+  const lineStarts = lineStartsOf(source);
+  const start = indexToLineColumn(startIndex, lineStarts);
+  const end = indexToLineColumn(endIndex, lineStarts);
+
+  return {
+    line: start.line,
+    column: start.column,
+    endLine: end.line,
+    endColumn: end.column,
+  };
+};
 
 export const mergeRanges = (start: SourceRange, end: SourceRange): SourceRange => ({
   line: start.line,
@@ -15,8 +97,10 @@ export const mergeRanges = (start: SourceRange, end: SourceRange): SourceRange =
   endColumn: end.endColumn,
 });
 
-export const textOf = (node: SyntaxNode, source: string): string =>
-  source.slice(node.startIndex, node.endIndex);
+export const textOf = (node: SyntaxNode, source: string): string => {
+  const { startIndex, endIndex } = nodeCodeUnitSpan(node, source);
+  return source.slice(startIndex, endIndex);
+};
 
 export const stripQuotes = (value: string): string => value.replace(/^['"]|['"]$/g, "");
 

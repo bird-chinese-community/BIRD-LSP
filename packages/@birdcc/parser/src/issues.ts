@@ -2,7 +2,11 @@ import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { ParseIssue } from "./types.js";
 import { toRange } from "./tree.js";
 
-export const collectTreeIssues = (rootNode: SyntaxNode, issues: ParseIssue[]): void => {
+export const collectTreeIssues = (
+  rootNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): void => {
   if (!rootNode.hasError) {
     return;
   }
@@ -20,7 +24,7 @@ export const collectTreeIssues = (rootNode: SyntaxNode, issues: ParseIssue[]): v
       issues.push({
         code: "parser/syntax-error",
         message: `Syntax error near '${snippet || current.type}'`,
-        ...toRange(current),
+        ...toRange(current, source),
       });
     }
 
@@ -32,7 +36,7 @@ export const collectTreeIssues = (rootNode: SyntaxNode, issues: ParseIssue[]): v
       issues.push({
         code,
         message,
-        ...toRange(current),
+        ...toRange(current, source),
       });
     }
 
@@ -46,11 +50,12 @@ export const pushMissingFieldIssue = (
   issues: ParseIssue[],
   declarationNode: SyntaxNode,
   message: string,
+  source: string,
 ): void => {
   issues.push({
     code: "parser/missing-symbol",
     message,
-    ...toRange(declarationNode),
+    ...toRange(declarationNode, source),
   });
 };
 

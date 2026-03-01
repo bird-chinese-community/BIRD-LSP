@@ -59,7 +59,7 @@ export const parseBirdConfig = async (input: string): Promise<ParsedBirdDocument
 
   try {
     const issues: ParseIssue[] = [];
-    collectTreeIssues(tree.rootNode, issues);
+    collectTreeIssues(tree.rootNode, input, issues);
 
     const declarations = parseDeclarations(tree.rootNode, input, issues);
 
