@@ -187,7 +187,7 @@ export interface FmtOptions {
 }
 
 const formatWithFormatterPackage = (text: string): FmtResult => {
-  const result = formatBirdConfig(text, { engine: "dprint" });
+  const result = formatBirdConfig(text);
   return {
     changed: result.changed,
     formattedText: result.text,
@@ -201,7 +201,12 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
 
   try {
     result = formatWithFormatterPackage(text);
-  } catch {
+  } catch (error) {
+    console.error(
+      `Formatting with @birdcc/formatter failed, falling back to legacy formatter: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
     result = formatBirdConfigText(text);
   }
 
