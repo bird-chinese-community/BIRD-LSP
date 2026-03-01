@@ -17,6 +17,7 @@ vi.mock("@birdcc/dprint-plugin-bird", () => ({
 import {
   __formatBirdConfigBuiltinForTest,
   __resetFormatterStateForTest,
+  __stripRangeKeysForTest,
   checkBirdConfigFormat,
   formatBirdConfig,
 } from "../src/index.js";
@@ -74,6 +75,18 @@ describe("@birdcc/formatter", () => {
     await formatBirdConfig("protocol bgp edge{}\n");
 
     expect(createContextMock).toHaveBeenCalledTimes(2);
+    expect(getBufferMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("evicts oldest dprint context when cache reaches upper bound", async () => {
+    for (let index = 0; index < 16; index += 1) {
+      await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 80 + index });
+    }
+
+    await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 999 });
+    await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 80 });
+
+    expect(createContextMock).toHaveBeenCalledTimes(18);
     expect(getBufferMock).toHaveBeenCalledTimes(1);
   });
 
@@ -187,5 +200,32 @@ describe("@birdcc/formatter", () => {
     const formatted = await formatBirdConfig(input, { engine: "builtin" });
 
     expect(check.changed).toBe(formatted.changed);
+  });
+
+  it("handles deeply nested metadata stripping without recursion overflow", () => {
+    const depth = 20_000;
+    const root: Record<string, unknown> = {};
+    let cursor = root;
+
+    for (let index = 0; index < depth; index += 1) {
+      const next: Record<string, unknown> = {};
+      cursor.node = {
+        line: index + 1,
+        endLine: index + 1,
+        label: `  level   ${index}  `,
+        next,
+      };
+      cursor = next;
+    }
+
+    const normalized = __stripRangeKeysForTest(root) as Record<string, unknown>;
+    let normalizedCursor = normalized;
+    for (let index = 0; index < 3; index += 1) {
+      const node = normalizedCursor.node as Record<string, unknown>;
+      expect(node.line).toBeUndefined();
+      expect(node.endLine).toBeUndefined();
+      expect(node.label).toBe(`level ${index}`);
+      normalizedCursor = node.next as Record<string, unknown>;
+    }
   });
 });
