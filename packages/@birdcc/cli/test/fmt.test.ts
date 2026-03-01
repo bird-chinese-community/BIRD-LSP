@@ -42,6 +42,20 @@ describe("@birdcc/cli fmt runtime", () => {
     });
   });
 
+  it("passes formatter style options to formatter package", async () => {
+    await runFmt("/tmp/bird.conf", {
+      indentSize: 4,
+      lineWidth: 100,
+      safeMode: false,
+    });
+
+    expect(formatBirdConfigMock).toHaveBeenCalledWith("protocol bgp edge {}\n", {
+      indentSize: 4,
+      lineWidth: 100,
+      safeMode: false,
+    });
+  });
+
   it("does not fallback when explicit engine fails", async () => {
     formatBirdConfigMock.mockImplementation(() => {
       throw new Error("dprint failed");

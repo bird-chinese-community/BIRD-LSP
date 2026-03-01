@@ -53,6 +53,9 @@ importers:
       cac:
         specifier: ^6.7.14
         version: 6.7.14
+      zod:
+        specifier: ^4.1.11
+        version: 4.3.6
 
   packages/@birdcc/core:
     dependencies:
@@ -63,7 +66,19 @@ importers:
         specifier: ^0.3.4
         version: 0.3.4
 
-  packages/@birdcc/formatter: {}
+  packages/@birdcc/dprint-plugin-bird: {}
+
+  packages/@birdcc/formatter:
+    dependencies:
+      '@birdcc/dprint-plugin-bird':
+        specifier: workspace:*
+        version: link:../dprint-plugin-bird
+      '@birdcc/parser':
+        specifier: workspace:*
+        version: link:../parser
+      '@dprint/formatter':
+        specifier: ^0.5.1
+        version: 0.5.1
 
   packages/@birdcc/linter:
     dependencies:
@@ -180,6 +195,9 @@ packages:
   '@commitlint/types@20.4.0':
     resolution: {integrity: sha512-aO5l99BQJ0X34ft8b0h7QFkQlqxC6e7ZPVmBKz13xM9O8obDaM1Cld4sQlJDXXU/VFuUzQ30mVtHjVz74TuStw==}
     engines: {node: '>=v18'}
+
+  '@dprint/formatter@0.5.1':
+    resolution: {integrity: sha512-cdZUrm0iv/FnnY3CKE2dEcVhNEzrC551aE2h2mTFwQCRBrqyARLDnb7D+3PlXTUVp3s34ftlnGOVCmhLT9DeKA==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -1451,6 +1469,9 @@ packages:
     resolution: {integrity: sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==}
     engines: {node: '>=12'}
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@babel/code-frame@7.29.0':
@@ -1569,6 +1590,8 @@ snapshots:
     dependencies:
       conventional-commits-parser: 6.2.1
       picocolors: 1.1.1
+
+  '@dprint/formatter@0.5.1': {}
 
   '@esbuild/aix-ppc64@0.27.3':
     optional: true
@@ -2597,3 +2620,5 @@ snapshots:
       string-width: 4.2.3
       y18n: 5.0.8
       yargs-parser: 21.1.1
+
+  zod@4.3.6: {}

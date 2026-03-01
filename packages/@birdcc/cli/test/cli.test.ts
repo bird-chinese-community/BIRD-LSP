@@ -23,12 +23,28 @@ describe("@birdcc/cli bird parser", () => {
     expect(diagnostics[0].range.column).toBe(1);
   });
 
-  it("formats text by removing trailing spaces and duplicated blank lines", () => {
+  it("formats text by removing trailing spaces and duplicated blank lines", async () => {
     const input = "router id 192.0.2.1;   \n\n\nprotocol bgp test {}\t\n";
-    const result = formatBirdConfigText(input);
+    const result = await formatBirdConfigText(input);
 
     expect(result.changed).toBe(true);
     expect(result.formattedText).toBe("router id 192.0.2.1;\n\nprotocol bgp test {}\n");
+  });
+
+  it("applies lint severity overrides from options at output layer", async () => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-severity-override-"));
+    const entryFile = join(workspaceDir, "main.conf");
+
+    await writeFile(entryFile, "router id 192.0.2.1;\n", "utf8");
+
+    const result = await runLint(entryFile, {
+      severityOverrides: {
+        "cfg/no-protocol": "warning",
+      },
+    });
+
+    const diagnostic = result.diagnostics.find((item) => item.code === "cfg/no-protocol");
+    expect(diagnostic?.severity).toBe("warning");
   });
 
   it("uses BIRD_BIN environment variable when validate command is omitted", async () => {

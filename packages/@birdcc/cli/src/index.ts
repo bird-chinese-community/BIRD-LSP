@@ -2,10 +2,15 @@ import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { resolveCrossFileReferences, type BirdDiagnostic } from "@birdcc/core";
+import {
+  resolveCrossFileReferences,
+  type BirdDiagnostic,
+  type BirdDiagnosticSeverity,
+} from "@birdcc/core";
 import { formatBirdConfig, type FormatterEngine } from "@birdcc/formatter";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig, lintResolvedCrossFileGraph } from "@birdcc/linter";
+import { resolveSeverityOverride } from "./config.js";
 import { createBirdRunnerErrorMessage } from "./messages.js";
 
 export interface BirdValidateResult {
@@ -322,6 +327,7 @@ export interface LintOptions {
   includeMaxDepth?: number;
   includeMaxFiles?: number;
   validateCommand?: string;
+  severityOverrides?: Record<string, BirdDiagnosticSeverity>;
 }
 
 export interface BirdccLintOutput {
@@ -356,6 +362,27 @@ const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
   }
 
   return output;
+};
+
+const applySeverityOverrides = (
+  diagnostics: BirdDiagnostic[],
+  severityOverrides?: Record<string, BirdDiagnosticSeverity>,
+): BirdDiagnostic[] => {
+  if (!severityOverrides) {
+    return diagnostics;
+  }
+
+  return diagnostics.map((diagnostic) => {
+    const severity = resolveSeverityOverride(diagnostic.code, severityOverrides);
+    if (!severity || severity === diagnostic.severity) {
+      return diagnostic;
+    }
+
+    return {
+      ...diagnostic,
+      severity,
+    };
+  });
 };
 
 const runCrossFileLint = async (
@@ -398,7 +425,7 @@ export const runLint = async (
     diagnostics.push(...birdResult.diagnostics);
   }
 
-  return { diagnostics };
+  return { diagnostics: applySeverityOverrides(diagnostics, options.severityOverrides) };
 };
 
 export interface FmtResult {
@@ -407,8 +434,17 @@ export interface FmtResult {
 }
 
 /** Builtin deterministic formatter wrapper used for safe fallback paths. */
-export const formatBirdConfigText = (text: string): FmtResult => {
-  const result = formatBirdConfig(text, { engine: "builtin" });
+export const formatBirdConfigText = async (
+  text: string,
+  options: Omit<FmtOptions, "write" | "engine"> = {},
+): Promise<FmtResult> => {
+  const formatterOptions = {
+    engine: "builtin" as const,
+    ...(options.indentSize !== undefined ? { indentSize: options.indentSize } : {}),
+    ...(options.lineWidth !== undefined ? { lineWidth: options.lineWidth } : {}),
+    ...(options.safeMode !== undefined ? { safeMode: options.safeMode } : {}),
+  };
+  const result = await formatBirdConfig(text, formatterOptions);
   return {
     changed: result.changed,
     formattedText: result.text,
@@ -418,10 +454,22 @@ export const formatBirdConfigText = (text: string): FmtResult => {
 export interface FmtOptions {
   write?: boolean;
   engine?: FormatterEngine;
+  indentSize?: number;
+  lineWidth?: number;
+  safeMode?: boolean;
 }
 
-const formatWithFormatterPackage = (text: string, engine?: FormatterEngine): FmtResult => {
-  const result = formatBirdConfig(text, engine ? { engine } : {});
+const formatWithFormatterPackage = async (
+  text: string,
+  options: FmtOptions,
+): Promise<FmtResult> => {
+  const formatterOptions = {
+    ...(options.engine !== undefined ? { engine: options.engine } : {}),
+    ...(options.indentSize !== undefined ? { indentSize: options.indentSize } : {}),
+    ...(options.lineWidth !== undefined ? { lineWidth: options.lineWidth } : {}),
+    ...(options.safeMode !== undefined ? { safeMode: options.safeMode } : {}),
+  };
+  const result = await formatBirdConfig(text, formatterOptions);
   return {
     changed: result.changed,
     formattedText: result.text,
@@ -434,7 +482,7 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
   let result: FmtResult;
 
   try {
-    result = formatWithFormatterPackage(text, options.engine);
+    result = await formatWithFormatterPackage(text, options);
   } catch (error) {
     if (options.engine) {
       throw error;
@@ -445,7 +493,7 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
         error instanceof Error ? error.message : String(error)
       }`,
     );
-    result = formatBirdConfigText(text);
+    result = await formatBirdConfigText(text, options);
   }
 
   if (options.write && result.changed) {
