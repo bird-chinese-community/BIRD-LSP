@@ -55,10 +55,21 @@ const toInternalErrorDiagnostic = (error: unknown): Diagnostic => ({
   },
 });
 
+const warmupParserRuntime = async (): Promise<void> => {
+  try {
+    await lintBirdConfig("");
+  } catch {
+    // Warmup is best-effort and must not block server startup.
+  }
+};
+
 /** Starts the stdio LSP server with async lint validation and last-write-wins scheduling. */
 export const startLspServer = (): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
+  let hasShutdownBeenRequested = false;
+
+  void warmupParserRuntime();
 
   connection.onInitialize(
     (): InitializeResult => ({
@@ -78,8 +89,8 @@ export const startLspServer = (): void => {
         return [toInternalErrorDiagnostic(error)];
       }
     },
-    publish: (uri, diagnostics) => {
-      connection.sendDiagnostics({ uri, diagnostics });
+    publish: (payload) => {
+      connection.sendDiagnostics(payload);
     },
   });
 
@@ -93,6 +104,16 @@ export const startLspServer = (): void => {
 
   documents.onDidClose((event) => {
     scheduler.close(event.document.uri);
+  });
+
+  connection.onShutdown(() => {
+    hasShutdownBeenRequested = true;
+  });
+
+  connection.onExit(() => {
+    if (!hasShutdownBeenRequested) {
+      process.exitCode = 1;
+    }
   });
 
   documents.listen(connection);
