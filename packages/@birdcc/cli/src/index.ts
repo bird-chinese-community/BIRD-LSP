@@ -31,6 +31,7 @@ const createRange = (line: number, column: number, width = 1) => ({
 
 const normalizeMessage = (message: string): string => message.replace(/^bird:\s*/i, "").trim();
 
+/** Parses stderr output from `bird -p` into normalized diagnostics. */
 export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
   const diagnostics: BirdDiagnostic[] = [];
   const lines = stderr
@@ -77,6 +78,7 @@ export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
 
 const shellEscape = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 
+/** Executes external bird validation command and converts stderr into diagnostics. */
 export const runBirdValidation = (
   filePath: string,
   validateCommand = "bird -p -c {file}",
@@ -126,6 +128,7 @@ export interface BirdccLintOutput {
   diagnostics: BirdDiagnostic[];
 }
 
+/** Lints one config file and optionally appends diagnostics from `bird -p`. */
 export const runLint = async (
   filePath: string,
   options: LintOptions = {},
@@ -147,6 +150,7 @@ export interface FmtResult {
   formattedText: string;
 }
 
+/** Applies deterministic lightweight formatting used by CLI `fmt`. */
 export const formatBirdConfigText = (text: string): FmtResult => {
   const lines = text.split(/\r?\n/).map((line) => line.replace(/[ \t]+$/g, ""));
   const compacted: string[] = [];
@@ -181,6 +185,7 @@ export interface FmtOptions {
   write?: boolean;
 }
 
+/** Formats one file and writes back when `options.write` is enabled. */
 export const runFmt = async (filePath: string, options: FmtOptions = {}): Promise<FmtResult> => {
   const text = await readFile(filePath, "utf8");
   const result = formatBirdConfigText(text);
@@ -192,6 +197,7 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
   return result;
 };
 
+/** Starts LSP server over stdio transport. */
 export const runLspStdio = async (): Promise<void> => {
   startLspServer();
 };

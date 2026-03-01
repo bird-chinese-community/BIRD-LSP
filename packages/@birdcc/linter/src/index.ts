@@ -88,6 +88,7 @@ const bgpNeighborRule: BirdRule = ({ parsed }) => {
 
 const defaultRules: BirdRule[] = [bgpLocalAsRule, bgpNeighborRule];
 
+/** Runs parser + core + lint rules and returns merged diagnostics. */
 export const lintBirdConfig = async (text: string): Promise<LintResult> => {
   const parsed = await parseBirdConfig(text);
   const core = buildCoreSnapshotFromParsed(parsed);

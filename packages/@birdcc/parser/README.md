@@ -49,8 +49,11 @@ Key types:
 ## Grammar workflow
 
 ```bash
-# regenerate parser.c / node-types / wasm
+# regenerate parser.c / grammar.json / node-types.json
 pnpm --filter @birdcc/parser run build:grammar
+
+# rebuild wasm (requires emscripten toolchain or docker-enabled tree-sitter build env)
+pnpm --filter @birdcc/parser run build:wasm
 ```
 
 Generated assets:
@@ -58,7 +61,8 @@ Generated assets:
 - `src/parser.c`
 - `src/grammar.json`
 - `src/node-types.json`
-- `tree-sitter-birdcc.wasm`
+- `src/tree_sitter/*.h`
+- `src/tree-sitter-birdcc.wasm`
 
 ## Development
 
