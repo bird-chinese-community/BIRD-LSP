@@ -6,8 +6,10 @@ export default grammar({
   word: ($) => $.identifier,
 
   rules: {
+    // Entry: keep top-level declarations explicit so downstream AST extraction stays stable.
     source_file: ($) => repeat($._top_level_item),
 
+    // Stage-1 declaration coverage.
     _top_level_item: ($) =>
       choice(
         $.include_declaration,
@@ -32,8 +34,10 @@ export default grammar({
     identifier: () => /[A-Za-z_][A-Za-z0-9_-]*/,
     number: () => /[0-9][0-9A-Za-z._:]*/,
 
+    // Generic fallback token used to keep recovery resilient in partial grammar coverage.
     raw_token: () => token(prec(-1, /[^{}\s"';#]+/)),
 
+    // Top-level declarations
     include_declaration: ($) => seq("include", optional(field("path", $.string)), ";"),
 
     define_declaration: ($) =>
@@ -146,6 +150,7 @@ export default grammar({
     top_level_statement: ($) =>
       prec(-1, seq(repeat1(choice($.string, $.number, $.identifier, $.raw_token, $.block)), ";")),
 
+    // Block is intentionally permissive for error recovery (missing brace / incomplete header).
     block: ($) => seq("{", repeat($._block_item), "}"),
 
     _block_item: ($) =>
@@ -162,6 +167,7 @@ export default grammar({
         ";",
       ),
 
+    // Stage-1 protocol common statements used by linter rules.
     local_as_statement: ($) =>
       seq("local", "as", field("asn", choice($.number, $.identifier, $.raw_token)), ";"),
 

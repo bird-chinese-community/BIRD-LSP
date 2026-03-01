@@ -88,6 +88,7 @@ const declarationToSymbol = (
   return null;
 };
 
+/** Builds semantic snapshot from a parsed BIRD document (symbols, references, diagnostics). */
 export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSnapshot => {
   const symbols: SymbolDefinition[] = [];
   const references: SymbolReference[] = [];
@@ -146,6 +147,7 @@ export const buildCoreSnapshotFromParsed = (parsed: ParsedBirdDocument): CoreSna
   };
 };
 
+/** Parses and builds semantic snapshot in one async call. */
 export const buildCoreSnapshot = async (text: string): Promise<CoreSnapshot> => {
   const parsed = await parseBirdConfig(text);
   return buildCoreSnapshotFromParsed(parsed);
