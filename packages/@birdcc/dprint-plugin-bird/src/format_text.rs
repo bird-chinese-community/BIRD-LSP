@@ -17,6 +17,37 @@ fn is_comment_line(line: &str) -> bool {
     line.trim_start().starts_with('#')
 }
 
+fn is_word_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '_'
+}
+
+fn contains_keyword_as_word(text: &str, keyword: &str) -> bool {
+    let mut search_start = 0usize;
+    while let Some(relative_index) = text[search_start..].find(keyword) {
+        let start = search_start + relative_index;
+        let end = start + keyword.len();
+
+        let left_ok = if start == 0 {
+            true
+        } else {
+            !is_word_char(text[..start].chars().next_back().unwrap_or(' '))
+        };
+        let right_ok = if end >= text.len() {
+            true
+        } else {
+            !is_word_char(text[end..].chars().next().unwrap_or(' '))
+        };
+
+        if left_ok && right_ok {
+            return true;
+        }
+
+        search_start = start + keyword.len();
+    }
+
+    false
+}
+
 fn is_high_risk_expression_line(line: &str) -> bool {
     let normalized = line.trim();
     if normalized.is_empty() || is_comment_line(normalized) {
@@ -24,10 +55,10 @@ fn is_high_risk_expression_line(line: &str) -> bool {
     }
 
     let lowered = normalized.to_ascii_lowercase();
-    let keyword_risk = lowered.contains("if ")
-        || lowered.contains(" then")
-        || lowered.contains(" else")
-        || lowered.contains("return ");
+    let keyword_risk = contains_keyword_as_word(&lowered, "if")
+        || contains_keyword_as_word(&lowered, "then")
+        || contains_keyword_as_word(&lowered, "else")
+        || contains_keyword_as_word(&lowered, "return");
     let operator_risk = normalized.contains('~')
         || normalized.contains('&')
         || normalized.contains('|')
@@ -173,6 +204,14 @@ mod tests {
             .expect("format should change text");
 
         assert!(output.contains("IF ( net ~ [ 192.0.2.0/24 ] ) Then {"));
+    }
+
+    #[test]
+    fn avoids_keyword_substring_false_positive() {
+        let input = "define iffy = 1;\n";
+        let output =
+            format_text(Path::new("bird.conf"), input, &config()).expect("format should succeed");
+        assert!(output.is_none());
     }
 
     #[test]
