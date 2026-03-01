@@ -30,7 +30,8 @@ const KEYWORD_DOCS: Record<string, string> = {
   import: "Control import policy for routes.",
   export: "Control export policy for routes.",
   neighbor: "Configure protocol neighbor endpoint and ASN.",
-  local: "Used in `local as <asn>;` for local AS number.",
+  "local as": "Configure local ASN via `local as <asn>;`.",
+  "router id": "Set explicit router ID or select from runtime source.",
 };
 
 const COMPLETION_KEYWORDS = [
@@ -165,26 +166,42 @@ const isPositionInRange = (position: Position, range: SourceRange): boolean => {
   return true;
 };
 
-const offsetAt = (document: TextDocument, position: Position): number => {
-  const lines = document.getText().split("\n");
-  let offset = 0;
-
-  for (let index = 0; index < position.line; index += 1) {
-    offset += (lines[index]?.length ?? 0) + 1;
-  }
-
-  return offset + position.character;
-};
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const keywordAtPosition = (
   document: TextDocument,
   position: Position,
 ): { word: string; range: Range } | null => {
   const text = document.getText();
-  const positionOffset = offsetAt(document, position);
+  const positionOffset = document.offsetAt(position);
 
   if (positionOffset < 0 || positionOffset > text.length) {
     return null;
+  }
+
+  const keywords = Object.keys(KEYWORD_DOCS).sort((left, right) => right.length - left.length);
+  for (const keyword of keywords) {
+    const keywordPattern = new RegExp(
+      `\\b${escapeRegExp(keyword).replaceAll("\\ ", "\\\\s+")}\\b`,
+      "gi",
+    );
+    let match = keywordPattern.exec(text);
+
+    while (match) {
+      const start = match.index;
+      const end = start + match[0].length;
+      if (positionOffset >= start && positionOffset <= end) {
+        return {
+          word: keyword,
+          range: {
+            start: document.positionAt(start),
+            end: document.positionAt(end),
+          },
+        };
+      }
+
+      match = keywordPattern.exec(text);
+    }
   }
 
   const isWordChar = (char: string): boolean => /[A-Za-z_]/.test(char);
@@ -365,6 +382,7 @@ const warmupParserRuntime = async (): Promise<void> => {
 export const startLspServer = (): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
+  const parsedByUri = new Map<string, { version: number; parsed: ParsedBirdDocument }>();
   let hasShutdownBeenRequested = false;
 
   void warmupParserRuntime();
@@ -388,6 +406,10 @@ export const startLspServer = (): void => {
     validate: async (textDocument): Promise<Diagnostic[]> => {
       try {
         const result = await lintBirdConfig(textDocument.getText());
+        parsedByUri.set(textDocument.uri, {
+          version: textDocument.version,
+          parsed: result.parsed,
+        });
         return result.diagnostics.map(toLspDiagnostic);
       } catch (error) {
         return [toInternalErrorDiagnostic(error)];
@@ -407,8 +429,23 @@ export const startLspServer = (): void => {
   });
 
   documents.onDidClose((event) => {
+    parsedByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
   });
+
+  const getParsedDocument = async (document: TextDocument): Promise<ParsedBirdDocument> => {
+    const cached = parsedByUri.get(document.uri);
+    if (cached && cached.version === document.version) {
+      return cached.parsed;
+    }
+
+    const parsed = await parseBirdConfig(document.getText());
+    parsedByUri.set(document.uri, {
+      version: document.version,
+      parsed,
+    });
+    return parsed;
+  };
 
   connection.onDocumentSymbol(async (params) => {
     const document = documents.get(params.textDocument.uri);
@@ -416,7 +453,7 @@ export const startLspServer = (): void => {
       return [];
     }
 
-    const parsed = await parseBirdConfig(document.getText());
+    const parsed = await getParsedDocument(document);
     return createDocumentSymbolsFromParsed(parsed);
   });
 
@@ -426,7 +463,7 @@ export const startLspServer = (): void => {
       return null;
     }
 
-    const parsed = await parseBirdConfig(document.getText());
+    const parsed = await getParsedDocument(document);
     return createHoverFromParsed(parsed, document, params.position);
   });
 
@@ -436,7 +473,7 @@ export const startLspServer = (): void => {
       return [];
     }
 
-    const parsed = await parseBirdConfig(document.getText());
+    const parsed = await getParsedDocument(document);
     return createCompletionItemsFromParsed(parsed);
   });
 

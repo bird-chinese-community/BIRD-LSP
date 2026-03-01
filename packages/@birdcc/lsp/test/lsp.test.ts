@@ -66,6 +66,16 @@ describe("@birdcc/lsp", () => {
     expect(hover?.contents).toBeDefined();
   });
 
+  it("creates hover for multi-word keyword phrase", async () => {
+    const text = `protocol bgp edge { local as 65001; }`;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 28 });
+
+    expect(hover?.contents).toBeDefined();
+  });
+
   it("creates completion items with keywords and symbols", async () => {
     const parsed = await parseBirdConfig(`
       template bgp edge_tpl {}
