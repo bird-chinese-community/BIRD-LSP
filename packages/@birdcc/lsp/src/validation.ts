@@ -66,13 +66,14 @@ export const createValidationScheduler = <TDocument extends ValidationDocument, 
     },
     close: (uri: string): void => {
       clearPending(uri);
-      latestTicketByUri.set(uri, ++nextTicket);
+      latestTicketByUri.delete(uri);
+      const version = latestVersionByUri.get(uri);
+      latestVersionByUri.delete(uri);
       options.publish({
         uri,
-        version: latestVersionByUri.get(uri),
+        version,
         diagnostics: [],
       });
-      latestVersionByUri.delete(uri);
     },
   };
 };
