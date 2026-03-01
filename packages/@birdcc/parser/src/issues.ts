@@ -76,6 +76,51 @@ export const dedupeIssues = (issues: ParseIssue[]): ParseIssue[] => {
   return unique;
 };
 
+export const ensureBraceBalanceIssue = (source: string, issues: ParseIssue[]): void => {
+  let balance = 0;
+  let line = 1;
+  let column = 1;
+  let endLine = 1;
+  let endColumn = 1;
+
+  for (const char of source) {
+    if (char === "{") {
+      balance += 1;
+      endLine = line;
+      endColumn = column;
+    } else if (char === "}") {
+      balance -= 1;
+      endLine = line;
+      endColumn = column;
+    }
+
+    if (char === "\n") {
+      line += 1;
+      column = 1;
+    } else {
+      column += 1;
+    }
+  }
+
+  if (balance <= 0) {
+    return;
+  }
+
+  const alreadyHasUnbalanced = issues.some((item) => item.code === "parser/unbalanced-brace");
+  if (alreadyHasUnbalanced) {
+    return;
+  }
+
+  issues.push({
+    code: "parser/unbalanced-brace",
+    message: "Missing '}' to close block",
+    line: endLine,
+    column: endColumn,
+    endLine,
+    endColumn,
+  });
+};
+
 export const parseFailureIssue = (): ParseIssue => ({
   code: "parser/syntax-error",
   message: "Failed to parse input",

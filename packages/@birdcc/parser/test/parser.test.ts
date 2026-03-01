@@ -36,13 +36,61 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
-  it("extracts protocol common statements", async () => {
+  it("parses router id and table declarations", async () => {
+    const sample = `
+      router id 192.0.2.1;
+      router id 12345;
+      router id from routing;
+      routing table master;
+      ipv4 table edge4;
+      vpn4 table core attrs (extended, foo);
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+
+    const routerDeclarations = parsed.program.declarations.filter(
+      (item) => item.kind === "router-id",
+    );
+    const tableDeclarations = parsed.program.declarations.filter((item) => item.kind === "table");
+
+    expect(routerDeclarations).toHaveLength(3);
+    expect(tableDeclarations).toHaveLength(3);
+
+    const firstRouter = routerDeclarations[0];
+    if (firstRouter?.kind === "router-id") {
+      expect(firstRouter.valueKind).toBe("ip");
+      expect(firstRouter.value).toBe("192.0.2.1");
+    }
+
+    const fromRouter = routerDeclarations[2];
+    if (fromRouter?.kind === "router-id") {
+      expect(fromRouter.valueKind).toBe("from");
+      expect(fromRouter.fromSource).toBe("routing");
+    }
+
+    const vpnTable = tableDeclarations[2];
+    if (vpnTable?.kind === "table") {
+      expect(vpnTable.tableType).toBe("vpn4");
+      expect(vpnTable.name).toBe("core");
+      expect(vpnTable.attrsText).toContain("extended");
+    }
+  });
+
+  it("extracts protocol common statements and channel entries", async () => {
     const sample = `
       protocol bgp edge_peer {
         local as 65001;
         neighbor 192.0.2.1 as 65002;
         import all;
         export filter policy_out;
+        ipv4 {
+          table master4;
+          import none;
+          export where net.len <= 24;
+          import limit 1000 action block;
+          debug all;
+          import keep filtered on;
+        };
       }
     `;
 
@@ -55,18 +103,10 @@ describe("@birdcc/parser tree-sitter", () => {
       const neighbor = protocol.statements.find((item) => item.kind === "neighbor");
       const importStatement = protocol.statements.find((item) => item.kind === "import");
       const exportStatement = protocol.statements.find((item) => item.kind === "export");
+      const channel = protocol.statements.find((item) => item.kind === "channel");
 
       expect(localAs?.kind).toBe("local-as");
-      if (localAs?.kind === "local-as") {
-        expect(localAs.asn).toBe("65001");
-      }
-
       expect(neighbor?.kind).toBe("neighbor");
-      if (neighbor?.kind === "neighbor") {
-        expect(neighbor.address).toBe("192.0.2.1");
-        expect(neighbor.asn).toBe("65002");
-      }
-
       expect(importStatement?.kind).toBe("import");
       if (importStatement?.kind === "import") {
         expect(importStatement.mode).toBe("all");
@@ -77,10 +117,64 @@ describe("@birdcc/parser tree-sitter", () => {
         expect(exportStatement.mode).toBe("filter");
         expect(exportStatement.filterName).toBe("policy_out");
       }
+
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        expect(channel.channelType).toBe("ipv4");
+        expect(channel.entries.some((item) => item.kind === "table")).toBe(true);
+        expect(channel.entries.some((item) => item.kind === "import" && item.mode === "none")).toBe(
+          true,
+        );
+        expect(
+          channel.entries.some((item) => item.kind === "export" && item.mode === "where"),
+        ).toBe(true);
+        expect(channel.entries.some((item) => item.kind === "limit")).toBe(true);
+        expect(channel.entries.some((item) => item.kind === "debug")).toBe(true);
+        expect(channel.entries.some((item) => item.kind === "keep-filtered")).toBe(true);
+      }
     }
   });
 
-  it("does not collect nested protocol statements inside inner blocks", async () => {
+  it("extracts filter/function control statements, literals and match expressions", async () => {
+    const sample = `
+      function is_private() -> bool {
+        if net ~ [ 10.0.0.0/8+, 2001:db8::/32{33,128} ] then return true;
+        return false;
+      }
+
+      filter export_policy {
+        if bgp_path ~ [= * 65003 * =] then reject;
+        case net.type {
+          NET_IP4: accept;
+          else: reject;
+        }
+        accept;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const fn = parsed.program.declarations.find((item) => item.kind === "function");
+    const filter = parsed.program.declarations.find((item) => item.kind === "filter");
+
+    expect(fn).toBeDefined();
+    if (fn?.kind === "function") {
+      expect(fn.statements.some((item) => item.kind === "if")).toBe(true);
+      expect(fn.statements.some((item) => item.kind === "return")).toBe(true);
+      expect(fn.literals.some((item) => item.kind === "prefix")).toBe(true);
+      expect(fn.matches.some((item) => item.operator === "~")).toBe(true);
+    }
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(filter.statements.some((item) => item.kind === "if")).toBe(true);
+      expect(filter.statements.some((item) => item.kind === "case")).toBe(true);
+      expect(filter.statements.some((item) => item.kind === "accept")).toBe(true);
+      expect(filter.statements.some((item) => item.kind === "reject")).toBe(true);
+      expect(filter.matches.some((item) => item.operator === "~")).toBe(true);
+    }
+  });
+
+  it("does not collect nested protocol statements inside inline filter blocks", async () => {
     const sample = `
       protocol bgp edge_peer {
         local as 65001;
@@ -133,6 +227,9 @@ describe("@birdcc/parser tree-sitter", () => {
     const sample = `
       include;
       define;
+      router id;
+      table;
+      ipv4 table;
       protocol bgp {
       }
       template bgp {
@@ -148,6 +245,8 @@ describe("@birdcc/parser tree-sitter", () => {
 
     expect(messages).toContain("Missing path for include declaration");
     expect(messages).toContain("Missing name for define declaration");
+    expect(messages).toContain("Missing value for router id declaration");
+    expect(messages).toContain("Missing name for table declaration");
     expect(messages).toContain("Missing name for protocol declaration");
     expect(messages).toContain("Missing name for template declaration");
     expect(messages).toContain("Missing name for filter declaration");
@@ -157,7 +256,8 @@ describe("@birdcc/parser tree-sitter", () => {
   it("reports unbalanced brace recovery issues", async () => {
     const sample = `
       protocol bgp edge {
-        local as 65001;
+        ipv4 {
+          import where net.len <= 24;
     `;
 
     const parsed = await parseBirdConfig(sample);

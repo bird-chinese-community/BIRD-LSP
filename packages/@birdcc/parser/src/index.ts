@@ -2,6 +2,7 @@ import { getParser } from "./runtime.js";
 import {
   collectTreeIssues,
   dedupeIssues,
+  ensureBraceBalanceIssue,
   parseFailureIssue,
   runtimeFailureIssue,
 } from "./issues.js";
@@ -9,21 +10,42 @@ import { parseDeclarations } from "./declarations.js";
 import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 
 export type {
+  AcceptStatement,
   BirdDeclaration,
   BirdProgram,
+  CaseStatement,
+  ChannelDebugEntry,
+  ChannelEntry,
+  ChannelExportEntry,
+  ChannelImportEntry,
+  ChannelKeepFilteredEntry,
+  ChannelLimitEntry,
+  ChannelOtherEntry,
+  ChannelStatement,
+  ChannelTableEntry,
   DefineDeclaration,
+  ExpressionStatement,
+  ExtractedLiteral,
   ExportStatement,
+  FilterBodyStatement,
   FilterDeclaration,
   FunctionDeclaration,
+  IfStatement,
   ImportStatement,
   IncludeDeclaration,
   LocalAsStatement,
+  MatchExpression,
   NeighborStatement,
+  OtherStatement,
   ParseIssue,
   ParsedBirdDocument,
   ProtocolDeclaration,
   ProtocolStatement,
+  RejectStatement,
+  ReturnStatement,
+  RouterIdDeclaration,
   SourceRange,
+  TableDeclaration,
   TemplateDeclaration,
 } from "./types.js";
 
@@ -60,6 +82,7 @@ export const parseBirdConfig = async (input: string): Promise<ParsedBirdDocument
   try {
     const issues: ParseIssue[] = [];
     collectTreeIssues(tree.rootNode, input, issues);
+    ensureBraceBalanceIssue(input, issues);
 
     const declarations = parseDeclarations(tree.rootNode, input, issues);
 
