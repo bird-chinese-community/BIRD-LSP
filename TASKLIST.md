@@ -256,13 +256,12 @@ tests/
 
 | 分类            | 默认级别 | CI 策略 |
 | --------------- | -------- | ------- |
-| `syntax/*`      | error    | 阻塞    |
-| `structure/*`   | warning  | 非阻塞  |
-| `semantic/*`    | error    | 阻塞    |
-| `protocol/*`    | warning  | 非阻塞  |
-| `security/*`    | error    | 阻塞    |
-| `performance/*` | info     | 非阻塞  |
-| `style/*`       | info     | 非阻塞  |
+| `sym/*`         | error    | 阻塞    |
+| `cfg/*`         | error    | 阻塞    |
+| `net/*`         | error    | 阻塞    |
+| `type/*`        | error    | 阻塞    |
+| `bgp/*`         | warning  | 非阻塞  |
+| `ospf/*`        | warning  | 非阻塞  |
 
 ### 10.2 完整 32 条规则（对齐 BIRD 源码，含源码位置）
 
@@ -372,9 +371,12 @@ birdcc lsp --stdio
   },
   "linter": {
     "rules": {
-      "security/*": "error",
-      "performance/*": "info",
-      "style/*": "off"
+      "sym/*": "error",
+      "cfg/*": "error",
+      "net/*": "error",
+      "type/*": "error",
+      "bgp/*": "warning",
+      "ospf/*": "warning"
     }
   },
   "bird": {
@@ -401,7 +403,7 @@ birdcc lsp --stdio
 1. `tooling-lint`：`birdcc lint`。
 2. `tooling-format-check`：`birdcc fmt --check`。
 3. `tooling-test`：单测 + 快照 + 集成。
-4. 初期仅阻塞 `syntax/*`、`semantic/*`、`security/*`。
+4. 初期阻塞 `sym/*`、`cfg/*`、`net/*`、`type/*`，`bgp/*` 与 `ospf/*` 非阻塞。
 
 ---
 
