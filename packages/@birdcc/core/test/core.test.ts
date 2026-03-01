@@ -178,6 +178,56 @@ describe("@birdcc/core boundaries", () => {
     expect(mismatchDiagnostics).toHaveLength(1);
   });
 
+  it("infers match expressions against set literals as bool", async () => {
+    const sample = `
+      filter export_policy {
+        prefix target = 10.0.0.0/8;
+        bool matched = target ~ [ 10.0.0.0/8, 192.0.2.0/24 ];
+        bool not_matched = target !~ [ 203.0.113.0/24 ];
+        int mismatch = target ~ [ 10.0.0.0/8 ];
+        accept;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+    const mismatchDiagnostics = snapshot.typeDiagnostics.filter(
+      (item) => item.code === "type/mismatch",
+    );
+
+    expect(mismatchDiagnostics).toHaveLength(1);
+    expect(mismatchDiagnostics[0]?.message).toContain("expected int, got bool");
+  });
+
+  it("infers integer membership against int set literal", async () => {
+    const sample = `
+      function calc() -> bool {
+        int asn = 65001;
+        bool in_set = asn ~ [ 65000, 65001, 65002 ];
+        return in_set;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+
+    expect(snapshot.typeDiagnostics).toHaveLength(0);
+  });
+
+  it("does not infer non-set int membership as bool", async () => {
+    const sample = `
+      function calc() -> int {
+        int value = 65001 ~ 65002;
+        return value;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const snapshot = buildCoreSnapshotFromParsed(parsed);
+
+    expect(snapshot.typeDiagnostics).toHaveLength(0);
+  });
+
   it("resolves include/template references across files", async () => {
     const result = await resolveCrossFileReferences({
       entryUri: "/workspace/main.conf",
