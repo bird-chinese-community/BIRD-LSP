@@ -44,6 +44,30 @@ export const createRuleDiagnostic = (
   },
 });
 
+export const diagnosticDedupKey = (diagnostic: BirdDiagnostic): string =>
+  [
+    diagnostic.code,
+    diagnostic.message,
+    diagnostic.range.line,
+    diagnostic.range.column,
+    diagnostic.range.endLine,
+    diagnostic.range.endColumn,
+  ].join(":");
+
+export const pushUniqueDiagnostic = (
+  diagnostics: BirdDiagnostic[],
+  seen: Set<string>,
+  diagnostic: BirdDiagnostic,
+): void => {
+  const key = diagnosticDedupKey(diagnostic);
+  if (seen.has(key)) {
+    return;
+  }
+
+  seen.add(key);
+  diagnostics.push(diagnostic);
+};
+
 export const withSeverity = (
   code: RuleCode,
   diagnostic: Omit<BirdDiagnostic, "severity" | "code">,

@@ -15,10 +15,10 @@ import {
   functionDeclarations,
   hasTableSymbol,
   normalizeClause,
+  pushUniqueDiagnostic,
   protocolDeclarations,
   tableDeclarations,
   type BirdRule,
-  type RuleContext,
 } from "./shared.js";
 
 const normalizeProtocolFamily = (text: string): string => normalizeClause(text).split(" ")[0] ?? "";
@@ -37,22 +37,6 @@ const isChannelFilterClause = (
   entry: ChannelEntry,
 ): entry is ChannelImportEntry | ChannelExportEntry =>
   (entry.kind === "import" || entry.kind === "export") && entry.mode === "filter";
-
-const pushUnique = (diagnostics: BirdDiagnostic[], diagnostic: BirdDiagnostic): void => {
-  if (
-    diagnostics.some(
-      (item) =>
-        item.code === diagnostic.code &&
-        item.range.line === diagnostic.range.line &&
-        item.range.column === diagnostic.range.column &&
-        item.message === diagnostic.message,
-    )
-  ) {
-    return;
-  }
-
-  diagnostics.push(diagnostic);
-};
 
 const collectProtocolFilterClauses = (
   declaration: ProtocolDeclaration,
@@ -89,6 +73,7 @@ const collectProtocolFilterClauses = (
 
 const symProtoTypeMismatchRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     if (!declaration.fromTemplate) {
@@ -110,8 +95,9 @@ const symProtoTypeMismatchRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    pushUnique(
+    pushUniqueDiagnostic(
       diagnostics,
+      seen,
       createRuleDiagnostic(
         "sym/proto-type-mismatch",
         `Protocol '${declaration.name}' (${declaration.protocolType}) cannot use template '${template.name}' (${template.templateType})`,
@@ -125,14 +111,16 @@ const symProtoTypeMismatchRule: BirdRule = ({ parsed }) => {
 
 const symFilterRequiredRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
   const filterNames = new Set(filterDeclarations(parsed).map((item) => item.name.toLowerCase()));
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const clause of collectProtocolFilterClauses(declaration)) {
       const name = clause.filterName?.trim();
       if (!name) {
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "sym/filter-required",
             `Protocol '${declaration.name}' requires a filter name in import/export filter clause`,
@@ -143,8 +131,9 @@ const symFilterRequiredRule: BirdRule = ({ parsed }) => {
       }
 
       if (!filterNames.has(name.toLowerCase())) {
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "sym/filter-required",
             `Protocol '${declaration.name}' references unknown filter '${name}'`,
@@ -160,6 +149,7 @@ const symFilterRequiredRule: BirdRule = ({ parsed }) => {
 
 const symFunctionRequiredRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
   const functions = new Set(functionDeclarations(parsed).map((item) => item.name.toLowerCase()));
 
   for (const { statement, declarationName } of eachFilterBodyExpression(parsed)) {
@@ -184,8 +174,9 @@ const symFunctionRequiredRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      pushUnique(
+      pushUniqueDiagnostic(
         diagnostics,
+        seen,
         createRuleDiagnostic(
           "sym/function-required",
           `Declaration '${declarationName}' references undefined function '${callName}'`,
@@ -200,6 +191,7 @@ const symFunctionRequiredRule: BirdRule = ({ parsed }) => {
 
 const symTableRequiredRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
   const tableNames = new Set(tableDeclarations(parsed).map((item) => item.name.toLowerCase()));
 
   for (const declaration of protocolDeclarations(parsed)) {
@@ -212,8 +204,9 @@ const symTableRequiredRule: BirdRule = ({ parsed }) => {
 
           const tableName = entry.tableName.trim();
           if (!tableName) {
-            pushUnique(
+            pushUniqueDiagnostic(
               diagnostics,
+              seen,
               createRuleDiagnostic(
                 "sym/table-required",
                 `Protocol '${declaration.name}' requires a table name in channel table clause`,
@@ -224,8 +217,9 @@ const symTableRequiredRule: BirdRule = ({ parsed }) => {
           }
 
           if (!tableNames.has(tableName.toLowerCase())) {
-            pushUnique(
+            pushUniqueDiagnostic(
               diagnostics,
+              seen,
               createRuleDiagnostic(
                 "sym/table-required",
                 `Protocol '${declaration.name}' references unknown table '${tableName}'`,
@@ -248,8 +242,9 @@ const symTableRequiredRule: BirdRule = ({ parsed }) => {
 
       const tableName = matched[1]?.trim();
       if (!tableName) {
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "sym/table-required",
             `Protocol '${declaration.name}' requires table name after 'table'`,
@@ -260,8 +255,9 @@ const symTableRequiredRule: BirdRule = ({ parsed }) => {
       }
 
       if (!hasTableSymbol(parsed, tableName)) {
-        pushUnique(
+        pushUniqueDiagnostic(
           diagnostics,
+          seen,
           createRuleDiagnostic(
             "sym/table-required",
             `Protocol '${declaration.name}' references unknown table '${tableName}'`,
@@ -275,96 +271,13 @@ const symTableRequiredRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
-const symUndefinedSupplementRule: BirdRule = ({ parsed }) => {
-  const diagnostics: BirdDiagnostic[] = [];
-  const filters = new Set(filterDeclarations(parsed).map((item) => item.name.toLowerCase()));
-  const functions = new Set(functionDeclarations(parsed).map((item) => item.name.toLowerCase()));
-
-  for (const declaration of protocolDeclarations(parsed)) {
-    for (const clause of collectProtocolFilterClauses(declaration)) {
-      const name = clause.filterName?.trim();
-      if (!name || filters.has(name.toLowerCase())) {
-        continue;
-      }
-
-      pushUnique(
-        diagnostics,
-        createRuleDiagnostic(
-          "sym/undefined",
-          `Undefined filter symbol '${name}' referenced by protocol '${declaration.name}'`,
-          clause.range,
-        ),
-      );
-    }
-
-    for (const statement of declaration.statements) {
-      if (statement.kind !== "channel") {
-        continue;
-      }
-
-      for (const entry of statement.entries) {
-        if (entry.kind !== "table") {
-          continue;
-        }
-
-        const tableName = entry.tableName.trim();
-        if (!tableName || hasTableSymbol(parsed, tableName)) {
-          continue;
-        }
-
-        pushUnique(
-          diagnostics,
-          createRuleDiagnostic(
-            "sym/undefined",
-            `Undefined table symbol '${tableName}' referenced by protocol '${declaration.name}'`,
-            entry.tableNameRange,
-          ),
-        );
-      }
-    }
-  }
-
-  for (const { statement, declarationName } of eachFilterBodyExpression(parsed)) {
-    const sourceText =
-      statement.kind === "expression"
-        ? statement.expressionText
-        : statement.kind === "other"
-          ? statement.text
-          : statement.kind === "if"
-            ? (statement.conditionText ?? "")
-            : "";
-
-    if (!sourceText) {
-      continue;
-    }
-
-    for (const callName of extractFunctionCalls(sourceText)) {
-      if (functions.has(callName.toLowerCase())) {
-        continue;
-      }
-
-      pushUnique(
-        diagnostics,
-        createRuleDiagnostic(
-          "sym/undefined",
-          `Undefined function symbol '${callName}' referenced by declaration '${declarationName}'`,
-          statement,
-        ),
-      );
-    }
-  }
-
-  return diagnostics;
-};
-
 export const symRules: BirdRule[] = [
   symProtoTypeMismatchRule,
   symFilterRequiredRule,
   symFunctionRequiredRule,
   symTableRequiredRule,
-  symUndefinedSupplementRule,
 ];
 
-export const collectSymRuleDiagnostics = (context: RuleContext): BirdDiagnostic[] => {
+export const collectSymRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
   return symRules.flatMap((rule) => rule(context));
 };

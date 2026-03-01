@@ -9,13 +9,11 @@ import {
   type BirdRule,
 } from "./shared.js";
 
-const isBgp = (protocolType: string): boolean => protocolType.toLowerCase() === "bgp";
-
 const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isBgp(declaration.protocolType)) {
+    if (!isProtocolType(declaration, "bgp")) {
       continue;
     }
 
@@ -39,7 +37,7 @@ const bgpMissingNeighborRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isBgp(declaration.protocolType)) {
+    if (!isProtocolType(declaration, "bgp")) {
       continue;
     }
 

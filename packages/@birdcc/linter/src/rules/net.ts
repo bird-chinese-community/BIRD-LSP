@@ -1,9 +1,11 @@
 import { isIP } from "node:net";
 import type { BirdDiagnostic } from "@birdcc/core";
+import type { FilterBodyStatement, SourceRange } from "@birdcc/parser";
 import {
+  createRuleDiagnostic,
   filterAndFunctionDeclarations,
   protocolDeclarations,
-  createRuleDiagnostic,
+  pushUniqueDiagnostic,
   type BirdRule,
 } from "./shared.js";
 
@@ -12,33 +14,6 @@ interface PrefixParts {
   length: number | null;
   raw: string;
 }
-
-const pushUnique = (diagnostics: BirdDiagnostic[], diagnostic: BirdDiagnostic): void => {
-  if (
-    diagnostics.some(
-      (item) =>
-        item.code === diagnostic.code &&
-        item.range.line === diagnostic.range.line &&
-        item.range.column === diagnostic.range.column,
-    )
-  ) {
-    return;
-  }
-
-  diagnostics.push(diagnostic);
-};
-
-const collectFilterTexts = (sourceText: string): string[] => {
-  const text = sourceText.trim();
-  if (!text) {
-    return [];
-  }
-
-  return text
-    .split(/[;\n]/)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
-};
 
 const prefixPattern = /([0-9A-Za-z:.]+\/-?\d+)/g;
 
@@ -56,11 +31,7 @@ const extractPrefixes = (text: string): PrefixParts[] => {
 
     const normalizedLength = lengthText.trim();
     const length = /^-?\d+$/.test(normalizedLength) ? Number.parseInt(normalizedLength, 10) : null;
-    prefixes.push({
-      address: address.trim(),
-      length,
-      raw,
-    });
+    prefixes.push({ address: address.trim(), length, raw });
 
     matched = prefixPattern.exec(text);
   }
@@ -68,99 +39,136 @@ const extractPrefixes = (text: string): PrefixParts[] => {
   return prefixes;
 };
 
-const netPrefixRules: BirdRule = ({ parsed, text }) => {
-  const diagnostics: BirdDiagnostic[] = [];
-
-  for (const snippet of collectFilterTexts(text)) {
-    for (const prefix of extractPrefixes(snippet)) {
-      const family = isIP(prefix.address);
-
-      if (prefix.length === null || prefix.length < 0 || prefix.length > 128) {
-        pushUnique(
-          diagnostics,
-          createRuleDiagnostic(
-            "net/invalid-prefix-length",
-            `Invalid prefix length in '${prefix.raw}'`,
-            { line: 1, column: 1, endLine: 1, endColumn: 1 },
-          ),
-        );
-        continue;
-      }
-
-      if (prefix.address.includes(".")) {
-        if (family !== 4) {
-          pushUnique(
-            diagnostics,
-            createRuleDiagnostic("net/invalid-ipv4-prefix", `Invalid IPv4 prefix '${prefix.raw}'`, {
-              line: 1,
-              column: 1,
-              endLine: 1,
-              endColumn: 1,
-            }),
-          );
-          continue;
-        }
-
-        if (prefix.length > 32) {
-          pushUnique(
-            diagnostics,
-            createRuleDiagnostic(
-              "net/max-prefix-length",
-              `Invalid max prefix length ${prefix.length} for IPv4 prefix '${prefix.raw}'`,
-              { line: 1, column: 1, endLine: 1, endColumn: 1 },
-            ),
-          );
-        }
-        continue;
-      }
-
-      if (prefix.address.includes(":")) {
-        if (family !== 6) {
-          pushUnique(
-            diagnostics,
-            createRuleDiagnostic("net/invalid-ipv6-prefix", `Invalid IPv6 prefix '${prefix.raw}'`, {
-              line: 1,
-              column: 1,
-              endLine: 1,
-              endColumn: 1,
-            }),
-          );
-          continue;
-        }
-
-        if (prefix.length > 128) {
-          pushUnique(
-            diagnostics,
-            createRuleDiagnostic(
-              "net/max-prefix-length",
-              `Invalid max prefix length ${prefix.length} for IPv6 prefix '${prefix.raw}'`,
-              { line: 1, column: 1, endLine: 1, endColumn: 1 },
-            ),
-          );
-        }
-      }
-    }
+const statementText = (statement: FilterBodyStatement): string => {
+  if (statement.kind === "expression") {
+    return statement.expressionText;
   }
 
+  if (statement.kind === "other") {
+    return statement.text;
+  }
+
+  if (statement.kind === "if") {
+    return statement.conditionText ?? "";
+  }
+
+  if (statement.kind === "return") {
+    return statement.valueText ?? "";
+  }
+
+  if (statement.kind === "case") {
+    return statement.subjectText ?? "";
+  }
+
+  return "";
+};
+
+const analyzePrefix = (
+  diagnostics: BirdDiagnostic[],
+  seen: Set<string>,
+  prefix: PrefixParts,
+  range: SourceRange,
+): void => {
+  const family = isIP(prefix.address);
+
+  if (prefix.length === null || prefix.length < 0 || prefix.length > 128) {
+    pushUniqueDiagnostic(
+      diagnostics,
+      seen,
+      createRuleDiagnostic(
+        "net/invalid-prefix-length",
+        `Invalid prefix length in '${prefix.raw}'`,
+        range,
+      ),
+    );
+    return;
+  }
+
+  if (prefix.address.includes(".")) {
+    if (family !== 4) {
+      pushUniqueDiagnostic(
+        diagnostics,
+        seen,
+        createRuleDiagnostic(
+          "net/invalid-ipv4-prefix",
+          `Invalid IPv4 prefix '${prefix.raw}'`,
+          range,
+        ),
+      );
+      return;
+    }
+
+    if (prefix.length > 32) {
+      pushUniqueDiagnostic(
+        diagnostics,
+        seen,
+        createRuleDiagnostic(
+          "net/max-prefix-length",
+          `Invalid max prefix length ${prefix.length} for IPv4 prefix '${prefix.raw}'`,
+          range,
+        ),
+      );
+    }
+    return;
+  }
+
+  if (prefix.address.includes(":")) {
+    if (family !== 6) {
+      pushUniqueDiagnostic(
+        diagnostics,
+        seen,
+        createRuleDiagnostic(
+          "net/invalid-ipv6-prefix",
+          `Invalid IPv6 prefix '${prefix.raw}'`,
+          range,
+        ),
+      );
+      return;
+    }
+
+    if (prefix.length > 128) {
+      pushUniqueDiagnostic(
+        diagnostics,
+        seen,
+        createRuleDiagnostic(
+          "net/max-prefix-length",
+          `Invalid max prefix length ${prefix.length} for IPv6 prefix '${prefix.raw}'`,
+          range,
+        ),
+      );
+    }
+  }
+};
+
+const netPrefixRules: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
+
   for (const declaration of filterAndFunctionDeclarations(parsed)) {
+    for (const statement of declaration.statements) {
+      const text = statementText(statement);
+      if (!text) {
+        continue;
+      }
+
+      for (const prefix of extractPrefixes(text)) {
+        analyzePrefix(diagnostics, seen, prefix, statement);
+      }
+    }
+
+    for (const match of declaration.matches) {
+      for (const prefix of extractPrefixes(match.right)) {
+        analyzePrefix(diagnostics, seen, prefix, match);
+      }
+    }
+
     for (const literal of declaration.literals) {
       if (literal.kind !== "prefix") {
         continue;
       }
 
       for (const prefix of extractPrefixes(literal.value)) {
-        if (prefix.length !== null && prefix.length >= 0 && prefix.length <= 128) {
-          continue;
-        }
-
-        pushUnique(
-          diagnostics,
-          createRuleDiagnostic(
-            "net/invalid-prefix-length",
-            `Invalid prefix length in '${prefix.raw}'`,
-            literal,
-          ),
-        );
+        analyzePrefix(diagnostics, seen, prefix, literal);
       }
     }
   }
@@ -170,6 +178,7 @@ const netPrefixRules: BirdRule = ({ parsed, text }) => {
 
 const netMaxPrefixRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
+  const seen = new Set<string>();
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
@@ -198,8 +207,9 @@ const netMaxPrefixRule: BirdRule = ({ parsed }) => {
 
         const maxAllowed = statement.channelType === "ipv4" ? 32 : 128;
         if (length > maxAllowed) {
-          pushUnique(
+          pushUniqueDiagnostic(
             diagnostics,
+            seen,
             createRuleDiagnostic(
               "net/max-prefix-length",
               `Invalid max prefix length ${length} for ${statement.channelType}`,
