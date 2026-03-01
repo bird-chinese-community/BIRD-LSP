@@ -1,4 +1,4 @@
-import { isIP, isIPv4 } from "node:net";
+import { isIP } from "node:net";
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type {
   BirdDeclaration,
@@ -57,6 +57,23 @@ const CHANNEL_TYPES = new Set([
 ]);
 
 const CHANNEL_DIRECTIONS = new Set(["import", "receive", "export"]);
+const IPV4_LITERAL_PATTERN =
+  /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const IPV6_LITERAL_PATTERN = /^[0-9A-Fa-f:.]+$/;
+const IPV4_CANDIDATE_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+const IPV6_CANDIDATE_PATTERN = /^[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*$/;
+
+const isStrictIpv4Literal = (value: string): boolean =>
+  IPV4_LITERAL_PATTERN.test(value) && isIP(value) === 4;
+
+const isStrictIpv6Literal = (value: string): boolean =>
+  value.includes(":") && IPV6_LITERAL_PATTERN.test(value) && isIP(value) === 6;
+
+const isStrictIpLiteral = (value: string): boolean =>
+  isStrictIpv4Literal(value) || isStrictIpv6Literal(value);
+
+const isIpLiteralCandidate = (value: string): boolean =>
+  IPV4_CANDIDATE_PATTERN.test(value) || IPV6_CANDIDATE_PATTERN.test(value);
 
 const protocolStatementNodesOf = (blockNode: SyntaxNode): SyntaxNode[] => {
   return blockNode.namedChildren.filter((child) => PROTOCOL_STATEMENT_TYPES.has(child.type));
@@ -416,12 +433,7 @@ const parseProtocolStatements = (
 
       const addressText = isPresentNode(addressNode) ? textOf(addressNode, source) : "";
       const addressKind =
-        isPresentNode(addressNode) &&
-        (addressNode.type === "ip_literal" ||
-          addressText.includes(".") ||
-          addressText.includes(":"))
-          ? "ip"
-          : "other";
+        isPresentNode(addressNode) && isIpLiteralCandidate(addressText) ? "ip" : "other";
 
       statements.push({
         kind: "neighbor",
@@ -643,7 +655,7 @@ const collectLiteralsAndMatches = (
 ): { literals: ExtractedLiteral[]; matches: MatchExpression[] } => {
   const literals: ExtractedLiteral[] = [];
   const matches: MatchExpression[] = [];
-  const isIpLike = (token: string): boolean => isIP(token) !== 0;
+  const isIpLike = (token: string): boolean => isStrictIpLiteral(token);
 
   const extractPrefixSuffix = (token: string): string | null => {
     const slashIndex = token.indexOf("/");
@@ -651,28 +663,9 @@ const collectLiteralsAndMatches = (
       return null;
     }
 
-    let cursor = slashIndex + 1;
-    while (cursor < token.length && token[cursor] >= "0" && token[cursor] <= "9") {
-      cursor += 1;
-    }
-
-    if (cursor === slashIndex + 1) {
-      return null;
-    }
-
-    if (cursor < token.length && (token[cursor] === "+" || token[cursor] === "-")) {
-      cursor += 1;
-    } else if (cursor < token.length && token[cursor] === "{") {
-      cursor += 1;
-      while (cursor < token.length && token[cursor] !== "}") {
-        cursor += 1;
-      }
-      if (cursor < token.length && token[cursor] === "}") {
-        cursor += 1;
-      }
-    }
-
-    return token.slice(slashIndex, cursor);
+    const suffix = token.slice(slashIndex);
+    const matched = suffix.match(/^\/(?:\d{1,3}(?:[+-]|\{\d{1,3}(?:,\d{1,3})?\})?)/);
+    return matched?.[0] ?? null;
   };
 
   const collectNode = (node: SyntaxNode): void => {
@@ -687,7 +680,7 @@ const collectLiteralsAndMatches = (
       const currentText = textOf(current, source);
       const currentRange = toRange(current, source);
 
-      if (current.type === "ip_literal") {
+      if (current.type === "ip_literal" && isStrictIpLiteral(currentText)) {
         literals.push({
           kind: "ip",
           value: currentText,
@@ -853,10 +846,6 @@ const parseDefineDeclaration = (
   };
 };
 
-const isIpv4Token = (value: string): boolean => {
-  return isIPv4(value);
-};
-
 const isNumericToken = (value: string): boolean => {
   if (value.length === 0) {
     return false;
@@ -871,20 +860,63 @@ const isNumericToken = (value: string): boolean => {
   return true;
 };
 
+interface TopLevelToken {
+  text: string;
+  lowered: string;
+  range: SourceRange;
+}
+
+const topLevelTokensOf = (statementNode: SyntaxNode, source: string): TopLevelToken[] => {
+  const tokens: TopLevelToken[] = [];
+  for (const tokenNode of statementNode.namedChildren) {
+    const tokenText = textOf(tokenNode, source).trim();
+    if (tokenText.length === 0) {
+      continue;
+    }
+
+    tokens.push({
+      text: tokenText,
+      lowered: tokenText.toLowerCase(),
+      range: toRange(tokenNode),
+    });
+  }
+
+  return tokens;
+};
+
+const mergedTokenRange = (
+  declarationRange: SourceRange,
+  tokens: TopLevelToken[],
+  startIndex: number,
+  endIndex: number,
+): SourceRange => {
+  const startToken = tokens[startIndex];
+  const endToken = tokens[endIndex];
+  if (!startToken || !endToken) {
+    return declarationRange;
+  }
+
+  return mergeRanges(startToken.range, endToken.range);
+};
+
 const parseRouterIdFromStatement = (
   statementNode: SyntaxNode,
   source: string,
   issues: ParseIssue[],
 ): RouterIdDeclaration | null => {
   const declarationRange = toRange(statementNode, source);
-  const fullText = textOf(statementNode, source).trim();
-  const lowered = fullText.toLowerCase();
-  if (!lowered.startsWith("router id")) {
+  const tokens = topLevelTokensOf(statementNode, source);
+
+  if (tokens[0]?.lowered !== "router" || tokens[1]?.lowered !== "id") {
     return null;
   }
 
-  const body = fullText.endsWith(";") ? fullText.slice(0, -1).trim() : fullText;
-  const value = body.slice("router id".length).trim();
+  const valueTokens = tokens.slice(2);
+  const value = valueTokens
+    .map((token) => token.text)
+    .join(" ")
+    .trim();
+  const valueRange = mergedTokenRange(declarationRange, tokens, 2, Math.max(tokens.length - 1, 2));
 
   if (value.length === 0) {
     issues.push({
@@ -897,38 +929,49 @@ const parseRouterIdFromStatement = (
       kind: "router-id",
       value: "",
       valueKind: "unknown",
-      valueRange: declarationRange,
+      valueRange: valueRange,
       ...declarationRange,
     };
   }
 
-  if (value.toLowerCase() === "from routing" || value.toLowerCase() === "from dynamic") {
+  if (valueTokens.length === 2 && valueTokens[0]?.lowered === "from") {
+    const fromSourceToken = valueTokens[1]?.lowered;
+    if (fromSourceToken !== "routing" && fromSourceToken !== "dynamic") {
+      return {
+        kind: "router-id",
+        value,
+        valueKind: "unknown",
+        valueRange: valueRange,
+        ...declarationRange,
+      };
+    }
+
     return {
       kind: "router-id",
       value,
       valueKind: "from",
-      valueRange: declarationRange,
-      fromSource: value.toLowerCase() === "from dynamic" ? "dynamic" : "routing",
+      valueRange: valueRange,
+      fromSource: fromSourceToken,
       ...declarationRange,
     };
   }
 
-  if (isIpv4Token(value)) {
+  if (valueTokens.length === 1 && isStrictIpv4Literal(value)) {
     return {
       kind: "router-id",
       value,
       valueKind: "ip",
-      valueRange: declarationRange,
+      valueRange: valueRange,
       ...declarationRange,
     };
   }
 
-  if (isNumericToken(value)) {
+  if (valueTokens.length === 1 && isNumericToken(value)) {
     return {
       kind: "router-id",
       value,
       valueKind: "number",
-      valueRange: declarationRange,
+      valueRange: valueRange,
       ...declarationRange,
     };
   }
@@ -937,7 +980,7 @@ const parseRouterIdFromStatement = (
     kind: "router-id",
     value,
     valueKind: "unknown",
-    valueRange: declarationRange,
+    valueRange: valueRange,
     ...declarationRange,
   };
 };
@@ -948,9 +991,7 @@ const parseTableFromStatement = (
   issues: ParseIssue[],
 ): TableDeclaration | null => {
   const declarationRange = toRange(statementNode, source);
-  const fullText = textOf(statementNode, source).trim();
-  const body = fullText.endsWith(";") ? fullText.slice(0, -1).trim() : fullText;
-  const tokens = body.split(/\s+/).filter((token) => token.length > 0);
+  const tokens = topLevelTokensOf(statementNode, source);
   if (tokens.length === 0) {
     return null;
   }
@@ -958,27 +999,43 @@ const parseTableFromStatement = (
   let tableType: TableDeclaration["tableType"] = "unknown";
   let name = "";
   let attrsText: string | undefined;
+  let tableTypeRange = declarationRange;
+  let nameRange = declarationRange;
+  let attrsRange: SourceRange | undefined;
+  let nameTokenIndex = -1;
+  let attrsStartIndex = -1;
 
-  if (tokens[0]?.toLowerCase() === "routing" && tokens[1]?.toLowerCase() === "table") {
+  if (tokens[0]?.lowered === "routing" && tokens[1]?.lowered === "table") {
     tableType = "routing";
-    name = tokens[2] ?? "";
-    if (tokens.length > 3) {
-      attrsText = tokens.slice(3).join(" ");
-    }
-  } else if (
-    TABLE_TYPES.has(tokens[0]?.toLowerCase() ?? "") &&
-    tokens[1]?.toLowerCase() === "table"
-  ) {
-    tableType = normalizeTableType(tokens[0] ?? "");
-    name = tokens[2] ?? "";
-    if (tokens.length > 3) {
-      attrsText = tokens.slice(3).join(" ");
-    }
-  } else if (tokens[0]?.toLowerCase() === "table") {
+    tableTypeRange = tokens[0].range;
+    name = tokens[2]?.text ?? "";
+    nameTokenIndex = 2;
+    attrsStartIndex = 3;
+  } else if (TABLE_TYPES.has(tokens[0]?.lowered ?? "") && tokens[1]?.lowered === "table") {
+    tableType = normalizeTableType(tokens[0]?.text ?? "");
+    tableTypeRange = tokens[0]?.range ?? declarationRange;
+    name = tokens[2]?.text ?? "";
+    nameTokenIndex = 2;
+    attrsStartIndex = 3;
+  } else if (tokens[0]?.lowered === "table") {
     tableType = "unknown";
-    name = tokens[1] ?? "";
+    name = tokens[1]?.text ?? "";
+    nameTokenIndex = 1;
+    attrsStartIndex = 2;
   } else {
     return null;
+  }
+
+  if (nameTokenIndex >= 0 && tokens[nameTokenIndex]) {
+    nameRange = tokens[nameTokenIndex].range;
+  }
+
+  if (attrsStartIndex >= 0 && attrsStartIndex < tokens.length) {
+    attrsText = tokens
+      .slice(attrsStartIndex)
+      .map((token) => token.text)
+      .join(" ");
+    attrsRange = mergedTokenRange(declarationRange, tokens, attrsStartIndex, tokens.length - 1);
   }
 
   if (name.length === 0) {
@@ -992,11 +1049,11 @@ const parseTableFromStatement = (
   return {
     kind: "table",
     tableType,
-    tableTypeRange: declarationRange,
+    tableTypeRange,
     name,
-    nameRange: declarationRange,
+    nameRange,
     attrsText,
-    attrsRange: attrsText ? declarationRange : undefined,
+    attrsRange,
     ...declarationRange,
   };
 };
@@ -1031,19 +1088,28 @@ const parseRouterIdDeclaration = (
     const fromSourceNode = valueNode.childForFieldName("from_source");
     const fromSourceText = isPresentNode(fromSourceNode)
       ? textOf(fromSourceNode, source).toLowerCase()
-      : "routing";
+      : "";
+    if (fromSourceText !== "routing" && fromSourceText !== "dynamic") {
+      return {
+        kind: "router-id",
+        value: textOf(valueNode, source),
+        valueKind: "unknown",
+        valueRange: toRange(valueNode, source),
+        ...declarationRange,
+      };
+    }
 
     return {
       kind: "router-id",
       value: textOf(valueNode, source),
       valueKind: "from",
       valueRange: toRange(valueNode, source),
-      fromSource: fromSourceText === "dynamic" ? "dynamic" : "routing",
+      fromSource: fromSourceText,
       ...declarationRange,
     };
   }
 
-  if (valueNode.type === "ipv4_literal") {
+  if (valueNode.type === "ipv4_literal" && isStrictIpv4Literal(textOf(valueNode, source))) {
     return {
       kind: "router-id",
       value: textOf(valueNode, source),
