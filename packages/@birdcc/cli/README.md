@@ -27,7 +27,7 @@
 - 🔍 **Lint 检查** — 静态分析与语义检查，支持 JSON 输出便于 CI 集成
 - 📝 **代码格式化** — 自动格式化 BIRD 配置文件
 - 🖥️ **LSP 服务器** — 启动 Language Server Protocol 服务器
-- 🔗 **BIRD 集成** — 支持 `bird -p` 语法校验与 `birdc -r` 只读运行态检查
+- 🔗 **BIRD 集成** — 支持 `bird -p` 语法与运行时校验
 - ⚡ **高性能** — 基于 Tree-sitter 的快速解析
 
 ---
@@ -73,12 +73,6 @@ birdcc lint bird.conf --format json
 # 结合 BIRD 运行时验证
 birdcc lint bird.conf --bird
 
-# 结合 birdc 只读运行态检查（show status + show protocols）
-birdcc lint bird.conf --birdc
-
-# 自定义 birdc 命令模板
-birdcc lint bird.conf --birdc --birdc-command "birdc -r -s /run/bird/bird.ctl"
-
 # 设置警告上限
 birdcc lint bird.conf --max-warnings 0
 ```
@@ -89,12 +83,8 @@ birdcc lint bird.conf --max-warnings 0
 | -------------------- | ---- | --------------------------------- |
 | `--format <type>`    | `-f` | 输出格式：`text` (默认) 或 `json` |
 | `--bird`             | `-b` | 同时运行 BIRD 运行时验证          |
-| `--birdc`            | -    | 运行 `birdc -r` 只读运行态检查    |
-| `--birdc-command`    | -    | 自定义 `birdc` 命令模板           |
 | `--max-warnings <n>` | `-w` | 允许的最大警告数，超出则失败      |
 | `--help`             | `-h` | 显示帮助信息                      |
-
-`--bird` 与 `--birdc` 可同时启用。`birdc` 不可用或连接失败时，会追加 `warning` 诊断但不会阻塞 lint 执行。
 
 ---
 
