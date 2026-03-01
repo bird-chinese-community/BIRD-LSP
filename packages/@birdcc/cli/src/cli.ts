@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { runFmt, runLint, runLspStdio } from "./index.js";
-import { CLI_MESSAGES } from "./messages.js";
+import { CLI_MESSAGES, createInvalidPositiveIntegerOptionMessage } from "./messages.js";
 
 interface LintOptions {
   format?: "json" | "text";
   bird?: boolean;
+  crossFile?: boolean;
+  includeMaxDepth?: string;
+  includeMaxFiles?: string;
   validateCommand?: string;
 }
 
@@ -47,18 +50,50 @@ const withCommandErrorHandling = <TOptions extends object>(action: CommandAction
 const cli = cac("birdcc");
 const FMT_ENGINE_SET = new Set(["dprint", "builtin"]);
 
+const parseOptionalPositiveInteger = (
+  optionName: string,
+  rawValue: string | undefined,
+): number | undefined => {
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(createInvalidPositiveIntegerOptionMessage(optionName, rawValue));
+  }
+
+  return parsed;
+};
+
 cli
   .command("lint <file>", "Lint BIRD config file")
   .option("--format <format>", "Output format: json | text", {
     default: "text",
   })
   .option("--bird", "Run bird -p validation")
+  .option("--cross-file", "Enable cross-file include analysis", {
+    default: true,
+  })
+  .option("--include-max-depth <n>", "Max include expansion depth")
+  .option("--include-max-files <n>", "Max number of files for include expansion")
   .option("--validate-command <command>", "Validation command template")
   .action(
     withActionErrorHandling(async (file: string, options: LintOptions) => {
       const format = options.format === "json" ? "json" : "text";
+      const includeMaxDepth = parseOptionalPositiveInteger(
+        "--include-max-depth",
+        options.includeMaxDepth,
+      );
+      const includeMaxFiles = parseOptionalPositiveInteger(
+        "--include-max-files",
+        options.includeMaxFiles,
+      );
       const result = await runLint(file, {
         withBird: Boolean(options.bird),
+        crossFile: options.crossFile !== false,
+        includeMaxDepth,
+        includeMaxFiles,
         validateCommand: options.validateCommand,
       });
 
@@ -70,8 +105,9 @@ cli
         }
 
         for (const diagnostic of result.diagnostics) {
+          const uriPrefix = diagnostic.uri ? `[${diagnostic.uri}] ` : "";
           console.log(
-            `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
+            `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
           );
         }
       }

@@ -12,3 +12,8 @@ export const CLI_MESSAGES = {
 
 export const createBirdRunnerErrorMessage = (reason: string): string =>
   `bird validation error: ${reason}`;
+
+export const createInvalidPositiveIntegerOptionMessage = (
+  optionName: string,
+  rawValue: string,
+): string => `${optionName} expects a positive integer, received "${rawValue}"`;
