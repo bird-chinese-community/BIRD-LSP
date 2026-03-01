@@ -19,11 +19,23 @@ interface LspOptions {
 }
 
 type FileAction<TOptions extends object> = (file: string, options: TOptions) => Promise<void>;
+type CommandAction<TOptions extends object> = (options: TOptions) => Promise<void>;
 
 const withActionErrorHandling = <TOptions extends object>(action: FileAction<TOptions>) => {
   return async (file: string, options: TOptions): Promise<void> => {
     try {
       await action(file, options);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  };
+};
+
+const withCommandErrorHandling = <TOptions extends object>(action: CommandAction<TOptions>) => {
+  return async (options: TOptions): Promise<void> => {
+    try {
+      await action(options);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
@@ -63,7 +75,11 @@ cli
       }
 
       const hasError = result.diagnostics.some((item) => item.severity === "error");
-      process.exitCode = hasError ? 1 : 0;
+      if (hasError) {
+        process.exitCode = 1;
+      } else if (process.exitCode == null) {
+        process.exitCode = 0;
+      }
     }),
   );
 
@@ -100,15 +116,17 @@ cli
 cli
   .command("lsp", "Run language server")
   .option("--stdio", "Use stdio transport")
-  .action(async (options: LspOptions) => {
-    if (!options.stdio) {
-      console.error(CLI_MESSAGES.lspRequiresStdio);
-      process.exitCode = 1;
-      return;
-    }
+  .action(
+    withCommandErrorHandling(async (options: LspOptions) => {
+      if (!options.stdio) {
+        console.error(CLI_MESSAGES.lspRequiresStdio);
+        process.exitCode = 1;
+        return;
+      }
 
-    await runLspStdio();
-  });
+      await runLspStdio();
+    }),
+  );
 
 cli.help();
 cli.parse();
