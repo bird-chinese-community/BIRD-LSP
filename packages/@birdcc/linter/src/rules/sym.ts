@@ -22,6 +22,23 @@ import {
 } from "./shared.js";
 
 const normalizeProtocolFamily = (text: string): string => normalizeClause(text).split(" ")[0] ?? "";
+const BUILTIN_FILTER_NAMES = new Set(["all", "none", "accept", "reject", "announce"]);
+const BUILTIN_FUNCTION_NAMES = new Set([
+  "net",
+  "bgp_path",
+  "bgp_community",
+  "bgp_ext_community",
+  "bgp_large_community",
+  "bgp_origin",
+  "defined",
+  "len",
+  "match",
+  "route_source",
+  "roa_check",
+  "prefix",
+  "ip",
+  "int",
+]);
 
 const isImportOrExportFilterClause = (
   value: unknown,
@@ -131,6 +148,10 @@ const symFilterRequiredRule: BirdRule = ({ parsed }) => {
       }
 
       if (!filterNames.has(name.toLowerCase())) {
+        if (BUILTIN_FILTER_NAMES.has(name.toLowerCase())) {
+          continue;
+        }
+
         pushUniqueDiagnostic(
           diagnostics,
           seen,
@@ -151,6 +172,9 @@ const symFunctionRequiredRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
   const functions = new Set(functionDeclarations(parsed).map((item) => item.name.toLowerCase()));
+  for (const builtin of BUILTIN_FUNCTION_NAMES) {
+    functions.add(builtin);
+  }
 
   for (const { statement, declarationName } of eachFilterBodyExpression(parsed)) {
     const textParts: string[] = [];

@@ -9,6 +9,12 @@ import {
   type BirdRule,
 } from "./shared.js";
 
+const isInternalSession = (value: string | undefined): boolean =>
+  /^(internal|ibgp)$/i.test(value?.trim() ?? "");
+
+const isExternalSession = (value: string | undefined): boolean =>
+  /^(external|ebgp)$/i.test(value?.trim() ?? "");
+
 const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
@@ -70,6 +76,10 @@ const bgpMissingRemoteAsRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
+      if (isInternalSession(statement.asn) || isExternalSession(statement.asn)) {
+        continue;
+      }
+
       if (statement.asn && numericValue(statement.asn) !== null) {
         continue;
       }
@@ -107,16 +117,20 @@ const bgpAsMismatchRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const isInternal = declaration.statements.some(
-      (statement) => statement.kind === "other" && /\b(internal|ibgp)\b/i.test(statement.text),
+    const hasInternalNeighbor = declaration.statements.some(
+      (statement) => statement.kind === "neighbor" && isInternalSession(statement.asn),
     );
 
-    if (!isInternal) {
+    if (!hasInternalNeighbor) {
       continue;
     }
 
     for (const statement of declaration.statements) {
       if (statement.kind !== "neighbor" || !statement.asn) {
+        continue;
+      }
+
+      if (isInternalSession(statement.asn) || isExternalSession(statement.asn)) {
         continue;
       }
 

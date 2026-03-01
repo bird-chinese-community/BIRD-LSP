@@ -15,7 +15,7 @@ interface PrefixParts {
   raw: string;
 }
 
-const prefixPattern = /([0-9A-Za-z:.]+\/-?\d+)/g;
+const prefixPattern = /([0-9A-Za-z:.]+\/[^\s,;{}[\]]+)/g;
 
 const extractPrefixes = (text: string): PrefixParts[] => {
   const prefixes: PrefixParts[] = [];
@@ -30,7 +30,7 @@ const extractPrefixes = (text: string): PrefixParts[] => {
     }
 
     const normalizedLength = lengthText.trim();
-    const length = /^-?\d+$/.test(normalizedLength) ? Number.parseInt(normalizedLength, 10) : null;
+    const length = /^\d+$/.test(normalizedLength) ? Number.parseInt(normalizedLength, 10) : null;
     prefixes.push({ address: address.trim(), length, raw });
 
     matched = prefixPattern.exec(text);
@@ -137,7 +137,14 @@ const analyzePrefix = (
         ),
       );
     }
+    return;
   }
+
+  pushUniqueDiagnostic(
+    diagnostics,
+    seen,
+    createRuleDiagnostic("net/invalid-ipv4-prefix", `Invalid IP prefix '${prefix.raw}'`, range),
+  );
 };
 
 const netPrefixRules: BirdRule = ({ parsed }) => {
@@ -190,33 +197,45 @@ const netMaxPrefixRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      for (const entry of statement.entries) {
-        if (entry.kind !== "other") {
-          continue;
-        }
+      const channelText = statement.entries
+        .filter((entry) => entry.kind === "other")
+        .map((entry) => entry.text)
+        .join(" ");
+      const matched = channelText.match(/\bmax\s+prefix\s+([^;\s]+)/i);
+      if (!matched) {
+        continue;
+      }
 
-        const matched = entry.text.match(/\bmax\s+prefix\s+(-?\d+)/i);
-        if (!matched) {
-          continue;
-        }
+      const token = (matched[1] ?? "").trim();
+      if (!/^\d+$/.test(token)) {
+        pushUniqueDiagnostic(
+          diagnostics,
+          seen,
+          createRuleDiagnostic(
+            "net/invalid-prefix-length",
+            `Invalid prefix length in 'max prefix ${token}'`,
+            statement,
+          ),
+        );
+        continue;
+      }
 
-        const length = Number.parseInt(matched[1] ?? "", 10);
-        if (Number.isNaN(length)) {
-          continue;
-        }
+      const length = Number.parseInt(token, 10);
+      if (Number.isNaN(length)) {
+        continue;
+      }
 
-        const maxAllowed = statement.channelType === "ipv4" ? 32 : 128;
-        if (length > maxAllowed) {
-          pushUniqueDiagnostic(
-            diagnostics,
-            seen,
-            createRuleDiagnostic(
-              "net/max-prefix-length",
-              `Invalid max prefix length ${length} for ${statement.channelType}`,
-              entry,
-            ),
-          );
-        }
+      const maxAllowed = statement.channelType === "ipv4" ? 32 : 128;
+      if (length > maxAllowed) {
+        pushUniqueDiagnostic(
+          diagnostics,
+          seen,
+          createRuleDiagnostic(
+            "net/max-prefix-length",
+            `Invalid max prefix length ${length} for ${statement.channelType}`,
+            statement,
+          ),
+        );
       }
     }
   }
