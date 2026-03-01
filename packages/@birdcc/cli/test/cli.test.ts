@@ -72,6 +72,13 @@ describe("@birdcc/cli bird parser", () => {
     expect(result.diagnostics[0].message).toContain("unsafe file path");
   });
 
+  it("rejects unsafe file path metacharacters in bird validation command args", () => {
+    const result = runBirdValidation("/tmp/bird.conf;touch-pwned");
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].code).toBe("bird/runner-error");
+    expect(result.diagnostics[0].message).toContain("unsafe file path");
+  });
+
   it("enables cross-file lint by default and resolves include symbols", async () => {
     const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-cross-file-"));
     const entryFile = join(workspaceDir, "main.conf");

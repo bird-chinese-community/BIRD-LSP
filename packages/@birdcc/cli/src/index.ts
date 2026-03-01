@@ -153,9 +153,15 @@ const formatSpawnError = (error: NodeJS.ErrnoException): string => {
 };
 
 const isCommandPathSafe = (filePath: string): boolean => {
+  const forbiddenMetacharacters = new Set([";", "|", "&", "`", "$", "<", ">"]);
+
   for (const character of filePath) {
     const codePoint = character.codePointAt(0) ?? 0;
-    if (codePoint === 0 || codePoint === 10 || codePoint === 13) {
+    if (codePoint < 32 || codePoint === 127) {
+      return false;
+    }
+
+    if (forbiddenMetacharacters.has(character)) {
       return false;
     }
   }
