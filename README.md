@@ -67,6 +67,12 @@
 | 🔎 **悬停提示** | 类型信息、文档说明即时展示 | 📋 计划中 |
 | 🏗️ **符号导航** | 跳转到定义、查找引用 | 📋 计划中 |
 
+### 近期进展（2026-03-01）
+
+- Parser 已从 tokenizer 原型切换为 **Tree-sitter + WASM**（直接切换，无回退分支）。
+- `@birdcc/parser` 解析入口改为异步：`parseBirdConfig(input) => Promise<ParsedBirdDocument>`。
+- `@birdcc/core` / `@birdcc/linter` / `@birdcc/cli` / `@birdcc/lsp` 已完成全链路 async 对齐，LSP 诊断增加“最后写入 wins”防竞态。
+
 ### CLI 工具链 (`birdcc`)
 
 ```bash
@@ -112,13 +118,16 @@ pnpm test
 #### 检查配置文件
 
 ```bash
-$ node packages/@birdcc/cli/dist/cli.js lint sample/bgp.conf --format stylish
+$ node packages/@birdcc/cli/dist/cli.js lint sample/bgp.conf --format json
 
-✖ 2 problems (1 error, 1 warning)
-  0 errors and 1 warning potentially fixable with the `--fix` option.
-
-  15:3  error    Missing 'local as' in BGP protocol  semantic/missing-local-as
-  42:1  warning  Duplicate filter definition         structure/duplicate-filter
+{
+  "diagnostics": [
+    {
+      "code": "protocol/bgp-missing-local-as",
+      "severity": "warning"
+    }
+  ]
+}
 ```
 
 #### 格式化配置
