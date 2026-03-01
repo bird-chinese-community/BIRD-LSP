@@ -511,10 +511,10 @@ const formatWithFormatterPackage = async (
   options: FmtOptions,
 ): Promise<FmtResult> => {
   const formatterOptions = {
-    ...(options.engine !== undefined ? { engine: options.engine } : {}),
-    ...(options.indentSize !== undefined ? { indentSize: options.indentSize } : {}),
-    ...(options.lineWidth !== undefined ? { lineWidth: options.lineWidth } : {}),
-    ...(options.safeMode !== undefined ? { safeMode: options.safeMode } : {}),
+    ...(options.engine != null ? { engine: options.engine } : {}),
+    ...(options.indentSize != null ? { indentSize: options.indentSize } : {}),
+    ...(options.lineWidth != null ? { lineWidth: options.lineWidth } : {}),
+    ...(options.safeMode != null ? { safeMode: options.safeMode } : {}),
   };
   const result = await formatBirdConfig(text, formatterOptions);
   return {
@@ -540,7 +540,13 @@ export const runFmt = async (filePath: string, options: FmtOptions = {}): Promis
         error instanceof Error ? error.message : String(error)
       }`,
     );
-    result = await formatBirdConfigText(text, options);
+    try {
+      result = await formatBirdConfigText(text, options);
+    } catch (fallbackError) {
+      throw new Error(
+        `Formatter fallback failed for '${filePath}': ${formatIoError(fallbackError)}`,
+      );
+    }
   }
 
   if (options.write && result.changed) {

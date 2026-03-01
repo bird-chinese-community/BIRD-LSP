@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -98,5 +98,23 @@ describe("@birdcc/cli config", () => {
     expect(resolveSeverityOverride("cfg/no-protocol", rules)).toBe("info");
     expect(resolveSeverityOverride("cfg/missing-router-id", rules)).toBe("warning");
     expect(resolveSeverityOverride("bgp/missing-neighbor", rules)).toBeUndefined();
+  });
+
+  it("propagates permission errors during config discovery", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
+
+    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-permission-"));
+    const blockedDir = join(workspaceDir, "blocked");
+    await mkdir(blockedDir, { recursive: true });
+    await chmod(blockedDir, 0o000);
+
+    try {
+      const targetFile = join(blockedDir, "bird.conf");
+      await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow();
+    } finally {
+      await chmod(blockedDir, 0o700);
+    }
   });
 });
