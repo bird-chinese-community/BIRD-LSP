@@ -31,6 +31,10 @@ describe("@birdcc/lsp", () => {
 
   it("creates document symbols for key declaration kinds", async () => {
     const parsed = await parseBirdConfig(`
+      include "base.conf";
+      define ASN = 65001;
+      ipv4 table main4;
+      router id 1.1.1.1;
       template bgp edge_tpl {}
       protocol bgp edge from edge_tpl {}
       filter export_policy { accept; }
@@ -40,6 +44,10 @@ describe("@birdcc/lsp", () => {
     const symbols = createDocumentSymbolsFromParsed(parsed);
     const names = symbols.map((item) => item.name);
 
+    expect(names).toContain("base.conf");
+    expect(names).toContain("ASN");
+    expect(names).toContain("main4");
+    expect(names).toContain("router id 1.1.1.1");
     expect(names).toContain("edge_tpl");
     expect(names).toContain("edge");
     expect(names).toContain("export_policy");
@@ -76,8 +84,20 @@ describe("@birdcc/lsp", () => {
     expect(hover?.contents).toBeDefined();
   });
 
+  it("creates hover for define declaration name", async () => {
+    const text = `define ASN = 65001;`;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 8 });
+
+    expect(hover?.contents).toBeDefined();
+  });
+
   it("creates completion items with keywords and symbols", async () => {
     const parsed = await parseBirdConfig(`
+      define ASN = 65001;
+      ipv4 table main4;
       template bgp edge_tpl {}
       filter export_policy { accept; }
     `);
@@ -85,8 +105,11 @@ describe("@birdcc/lsp", () => {
     const items = createCompletionItemsFromParsed(parsed);
     const labels = items.map((item) => item.label);
 
+    expect(labels).toContain("define");
     expect(labels).toContain("protocol");
     expect(labels).toContain("template");
+    expect(labels).toContain("ASN");
+    expect(labels).toContain("main4");
     expect(labels).toContain("edge_tpl");
     expect(labels).toContain("export_policy");
   });

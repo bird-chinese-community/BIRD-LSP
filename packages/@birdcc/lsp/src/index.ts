@@ -26,12 +26,16 @@ const KEYWORD_DOCS: Record<string, string> = {
   template: "Define a reusable protocol template.",
   filter: "Define route filtering logic.",
   function: "Define reusable logic callable from filters.",
+  define: "Define a reusable constant. Example: `define ASN = 65001;`.",
   include: "Include another configuration file.",
+  table: "Define a routing table resource for protocol/channel usage.",
   import: "Control import policy for routes.",
   export: "Control export policy for routes.",
   neighbor: "Configure protocol neighbor endpoint and ASN.",
   "local as": "Configure local ASN via `local as <asn>;`.",
   "router id": "Set explicit router ID or select from runtime source.",
+  ipv4: "IPv4 address family/channel/table scope keyword.",
+  ipv6: "IPv6 address family/channel/table scope keyword.",
 };
 
 const COMPLETION_KEYWORDS = [
@@ -39,6 +43,7 @@ const COMPLETION_KEYWORDS = [
   "template",
   "filter",
   "function",
+  "define",
   "include",
   "import",
   "export",
@@ -73,78 +78,108 @@ const toLspRange = (range: SourceRange): Range => ({
   },
 });
 
-const declarationNameRange = (declaration: BirdDeclaration): SourceRange | null => {
-  if (
-    declaration.kind === "protocol" ||
-    declaration.kind === "template" ||
-    declaration.kind === "filter" ||
-    declaration.kind === "function"
-  ) {
-    return declaration.nameRange;
+interface LspDeclarationMetadata {
+  symbolName: string;
+  selectionRange: SourceRange;
+  symbolKind: SymbolKind;
+  detail: string;
+  hoverMarkdown: string;
+  completionLabel?: string;
+  completionKind?: CompletionItemKind;
+  completionDetail?: string;
+}
+
+const declarationMetadata = (declaration: BirdDeclaration): LspDeclarationMetadata | null => {
+  switch (declaration.kind) {
+    case "protocol": {
+      const fromTemplate = declaration.fromTemplate ? ` from \`${declaration.fromTemplate}\`` : "";
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Module,
+        detail: `protocol ${declaration.protocolType}`,
+        hoverMarkdown: `**protocol** \`${declaration.name}\`\n\nType: \`${declaration.protocolType}\`${fromTemplate}`,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Reference,
+        completionDetail: `protocol ${declaration.protocolType}`,
+      };
+    }
+    case "template":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Class,
+        detail: `template ${declaration.templateType}`,
+        hoverMarkdown: `**template** \`${declaration.name}\`\n\nType: \`${declaration.templateType}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Reference,
+        completionDetail: `template ${declaration.templateType}`,
+      };
+    case "filter":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Method,
+        detail: "filter",
+        hoverMarkdown: `**filter** \`${declaration.name}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Reference,
+        completionDetail: "filter",
+      };
+    case "function":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Function,
+        detail: "function",
+        hoverMarkdown: `**function** \`${declaration.name}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Reference,
+        completionDetail: "function",
+      };
+    case "define":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Constant,
+        detail: "define",
+        hoverMarkdown: `**define** \`${declaration.name}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Constant,
+        completionDetail: "define",
+      };
+    case "table":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Object,
+        detail: `table ${declaration.tableType}`,
+        hoverMarkdown: `**table** \`${declaration.name}\`\n\nType: \`${declaration.tableType}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Variable,
+        completionDetail: `table ${declaration.tableType}`,
+      };
+    case "include":
+      return {
+        symbolName: declaration.path,
+        selectionRange: declaration.pathRange,
+        symbolKind: SymbolKind.File,
+        detail: "include",
+        hoverMarkdown: `**include** \`${declaration.path}\``,
+      };
+    case "router-id": {
+      const fromSource = declaration.fromSource ? ` (${declaration.fromSource})` : "";
+      return {
+        symbolName: `router id ${declaration.value}`,
+        selectionRange: declaration.valueRange,
+        symbolKind: SymbolKind.Property,
+        detail: `router-id ${declaration.valueKind}`,
+        hoverMarkdown: `**router id** \`${declaration.value}\`${fromSource}`,
+      };
+    }
+    default:
+      return null;
   }
-
-  return null;
-};
-
-const declarationSymbolKind = (declaration: BirdDeclaration): SymbolKind | null => {
-  if (declaration.kind === "protocol") {
-    return SymbolKind.Module;
-  }
-
-  if (declaration.kind === "template") {
-    return SymbolKind.Class;
-  }
-
-  if (declaration.kind === "filter") {
-    return SymbolKind.Method;
-  }
-
-  if (declaration.kind === "function") {
-    return SymbolKind.Function;
-  }
-
-  return null;
-};
-
-const declarationDetail = (declaration: BirdDeclaration): string => {
-  if (declaration.kind === "protocol") {
-    return `protocol ${declaration.protocolType}`;
-  }
-
-  if (declaration.kind === "template") {
-    return `template ${declaration.templateType}`;
-  }
-
-  if (declaration.kind === "filter") {
-    return "filter";
-  }
-
-  if (declaration.kind === "function") {
-    return "function";
-  }
-
-  return declaration.kind;
-};
-
-const hoverMarkdownForDeclaration = (declaration: BirdDeclaration): string => {
-  if (declaration.kind === "protocol") {
-    const fromTemplate = declaration.fromTemplate ? ` from \`${declaration.fromTemplate}\`` : "";
-    return `**protocol** \`${declaration.name}\`\n\nType: \`${declaration.protocolType}\`${fromTemplate}`;
-  }
-
-  if (declaration.kind === "template") {
-    return `**template** \`${declaration.name}\`\n\nType: \`${declaration.templateType}\``;
-  }
-
-  if (declaration.kind === "filter") {
-    return `**filter** \`${declaration.name}\``;
-  }
-
-  if (declaration.kind === "function") {
-    return `**function** \`${declaration.name}\``;
-  }
-
-  return `**${declaration.kind}**`;
 };
 
 const isPositionInRange = (position: Position, range: SourceRange): boolean => {
@@ -255,27 +290,17 @@ export const createDocumentSymbolsFromParsed = (parsed: ParsedBirdDocument): Doc
   const symbols: DocumentSymbol[] = [];
 
   for (const declaration of parsed.program.declarations) {
-    const range = declarationNameRange(declaration);
-    const kind = declarationSymbolKind(declaration);
-
-    if (!range || !kind) {
+    const metadata = declarationMetadata(declaration);
+    if (!metadata) {
       continue;
     }
 
-    const name =
-      declaration.kind === "protocol" ||
-      declaration.kind === "template" ||
-      declaration.kind === "filter" ||
-      declaration.kind === "function"
-        ? declaration.name
-        : declaration.kind;
-
     symbols.push({
-      name,
-      detail: declarationDetail(declaration),
-      kind,
+      name: metadata.symbolName,
+      detail: metadata.detail,
+      kind: metadata.symbolKind,
       range: toLspRange(declaration),
-      selectionRange: toLspRange(range),
+      selectionRange: toLspRange(metadata.selectionRange),
       children: [],
     });
   }
@@ -293,16 +318,12 @@ export const createCompletionItemsFromParsed = (parsed: ParsedBirdDocument): Com
   const seenSymbols = new Set<string>();
 
   for (const declaration of parsed.program.declarations) {
-    if (
-      declaration.kind !== "protocol" &&
-      declaration.kind !== "template" &&
-      declaration.kind !== "filter" &&
-      declaration.kind !== "function"
-    ) {
+    const metadata = declarationMetadata(declaration);
+    if (!metadata?.completionLabel) {
       continue;
     }
 
-    const symbolName = declaration.name;
+    const symbolName = metadata.completionLabel;
     if (symbolName.length === 0 || seenSymbols.has(symbolName)) {
       continue;
     }
@@ -310,8 +331,8 @@ export const createCompletionItemsFromParsed = (parsed: ParsedBirdDocument): Com
     seenSymbols.add(symbolName);
     completionItems.push({
       label: symbolName,
-      kind: CompletionItemKind.Reference,
-      detail: declarationDetail(declaration),
+      kind: metadata.completionKind ?? CompletionItemKind.Reference,
+      detail: metadata.completionDetail ?? metadata.detail,
     });
   }
 
@@ -324,17 +345,17 @@ export const createHoverFromParsed = (
   position: Position,
 ): Hover | null => {
   for (const declaration of parsed.program.declarations) {
-    const nameRange = declarationNameRange(declaration);
-    if (!nameRange || !isPositionInRange(position, nameRange)) {
+    const metadata = declarationMetadata(declaration);
+    if (!metadata || !isPositionInRange(position, metadata.selectionRange)) {
       continue;
     }
 
     return {
       contents: {
         kind: "markdown",
-        value: hoverMarkdownForDeclaration(declaration),
+        value: metadata.hoverMarkdown,
       },
-      range: toLspRange(nameRange),
+      range: toLspRange(metadata.selectionRange),
     };
   }
 
