@@ -32,5 +32,12 @@
   "oxc.trace.server": "off",
   "[c]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  // Rust Analyzer 配置
+  "rust-analyzer.linkedProjects": [
+    "packages/@birdcc/dprint-plugin-bird/Cargo.toml"
+  ],
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
   }
 }
