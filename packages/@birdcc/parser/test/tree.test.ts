@@ -3,6 +3,7 @@ import {
   cacheUtf8BytesForTests,
   getUtf8CacheStateForTests,
   resetUtf8CacheForTests,
+  toRange,
 } from "../src/tree.js";
 
 describe("@birdcc/parser utf8 cache", () => {
@@ -23,8 +24,8 @@ describe("@birdcc/parser utf8 cache", () => {
     const secondState = getUtf8CacheStateForTests();
 
     expect(firstState.hasCache).toBe(true);
-    expect(firstState.version).toBe(1);
-    expect(secondState.version).toBe(1);
+    expect(firstState.utf8Version).toBe(1);
+    expect(secondState.utf8Version).toBe(1);
   });
 
   it("rebuilds cache after ttl expires", () => {
@@ -38,8 +39,36 @@ describe("@birdcc/parser utf8 cache", () => {
     cacheUtf8BytesForTests("protocol bgp edge {}");
     const secondState = getUtf8CacheStateForTests();
 
-    expect(firstState.version).toBe(1);
-    expect(secondState.version).toBe(2);
+    expect(firstState.utf8Version).toBe(1);
+    expect(secondState.utf8Version).toBe(2);
+  });
+
+  it("reuses line start cache and rebuilds after ttl expires", () => {
+    const node = {
+      startIndex: 0,
+      endIndex: 8,
+      text: "protocol",
+      startPosition: { row: 0, column: 0 },
+      endPosition: { row: 0, column: 8 },
+    };
+    const source = "protocol\\nbgp edge";
+    const nowSpy = vi.spyOn(Date, "now");
+    nowSpy.mockReturnValue(3_000);
+
+    toRange(node as never, source);
+    const firstState = getUtf8CacheStateForTests();
+
+    nowSpy.mockReturnValue(3_500);
+    toRange(node as never, source);
+    const secondState = getUtf8CacheStateForTests();
+
+    nowSpy.mockReturnValue(3_000 + 31_000);
+    toRange(node as never, source);
+    const thirdState = getUtf8CacheStateForTests();
+
+    expect(firstState.lineStartsVersion).toBe(1);
+    expect(secondState.lineStartsVersion).toBe(1);
+    expect(thirdState.lineStartsVersion).toBe(2);
   });
 
   it("does not store oversized source into cache", () => {

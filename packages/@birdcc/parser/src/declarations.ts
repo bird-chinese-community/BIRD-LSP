@@ -658,7 +658,13 @@ const collectLiteralsAndMatches = (
   const isIpLike = (token: string): boolean => isStrictIpLiteral(token);
 
   const extractPrefixSuffix = (token: string): string | null => {
-    const matched = token.match(/^\/(?:\d{1,3}(?:[+-]|\{\d{1,3}(?:,\d{1,3})?\})?)/);
+    const slashIndex = token.indexOf("/");
+    if (slashIndex === -1) {
+      return null;
+    }
+
+    const suffix = token.slice(slashIndex);
+    const matched = suffix.match(/^\/(?:\d{1,3}(?:[+-]|\{\d{1,3}(?:,\d{1,3})?\})?)/);
     return matched?.[0] ?? null;
   };
 
@@ -871,7 +877,7 @@ const topLevelTokensOf = (statementNode: SyntaxNode, source: string): TopLevelTo
     tokens.push({
       text: tokenText,
       lowered: tokenText.toLowerCase(),
-      range: toRange(tokenNode, source),
+      range: toRange(tokenNode),
     });
   }
 
