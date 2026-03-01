@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import type { BirdDiagnostic } from "@birdcc/core";
+import { formatBirdConfig } from "@birdcc/formatter";
 import { startLspServer } from "@birdcc/lsp";
 import { lintBirdConfig } from "@birdcc/linter";
 import { createBirdRunnerErrorMessage } from "./messages.js";
@@ -150,7 +151,7 @@ export interface FmtResult {
   formattedText: string;
 }
 
-/** Applies deterministic lightweight formatting used by CLI `fmt`. */
+/** Legacy deterministic formatter used only when formatter package fails unexpectedly. */
 export const formatBirdConfigText = (text: string): FmtResult => {
   const lines = text.split(/\r?\n/).map((line) => line.replace(/[ \t]+$/g, ""));
   const compacted: string[] = [];
@@ -185,10 +186,24 @@ export interface FmtOptions {
   write?: boolean;
 }
 
+const formatWithFormatterPackage = (text: string): FmtResult => {
+  const result = formatBirdConfig(text, { engine: "dprint" });
+  return {
+    changed: result.changed,
+    formattedText: result.text,
+  };
+};
+
 /** Formats one file and writes back when `options.write` is enabled. */
 export const runFmt = async (filePath: string, options: FmtOptions = {}): Promise<FmtResult> => {
   const text = await readFile(filePath, "utf8");
-  const result = formatBirdConfigText(text);
+  let result: FmtResult;
+
+  try {
+    result = formatWithFormatterPackage(text);
+  } catch {
+    result = formatBirdConfigText(text);
+  }
 
   if (options.write && result.changed) {
     await writeFile(filePath, result.formattedText, "utf8");
