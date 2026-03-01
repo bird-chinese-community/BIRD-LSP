@@ -6,7 +6,11 @@ vi.mock("node:child_process", () => ({
   spawnSync: spawnSyncMock,
 }));
 
-import { checkBirdConfigFormat, formatBirdConfig } from "../src/index.js";
+import {
+  __formatBirdConfigBuiltinForTest,
+  checkBirdConfigFormat,
+  formatBirdConfig,
+} from "../src/index.js";
 
 describe("@birdcc/formatter", () => {
   beforeEach(() => {
@@ -78,6 +82,31 @@ describe("@birdcc/formatter", () => {
 
     expect(second.changed).toBe(false);
     expect(second.text).toBe(first.text);
+  });
+
+  it("keeps high-risk filter expressions structure while normalizing indentation", () => {
+    const input = [
+      "filter test {",
+      "if ( net ~ [ 192.0.2.0/24 ] ) then {",
+      "accept;",
+      "}",
+      "}",
+      "",
+    ].join("\n");
+    const result = formatBirdConfig(input, { engine: "builtin" });
+
+    expect(result.text).toContain("if ( net ~ [ 192.0.2.0/24 ] ) then {");
+    expect(result.text).toContain("  accept;");
+  });
+
+  it("exposes builtin formatting stats for regression assertions", () => {
+    const input = "router id 192.0.2.1;   \n\n\nprotocol bgp edge{}\n";
+    const output = __formatBirdConfigBuiltinForTest(input);
+
+    expect(output.stats.linesTotal).toBeGreaterThan(0);
+    expect(output.stats.linesTouched).toBeGreaterThan(0);
+    expect(output.stats.blankLinesCollapsed).toBeGreaterThan(0);
+    expect(output.text.endsWith("\n")).toBe(true);
   });
 
   it("check result is consistent with format result", () => {
