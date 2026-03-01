@@ -1,3 +1,4 @@
+import { isIP, isIPv4 } from "node:net";
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type {
   BirdDeclaration,
@@ -225,7 +226,6 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       continue;
     }
 
-    // Old wasm fallback: table <name>;
     if (
       entryNode.type === "identifier" &&
       textOf(entryNode, source).toLowerCase() === "table" &&
@@ -343,18 +343,19 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       continue;
     }
 
-    // Old wasm fallback: debug <clause>;
-    if (entryNode.type === "identifier" && textOf(entryNode, source).toLowerCase() === "debug") {
-      const nextNode = namedChildren[index + 1];
-      const debugRange = nextNode ? mergeRanges(entryRange, toRange(nextNode, source)) : entryRange;
+    if (
+      entryNode.type === "identifier" &&
+      textOf(entryNode, source).toLowerCase() === "debug" &&
+      namedChildren[index + 1]
+    ) {
+      const clauseNode = namedChildren[index + 1];
+      const debugRange = mergeRanges(entryRange, toRange(clauseNode, source));
       entries.push({
         kind: "debug",
-        clauseText: nextNode ? textOf(nextNode, source) : "",
+        clauseText: textOf(clauseNode, source),
         ...debugRange,
       });
-      if (nextNode) {
-        index += 1;
-      }
+      index += 1;
       continue;
     }
 
@@ -456,36 +457,37 @@ const parseProtocolStatements = (
     }
   }
 
-  // Old wasm fallback: channel can appear as `identifier` + `block` pair in body children.
-  const childNodes = blockNode.children;
+  const childNodes = blockNode.namedChildren;
   for (let index = 0; index < childNodes.length - 1; index += 1) {
-    const maybeTypeNode = childNodes[index];
-    const maybeBlockNode = childNodes[index + 1];
-    if (!maybeTypeNode || !maybeBlockNode) {
+    const maybeChannelTypeNode = childNodes[index];
+    const maybeChannelBodyNode = childNodes[index + 1];
+    if (!maybeChannelTypeNode || !maybeChannelBodyNode) {
       continue;
     }
 
-    if (maybeTypeNode.type !== "identifier" || maybeBlockNode.type !== "block") {
+    if (maybeChannelTypeNode.type !== "identifier" || maybeChannelBodyNode.type !== "block") {
       continue;
     }
 
-    const channelTypeText = textOf(maybeTypeNode, source);
+    const channelTypeText = textOf(maybeChannelTypeNode, source);
     const channelType = normalizeChannelType(channelTypeText);
     if (channelType === "unknown") {
       continue;
     }
 
     const channelRange = mergeRanges(
-      toRange(maybeTypeNode, source),
-      toRange(maybeBlockNode, source),
+      toRange(maybeChannelTypeNode, source),
+      toRange(maybeChannelBodyNode, source),
     );
+
     statements.push({
       kind: "channel",
       channelType,
-      channelTypeRange: toRange(maybeTypeNode, source),
-      entries: parseChannelEntries(maybeBlockNode, source),
+      channelTypeRange: toRange(maybeChannelTypeNode, source),
+      entries: parseChannelEntries(maybeChannelBodyNode, source),
       ...channelRange,
     });
+
     index += 1;
   }
 
@@ -494,8 +496,9 @@ const parseProtocolStatements = (
 
 const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBodyStatement[] => {
   const statements: FilterBodyStatement[] = [];
-  const bodyText = textOf(bodyNode, source);
   const bodyRange = toRange(bodyNode, source);
+  const bodyText = textOf(bodyNode, source);
+  const tokenTexts = bodyNode.namedChildren.map((node) => textOf(node, source).toLowerCase());
 
   for (const statementNode of bodyNode.namedChildren) {
     const statementRange = toRange(statementNode, source);
@@ -503,11 +506,13 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     const lowered = text.toLowerCase();
 
     if (statementNode.type === "if_statement" || lowered === "if") {
+      const thenIndex = lowered.indexOf(" then ");
+      const conditionText =
+        lowered.startsWith("if ") && thenIndex > 0 ? text.slice(3, thenIndex).trim() : undefined;
+
       statements.push({
         kind: "if",
-        conditionText: bodyText.includes(" then ")
-          ? bodyText.split(" then ")[0]?.split("if ")[1]?.trim()
-          : undefined,
+        conditionText,
         thenText: "",
         ...statementRange,
       });
@@ -559,21 +564,74 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     }
   }
 
-  // Fallback by raw text to preserve skeleton coverage under older wasm grammar.
-  if (bodyText.includes("if ") && !statements.some((item) => item.kind === "if")) {
-    statements.push({ kind: "if", conditionText: undefined, thenText: "", ...bodyRange });
+  if (tokenTexts.includes("if") && !statements.some((item) => item.kind === "if")) {
+    statements.push({
+      kind: "if",
+      conditionText: undefined,
+      thenText: "",
+      ...bodyRange,
+    });
   }
-  if (bodyText.includes("case ") && !statements.some((item) => item.kind === "case")) {
-    statements.push({ kind: "case", subjectText: undefined, ...bodyRange });
+
+  if (tokenTexts.includes("case") && !statements.some((item) => item.kind === "case")) {
+    statements.push({
+      kind: "case",
+      subjectText: undefined,
+      ...bodyRange,
+    });
   }
-  if (bodyText.includes("accept;") && !statements.some((item) => item.kind === "accept")) {
-    statements.push({ kind: "accept", ...bodyRange });
+
+  if (tokenTexts.includes("accept") && !statements.some((item) => item.kind === "accept")) {
+    statements.push({
+      kind: "accept",
+      ...bodyRange,
+    });
   }
-  if (bodyText.includes("reject;") && !statements.some((item) => item.kind === "reject")) {
-    statements.push({ kind: "reject", ...bodyRange });
+
+  if (tokenTexts.includes("reject") && !statements.some((item) => item.kind === "reject")) {
+    statements.push({
+      kind: "reject",
+      ...bodyRange,
+    });
   }
-  if (bodyText.includes("return") && !statements.some((item) => item.kind === "return")) {
-    statements.push({ kind: "return", valueText: undefined, ...bodyRange });
+
+  if (tokenTexts.includes("return") && !statements.some((item) => item.kind === "return")) {
+    statements.push({
+      kind: "return",
+      valueText: undefined,
+      ...bodyRange,
+    });
+  }
+
+  const hasExpressionStatement = statements.some((item) => item.kind === "expression");
+  if (!hasExpressionStatement) {
+    const segments = bodyText
+      .split(";")
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0);
+
+    for (const segment of segments) {
+      const normalizedSegment = segment.replace(/^[\s{]+/, "").replace(/[\s}]+$/, "");
+      if (normalizedSegment.length === 0) {
+        continue;
+      }
+
+      if (
+        normalizedSegment.startsWith("if ") ||
+        normalizedSegment.startsWith("case ") ||
+        normalizedSegment === "accept" ||
+        normalizedSegment === "reject" ||
+        normalizedSegment.startsWith("return")
+      ) {
+        continue;
+      }
+
+      statements.push({
+        kind: "expression",
+        expressionText: normalizedSegment,
+        ...bodyRange,
+      });
+    }
   }
 
   return statements;
@@ -585,22 +643,7 @@ const collectLiteralsAndMatches = (
 ): { literals: ExtractedLiteral[]; matches: MatchExpression[] } => {
   const literals: ExtractedLiteral[] = [];
   const matches: MatchExpression[] = [];
-  const isIpLike = (token: string): boolean => {
-    if (token.length === 0) {
-      return false;
-    }
-
-    const first = token[0];
-    const hasDot = token.includes(".");
-    const hasColon = token.includes(":");
-    if (!hasDot && !hasColon) {
-      return false;
-    }
-
-    const isDigit = first >= "0" && first <= "9";
-    const isHexLetter = (first >= "a" && first <= "f") || (first >= "A" && first <= "F");
-    return isDigit || (hasColon && isHexLetter);
-  };
+  const isIpLike = (token: string): boolean => isIP(token) !== 0;
 
   const extractPrefixSuffix = (token: string): string | null => {
     const slashIndex = token.indexOf("/");
@@ -660,28 +703,30 @@ const collectLiteralsAndMatches = (
         });
       }
 
-      if ((current.type === "number" || current.type === "raw_token") && isIpLike(currentText)) {
+      if (current.type === "number" || current.type === "raw_token") {
         const ownSuffix = extractPrefixSuffix(currentText);
         if (ownSuffix) {
           const ipPart = currentText.slice(0, currentText.indexOf("/"));
-          literals.push({
-            kind: "prefix",
-            value: `${ipPart}${ownSuffix}`,
-            ...currentRange,
-          });
+          if (isIpLike(ipPart)) {
+            literals.push({
+              kind: "prefix",
+              value: `${ipPart}${ownSuffix}`,
+              ...currentRange,
+            });
+          }
         } else {
           const nextNode = namedChildren[index + 1];
           const nextText = nextNode ? textOf(nextNode, source) : "";
           const nextSuffix = nextNode ? extractPrefixSuffix(nextText) : null;
 
-          if (nextSuffix) {
+          if (nextSuffix && isIpLike(currentText)) {
             const mergedRange = mergeRanges(currentRange, toRange(nextNode, source));
             literals.push({
               kind: "prefix",
               value: `${currentText}${nextSuffix}`,
               ...mergedRange,
             });
-          } else {
+          } else if (isIpLike(currentText)) {
             literals.push({
               kind: "ip",
               value: currentText,
@@ -706,18 +751,32 @@ const collectLiteralsAndMatches = (
         }
       }
 
-      // Old wasm fallback: `~` is represented as a raw token between two named nodes.
       if (currentText.trim() === "~") {
         const leftNode = namedChildren[index - 1];
-        const rightNode = namedChildren[index + 1];
-        if (leftNode && rightNode) {
-          matches.push({
-            operator: "~",
-            left: textOf(leftNode, source),
-            right: textOf(rightNode, source),
-            ...currentRange,
-          });
+        const immediateRightNode = namedChildren[index + 1];
+
+        if (!leftNode || !immediateRightNode) {
+          continue;
         }
+
+        const leftText = textOf(leftNode, source).trim();
+        const immediateRightText = textOf(immediateRightNode, source).trim();
+        const rightNode =
+          immediateRightText === "["
+            ? (namedChildren[index + 2] ?? immediateRightNode)
+            : immediateRightNode;
+        const rightText = textOf(rightNode, source).trim();
+
+        if (leftText.length === 0 || rightText.length === 0) {
+          continue;
+        }
+
+        matches.push({
+          operator: "~",
+          left: leftText,
+          right: rightText,
+          ...currentRange,
+        });
       }
 
       collectNode(current);
@@ -795,24 +854,7 @@ const parseDefineDeclaration = (
 };
 
 const isIpv4Token = (value: string): boolean => {
-  const parts = value.split(".");
-  if (parts.length !== 4) {
-    return false;
-  }
-
-  for (const part of parts) {
-    if (part.length === 0) {
-      return false;
-    }
-
-    for (const char of part) {
-      if (char < "0" || char > "9") {
-        return false;
-      }
-    }
-  }
-
-  return true;
+  return isIPv4(value);
 };
 
 const isNumericToken = (value: string): boolean => {
