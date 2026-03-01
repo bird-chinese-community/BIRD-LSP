@@ -41,6 +41,7 @@ describe("@birdcc/parser tree-sitter", () => {
       router id 192.0.2.1;
       router id 12345;
       router id from routing;
+      router id 999.0.0.1;
       routing table master;
       ipv4 table edge4;
       vpn4 table core attrs (extended, foo);
@@ -53,7 +54,7 @@ describe("@birdcc/parser tree-sitter", () => {
     );
     const tableDeclarations = parsed.program.declarations.filter((item) => item.kind === "table");
 
-    expect(routerDeclarations).toHaveLength(3);
+    expect(routerDeclarations).toHaveLength(4);
     expect(tableDeclarations).toHaveLength(3);
 
     const firstRouter = routerDeclarations[0];
@@ -66,6 +67,12 @@ describe("@birdcc/parser tree-sitter", () => {
     if (fromRouter?.kind === "router-id") {
       expect(fromRouter.valueKind).toBe("from");
       expect(fromRouter.fromSource).toBe("routing");
+    }
+
+    const invalidRouter = routerDeclarations[3];
+    if (invalidRouter?.kind === "router-id") {
+      expect(invalidRouter.valueKind).toBe("unknown");
+      expect(invalidRouter.value).toBe("999.0.0.1");
     }
 
     const vpnTable = tableDeclarations[2];
@@ -131,6 +138,26 @@ describe("@birdcc/parser tree-sitter", () => {
         expect(channel.entries.some((item) => item.kind === "limit")).toBe(true);
         expect(channel.entries.some((item) => item.kind === "debug")).toBe(true);
         expect(channel.entries.some((item) => item.kind === "keep-filtered")).toBe(true);
+      }
+    }
+  });
+
+  it("keeps invalid neighbor IP as ip-like candidate for semantic validation", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        neighbor 203.0.113.999 as 65002;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const neighbor = protocol.statements.find((item) => item.kind === "neighbor");
+      expect(neighbor?.kind).toBe("neighbor");
+      if (neighbor?.kind === "neighbor") {
+        expect(neighbor.addressKind).toBe("ip");
       }
     }
   });
