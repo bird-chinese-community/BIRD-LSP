@@ -23,6 +23,29 @@ jobs:
         with:
           extra-args: --all-files
 
+  parser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @birdcc/parser run build:grammar
+      - name: Verify tracked files unchanged after grammar generation
+        run: git diff --exit-code
+      - run: pnpm --filter @birdcc/parser run lint
+      - run: pnpm --filter @birdcc/parser run test
+      - run: pnpm --filter @birdcc/parser run build
+      - run: pnpm --filter @birdcc/parser run typecheck
+      - run: pnpm --filter @birdcc/parser run format
+
   turbo:
     runs-on: ubuntu-latest
     steps:
@@ -38,17 +61,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @birdcc/parser run build:grammar
-      - name: Verify grammar artifacts committed
-        run: |
-          git diff --exit-code -- \
-            packages/@birdcc/parser/src/parser.c \
-            packages/@birdcc/parser/src/grammar.json \
-            packages/@birdcc/parser/src/node-types.json \
-            packages/@birdcc/parser/src/tree_sitter/alloc.h \
-            packages/@birdcc/parser/src/tree_sitter/array.h \
-            packages/@birdcc/parser/src/tree_sitter/parser.h \
-            packages/@birdcc/parser/src/tree-sitter-birdcc.wasm
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
