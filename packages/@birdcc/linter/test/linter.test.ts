@@ -125,4 +125,69 @@ describe("@birdcc/linter", () => {
       true,
     );
   });
+
+  it("reports invalid statements based on protocol whitelist", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        area 0;
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    const diagnostics = result.diagnostics.filter(
+      (item) => item.code === "structure/invalid-statement-in-protocol",
+    );
+
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.message).toContain("invalid statement");
+  });
+
+  it("reports missing authentication for BGP", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    expect(result.diagnostics.some((item) => item.code === "security/missing-authentication")).toBe(
+      true,
+    );
+  });
+
+  it("passes authentication rule when password is configured", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        password "secret";
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    const diagnostics = result.diagnostics.filter(
+      (item) => item.code === "security/missing-authentication",
+    );
+    expect(diagnostics).toHaveLength(0);
+  });
+
+  it("reports complex filters by performance rule", async () => {
+    const statementLines = Array.from({ length: 60 }, (_, index) => `x${index} = ${index};`).join(
+      "\n",
+    );
+    const sample = `
+      filter massive_policy {
+        ${statementLines}
+        accept;
+      }
+    `;
+
+    const result = await lintBirdConfig(sample);
+    expect(
+      result.diagnostics.some((item) => item.code === "performance/large-filter-expression"),
+    ).toBe(true);
+  });
 });

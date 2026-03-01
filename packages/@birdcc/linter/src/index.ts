@@ -2,8 +2,10 @@ import { isIP } from "node:net";
 import { buildCoreSnapshotFromParsed, type BirdDiagnostic, type CoreSnapshot } from "@birdcc/core";
 import {
   parseBirdConfig,
+  type FilterDeclaration,
   type ParsedBirdDocument,
   type ProtocolDeclaration,
+  type ProtocolStatement,
   type SourceRange,
 } from "@birdcc/parser";
 
@@ -55,6 +57,8 @@ const createRangeDiagnostic = (
   },
 });
 
+const normalizeClause = (text: string): string => text.trim().replace(/\s+/g, " ").toLowerCase();
+
 const isBgpProtocol = (declaration: ProtocolDeclaration): boolean =>
   declaration.protocolType.toLowerCase() === "bgp";
 
@@ -65,6 +69,77 @@ const protocolDeclarations = (parsed: ParsedBirdDocument): ProtocolDeclaration[]
   parsed.program.declarations.filter(
     (declaration): declaration is ProtocolDeclaration => declaration.kind === "protocol",
   );
+
+const filterDeclarations = (parsed: ParsedBirdDocument): FilterDeclaration[] =>
+  parsed.program.declarations.filter(
+    (declaration): declaration is FilterDeclaration => declaration.kind === "filter",
+  );
+
+const PROTOCOL_STATEMENT_WHITELISTS: Record<string, Set<string>> = {
+  bgp: new Set([
+    "local as",
+    "neighbor",
+    "import",
+    "export",
+    "channel",
+    "next hop",
+    "password",
+    "authentication",
+    "md5",
+    "multihop",
+    "source",
+    "hold",
+    "keepalive",
+    "graceful",
+    "gateway",
+    "ttl",
+    "bfd",
+    "rr",
+    "route",
+  ]),
+  ospf: new Set(["area", "interface", "import", "export", "channel", "stub"]),
+  static: new Set(["route", "import", "export", "channel", "preference", "check"]),
+  direct: new Set(["interface", "import", "export", "channel", "check", "preference"]),
+};
+
+const statementKey = (statement: ProtocolStatement): string | null => {
+  if (statement.kind === "local-as") {
+    return "local as";
+  }
+
+  if (
+    statement.kind === "neighbor" ||
+    statement.kind === "import" ||
+    statement.kind === "export" ||
+    statement.kind === "channel"
+  ) {
+    return statement.kind;
+  }
+
+  const normalized = normalizeClause(statement.text).replace(/;$/, "");
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  if (normalized.startsWith("local as ")) {
+    return "local as";
+  }
+
+  if (normalized.startsWith("next hop ")) {
+    return "next hop";
+  }
+
+  if (normalized.startsWith("peer table ")) {
+    return "peer table";
+  }
+
+  if (normalized.startsWith("router id ")) {
+    return "router id";
+  }
+
+  const [firstToken] = normalized.split(" ");
+  return firstToken ?? null;
+};
 
 const bgpLocalAsRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
@@ -245,11 +320,148 @@ const bgpNextHopFormRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
+const invalidStatementInProtocolRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+
+  for (const declaration of protocolDeclarations(parsed)) {
+    const whitelist = PROTOCOL_STATEMENT_WHITELISTS[declaration.protocolType.toLowerCase()];
+    if (!whitelist) {
+      continue;
+    }
+
+    for (const statement of declaration.statements) {
+      const key = statementKey(statement);
+      if (!key || whitelist.has(key)) {
+        continue;
+      }
+
+      const snippet = statement.kind === "other" ? normalizeClause(statement.text) : key;
+      diagnostics.push(
+        createRangeDiagnostic(
+          "structure/invalid-statement-in-protocol",
+          `Protocol '${declaration.name}' (${declaration.protocolType}) contains invalid statement '${snippet}'`,
+          statement,
+        ),
+      );
+    }
+  }
+
+  return diagnostics;
+};
+
+const missingAuthenticationRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+  const authenticationPattern = /\b(password|authentication|md5|key)\b/i;
+
+  for (const declaration of protocolDeclarations(parsed)) {
+    if (!isBgpProtocol(declaration)) {
+      continue;
+    }
+
+    let hasAuthentication = false;
+    for (const statement of declaration.statements) {
+      if (statement.kind === "other" && authenticationPattern.test(statement.text)) {
+        hasAuthentication = true;
+        break;
+      }
+
+      if (statement.kind !== "channel") {
+        continue;
+      }
+
+      for (const entry of statement.entries) {
+        if (entry.kind === "other" && authenticationPattern.test(entry.text)) {
+          hasAuthentication = true;
+          break;
+        }
+      }
+
+      if (hasAuthentication) {
+        break;
+      }
+    }
+
+    if (hasAuthentication) {
+      continue;
+    }
+
+    diagnostics.push(
+      createProtocolDiagnostic(
+        "security/missing-authentication",
+        `BGP protocol '${declaration.name}' missing authentication configuration`,
+        declaration,
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
+const PERFORMANCE_THRESHOLDS = {
+  maxStatements: 50,
+  maxMatchOperators: 20,
+  maxExpressionLength: 500,
+  maxIfStatements: 10,
+};
+
+const largeFilterExpressionRule: BirdRule = ({ parsed }) => {
+  const diagnostics: BirdDiagnostic[] = [];
+
+  for (const declaration of filterDeclarations(parsed)) {
+    const statementCount = declaration.statements.length;
+    const matchCount = declaration.matches.length;
+    const ifCount = declaration.statements.filter((statement) => statement.kind === "if").length;
+    const maxExpressionLength = declaration.statements.reduce((maxValue, statement) => {
+      if (statement.kind === "expression") {
+        return Math.max(maxValue, statement.expressionText.length);
+      }
+      if (statement.kind === "other") {
+        return Math.max(maxValue, statement.text.length);
+      }
+      if (statement.kind === "if") {
+        return Math.max(maxValue, statement.conditionText?.length ?? 0);
+      }
+      return maxValue;
+    }, 0);
+
+    const exceeded: string[] = [];
+    if (statementCount > PERFORMANCE_THRESHOLDS.maxStatements) {
+      exceeded.push(`statements=${statementCount}`);
+    }
+    if (matchCount > PERFORMANCE_THRESHOLDS.maxMatchOperators) {
+      exceeded.push(`matches=${matchCount}`);
+    }
+    if (maxExpressionLength > PERFORMANCE_THRESHOLDS.maxExpressionLength) {
+      exceeded.push(`max-expression-length=${maxExpressionLength}`);
+    }
+    if (ifCount > PERFORMANCE_THRESHOLDS.maxIfStatements) {
+      exceeded.push(`if-statements=${ifCount}`);
+    }
+
+    if (exceeded.length === 0) {
+      continue;
+    }
+
+    diagnostics.push(
+      createRangeDiagnostic(
+        "performance/large-filter-expression",
+        `Filter '${declaration.name}' may be too complex (${exceeded.join(", ")})`,
+        declaration.nameRange,
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
 const defaultRules: BirdRule[] = [
   bgpLocalAsRule,
   bgpNeighborRule,
   ospfAreaRequiredRule,
   bgpNextHopFormRule,
+  invalidStatementInProtocolRule,
+  missingAuthenticationRule,
+  largeFilterExpressionRule,
 ];
 
 /** Runs parser + core + lint rules and returns merged diagnostics. */
