@@ -1,31 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseBirdConfig } from "../src/index.js";
 
-describe("@birdcc/parser prototype", () => {
-  it("detects multi-word phrases in bgp block", () => {
-    const sample = `
-      protocol bgp edge_peer {
-        local as 65001;
-        next hop self;
-      }
-    `;
-
-    const parsed = parseBirdConfig(sample);
-    const phrases = parsed.phraseMatches.map((item) => item.phrase);
-
-    expect(phrases).toContain("local as");
-    expect(phrases).toContain("next hop self");
-  });
-
-  it("does not merge through symbols", () => {
-    const sample = `local; as 65001;`;
-    const parsed = parseBirdConfig(sample);
-    const phrases = parsed.phraseMatches.map((item) => item.phrase);
-
-    expect(phrases).not.toContain("local as");
-  });
-
-  it("builds top-level DSL declarations", () => {
+describe("@birdcc/parser tree-sitter", () => {
+  it("builds top-level DSL declarations", async () => {
     const sample = `
       include "base.conf";
 
@@ -45,7 +22,7 @@ describe("@birdcc/parser prototype", () => {
       }
     `;
 
-    const parsed = parseBirdConfig(sample);
+    const parsed = await parseBirdConfig(sample);
     const kinds = parsed.program.declarations.map((item) => item.kind);
 
     expect(kinds).toEqual(["include", "template", "protocol", "filter", "function"]);
@@ -59,18 +36,51 @@ describe("@birdcc/parser prototype", () => {
     }
   });
 
-  it("keeps escaped quote inside string token", () => {
-    const sample = String.raw`include "dir/\"edge\".conf";`;
-    const parsed = parseBirdConfig(sample);
-    const includeDecl = parsed.program.declarations.find((item) => item.kind === "include");
+  it("extracts protocol common statements", async () => {
+    const sample = `
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        import all;
+        export filter policy_out;
+      }
+    `;
 
-    expect(includeDecl).toBeDefined();
-    if (includeDecl?.kind === "include") {
-      expect(includeDecl.path).toBe(String.raw`dir/\"edge\".conf`);
+    const parsed = await parseBirdConfig(sample);
+    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const localAs = protocol.statements.find((item) => item.kind === "local-as");
+      const neighbor = protocol.statements.find((item) => item.kind === "neighbor");
+      const importStatement = protocol.statements.find((item) => item.kind === "import");
+      const exportStatement = protocol.statements.find((item) => item.kind === "export");
+
+      expect(localAs?.kind).toBe("local-as");
+      if (localAs?.kind === "local-as") {
+        expect(localAs.asn).toBe("65001");
+      }
+
+      expect(neighbor?.kind).toBe("neighbor");
+      if (neighbor?.kind === "neighbor") {
+        expect(neighbor.address).toBe("192.0.2.1");
+        expect(neighbor.asn).toBe("65002");
+      }
+
+      expect(importStatement?.kind).toBe("import");
+      if (importStatement?.kind === "import") {
+        expect(importStatement.mode).toBe("all");
+      }
+
+      expect(exportStatement?.kind).toBe("export");
+      if (exportStatement?.kind === "export") {
+        expect(exportStatement.mode).toBe("filter");
+        expect(exportStatement.filterName).toBe("policy_out");
+      }
     }
   });
 
-  it("reports missing declaration symbols for incomplete headers", () => {
+  it("reports missing declaration symbols for incomplete headers", async () => {
     const sample = `
       include;
       define;
@@ -84,7 +94,7 @@ describe("@birdcc/parser prototype", () => {
       }
     `;
 
-    const parsed = parseBirdConfig(sample);
+    const parsed = await parseBirdConfig(sample);
     const messages = parsed.issues.map((item) => item.message);
 
     expect(messages).toContain("Missing path for include declaration");
@@ -93,12 +103,15 @@ describe("@birdcc/parser prototype", () => {
     expect(messages).toContain("Missing name for template declaration");
     expect(messages).toContain("Missing name for filter declaration");
     expect(messages).toContain("Missing name for function declaration");
+  });
 
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
-    expect(protocol).toBeDefined();
-    if (protocol?.kind === "protocol") {
-      expect(protocol.protocolType).toBe("bgp");
-      expect(protocol.name).toBe("");
-    }
+  it("reports unbalanced brace recovery issues", async () => {
+    const sample = `
+      protocol bgp edge {
+        local as 65001;
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues.some((item) => item.code === "parser/unbalanced-brace")).toBe(true);
   });
 });
