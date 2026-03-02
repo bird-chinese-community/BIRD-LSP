@@ -27,5 +27,8 @@
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
     "format": "oxfmt ."
+  },
+  "devDependencies": {
+    "mitata": "^1.0.34"
   }
 }
