@@ -264,7 +264,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "oxlint --deny-warnings src",
+    "lint": "oxlint --deny-warnings src test",
+    "test": "vitest run",
     "format": "oxfmt ."
   }
 }
