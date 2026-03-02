@@ -32,8 +32,17 @@ const runConfigurationLifecycle = async (
   >,
   lifecycle: ReturnType<typeof createBirdClientLifecycle>,
   createOrGetFallbackValidator: () => FallbackValidator,
+  isWorkspaceTrusted: boolean,
+  onWorkspaceTrustBlocked: () => void,
 ): Promise<void> => {
   runtimeState.configuration = change.current;
+
+  if (!isWorkspaceTrusted) {
+    disposeFallbackValidator();
+    await lifecycle.stop();
+    onWorkspaceTrustBlocked();
+    return;
+  }
 
   if (!change.current.enabled) {
     await lifecycle.stop();
@@ -63,6 +72,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     () => runtimeState.configuration,
     outputChannel,
   );
+  let workspaceTrustWarningShown = false;
   const createOrGetFallbackValidator = (): FallbackValidator => {
     if (!fallbackValidator) {
       fallbackValidator = createFallbackValidator(
@@ -74,22 +84,41 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
     return fallbackValidator;
   };
+  const onWorkspaceTrustBlocked = (): void => {
+    if (workspaceTrustWarningShown) {
+      return;
+    }
+
+    outputChannel.appendLine(
+      "[bird2-lsp] workspace is untrusted; language client and fallback validator are disabled",
+    );
+    workspaceTrustWarningShown = true;
+  };
+  const runLifecycle = (
+    change: ReturnType<
+      ReturnType<typeof createConfigurationManager>["refreshFromWorkspace"]
+    >,
+  ): Promise<void> => {
+    if (workspace.isTrusted) {
+      workspaceTrustWarningShown = false;
+    }
+
+    return runConfigurationLifecycle(
+      change,
+      lifecycle,
+      createOrGetFallbackValidator,
+      workspace.isTrusted,
+      onWorkspaceTrustBlocked,
+    );
+  };
 
   const initialChange =
     configurationManager.refreshFromWorkspace("initial-load");
-  await runConfigurationLifecycle(
-    initialChange,
-    lifecycle,
-    createOrGetFallbackValidator,
-  );
+  await runLifecycle(initialChange);
 
   context.subscriptions.push(
     configurationManager.onDidChange((event) => {
-      void runConfigurationLifecycle(
-        event,
-        lifecycle,
-        createOrGetFallbackValidator,
-      );
+      void runLifecycle(event);
     }),
   );
 
@@ -100,6 +129,14 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       }
 
       configurationManager.refreshFromWorkspace("workspace-change");
+    }),
+  );
+  context.subscriptions.push(
+    workspace.onDidGrantWorkspaceTrust(() => {
+      workspaceTrustWarningShown = false;
+      const change =
+        configurationManager.refreshFromWorkspace("workspace-change");
+      void runLifecycle(change);
     }),
   );
 

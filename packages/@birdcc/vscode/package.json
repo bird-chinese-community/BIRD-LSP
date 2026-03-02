@@ -129,7 +129,7 @@
           "type": "string",
           "default": "bird -p -c {file}",
           "markdownDescription": "Command template for fallback validation. `{file}` will be replaced with current file path.",
-          "scope": "resource"
+          "scope": "machine-overridable"
         },
         "bird2-lsp.validation.onSave": {
           "type": "boolean",

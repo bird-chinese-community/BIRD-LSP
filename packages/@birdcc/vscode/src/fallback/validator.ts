@@ -14,6 +14,7 @@ import {
 } from "vscode";
 
 import { LANGUAGE_ID } from "../constants.js";
+import { resolveValidationCommandTemplate } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
 
@@ -26,19 +27,6 @@ export interface FallbackValidator {
   dispose: () => void;
 }
 
-const splitCommandLine = (commandLine: string): string[] => {
-  const tokens = commandLine.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
-  return tokens.map((token) => token.replace(/^['"]|['"]$/g, ""));
-};
-
-const renderCommandTemplate = (
-  commandTemplate: string,
-  filePath: string,
-): string[] => {
-  const rendered = commandTemplate.replaceAll("{file}", filePath);
-  return splitCommandLine(rendered);
-};
-
 const isBirdDocument = (document: TextDocument): boolean =>
   document.languageId === LANGUAGE_ID && document.uri.scheme === "file";
 
@@ -49,6 +37,7 @@ export const createFallbackValidator = (
   const diagnosticCollection =
     languages.createDiagnosticCollection("bird2-fallback");
   const disposables: Disposable[] = [];
+  let trustWarningShown = false;
 
   const clearDocumentDiagnostics = (document: TextDocument): void => {
     diagnosticCollection.delete(document.uri);
@@ -65,16 +54,32 @@ export const createFallbackValidator = (
       return;
     }
 
-    const command = renderCommandTemplate(
+    if (!workspace.isTrusted) {
+      clearDocumentDiagnostics(document);
+      if (!trustWarningShown) {
+        outputChannel.appendLine(
+          "[bird2-lsp] workspace is untrusted; skip fallback validation command execution",
+        );
+        trustWarningShown = true;
+      }
+      return;
+    }
+
+    trustWarningShown = false;
+
+    const command = resolveValidationCommandTemplate(
       configuration.validationCommand,
       document.uri.fsPath,
     );
-    if (command.length === 0) {
+    if (!command.ok) {
+      outputChannel.appendLine(
+        `[bird2-lsp] validation command rejected: ${command.reason}`,
+      );
       clearDocumentDiagnostics(document);
       return;
     }
 
-    const [bin, ...args] = command;
+    const { command: bin, args } = command.value;
     outputChannel.appendLine(
       `[bird2-lsp] fallback validate: ${[bin, ...args].join(" ")}`,
     );
@@ -139,6 +144,13 @@ export const createFallbackValidator = (
         }
 
         void validateDocument(document);
+      }),
+    );
+
+    disposables.push(
+      workspace.onDidGrantWorkspaceTrust(() => {
+        trustWarningShown = false;
+        void validateActiveEditor();
       }),
     );
 
