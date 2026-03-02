@@ -89,7 +89,7 @@ describe("@birdcc/lsp validation scheduler", () => {
     scheduler.close(uri);
 
     resolveValidation?.([{ code: "stale-result" }]);
-    await Promise.resolve();
+    await vi.waitUntil(() => publish.mock.calls.length === 1);
 
     expect(publish).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledWith({
@@ -132,7 +132,7 @@ describe("@birdcc/lsp validation scheduler", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     resolveFirstValidation?.([{ code: "stale-v1" }]);
-    await Promise.resolve();
+    await vi.waitUntil(() => publish.mock.calls.length === 2);
 
     expect(publish).toHaveBeenCalledTimes(2);
     expect(publish.mock.calls[0]?.[0]).toEqual({
@@ -145,5 +145,68 @@ describe("@birdcc/lsp validation scheduler", () => {
       version: 2,
       diagnostics: [{ code: "v2" }],
     });
+  });
+
+  it("drops older in-flight diagnostics when a newer validation for same uri completes", async () => {
+    vi.useFakeTimers();
+
+    let resolveFirstValidation: ((value: MockDiagnostic[]) => void) | null =
+      null;
+    const validate = vi.fn(
+      (document: MockDocument): Promise<MockDiagnostic[]> => {
+        if (document.version === 1) {
+          return new Promise((resolve) => {
+            resolveFirstValidation = resolve;
+          });
+        }
+
+        return Promise.resolve([{ code: "fresh-v2" }]);
+      },
+    );
+    const publish =
+      vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+    const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
+      debounceMs: 1,
+      validate,
+      publish,
+    });
+
+    const uri = "file:///bird.conf";
+    scheduler.schedule(createDocument(uri, "v1", 1));
+    await vi.advanceTimersByTimeAsync(1);
+
+    scheduler.schedule(createDocument(uri, "v2", 2));
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitUntil(() => publish.mock.calls.length === 1);
+
+    resolveFirstValidation?.([{ code: "stale-v1" }]);
+    await vi.waitUntil(() => publish.mock.calls.length === 1);
+
+    expect(publish.mock.calls[0]?.[0]).toEqual({
+      uri,
+      version: 2,
+      diagnostics: [{ code: "fresh-v2" }],
+    });
+  });
+
+  it("publishes empty diagnostics when closing unknown uri", () => {
+    const validate = vi.fn(async () => []);
+    const publish =
+      vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+    const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
+      debounceMs: 1,
+      validate,
+      publish,
+    });
+
+    scheduler.close("file:///missing.conf");
+
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith({
+      uri: "file:///missing.conf",
+      version: undefined,
+      diagnostics: [],
+    });
+    expect(validate).not.toHaveBeenCalled();
   });
 });
