@@ -3,6 +3,8 @@ import type { ExtensionContext } from "vscode";
 
 import {
   CONFIG_SECTION,
+  DEFAULT_FORMATTER_ENGINE,
+  DEFAULT_FORMATTER_SAFE_MODE,
   DEFAULT_SERVER_PATH,
   DEFAULT_VALIDATION_COMMAND,
 } from "./constants.js";
@@ -23,13 +25,10 @@ const readConfiguration = () => {
       "validation.command",
       DEFAULT_VALIDATION_COMMAND,
     ),
-    formatterEngine: config.get(
-      "formatter.engine",
-      runtimeState.configuration.formatterEngine,
-    ),
+    formatterEngine: config.get("formatter.engine", DEFAULT_FORMATTER_ENGINE),
     formatterSafeMode: config.get(
       "formatter.safeMode",
-      runtimeState.configuration.formatterSafeMode,
+      DEFAULT_FORMATTER_SAFE_MODE,
     ),
   });
 };

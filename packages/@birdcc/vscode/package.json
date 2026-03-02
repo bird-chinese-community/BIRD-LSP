@@ -48,8 +48,7 @@
         ],
         "extensions": [
           ".bird",
-          ".bird2",
-          ".conf"
+          ".bird2"
         ],
         "filenames": [
           "bird.conf",
