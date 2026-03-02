@@ -38,3 +38,18 @@ Example:
   "bird2-lsp.performance.maxFileSizeBytes": 4194304
 }
 ```
+
+## Startup Timeout Guard
+
+`bird2-lsp.performance.startupTimeoutMs` limits how long extension startup waits for the language server to become ready.
+
+- If startup exceeds this timeout, the extension logs a warning and keeps fallback validation available.
+- This helps avoid long activation stalls when server binaries are slow or unavailable.
+
+Example:
+
+```json
+{
+  "bird2-lsp.performance.startupTimeoutMs": 15000
+}
+```

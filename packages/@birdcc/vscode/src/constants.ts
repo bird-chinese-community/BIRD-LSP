@@ -16,6 +16,7 @@ export const DEFAULT_VALIDATION_COMMAND = "bird -p -c {file}";
 export const DEFAULT_VALIDATION_ON_SAVE = true;
 export const DEFAULT_VALIDATION_TIMEOUT_MS = 30000;
 export const DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+export const DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS = 10000;
 export const DEFAULT_FORMATTER_ENGINE = "dprint" as const;
 export const DEFAULT_FORMATTER_SAFE_MODE = true;
 export const DEFAULT_TYPE_HINTS_ENABLED = true;

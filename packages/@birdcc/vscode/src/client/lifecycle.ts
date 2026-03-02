@@ -50,6 +50,30 @@ export const createBirdClientLifecycle = (
     }
   };
 
+  const startClientWithTimeout = async (
+    client: LanguageClient,
+    startupTimeoutMs: number,
+  ): Promise<void> => {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const startupTimeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(
+          new Error(
+            `language client startup timed out after ${startupTimeoutMs}ms`,
+          ),
+        );
+      }, startupTimeoutMs);
+    });
+
+    try {
+      await Promise.race([client.start(), startupTimeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  };
+
   const start = async (configuration: ExtensionConfiguration): Promise<void> =>
     runExclusive(async () => {
       if (state === "running") {
@@ -61,10 +85,20 @@ export const createBirdClientLifecycle = (
 
       try {
         activeClient = createLanguageClient(configuration, outputChannel);
-        await activeClient.start();
+        await startClientWithTimeout(
+          activeClient,
+          configuration.lspStartupTimeoutMs,
+        );
         setState("running");
         outputChannel.appendLine("[bird2-lsp] language client started");
       } catch (error) {
+        if (activeClient) {
+          try {
+            await activeClient.stop();
+          } catch {
+            // best effort cleanup; startup may already be partially failed
+          }
+        }
         setState("error");
         activeClient = undefined;
         outputChannel.appendLine(
@@ -105,7 +139,10 @@ export const createBirdClientLifecycle = (
 
       setState("starting");
       activeClient = createLanguageClient(configuration, outputChannel);
-      await activeClient.start();
+      await startClientWithTimeout(
+        activeClient,
+        configuration.lspStartupTimeoutMs,
+      );
       setState("running");
       outputChannel.appendLine("[bird2-lsp] language client restarted");
     });

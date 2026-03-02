@@ -215,6 +215,14 @@
           "markdownDescription": "Skip expensive extension features when file size exceeds this byte threshold.",
           "scope": "resource"
         },
+        "bird2-lsp.performance.startupTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "markdownDescription": "Timeout for language server startup before the extension falls back to lightweight validation.",
+          "scope": "resource"
+        },
         "bird2-lsp.formatter.engine": {
           "type": "string",
           "enum": [

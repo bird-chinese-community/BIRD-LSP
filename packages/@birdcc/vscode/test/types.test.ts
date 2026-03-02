@@ -12,12 +12,14 @@ describe("extension configuration parsing", () => {
       enabled: false,
       validationTimeoutMs: 45_000,
       performanceMaxFileSizeBytes: 4 * 1024 * 1024,
+      lspStartupTimeoutMs: 15_000,
       formatterEngine: "builtin",
     });
 
     expect(parsed.enabled).toBe(false);
     expect(parsed.validationTimeoutMs).toBe(45_000);
     expect(parsed.performanceMaxFileSizeBytes).toBe(4 * 1024 * 1024);
+    expect(parsed.lspStartupTimeoutMs).toBe(15_000);
     expect(parsed.formatterEngine).toBe("builtin");
   });
 
@@ -25,6 +27,7 @@ describe("extension configuration parsing", () => {
     const parsed = parseExtensionConfiguration({
       ...defaultExtensionConfiguration,
       performanceMaxFileSizeBytes: 32,
+      lspStartupTimeoutMs: 100,
     });
 
     expect(parsed).toEqual(defaultExtensionConfiguration);

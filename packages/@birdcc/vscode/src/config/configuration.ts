@@ -20,6 +20,7 @@ import {
   DEFAULT_VALIDATION_ON_SAVE,
   DEFAULT_VALIDATION_TIMEOUT_MS,
   DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
+  DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
   RESTART_REQUIRED_CONFIGURATION_PATHS,
 } from "../constants.js";
 import {
@@ -77,6 +78,10 @@ const readWorkspaceConfiguration = (): ExtensionConfiguration => {
     performanceMaxFileSizeBytes: config.get(
       "performance.maxFileSizeBytes",
       DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
+    ),
+    lspStartupTimeoutMs: config.get(
+      "performance.startupTimeoutMs",
+      DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
     ),
     formatterEngine: config.get("formatter.engine", DEFAULT_FORMATTER_ENGINE),
     formatterSafeMode: config.get(
