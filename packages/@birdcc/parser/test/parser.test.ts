@@ -115,6 +115,42 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("recognizes all supported table type declarations", async () => {
+    const sample = `
+      routing table t_routing;
+      ipv4 table t_ipv4;
+      ipv6 table t_ipv6;
+      vpn4 table t_vpn4;
+      vpn6 table t_vpn6;
+      roa4 table t_roa4;
+      roa6 table t_roa6;
+      flow4 table t_flow4;
+      flow6 table t_flow6;
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const tables = parsed.program.declarations.filter(
+      (item) => item.kind === "table",
+    );
+
+    const tableTypes = tables.map((item) =>
+      item.kind === "table" ? item.tableType : "unknown",
+    );
+
+    expect(tableTypes).toEqual([
+      "routing",
+      "ipv4",
+      "ipv6",
+      "vpn4",
+      "vpn6",
+      "roa4",
+      "roa6",
+      "flow4",
+      "flow6",
+    ]);
+    expect(tableTypes).not.toContain("unknown");
+  });
+
   it("extracts protocol common statements and channel entries", async () => {
     const sample = `
       protocol bgp edge_peer {
