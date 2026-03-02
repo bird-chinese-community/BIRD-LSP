@@ -1,7 +1,11 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
+    ".agents/*",
+    ".claude/*",
+    "refer/*",
     "package.json",
+    "node_modules/*",
     "dist/*",
     ".turbo/*",
     "target/*",
