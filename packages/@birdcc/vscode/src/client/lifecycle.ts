@@ -24,6 +24,10 @@ export interface BirdClientLifecycleOptions {
   readonly onStateChange?: (state: ClientLifecycleState) => void;
 }
 
+class StartupTimeoutError extends Error {
+  public readonly code = "BIRD2_LSP_STARTUP_TIMEOUT";
+}
+
 export const createBirdClientLifecycle = (
   outputChannel: OutputChannel,
   options: BirdClientLifecycleOptions = {},
@@ -31,15 +35,32 @@ export const createBirdClientLifecycle = (
   let state: ClientLifecycleState = "idle";
   let activeClient: LanguageClient | undefined;
   let activeOperation: Promise<void> | undefined;
+  let pendingStartupCleanup: Promise<void> | undefined;
   const setState = (nextState: ClientLifecycleState): void => {
     state = nextState;
     options.onStateChange?.(nextState);
   };
 
+  const awaitPendingStartupCleanup = async (): Promise<void> => {
+    while (pendingStartupCleanup) {
+      const currentCleanup = pendingStartupCleanup;
+      await currentCleanup;
+      if (pendingStartupCleanup === currentCleanup) {
+        pendingStartupCleanup = undefined;
+      }
+    }
+  };
+
   const runExclusive = async (operation: () => Promise<void>) => {
     while (activeOperation) {
-      await activeOperation;
+      try {
+        await activeOperation;
+      } catch {
+        // previous operation failure must not block queued lifecycle operations
+      }
     }
+
+    await awaitPendingStartupCleanup();
 
     const operationPromise = operation();
     activeOperation = operationPromise;
@@ -55,18 +76,43 @@ export const createBirdClientLifecycle = (
     startupTimeoutMs: number,
   ): Promise<void> => {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-    const startupTimeoutPromise = new Promise<never>((_, reject) => {
+    const startPromise = client.start();
+    const startupTimeoutPromise = new Promise<"timed-out">((resolve) => {
       timeoutHandle = setTimeout(() => {
-        reject(
-          new Error(
-            `language client startup timed out after ${startupTimeoutMs}ms`,
-          ),
-        );
+        resolve("timed-out");
       }, startupTimeoutMs);
     });
 
     try {
-      await Promise.race([client.start(), startupTimeoutPromise]);
+      const result = await Promise.race([
+        startPromise.then(() => "started" as const),
+        startupTimeoutPromise,
+      ]);
+
+      if (result !== "timed-out") {
+        return;
+      }
+
+      const timeoutError = new StartupTimeoutError(
+        `language client startup timed out after ${startupTimeoutMs}ms`,
+      );
+      pendingStartupCleanup = (async () => {
+        try {
+          await startPromise;
+        } catch {
+          return;
+        }
+
+        try {
+          await client.stop();
+        } catch (error) {
+          outputChannel.appendLine(
+            `[bird2-lsp] startup-timeout cleanup stop failed: ${toSanitizedErrorDetails(error)}`,
+          );
+        }
+      })();
+      await pendingStartupCleanup;
+      throw timeoutError;
     } finally {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
@@ -92,7 +138,7 @@ export const createBirdClientLifecycle = (
         setState("running");
         outputChannel.appendLine("[bird2-lsp] language client started");
       } catch (error) {
-        if (activeClient) {
+        if (activeClient && !(error instanceof StartupTimeoutError)) {
           try {
             await activeClient.stop();
           } catch {
