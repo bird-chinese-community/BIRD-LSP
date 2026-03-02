@@ -12,7 +12,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MUST DO: 每次回答前都应该自行在 ./.agents/skills/INDEX.md 中查找相关技能/最佳实践，以便在需要时调用它们来完成特定任务。
 
-MUST DO: 每个 PR 合并前都需要等待至少 180s 的时间，以便让 CI 系统和 Auto Reviewer 有足够的时间检测到潜在的问题。
+MUST DO: 每个 PR 合并前都需要等待至少 180s 的时间，以便让 CI 系统和 Auto Reviewer 有足够的时间检测到潜在的问题，在修复问题后应立即回复 review 并再次等待至少 120s。
+
+如果是来自 Gemini 的 review，你修复并回复后应该再开一条评论：
+
+```
+@gemini-code-assist /gemini
+
+Review again: Conduct an in-depth analysis of the latest PR's code logic capabilities, conditional operations, coupling, security vulnerabilities, performance issues, DRY violations, and more.
+
+The review time MUST BE kept within 100 seconds.
+```
 
 ## Project Overview
 
