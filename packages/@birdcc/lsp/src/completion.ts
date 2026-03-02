@@ -64,7 +64,8 @@ export interface CompletionContextOptions {
 }
 
 const isFromTemplateContext = (linePrefix: string): boolean =>
-  /\bfrom\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) || /\bfrom\s*$/i.test(linePrefix);
+  /\bfrom\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) ||
+  /\bfrom\s*$/i.test(linePrefix);
 
 const isIncludePathContext = (linePrefix: string): boolean =>
   /\binclude\s+["'][^"']*$/i.test(linePrefix);
@@ -74,7 +75,8 @@ const isFilterContext = (linePrefix: string): boolean =>
   /\b(?:import|export)\s+filter\s*$/i.test(linePrefix);
 
 const isTableContext = (linePrefix: string): boolean =>
-  /\btable\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) || /\btable\s*$/i.test(linePrefix);
+  /\btable\s+[A-Za-z_][A-Za-z0-9_]*$/i.test(linePrefix) ||
+  /\btable\s*$/i.test(linePrefix);
 
 const allDeclarations = (
   parsed: ParsedBirdDocument,
@@ -132,7 +134,9 @@ const includePathCompletionItems = (
 
 const collectDeclarationCompletionItems = (
   declarations: ParsedBirdDocument["program"]["declarations"],
-  predicate: (declaration: ParsedBirdDocument["program"]["declarations"][number]) => boolean,
+  predicate: (
+    declaration: ParsedBirdDocument["program"]["declarations"][number],
+  ) => boolean,
 ): CompletionItem[] => {
   const items: CompletionItem[] = [];
   const seen = new Set<string>();
@@ -161,17 +165,26 @@ const collectDeclarationCompletionItems = (
 const templateCompletionItems = (
   declarations: ParsedBirdDocument["program"]["declarations"],
 ): CompletionItem[] =>
-  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "template");
+  collectDeclarationCompletionItems(
+    declarations,
+    (declaration) => declaration.kind === "template",
+  );
 
 const filterCompletionItems = (
   declarations: ParsedBirdDocument["program"]["declarations"],
 ): CompletionItem[] =>
-  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "filter");
+  collectDeclarationCompletionItems(
+    declarations,
+    (declaration) => declaration.kind === "filter",
+  );
 
 const tableCompletionItems = (
   declarations: ParsedBirdDocument["program"]["declarations"],
 ): CompletionItem[] =>
-  collectDeclarationCompletionItems(declarations, (declaration) => declaration.kind === "table");
+  collectDeclarationCompletionItems(
+    declarations,
+    (declaration) => declaration.kind === "table",
+  );
 
 const declarationCompletionItems = (
   declarations: ParsedBirdDocument["program"]["declarations"],

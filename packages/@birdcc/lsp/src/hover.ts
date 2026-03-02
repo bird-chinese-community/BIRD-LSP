@@ -1,9 +1,19 @@
-import { type Hover, type Position, type Range } from "vscode-languageserver/node.js";
+import {
+  type Hover,
+  type Position,
+  type Range,
+} from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ParsedBirdDocument } from "@birdcc/parser";
-import { declarationMetadata, isPositionInRange, KEYWORD_DOCS, toLspRange } from "./shared.js";
+import {
+  declarationMetadata,
+  isPositionInRange,
+  KEYWORD_DOCS,
+  toLspRange,
+} from "./shared.js";
 
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const keywordAtPosition = (
   document: TextDocument,
@@ -16,7 +26,9 @@ const keywordAtPosition = (
     return null;
   }
 
-  const keywords = Object.keys(KEYWORD_DOCS).sort((left, right) => right.length - left.length);
+  const keywords = Object.keys(KEYWORD_DOCS).sort(
+    (left, right) => right.length - left.length,
+  );
   for (const keyword of keywords) {
     const keywordPattern = new RegExp(
       `\\b${escapeRegExp(keyword).replaceAll("\\ ", "\\\\s+")}\\b`,

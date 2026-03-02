@@ -14,6 +14,8 @@ describe("@birdcc/linter smoke", () => {
     const result = await lintBirdConfig(sample);
 
     expect(Array.isArray(result.diagnostics)).toBe(true);
-    expect(result.diagnostics.every((item) => item.code.includes("/"))).toBe(true);
+    expect(result.diagnostics.every((item) => item.code.includes("/"))).toBe(
+      true,
+    );
   });
 });

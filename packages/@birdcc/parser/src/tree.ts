@@ -1,7 +1,10 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { SourceRange } from "./types.js";
 
-const byteOffsetToCodeUnitIndex = (bytes: Buffer, byteOffset: number): number => {
+const byteOffsetToCodeUnitIndex = (
+  bytes: Buffer,
+  byteOffset: number,
+): number => {
   const clampedOffset = Math.max(0, Math.min(byteOffset, bytes.length));
   return bytes.subarray(0, clampedOffset).toString("utf8").length;
 };
@@ -37,13 +40,20 @@ const isUtf8CacheExpired = (): boolean => {
 const utf8BytesOf = (source: string): Buffer => {
   const estimatedBytes = Buffer.byteLength(source, "utf8");
   if (estimatedBytes > UTF8_CACHE_LIMIT_BYTES) {
-    if (cachedUtf8Bytes && cachedUtf8Bytes.length > UTF8_CACHE_LIMIT_BYTES / 2) {
+    if (
+      cachedUtf8Bytes &&
+      cachedUtf8Bytes.length > UTF8_CACHE_LIMIT_BYTES / 2
+    ) {
       clearTextCaches();
     }
     return Buffer.from(source, "utf8");
   }
 
-  if (cachedSourceForBytes !== source || !cachedUtf8Bytes || isUtf8CacheExpired()) {
+  if (
+    cachedSourceForBytes !== source ||
+    !cachedUtf8Bytes ||
+    isUtf8CacheExpired()
+  ) {
     cachedSourceForBytes = source;
     cachedUtf8Bytes = Buffer.from(source, "utf8");
     cachedUtf8BytesVersion += 1;
@@ -63,7 +73,8 @@ const nodeCodeUnitSpan = (
   const startIndex = node.startIndex;
   const endIndex = node.endIndex;
 
-  const inBounds = startIndex >= 0 && endIndex >= startIndex && endIndex <= source.length;
+  const inBounds =
+    startIndex >= 0 && endIndex >= startIndex && endIndex <= source.length;
   if (inBounds && source.slice(startIndex, endIndex) === node.text) {
     return { startIndex, endIndex };
   }
@@ -156,7 +167,10 @@ export const toRange = (node: SyntaxNode, source?: string): SourceRange => {
   };
 };
 
-export const mergeRanges = (start: SourceRange, end: SourceRange): SourceRange => ({
+export const mergeRanges = (
+  start: SourceRange,
+  end: SourceRange,
+): SourceRange => ({
   line: start.line,
   column: start.column,
   endLine: end.endLine,
@@ -168,12 +182,14 @@ export const textOf = (node: SyntaxNode, source: string): string => {
   return source.slice(startIndex, endIndex);
 };
 
-export const stripQuotes = (value: string): string => value.replace(/^['"]|['"]$/g, "");
+export const stripQuotes = (value: string): string =>
+  value.replace(/^['"]|['"]$/g, "");
 
 export const isPresentNode = (node: SyntaxNode | null): node is SyntaxNode =>
   Boolean(node && !node.isMissing && !node.isError);
 
-export const cacheUtf8BytesForTests = (source: string): number => utf8BytesOf(source).length;
+export const cacheUtf8BytesForTests = (source: string): number =>
+  utf8BytesOf(source).length;
 
 export const getUtf8CacheStateForTests = (): {
   hasCache: boolean;

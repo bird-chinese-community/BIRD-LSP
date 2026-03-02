@@ -1,5 +1,9 @@
 import { isIP } from "node:net";
-import type { BirdDiagnostic, BirdDiagnosticSeverity, CoreSnapshot } from "@birdcc/core";
+import type {
+  BirdDiagnostic,
+  BirdDiagnosticSeverity,
+  CoreSnapshot,
+} from "@birdcc/core";
 import type {
   BirdDeclaration,
   FilterBodyStatement,
@@ -76,29 +80,44 @@ export const withSeverity = (
   severity: RULE_SEVERITY[code],
 });
 
-export const protocolDeclarations = (parsed: ParsedBirdDocument): ProtocolDeclaration[] =>
+export const protocolDeclarations = (
+  parsed: ParsedBirdDocument,
+): ProtocolDeclaration[] =>
   parsed.program.declarations.filter(
-    (declaration): declaration is ProtocolDeclaration => declaration.kind === "protocol",
+    (declaration): declaration is ProtocolDeclaration =>
+      declaration.kind === "protocol",
   );
 
-export const templateDeclarations = (parsed: ParsedBirdDocument): TemplateDeclaration[] =>
+export const templateDeclarations = (
+  parsed: ParsedBirdDocument,
+): TemplateDeclaration[] =>
   parsed.program.declarations.filter(
-    (declaration): declaration is TemplateDeclaration => declaration.kind === "template",
+    (declaration): declaration is TemplateDeclaration =>
+      declaration.kind === "template",
   );
 
-export const tableDeclarations = (parsed: ParsedBirdDocument): TableDeclaration[] =>
+export const tableDeclarations = (
+  parsed: ParsedBirdDocument,
+): TableDeclaration[] =>
   parsed.program.declarations.filter(
-    (declaration): declaration is TableDeclaration => declaration.kind === "table",
+    (declaration): declaration is TableDeclaration =>
+      declaration.kind === "table",
   );
 
-export const filterDeclarations = (parsed: ParsedBirdDocument): FilterDeclaration[] =>
+export const filterDeclarations = (
+  parsed: ParsedBirdDocument,
+): FilterDeclaration[] =>
   parsed.program.declarations.filter(
-    (declaration): declaration is FilterDeclaration => declaration.kind === "filter",
+    (declaration): declaration is FilterDeclaration =>
+      declaration.kind === "filter",
   );
 
-export const functionDeclarations = (parsed: ParsedBirdDocument): FunctionDeclaration[] =>
+export const functionDeclarations = (
+  parsed: ParsedBirdDocument,
+): FunctionDeclaration[] =>
   parsed.program.declarations.filter(
-    (declaration): declaration is FunctionDeclaration => declaration.kind === "function",
+    (declaration): declaration is FunctionDeclaration =>
+      declaration.kind === "function",
   );
 
 export const filterAndFunctionDeclarations = (
@@ -109,13 +128,21 @@ export const filterAndFunctionDeclarations = (
       declaration.kind === "filter" || declaration.kind === "function",
   );
 
-export const routerIdDeclarations = (parsed: ParsedBirdDocument): BirdDeclaration[] =>
-  parsed.program.declarations.filter((declaration) => declaration.kind === "router-id");
+export const routerIdDeclarations = (
+  parsed: ParsedBirdDocument,
+): BirdDeclaration[] =>
+  parsed.program.declarations.filter(
+    (declaration) => declaration.kind === "router-id",
+  );
 
-export const isProtocolType = (declaration: ProtocolDeclaration, expected: string): boolean =>
-  declaration.protocolType.toLowerCase() === expected;
+export const isProtocolType = (
+  declaration: ProtocolDeclaration,
+  expected: string,
+): boolean => declaration.protocolType.toLowerCase() === expected;
 
-export const protocolOtherStatements = (declaration: ProtocolDeclaration): ProtocolStatement[] =>
+export const protocolOtherStatements = (
+  declaration: ProtocolDeclaration,
+): ProtocolStatement[] =>
   declaration.statements.filter((statement) => statement.kind === "other");
 
 export const protocolOtherTextEntries = (
@@ -148,7 +175,11 @@ export const protocolOtherTextEntries = (
 export const channelOtherEntries = (
   declaration: ProtocolDeclaration,
 ): Array<{ channelType: string; text: string; range: SourceRange }> => {
-  const entries: Array<{ channelType: string; text: string; range: SourceRange }> = [];
+  const entries: Array<{
+    channelType: string;
+    text: string;
+    range: SourceRange;
+  }> = [];
 
   for (const statement of declaration.statements) {
     if (statement.kind !== "channel") {
@@ -185,7 +216,10 @@ export const numericValue = (value: string | undefined): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-export const extractFirstNumberAfterKeyword = (text: string, keyword: string): number | null => {
+export const extractFirstNumberAfterKeyword = (
+  text: string,
+  keyword: string,
+): number | null => {
   const pattern = new RegExp(`${keyword}\\s+(-?\\d+)`, "i");
   const matched = text.match(pattern);
   return numericValue(matched?.[1]);
@@ -266,7 +300,10 @@ export const isPrefixLiteral = (value: string): boolean => {
 export const eachFilterBodyExpression = (
   parsed: ParsedBirdDocument,
 ): Array<{ statement: FilterBodyStatement; declarationName: string }> => {
-  const list: Array<{ statement: FilterBodyStatement; declarationName: string }> = [];
+  const list: Array<{
+    statement: FilterBodyStatement;
+    declarationName: string;
+  }> = [];
 
   for (const declaration of filterAndFunctionDeclarations(parsed)) {
     for (const statement of declaration.statements) {
@@ -282,7 +319,9 @@ export const findTemplateByName = (
   templateName: string,
 ): TemplateDeclaration | undefined => {
   const lowered = templateName.toLowerCase();
-  return templateDeclarations(parsed).find((item) => item.name.toLowerCase() === lowered);
+  return templateDeclarations(parsed).find(
+    (item) => item.name.toLowerCase() === lowered,
+  );
 };
 
 export const hasSymbolKind = (

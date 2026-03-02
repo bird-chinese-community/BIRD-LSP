@@ -2,7 +2,9 @@ import type { DocumentSymbol } from "vscode-languageserver/node.js";
 import type { ParsedBirdDocument } from "@birdcc/parser";
 import { declarationMetadata, toLspRange } from "./shared.js";
 
-export const createDocumentSymbolsFromParsed = (parsed: ParsedBirdDocument): DocumentSymbol[] => {
+export const createDocumentSymbolsFromParsed = (
+  parsed: ParsedBirdDocument,
+): DocumentSymbol[] => {
   const symbols: DocumentSymbol[] = [];
 
   for (const declaration of parsed.program.declarations) {

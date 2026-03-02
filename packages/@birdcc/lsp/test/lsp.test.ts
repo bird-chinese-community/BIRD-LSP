@@ -61,7 +61,10 @@ describe("@birdcc/lsp", () => {
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 14 });
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: 14,
+    });
 
     expect(hover?.contents).toBeDefined();
   });
@@ -71,7 +74,10 @@ describe("@birdcc/lsp", () => {
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 1 });
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: 1,
+    });
 
     expect(hover?.contents).toBeDefined();
   });
@@ -81,12 +87,15 @@ describe("@birdcc/lsp", () => {
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 12 });
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: 12,
+    });
 
     expect(hover?.contents).toBeDefined();
-    expect(hover && typeof hover.contents !== "string" ? hover.contents.value : "").toContain(
-      "unsafe\\`name.conf",
-    );
+    expect(
+      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
+    ).toContain("unsafe\\`name.conf");
   });
 
   it("creates hover for multi-word keyword phrase", async () => {
@@ -94,7 +103,10 @@ describe("@birdcc/lsp", () => {
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 28 });
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: 28,
+    });
 
     expect(hover?.contents).toBeDefined();
   });
@@ -104,7 +116,10 @@ describe("@birdcc/lsp", () => {
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, { line: 0, character: 8 });
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: 8,
+    });
 
     expect(hover?.contents).toBeDefined();
   });
@@ -159,7 +174,9 @@ describe("@birdcc/lsp", () => {
       template bgp edge_tpl {}
     `);
 
-    const items = createCompletionItemsFromParsed(parsed, { linePrefix: 'include "' });
+    const items = createCompletionItemsFromParsed(parsed, {
+      linePrefix: 'include "',
+    });
     const labels = items.map((item) => item.label);
 
     expect(labels).toContain("base.conf");
@@ -172,7 +189,9 @@ describe("@birdcc/lsp", () => {
       template bgp edge_tpl {}
     `);
 
-    const items = createCompletionItemsFromParsed(parsed, { linePrefix: 'include "' });
+    const items = createCompletionItemsFromParsed(parsed, {
+      linePrefix: 'include "',
+    });
 
     expect(items).toEqual([]);
   });
@@ -275,7 +294,11 @@ describe("@birdcc/lsp", () => {
       { line: 0, character: 25 },
       "protocol bgp edge from edge_tpl {}",
     );
-    expect(referenceLocations.map((item) => item.uri)).toContain("file:///templates.conf");
-    expect(referenceLocations.map((item) => item.uri)).toContain("file:///main.conf");
+    expect(referenceLocations.map((item) => item.uri)).toContain(
+      "file:///templates.conf",
+    );
+    expect(referenceLocations.map((item) => item.uri)).toContain(
+      "file:///main.conf",
+    );
   });
 });

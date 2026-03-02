@@ -1,11 +1,17 @@
 import { isIP } from "node:net";
 import type { ParsedBirdDocument } from "@birdcc/parser";
-import type { BirdDiagnostic, SymbolTable, TypeCheckOptions, TypeValue } from "./types.js";
+import type {
+  BirdDiagnostic,
+  SymbolTable,
+  TypeCheckOptions,
+  TypeValue,
+} from "./types.js";
 import { isValidPrefixLiteral } from "./prefix.js";
 
 const VARIABLE_DECLARE_PATTERN =
   /^\s*(?:var\s+)?(int|bool|string|ip|prefix)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*(.+?))?\s*;?\s*$/i;
-const VARIABLE_ASSIGN_PATTERN = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$/;
+const VARIABLE_ASSIGN_PATTERN =
+  /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$/;
 const MAX_TYPE_INFER_DEPTH = 64;
 const MAX_TYPE_EXPRESSION_LENGTH = 4096;
 const SET_LITERAL_MAX_ITEMS = 256;
@@ -72,7 +78,8 @@ const splitTopLevelBinary = (
   let inDoubleQuote = false;
   let escaping = false;
 
-  let lastMatch: { left: string; operator: string; right: string } | null = null;
+  let lastMatch: { left: string; operator: string; right: string } | null =
+    null;
 
   for (let index = 0; index < value.length; index += 1) {
     const char = value[index];
@@ -259,7 +266,10 @@ const inferValueType = (
   variableTypes: Map<string, TypeValue>,
   depth = 0,
 ): TypeValue => {
-  if (depth > MAX_TYPE_INFER_DEPTH || rawValue.length > MAX_TYPE_EXPRESSION_LENGTH) {
+  if (
+    depth > MAX_TYPE_INFER_DEPTH ||
+    rawValue.length > MAX_TYPE_EXPRESSION_LENGTH
+  ) {
     return "unknown";
   }
 
@@ -274,12 +284,20 @@ const inferValueType = (
   }
 
   if (value.startsWith("!")) {
-    const operandType = inferValueType(value.slice(1), variableTypes, depth + 1);
+    const operandType = inferValueType(
+      value.slice(1),
+      variableTypes,
+      depth + 1,
+    );
     return operandType === "bool" ? "bool" : "unknown";
   }
 
   if (value.startsWith("-") || value.startsWith("+")) {
-    const operandType = inferValueType(value.slice(1), variableTypes, depth + 1);
+    const operandType = inferValueType(
+      value.slice(1),
+      variableTypes,
+      depth + 1,
+    );
     if (operandType === "int") {
       return "int";
     }
@@ -313,37 +331,80 @@ const inferValueType = (
 
   const logicalOrExpression = splitTopLevelBinary(value, ["||"]);
   if (logicalOrExpression) {
-    const leftType = inferValueType(logicalOrExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(logicalOrExpression.right, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      logicalOrExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      logicalOrExpression.right,
+      variableTypes,
+      depth + 1,
+    );
     return leftType === "bool" && rightType === "bool" ? "bool" : "unknown";
   }
 
   const logicalAndExpression = splitTopLevelBinary(value, ["&&"]);
   if (logicalAndExpression) {
-    const leftType = inferValueType(logicalAndExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(logicalAndExpression.right, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      logicalAndExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      logicalAndExpression.right,
+      variableTypes,
+      depth + 1,
+    );
     return leftType === "bool" && rightType === "bool" ? "bool" : "unknown";
   }
 
   const equalityExpression = splitTopLevelBinary(value, ["==", "!="]);
   if (equalityExpression) {
-    const leftType = inferValueType(equalityExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(equalityExpression.right, variableTypes, depth + 1);
-    return leftType !== "unknown" && rightType !== "unknown" && leftType === rightType
+    const leftType = inferValueType(
+      equalityExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      equalityExpression.right,
+      variableTypes,
+      depth + 1,
+    );
+    return leftType !== "unknown" &&
+      rightType !== "unknown" &&
+      leftType === rightType
       ? "bool"
       : "unknown";
   }
 
-  const relationalExpression = splitTopLevelBinary(value, ["<=", ">=", "<", ">"]);
+  const relationalExpression = splitTopLevelBinary(value, [
+    "<=",
+    ">=",
+    "<",
+    ">",
+  ]);
   if (relationalExpression) {
-    const leftType = inferValueType(relationalExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(relationalExpression.right, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      relationalExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      relationalExpression.right,
+      variableTypes,
+      depth + 1,
+    );
     return leftType === "int" && rightType === "int" ? "bool" : "unknown";
   }
 
   const matchExpression = splitTopLevelBinary(value, ["!~", "~"]);
   if (matchExpression) {
-    const leftType = inferValueType(matchExpression.left, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      matchExpression.left,
+      variableTypes,
+      depth + 1,
+    );
     if (leftType === "unknown") {
       return "unknown";
     }
@@ -362,15 +423,31 @@ const inferValueType = (
 
   const additiveExpression = splitTopLevelBinary(value, ["+", "-"]);
   if (additiveExpression) {
-    const leftType = inferValueType(additiveExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(additiveExpression.right, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      additiveExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      additiveExpression.right,
+      variableTypes,
+      depth + 1,
+    );
     return leftType === "int" && rightType === "int" ? "int" : "unknown";
   }
 
   const multiplicativeExpression = splitTopLevelBinary(value, ["*", "/"]);
   if (multiplicativeExpression) {
-    const leftType = inferValueType(multiplicativeExpression.left, variableTypes, depth + 1);
-    const rightType = inferValueType(multiplicativeExpression.right, variableTypes, depth + 1);
+    const leftType = inferValueType(
+      multiplicativeExpression.left,
+      variableTypes,
+      depth + 1,
+    );
+    const rightType = inferValueType(
+      multiplicativeExpression.right,
+      variableTypes,
+      depth + 1,
+    );
     return leftType === "int" && rightType === "int" ? "int" : "unknown";
   }
 
@@ -411,8 +488,15 @@ export const checkTypes = (
 
     for (const statement of declaration.statements) {
       if (statement.kind !== "expression") {
-        if (strictUnknownExpression && statement.kind === "return" && statement.valueText) {
-          const inferredType = inferValueType(statement.valueText, variableTypes);
+        if (
+          strictUnknownExpression &&
+          statement.kind === "return" &&
+          statement.valueText
+        ) {
+          const inferredType = inferValueType(
+            statement.valueText,
+            variableTypes,
+          );
           if (inferredType === "unknown") {
             diagnostics.push({
               code: "type/unknown-expression",
@@ -435,7 +519,9 @@ export const checkTypes = (
       const expression = statement.expressionText.trim();
       const declarationMatch = expression.match(VARIABLE_DECLARE_PATTERN);
       if (declarationMatch) {
-        const declaredType = (declarationMatch[1] ?? "unknown").toLowerCase() as TypeValue;
+        const declaredType = (
+          declarationMatch[1] ?? "unknown"
+        ).toLowerCase() as TypeValue;
         const variableName = declarationMatch[2] ?? "";
         const initializer = declarationMatch[3]?.trim();
 

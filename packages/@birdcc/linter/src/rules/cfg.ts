@@ -25,12 +25,16 @@ const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   }
 
   return [
-    createRuleDiagnostic("cfg/no-protocol", "No protocol is specified in configuration", {
-      line: 1,
-      column: 1,
-      endLine: 1,
-      endColumn: 1,
-    }),
+    createRuleDiagnostic(
+      "cfg/no-protocol",
+      "No protocol is specified in configuration",
+      {
+        line: 1,
+        column: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    ),
   ];
 };
 
@@ -40,12 +44,16 @@ const cfgMissingRouterIdRule: BirdRule = ({ parsed }) => {
   }
 
   return [
-    createRuleDiagnostic("cfg/missing-router-id", "Router ID must be configured", {
-      line: 1,
-      column: 1,
-      endLine: 1,
-      endColumn: 1,
-    }),
+    createRuleDiagnostic(
+      "cfg/missing-router-id",
+      "Router ID must be configured",
+      {
+        line: 1,
+        column: 1,
+        endLine: 1,
+        endColumn: 1,
+      },
+    ),
   ];
 };
 
@@ -158,7 +166,14 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
         const holdNumber = extractFirstNumberAfterKeyword(lowerText, "hold");
         if (holdNumber === null && /\bhold\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "hold", "");
+          diagnoseNumberExpected(
+            diagnostics,
+            seen,
+            statement,
+            declaration.name,
+            "hold",
+            "",
+          );
         }
         diagnoseValueOutOfRange(
           diagnostics,
@@ -171,9 +186,19 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
           65_535,
         );
 
-        const keepaliveNumber = extractFirstNumberAfterKeyword(lowerText, "keepalive");
+        const keepaliveNumber = extractFirstNumberAfterKeyword(
+          lowerText,
+          "keepalive",
+        );
         if (keepaliveNumber === null && /\bkeepalive\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "keepalive", "");
+          diagnoseNumberExpected(
+            diagnostics,
+            seen,
+            statement,
+            declaration.name,
+            "keepalive",
+            "",
+          );
         }
         diagnoseValueOutOfRange(
           diagnostics,
@@ -188,7 +213,14 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
 
         const ttlNumber = extractFirstNumberAfterKeyword(lowerText, "ttl");
         if (ttlNumber === null && /\bttl\b/.test(lowerText)) {
-          diagnoseNumberExpected(diagnostics, seen, statement, declaration.name, "ttl", "");
+          diagnoseNumberExpected(
+            diagnostics,
+            seen,
+            statement,
+            declaration.name,
+            "ttl",
+            "",
+          );
         }
         diagnoseValueOutOfRange(
           diagnostics,
@@ -238,7 +270,14 @@ const cfgNumericRules: BirdRule = ({ parsed }) => {
         }
 
         const token = maxPrefixMatch[1] ?? "";
-        diagnoseNumberExpected(diagnostics, seen, entry, declaration.name, "max prefix", token);
+        diagnoseNumberExpected(
+          diagnostics,
+          seen,
+          entry,
+          declaration.name,
+          "max prefix",
+          token,
+        );
         diagnoseValueOutOfRange(
           diagnostics,
           seen,
@@ -381,7 +420,10 @@ const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
         );
       }
 
-      if (statement.kind === "other" && /\brouter\s+id\s+\S+/i.test(statement.text)) {
+      if (
+        statement.kind === "other" &&
+        /\brouter\s+id\s+\S+/i.test(statement.text)
+      ) {
         const matched = statement.text.match(/\brouter\s+id\s+([^;\s]+)/i);
         const value = matched?.[1] ?? "";
         if (value && isIP(value) !== 4) {
@@ -402,7 +444,10 @@ const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
-const hasTemplateCycleFrom = (start: string, graph: Map<string, string>): boolean => {
+const hasTemplateCycleFrom = (
+  start: string,
+  graph: Map<string, string>,
+): boolean => {
   const path = new Set<string>();
   let current = start;
   let hops = 0;
@@ -510,6 +555,8 @@ export const cfgRules: BirdRule[] = [
   cfgProtocolSpecificHintRule,
 ];
 
-export const collectCfgRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectCfgRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return cfgRules.flatMap((rule) => rule(context));
 };

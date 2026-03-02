@@ -1,7 +1,9 @@
 import { isIP } from "node:net";
 import { parse as parseCidr } from "fast-cidr-tools";
 
-const parsePrefixRange = (suffix: string): { min: number; max: number } | null => {
+const parsePrefixRange = (
+  suffix: string,
+): { min: number; max: number } | null => {
   if (!suffix.startsWith("{") || !suffix.endsWith("}")) {
     return null;
   }
@@ -72,7 +74,12 @@ export const isValidPrefixLiteral = (literal: string): boolean => {
   }
 
   if (range) {
-    if (range.min < prefix || range.min > maxBits || range.max < range.min || range.max > maxBits) {
+    if (
+      range.min < prefix ||
+      range.min > maxBits ||
+      range.max < range.min ||
+      range.max > maxBits
+    ) {
       return false;
     }
   }

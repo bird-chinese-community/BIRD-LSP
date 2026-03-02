@@ -23,7 +23,9 @@ const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    if (declaration.statements.some((statement) => statement.kind === "local-as")) {
+    if (
+      declaration.statements.some((statement) => statement.kind === "local-as")
+    ) {
       continue;
     }
 
@@ -47,7 +49,9 @@ const bgpMissingNeighborRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    if (declaration.statements.some((statement) => statement.kind === "neighbor")) {
+    if (
+      declaration.statements.some((statement) => statement.kind === "neighbor")
+    ) {
       continue;
     }
 
@@ -76,7 +80,10 @@ const bgpMissingRemoteAsRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (isInternalSession(statement.asn) || isExternalSession(statement.asn)) {
+      if (
+        isInternalSession(statement.asn) ||
+        isExternalSession(statement.asn)
+      ) {
         continue;
       }
 
@@ -118,7 +125,8 @@ const bgpAsMismatchRule: BirdRule = ({ parsed }) => {
     }
 
     const hasInternalNeighbor = declaration.statements.some(
-      (statement) => statement.kind === "neighbor" && isInternalSession(statement.asn),
+      (statement) =>
+        statement.kind === "neighbor" && isInternalSession(statement.asn),
     );
 
     if (!hasInternalNeighbor) {
@@ -130,7 +138,10 @@ const bgpAsMismatchRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (isInternalSession(statement.asn) || isExternalSession(statement.asn)) {
+      if (
+        isInternalSession(statement.asn) ||
+        isExternalSession(statement.asn)
+      ) {
         continue;
       }
 
@@ -221,6 +232,8 @@ export const bgpRules: BirdRule[] = [
   bgpTimerInvalidRule,
 ];
 
-export const collectBgpRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectBgpRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return bgpRules.flatMap((rule) => rule(context));
 };

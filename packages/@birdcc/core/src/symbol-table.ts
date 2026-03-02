@@ -17,7 +17,12 @@ const declarationToSymbol = (
   const toSymbol = (
     kind: BirdSymbolKind,
     name: string,
-    nameRange: { line: number; column: number; endLine: number; endColumn: number },
+    nameRange: {
+      line: number;
+      column: number;
+      endLine: number;
+      endColumn: number;
+    },
   ): SymbolDefinition => ({
     kind,
     name,
@@ -156,7 +161,11 @@ export const pushSymbolTableDiagnostics = (
       severity: "error",
       source: "core",
       uri: reference.uri,
-      range: createRange(reference.line, reference.column, reference.name.length),
+      range: createRange(
+        reference.line,
+        reference.column,
+        reference.name.length,
+      ),
     });
   }
 };

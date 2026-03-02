@@ -25,9 +25,17 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(sample);
     const kinds = parsed.program.declarations.map((item) => item.kind);
 
-    expect(kinds).toEqual(["include", "template", "protocol", "filter", "function"]);
+    expect(kinds).toEqual([
+      "include",
+      "template",
+      "protocol",
+      "filter",
+      "function",
+    ]);
 
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
       expect(protocol.protocolType).toBe("bgp");
@@ -46,7 +54,9 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const templates = parsed.program.declarations.filter((item) => item.kind === "template");
+    const templates = parsed.program.declarations.filter(
+      (item) => item.kind === "template",
+    );
     expect(templates).toHaveLength(2);
 
     const edgeTemplate = templates[1];
@@ -72,7 +82,9 @@ describe("@birdcc/parser tree-sitter", () => {
     const routerDeclarations = parsed.program.declarations.filter(
       (item) => item.kind === "router-id",
     );
-    const tableDeclarations = parsed.program.declarations.filter((item) => item.kind === "table");
+    const tableDeclarations = parsed.program.declarations.filter(
+      (item) => item.kind === "table",
+    );
 
     expect(routerDeclarations).toHaveLength(4);
     expect(tableDeclarations).toHaveLength(3);
@@ -122,15 +134,27 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
 
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const localAs = protocol.statements.find((item) => item.kind === "local-as");
-      const neighbor = protocol.statements.find((item) => item.kind === "neighbor");
-      const importStatement = protocol.statements.find((item) => item.kind === "import");
-      const exportStatement = protocol.statements.find((item) => item.kind === "export");
-      const channel = protocol.statements.find((item) => item.kind === "channel");
+      const localAs = protocol.statements.find(
+        (item) => item.kind === "local-as",
+      );
+      const neighbor = protocol.statements.find(
+        (item) => item.kind === "neighbor",
+      );
+      const importStatement = protocol.statements.find(
+        (item) => item.kind === "import",
+      );
+      const exportStatement = protocol.statements.find(
+        (item) => item.kind === "export",
+      );
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
 
       expect(localAs?.kind).toBe("local-as");
       expect(neighbor?.kind).toBe("neighbor");
@@ -148,16 +172,28 @@ describe("@birdcc/parser tree-sitter", () => {
       expect(channel?.kind).toBe("channel");
       if (channel?.kind === "channel") {
         expect(channel.channelType).toBe("ipv4");
-        expect(channel.entries.some((item) => item.kind === "table")).toBe(true);
-        expect(channel.entries.some((item) => item.kind === "import" && item.mode === "none")).toBe(
+        expect(channel.entries.some((item) => item.kind === "table")).toBe(
           true,
         );
         expect(
-          channel.entries.some((item) => item.kind === "export" && item.mode === "where"),
+          channel.entries.some(
+            (item) => item.kind === "import" && item.mode === "none",
+          ),
         ).toBe(true);
-        expect(channel.entries.some((item) => item.kind === "limit")).toBe(true);
-        expect(channel.entries.some((item) => item.kind === "debug")).toBe(true);
-        expect(channel.entries.some((item) => item.kind === "keep-filtered")).toBe(true);
+        expect(
+          channel.entries.some(
+            (item) => item.kind === "export" && item.mode === "where",
+          ),
+        ).toBe(true);
+        expect(channel.entries.some((item) => item.kind === "limit")).toBe(
+          true,
+        );
+        expect(channel.entries.some((item) => item.kind === "debug")).toBe(
+          true,
+        );
+        expect(
+          channel.entries.some((item) => item.kind === "keep-filtered"),
+        ).toBe(true);
       }
     }
   });
@@ -170,11 +206,15 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
 
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const otherStatement = protocol.statements.find((item) => item.kind === "other");
+      const otherStatement = protocol.statements.find(
+        (item) => item.kind === "other",
+      );
       expect(otherStatement?.kind).toBe("other");
       if (otherStatement?.kind === "other") {
         expect(otherStatement.text.toLowerCase()).toContain("area");
@@ -191,13 +231,18 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
 
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const otherStatements = protocol.statements.filter((item) => item.kind === "other");
+      const otherStatements = protocol.statements.filter(
+        (item) => item.kind === "other",
+      );
       expect(otherStatements).toHaveLength(1);
-      const text = otherStatements[0]?.kind === "other" ? otherStatements[0].text : "";
+      const text =
+        otherStatements[0]?.kind === "other" ? otherStatements[0].text : "";
       expect(text.toLowerCase()).toContain("area");
       expect(text.toLowerCase()).toContain("stub");
     }
@@ -211,11 +256,15 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
 
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const neighbor = protocol.statements.find((item) => item.kind === "neighbor");
+      const neighbor = protocol.statements.find(
+        (item) => item.kind === "neighbor",
+      );
       expect(neighbor?.kind).toBe("neighbor");
       if (neighbor?.kind === "neighbor") {
         expect(neighbor.addressKind).toBe("ip");
@@ -241,8 +290,12 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const fn = parsed.program.declarations.find((item) => item.kind === "function");
-    const filter = parsed.program.declarations.find((item) => item.kind === "filter");
+    const fn = parsed.program.declarations.find(
+      (item) => item.kind === "function",
+    );
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
 
     expect(fn).toBeDefined();
     if (fn?.kind === "function") {
@@ -256,8 +309,12 @@ describe("@birdcc/parser tree-sitter", () => {
     if (filter?.kind === "filter") {
       expect(filter.statements.some((item) => item.kind === "if")).toBe(true);
       expect(filter.statements.some((item) => item.kind === "case")).toBe(true);
-      expect(filter.statements.some((item) => item.kind === "accept")).toBe(true);
-      expect(filter.statements.some((item) => item.kind === "reject")).toBe(true);
+      expect(filter.statements.some((item) => item.kind === "accept")).toBe(
+        true,
+      );
+      expect(filter.statements.some((item) => item.kind === "reject")).toBe(
+        true,
+      );
       expect(filter.matches.some((item) => item.operator === "~")).toBe(true);
     }
   });
@@ -275,13 +332,21 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    const protocol = parsed.program.declarations.find((item) => item.kind === "protocol");
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
 
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const localAsStatements = protocol.statements.filter((item) => item.kind === "local-as");
-      const neighborStatements = protocol.statements.filter((item) => item.kind === "neighbor");
-      const importStatements = protocol.statements.filter((item) => item.kind === "import");
+      const localAsStatements = protocol.statements.filter(
+        (item) => item.kind === "local-as",
+      );
+      const neighborStatements = protocol.statements.filter(
+        (item) => item.kind === "neighbor",
+      );
+      const importStatements = protocol.statements.filter(
+        (item) => item.kind === "import",
+      );
 
       expect(localAsStatements).toHaveLength(1);
       expect(neighborStatements).toHaveLength(1);
@@ -293,7 +358,9 @@ describe("@birdcc/parser tree-sitter", () => {
     const sample = `include "路由.conf"; protocol bgp edge { local as 65001; };`;
     const parsed = await parseBirdConfig(sample);
 
-    const includeDeclaration = parsed.program.declarations.find((item) => item.kind === "include");
+    const includeDeclaration = parsed.program.declarations.find(
+      (item) => item.kind === "include",
+    );
     const protocolDeclaration = parsed.program.declarations.find(
       (item) => item.kind === "protocol",
     );
@@ -307,7 +374,9 @@ describe("@birdcc/parser tree-sitter", () => {
     if (protocolDeclaration?.kind === "protocol") {
       expect(protocolDeclaration.protocolType).toBe("bgp");
       expect(protocolDeclaration.name).toBe("edge");
-      expect(protocolDeclaration.statements.map((item) => item.kind)).toEqual(["local-as"]);
+      expect(protocolDeclaration.statements.map((item) => item.kind)).toEqual([
+        "local-as",
+      ]);
     }
   });
 
@@ -349,7 +418,9 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    expect(parsed.issues.some((item) => item.code === "syntax/unbalanced-brace")).toBe(true);
+    expect(
+      parsed.issues.some((item) => item.code === "syntax/unbalanced-brace"),
+    ).toBe(true);
   });
 
   it("reports missing semicolon recovery issues", async () => {
@@ -361,6 +432,8 @@ describe("@birdcc/parser tree-sitter", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
-    expect(parsed.issues.some((item) => item.code === "syntax/missing-semicolon")).toBe(true);
+    expect(
+      parsed.issues.some((item) => item.code === "syntax/missing-semicolon"),
+    ).toBe(true);
   });
 });

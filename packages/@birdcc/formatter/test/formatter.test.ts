@@ -30,7 +30,9 @@ describe("@birdcc/formatter", () => {
     getBufferMock.mockReset();
 
     getBufferMock.mockReturnValue(new Uint8Array([0, 97, 115, 109]));
-    formatTextMock.mockImplementation(({ fileText }: { fileText: string }) => fileText);
+    formatTextMock.mockImplementation(
+      ({ fileText }: { fileText: string }) => fileText,
+    );
     createContextMock.mockReturnValue({
       addPlugin: addPluginMock,
       formatText: formatTextMock,
@@ -80,7 +82,9 @@ describe("@birdcc/formatter", () => {
 
   it("evicts oldest dprint context when cache reaches upper bound", async () => {
     for (let index = 0; index < 16; index += 1) {
-      await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 80 + index });
+      await formatBirdConfig("protocol bgp edge{}\n", {
+        lineWidth: 80 + index,
+      });
     }
 
     await formatBirdConfig("protocol bgp edge{}\n", { lineWidth: 999 });
@@ -107,9 +111,9 @@ describe("@birdcc/formatter", () => {
       throw new Error("plugin load failed");
     });
 
-    await expect(formatBirdConfig("protocol bgp edge {}\n", { engine: "dprint" })).rejects.toThrow(
-      "Formatting with 'dprint' failed",
-    );
+    await expect(
+      formatBirdConfig("protocol bgp edge {}\n", { engine: "dprint" }),
+    ).rejects.toThrow("Formatting with 'dprint' failed");
   });
 
   it("is idempotent after formatting", async () => {
@@ -178,9 +182,9 @@ describe("@birdcc/formatter", () => {
   it("rejects semantic changes in safe mode", async () => {
     formatTextMock.mockReturnValueOnce("router id 1;\n");
 
-    await expect(formatBirdConfig("router id 192.0.2.1;\n", { engine: "dprint" })).rejects.toThrow(
-      "safe mode rejected",
-    );
+    await expect(
+      formatBirdConfig("router id 192.0.2.1;\n", { engine: "dprint" }),
+    ).rejects.toThrow("safe mode rejected");
   });
 
   it("exposes builtin formatting stats for regression assertions", async () => {

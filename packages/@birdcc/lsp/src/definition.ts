@@ -15,7 +15,10 @@ export const createDefinitionLocations = (
   position: Position,
   sourceText: string,
 ): Location[] => {
-  const index = createSymbolLookupIndex(symbolTable.definitions, symbolTable.references);
+  const index = createSymbolLookupIndex(
+    symbolTable.definitions,
+    symbolTable.references,
+  );
 
   const reference = symbolTable.references.find(
     (item) => item.uri === uri && containsPosition(item, position),
@@ -41,5 +44,7 @@ export const createDefinitionLocations = (
     return [];
   }
 
-  return dedupeLocations((index.definitionsByName.get(name.toLowerCase()) ?? []).map(toLocation));
+  return dedupeLocations(
+    (index.definitionsByName.get(name.toLowerCase()) ?? []).map(toLocation),
+  );
 };

@@ -1,7 +1,12 @@
-import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver/node.js";
+import {
+  DiagnosticSeverity,
+  type Diagnostic,
+} from "vscode-languageserver/node.js";
 import type { BirdDiagnostic } from "@birdcc/core";
 
-const toLspSeverity = (severity: BirdDiagnostic["severity"]): DiagnosticSeverity => {
+const toLspSeverity = (
+  severity: BirdDiagnostic["severity"],
+): DiagnosticSeverity => {
   if (severity === "error") {
     return DiagnosticSeverity.Error;
   }

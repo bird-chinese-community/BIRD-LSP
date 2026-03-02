@@ -17,7 +17,10 @@ interface TemplateInheritanceNode {
 
 const createNode = (
   uri: string,
-  declaration: Extract<ParsedBirdDocument["program"]["declarations"][number], { kind: "template" }>,
+  declaration: Extract<
+    ParsedBirdDocument["program"]["declarations"][number],
+    { kind: "template" }
+  >,
 ): TemplateInheritanceNode => ({
   uri,
   name: declaration.name,
@@ -101,7 +104,9 @@ export const collectCircularTemplateDiagnostics = (
 
           if (!emitted.has(cycleSignature)) {
             emitted.add(cycleSignature);
-            const cycleNames = cycleKeys.map((entry) => nodes.get(entry)?.name ?? entry);
+            const cycleNames = cycleKeys.map(
+              (entry) => nodes.get(entry)?.name ?? entry,
+            );
 
             diagnostics.push({
               code: "semantic/circular-template",

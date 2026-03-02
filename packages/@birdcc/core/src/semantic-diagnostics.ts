@@ -3,7 +3,9 @@ import type { ParsedBirdDocument } from "@birdcc/parser";
 import type { BirdDiagnostic } from "./types.js";
 import { isValidPrefixLiteral } from "./prefix.js";
 
-export const collectSemanticDiagnostics = (parsed: ParsedBirdDocument): BirdDiagnostic[] => {
+export const collectSemanticDiagnostics = (
+  parsed: ParsedBirdDocument,
+): BirdDiagnostic[] => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of parsed.program.declarations) {

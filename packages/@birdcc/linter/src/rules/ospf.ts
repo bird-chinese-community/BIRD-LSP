@@ -19,9 +19,13 @@ const BACKBONE_AREA_IDS = new Set(["0", "0.0.0.0"]);
 
 const normalizeAreaId = (value: string): string => value.trim().toLowerCase();
 
-const isBackboneArea = (value: string): boolean => BACKBONE_AREA_IDS.has(normalizeAreaId(value));
+const isBackboneArea = (value: string): boolean =>
+  BACKBONE_AREA_IDS.has(normalizeAreaId(value));
 
-const parseAreaSegments = (text: string, range: SourceRange): OspfAreaSegment[] => {
+const parseAreaSegments = (
+  text: string,
+  range: SourceRange,
+): OspfAreaSegment[] => {
   const segments: OspfAreaSegment[] = [];
   const consumedRanges: Array<{ start: number; end: number }> = [];
   const blockPattern = /\barea\s+([^\s{;]+)([^{};]*)\{/gi;
@@ -49,10 +53,16 @@ const parseAreaSegments = (text: string, range: SourceRange): OspfAreaSegment[] 
     const scopeText = `${header} ${body}`.trim();
     if (areaId.length > 0) {
       segments.push({ areaId, text: scopeText, range });
-      consumedRanges.push({ start: matched.index ?? 0, end: closeBraceIndex + 1 });
+      consumedRanges.push({
+        start: matched.index ?? 0,
+        end: closeBraceIndex + 1,
+      });
     }
 
-    blockPattern.lastIndex = Math.max(closeBraceIndex + 1, blockPattern.lastIndex);
+    blockPattern.lastIndex = Math.max(
+      closeBraceIndex + 1,
+      blockPattern.lastIndex,
+    );
     matched = blockPattern.exec(text);
   }
 
@@ -60,7 +70,9 @@ const parseAreaSegments = (text: string, range: SourceRange): OspfAreaSegment[] 
   let inline = inlinePattern.exec(text);
   while (inline) {
     const start = inline.index ?? 0;
-    const insideBlock = consumedRanges.some((item) => start >= item.start && start < item.end);
+    const insideBlock = consumedRanges.some(
+      (item) => start >= item.start && start < item.end,
+    );
     if (!insideBlock) {
       const areaId = normalizeAreaId(inline[1] ?? "");
       const inlineText = (inline[2] ?? "").trim();
@@ -75,7 +87,9 @@ const parseAreaSegments = (text: string, range: SourceRange): OspfAreaSegment[] 
   return segments;
 };
 
-const collectAreas = (entries: Array<{ text: string; range: SourceRange }>): OspfAreaSegment[] => {
+const collectAreas = (
+  entries: Array<{ text: string; range: SourceRange }>,
+): OspfAreaSegment[] => {
   const areas: OspfAreaSegment[] = [];
   for (const entry of entries) {
     areas.push(...parseAreaSegments(entry.text, entry.range));
@@ -200,6 +214,8 @@ export const ospfRules: BirdRule[] = [
   ospfAsbrStubAreaRule,
 ];
 
-export const collectOspfRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectOspfRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return ospfRules.flatMap((rule) => rule(context));
 };

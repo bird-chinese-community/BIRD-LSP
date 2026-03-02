@@ -15,7 +15,11 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ParsedBirdDocument } from "@birdcc/parser";
 import { parseBirdConfig } from "@birdcc/parser";
-import { lintBirdConfig, lintResolvedCrossFileGraph, type LintResult } from "@birdcc/linter";
+import {
+  lintBirdConfig,
+  lintResolvedCrossFileGraph,
+  type LintResult,
+} from "@birdcc/linter";
 import { createCompletionItemsFromParsed } from "./completion.js";
 import { createDefinitionLocations } from "./definition.js";
 import { createDocumentSymbolsFromParsed } from "./document-symbol.js";
@@ -133,12 +137,16 @@ export const startLspServer = (): void => {
     const diagnosticsByUri = new Map<string, Diagnostic[]>();
     for (const uri of visitedUris) {
       const lintResult = lintGraph.byUri[uri];
-      diagnosticsByUri.set(uri, (lintResult?.diagnostics ?? []).map(toLspDiagnostic));
+      diagnosticsByUri.set(
+        uri,
+        (lintResult?.diagnostics ?? []).map(toLspDiagnostic),
+      );
     }
 
     const entryDiagnostics = diagnosticsByUri.get(document.uri) ?? [];
     if (options.publishRelatedDiagnostics) {
-      const previousUris = publishedUrisByEntry.get(document.uri) ?? new Set<string>();
+      const previousUris =
+        publishedUrisByEntry.get(document.uri) ?? new Set<string>();
 
       for (const uri of previousUris) {
         if (visitedUris.has(uri)) {
@@ -166,13 +174,17 @@ export const startLspServer = (): void => {
     return { entryDiagnostics, graph };
   };
 
-  const getGraphForDocument = async (document: TextDocument): Promise<GraphCacheEntry> => {
+  const getGraphForDocument = async (
+    document: TextDocument,
+  ): Promise<GraphCacheEntry> => {
     const cached = graphByUri.get(document.uri);
     if (cached) {
       return cached;
     }
 
-    const analyzed = await analyzeDocument(document, { publishRelatedDiagnostics: false });
+    const analyzed = await analyzeDocument(document, {
+      publishRelatedDiagnostics: false,
+    });
     return analyzed.graph;
   };
 
@@ -196,7 +208,9 @@ export const startLspServer = (): void => {
     debounceMs: VALIDATION_DEBOUNCE_MS,
     validate: async (textDocument): Promise<Diagnostic[]> => {
       try {
-        const analyzed = await analyzeDocument(textDocument, { publishRelatedDiagnostics: true });
+        const analyzed = await analyzeDocument(textDocument, {
+          publishRelatedDiagnostics: true,
+        });
         return analyzed.entryDiagnostics;
       } catch (error) {
         return [toInternalErrorDiagnostic(error)];
@@ -221,7 +235,9 @@ export const startLspServer = (): void => {
     scheduler.close(event.document.uri);
   });
 
-  const getParsedDocument = async (document: TextDocument): Promise<ParsedBirdDocument> => {
+  const getParsedDocument = async (
+    document: TextDocument,
+  ): Promise<ParsedBirdDocument> => {
     const cached = parsedByUri.get(document.uri);
     if (cached && cached.version === document.version) {
       return cached.parsed;
@@ -309,7 +325,10 @@ export const startLspServer = (): void => {
       const graph = await getGraphForDocument(document);
       return createCompletionItemsFromParsed(parsed, {
         linePrefix,
-        additionalDeclarations: flattenAdditionalDeclarations(graph, document.uri),
+        additionalDeclarations: flattenAdditionalDeclarations(
+          graph,
+          document.uri,
+        ),
       });
     } catch {
       return createCompletionItemsFromParsed(parsed, { linePrefix });

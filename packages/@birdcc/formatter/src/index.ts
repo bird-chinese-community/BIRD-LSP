@@ -64,7 +64,10 @@ const getBirdPluginBufferCached = (): Uint8Array => {
   return birdPluginBufferCache;
 };
 
-const normalizePositiveInteger = (value: number | undefined, fallback: number): number => {
+const normalizePositiveInteger = (
+  value: number | undefined,
+  fallback: number,
+): number => {
   if (value === undefined) {
     return fallback;
   }
@@ -76,14 +79,17 @@ const normalizePositiveInteger = (value: number | undefined, fallback: number): 
   return value;
 };
 
-const resolveOptions = (options: FormatBirdConfigOptions = {}): ResolvedFormatOptions => ({
+const resolveOptions = (
+  options: FormatBirdConfigOptions = {},
+): ResolvedFormatOptions => ({
   engine: options.engine ?? "dprint",
   indentSize: normalizePositiveInteger(options.indentSize, DEFAULT_INDENT_SIZE),
   lineWidth: normalizePositiveInteger(options.lineWidth, DEFAULT_LINE_WIDTH),
   safeMode: options.safeMode ?? DEFAULT_SAFE_MODE,
 });
 
-const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, " ").trim();
+const normalizeWhitespace = (value: string): string =>
+  value.replace(/\s+/g, " ").trim();
 
 type ObjectLikeValue = Record<string, unknown> | unknown[];
 
@@ -100,7 +106,11 @@ const shouldStripRangeKey = (key: string): boolean =>
 const createContainer = (value: ObjectLikeValue): ObjectLikeValue =>
   Array.isArray(value) ? [] : {};
 
-const assignContainerValue = (container: ObjectLikeValue, key: string, value: unknown): void => {
+const assignContainerValue = (
+  container: ObjectLikeValue,
+  key: string,
+  value: unknown,
+): void => {
   (container as Record<string, unknown>)[key] = value;
 };
 
@@ -136,7 +146,9 @@ const stripRangeKeys = (value: unknown): unknown => {
         assignContainerValue(
           target,
           key,
-          typeof nestedValue === "string" ? normalizeWhitespace(nestedValue) : nestedValue,
+          typeof nestedValue === "string"
+            ? normalizeWhitespace(nestedValue)
+            : nestedValue,
         );
         continue;
       }
@@ -169,10 +181,14 @@ const normalizeDeclaration = (declaration: BirdDeclaration): unknown => {
 const createSemanticFingerprintFromParsed = (
   parsed: Awaited<ReturnType<typeof parseBirdConfig>>,
 ): string => {
-  const hasRuntimeIssue = parsed.issues.some((issue) => issue.code === "parser/runtime-error");
+  const hasRuntimeIssue = parsed.issues.some(
+    (issue) => issue.code === "parser/runtime-error",
+  );
 
   if (hasRuntimeIssue) {
-    throw new Error("Parser runtime unavailable while evaluating formatter safe mode");
+    throw new Error(
+      "Parser runtime unavailable while evaluating formatter safe mode",
+    );
   }
 
   const normalizedProgram = parsed.program.declarations.map((declaration) =>
@@ -197,12 +213,16 @@ const assertSafeModeSemanticEquivalence = async (
   beforeFingerprint?: string,
 ): Promise<void> => {
   const [resolvedBeforeFingerprint, afterFingerprint] = await Promise.all([
-    beforeFingerprint ? Promise.resolve(beforeFingerprint) : createSemanticFingerprint(before),
+    beforeFingerprint
+      ? Promise.resolve(beforeFingerprint)
+      : createSemanticFingerprint(before),
     createSemanticFingerprint(after),
   ]);
 
   if (resolvedBeforeFingerprint !== afterFingerprint) {
-    throw new Error("Formatter safe mode rejected output because semantic fingerprint changed");
+    throw new Error(
+      "Formatter safe mode rejected output because semantic fingerprint changed",
+    );
   }
 };
 
@@ -221,7 +241,8 @@ const countLeadingCloseBraces = (text: string): number => {
   return matched?.[0]?.length ?? 0;
 };
 
-const isCommentLine = (line: string): boolean => line.trimStart().startsWith("#");
+const isCommentLine = (line: string): boolean =>
+  line.trimStart().startsWith("#");
 
 const HIGH_RISK_KEYWORDS = ["if", "then", "else", "return"] as const;
 const HIGH_RISK_OPERATORS = ["~", "&", "|", "?", ":", "(", "[", "]"] as const;
@@ -259,8 +280,12 @@ const isHighRiskExpressionLine = (line: string): boolean => {
   }
 
   const lowered = normalized.toLowerCase();
-  const keywordRisk = HIGH_RISK_KEYWORDS.some((keyword) => containsKeywordAsWord(lowered, keyword));
-  const operatorRisk = HIGH_RISK_OPERATORS.some((operator) => normalized.includes(operator));
+  const keywordRisk = HIGH_RISK_KEYWORDS.some((keyword) =>
+    containsKeywordAsWord(lowered, keyword),
+  );
+  const operatorRisk = HIGH_RISK_OPERATORS.some((operator) =>
+    normalized.includes(operator),
+  );
   return keywordRisk || operatorRisk;
 };
 
@@ -346,7 +371,9 @@ const collectParserProtectedLinesFromParsed = (
     }
 
     if (declaration.kind === "protocol") {
-      protectedRanges.push(...collectProtocolProtectedLines(declaration.statements));
+      protectedRanges.push(
+        ...collectProtocolProtectedLines(declaration.statements),
+      );
     }
 
     for (const range of protectedRanges) {
@@ -408,7 +435,10 @@ const normalizeTextWithBuiltin = async (
 
     const openCount = countToken(line, "{");
     const closeCount = countToken(line, "}");
-    const leadingCloseCount = Math.min(indentLevel, countLeadingCloseBraces(line));
+    const leadingCloseCount = Math.min(
+      indentLevel,
+      countLeadingCloseBraces(line),
+    );
     indentLevel = Math.max(0, indentLevel - leadingCloseCount);
 
     const highRiskLine =
@@ -436,7 +466,10 @@ const normalizeTextWithBuiltin = async (
     indentLevel = Math.max(0, indentLevel + delta);
   }
 
-  while (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === "") {
+  while (
+    formattedLines.length > 0 &&
+    formattedLines[formattedLines.length - 1] === ""
+  ) {
     formattedLines.pop();
   }
 
@@ -471,7 +504,9 @@ const evictOldestContextIfNeeded = (): void => {
   dprintContextCache.delete(oldestKey);
 };
 
-const getOrCreateDprintContext = (options: ResolvedFormatOptions): FormatterContext => {
+const getOrCreateDprintContext = (
+  options: ResolvedFormatOptions,
+): FormatterContext => {
   const key = contextCacheKey(options);
   const cached = dprintContextCache.get(key);
   if (cached) {
@@ -533,9 +568,17 @@ const formatWithBuiltin = async (
     parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
   }
 
-  const builtinOutput = await normalizeTextWithBuiltin(text, options, parserProtectedLines);
+  const builtinOutput = await normalizeTextWithBuiltin(
+    text,
+    options,
+    parserProtectedLines,
+  );
   if (options.safeMode && builtinOutput.text !== text) {
-    await assertSafeModeSemanticEquivalence(text, builtinOutput.text, beforeFingerprint);
+    await assertSafeModeSemanticEquivalence(
+      text,
+      builtinOutput.text,
+      beforeFingerprint,
+    );
   }
 
   return {
@@ -581,11 +624,16 @@ export const __formatBirdConfigBuiltinForTest = async (
 ): Promise<BuiltinFormatOutput> => {
   const parsed = await parseBirdConfig(text);
   const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
-  return normalizeTextWithBuiltin(text, resolveOptions(options), parserProtectedLines);
+  return normalizeTextWithBuiltin(
+    text,
+    resolveOptions(options),
+    parserProtectedLines,
+  );
 };
 
 /** Internal-only helper for regression tests. */
-export const __stripRangeKeysForTest = (value: unknown): unknown => stripRangeKeys(value);
+export const __stripRangeKeysForTest = (value: unknown): unknown =>
+  stripRangeKeys(value);
 
 /** Internal-only helper for deterministic unit tests. */
 export const __resetFormatterStateForTest = (): void => {

@@ -2,7 +2,10 @@ import { chmod, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { loadBirdccConfigForFile, resolveSeverityOverride } from "../src/config.js";
+import {
+  loadBirdccConfigForFile,
+  resolveSeverityOverride,
+} from "../src/config.js";
 
 describe("@birdcc/cli config", () => {
   it("loads config by walking up from target file directory", async () => {
@@ -55,7 +58,9 @@ describe("@birdcc/cli config", () => {
   });
 
   it("throws readable errors for invalid config", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-invalid-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-config-invalid-"),
+    );
     const targetFile = join(workspaceDir, "bird.conf");
     await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
     await writeFile(
@@ -68,11 +73,15 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow("Invalid birdcc config");
+    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
+      "Invalid birdcc config",
+    );
   });
 
   it("rejects out-of-range formatter options", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-out-of-range-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-config-out-of-range-"),
+    );
     const targetFile = join(workspaceDir, "bird.conf");
     await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
     await writeFile(
@@ -86,7 +95,9 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow("Invalid birdcc config");
+    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
+      "Invalid birdcc config",
+    );
   });
 
   it("resolves exact and wildcard severity overrides", () => {
@@ -96,8 +107,12 @@ describe("@birdcc/cli config", () => {
     } as const;
 
     expect(resolveSeverityOverride("cfg/no-protocol", rules)).toBe("info");
-    expect(resolveSeverityOverride("cfg/missing-router-id", rules)).toBe("warning");
-    expect(resolveSeverityOverride("bgp/missing-neighbor", rules)).toBeUndefined();
+    expect(resolveSeverityOverride("cfg/missing-router-id", rules)).toBe(
+      "warning",
+    );
+    expect(
+      resolveSeverityOverride("bgp/missing-neighbor", rules),
+    ).toBeUndefined();
   });
 
   it("propagates permission errors during config discovery", async () => {
@@ -105,7 +120,9 @@ describe("@birdcc/cli config", () => {
       return;
     }
 
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-permission-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-config-permission-"),
+    );
     const blockedDir = join(workspaceDir, "blocked");
     await mkdir(blockedDir, { recursive: true });
     await chmod(blockedDir, 0o000);

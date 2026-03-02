@@ -10,7 +10,13 @@ import type {
   ProtocolStatement,
   SourceRange,
 } from "./types.js";
-import { isPresentNode, mergeRanges, stripQuotes, textOf, toRange } from "./tree.js";
+import {
+  isPresentNode,
+  mergeRanges,
+  stripQuotes,
+  textOf,
+  toRange,
+} from "./tree.js";
 import { pushMissingFieldIssue } from "./issues.js";
 
 type IncludeDeclaration = Extract<BirdDeclaration, { kind: "include" }>;
@@ -77,7 +83,9 @@ const isIpLiteralCandidate = (value: string): boolean =>
   IPV4_CANDIDATE_PATTERN.test(value) || IPV6_CANDIDATE_PATTERN.test(value);
 
 const protocolStatementNodesOf = (blockNode: SyntaxNode): SyntaxNode[] => {
-  return blockNode.namedChildren.filter((child) => PROTOCOL_STATEMENT_TYPES.has(child.type));
+  return blockNode.namedChildren.filter((child) =>
+    PROTOCOL_STATEMENT_TYPES.has(child.type),
+  );
 };
 
 const protocolTypeTextAndRange = (
@@ -89,7 +97,9 @@ const protocolTypeTextAndRange = (
   const protocolType = isPresentNode(protocolTypeNode)
     ? [
         textOf(protocolTypeNode, source),
-        isPresentNode(protocolVariantNode) ? textOf(protocolVariantNode, source) : "",
+        isPresentNode(protocolVariantNode)
+          ? textOf(protocolVariantNode, source)
+          : "",
       ]
         .filter(Boolean)
         .join(" ")
@@ -97,7 +107,10 @@ const protocolTypeTextAndRange = (
 
   const protocolTypeRange =
     isPresentNode(protocolTypeNode) && isPresentNode(protocolVariantNode)
-      ? mergeRanges(toRange(protocolTypeNode, source), toRange(protocolVariantNode, source))
+      ? mergeRanges(
+          toRange(protocolTypeNode, source),
+          toRange(protocolVariantNode, source),
+        )
       : isPresentNode(protocolTypeNode)
         ? toRange(protocolTypeNode, source)
         : declarationRange;
@@ -107,7 +120,9 @@ const protocolTypeTextAndRange = (
 
 const normalizeTableType = (value: string): TableDeclaration["tableType"] => {
   const lowered = value.toLowerCase();
-  return TABLE_TYPES.has(lowered) ? (lowered as TableDeclaration["tableType"]) : "unknown";
+  return TABLE_TYPES.has(lowered)
+    ? (lowered as TableDeclaration["tableType"])
+    : "unknown";
 };
 
 const normalizeChannelType = (
@@ -115,7 +130,10 @@ const normalizeChannelType = (
 ): Extract<ProtocolStatement, { kind: "channel" }>["channelType"] => {
   const lowered = value.toLowerCase();
   return CHANNEL_TYPES.has(lowered)
-    ? (lowered as Extract<ProtocolStatement, { kind: "channel" }>["channelType"])
+    ? (lowered as Extract<
+        ProtocolStatement,
+        { kind: "channel" }
+      >["channelType"])
     : "unknown";
 };
 
@@ -157,19 +175,27 @@ const parseImportExportNode = (
     };
   }
 
-  if (clauseNode.type === "filter_name_clause" || clauseNode.type === "filter_block_clause") {
+  if (
+    clauseNode.type === "filter_name_clause" ||
+    clauseNode.type === "filter_block_clause"
+  ) {
     const filterNameNode = clauseNode.childForFieldName("filter_name");
 
     return {
       ...base,
       mode: "filter",
-      filterName: isPresentNode(filterNameNode) ? textOf(filterNameNode, source) : undefined,
-      filterNameRange: isPresentNode(filterNameNode) ? toRange(filterNameNode, source) : undefined,
+      filterName: isPresentNode(filterNameNode)
+        ? textOf(filterNameNode, source)
+        : undefined,
+      filterNameRange: isPresentNode(filterNameNode)
+        ? toRange(filterNameNode, source)
+        : undefined,
     };
   }
 
   if (clauseNode.type === "where_clause") {
-    const whereExpressionNode = clauseNode.childForFieldName("where_expression");
+    const whereExpressionNode =
+      clauseNode.childForFieldName("where_expression");
 
     return {
       ...base,
@@ -209,7 +235,10 @@ const parseImportExportNode = (
     return {
       ...base,
       mode: "filter",
-      filterName: maybeName.length > 0 && !maybeName.startsWith("{") ? maybeName : undefined,
+      filterName:
+        maybeName.length > 0 && !maybeName.startsWith("{")
+          ? maybeName
+          : undefined,
       clauseText,
     };
   }
@@ -221,7 +250,10 @@ const parseImportExportNode = (
   };
 };
 
-const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): ChannelEntry[] => {
+const parseChannelEntries = (
+  channelBodyNode: SyntaxNode,
+  source: string,
+): ChannelEntry[] => {
   const entries: ChannelEntry[] = [];
   const namedChildren = channelBodyNode.namedChildren;
 
@@ -237,8 +269,12 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       const tableNameNode = entryNode.childForFieldName("table_name");
       entries.push({
         kind: "table",
-        tableName: isPresentNode(tableNameNode) ? textOf(tableNameNode, source) : "",
-        tableNameRange: isPresentNode(tableNameNode) ? toRange(tableNameNode, source) : entryRange,
+        tableName: isPresentNode(tableNameNode)
+          ? textOf(tableNameNode, source)
+          : "",
+        tableNameRange: isPresentNode(tableNameNode)
+          ? toRange(tableNameNode, source)
+          : entryRange,
         ...entryRange,
       });
       continue;
@@ -250,7 +286,10 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       namedChildren[index + 1]?.type === "identifier"
     ) {
       const tableNameNode = namedChildren[index + 1];
-      const tableRange = mergeRanges(entryRange, toRange(tableNameNode, source));
+      const tableRange = mergeRanges(
+        entryRange,
+        toRange(tableNameNode, source),
+      );
       entries.push({
         kind: "table",
         tableName: textOf(tableNameNode, source),
@@ -261,26 +300,35 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       continue;
     }
 
-    if (entryNode.type === "import_statement" || entryNode.type === "export_statement") {
+    if (
+      entryNode.type === "import_statement" ||
+      entryNode.type === "export_statement"
+    ) {
       const statement = parseImportExportNode(entryNode, source);
       const clauseText = statement.clauseText?.toLowerCase() ?? "";
 
       if (
         statement.mode === "other" &&
-        (clauseText.startsWith("limit ") || clauseText.startsWith("keep filtered "))
+        (clauseText.startsWith("limit ") ||
+          clauseText.startsWith("keep filtered "))
       ) {
         if (clauseText.startsWith("keep filtered ")) {
           entries.push({
             kind: "keep-filtered",
-            value: (statement.clauseText ?? "").slice("keep filtered ".length).trim(),
+            value: (statement.clauseText ?? "")
+              .slice("keep filtered ".length)
+              .trim(),
             valueRange: entryRange,
             ...entryRange,
           });
         } else {
-          const payload = (statement.clauseText ?? "").slice("limit ".length).trim();
+          const payload = (statement.clauseText ?? "")
+            .slice("limit ".length)
+            .trim();
           const actionMarker = " action ";
           const actionIndex = payload.toLowerCase().indexOf(actionMarker);
-          const limitValue = actionIndex === -1 ? payload : payload.slice(0, actionIndex).trim();
+          const limitValue =
+            actionIndex === -1 ? payload : payload.slice(0, actionIndex).trim();
           const limitAction =
             actionIndex === -1
               ? undefined
@@ -340,10 +388,18 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       entries.push({
         kind: "limit",
         direction,
-        value: isPresentNode(limitValueNode) ? textOf(limitValueNode, source) : "",
-        valueRange: isPresentNode(limitValueNode) ? toRange(limitValueNode, source) : entryRange,
-        action: isPresentNode(limitActionNode) ? textOf(limitActionNode, source) : undefined,
-        actionRange: isPresentNode(limitActionNode) ? toRange(limitActionNode, source) : undefined,
+        value: isPresentNode(limitValueNode)
+          ? textOf(limitValueNode, source)
+          : "",
+        valueRange: isPresentNode(limitValueNode)
+          ? toRange(limitValueNode, source)
+          : entryRange,
+        action: isPresentNode(limitActionNode)
+          ? textOf(limitActionNode, source)
+          : undefined,
+        actionRange: isPresentNode(limitActionNode)
+          ? toRange(limitActionNode, source)
+          : undefined,
         ...entryRange,
       });
       continue;
@@ -381,8 +437,12 @@ const parseChannelEntries = (channelBodyNode: SyntaxNode, source: string): Chann
       const switchValueNode = entryNode.childForFieldName("switch_value");
       entries.push({
         kind: "keep-filtered",
-        value: isPresentNode(switchValueNode) ? textOf(switchValueNode, source) : "",
-        valueRange: isPresentNode(switchValueNode) ? toRange(switchValueNode, source) : entryRange,
+        value: isPresentNode(switchValueNode)
+          ? textOf(switchValueNode, source)
+          : "",
+        valueRange: isPresentNode(switchValueNode)
+          ? toRange(switchValueNode, source)
+          : entryRange,
         ...entryRange,
       });
       continue;
@@ -414,13 +474,20 @@ const parseProtocolStatements = (
     if (statementNode.type === "local_as_statement") {
       const asnNode = statementNode.childForFieldName("asn");
       if (!isPresentNode(asnNode)) {
-        pushMissingFieldIssue(issues, statementNode, "Missing ASN in local as statement", source);
+        pushMissingFieldIssue(
+          issues,
+          statementNode,
+          "Missing ASN in local as statement",
+          source,
+        );
       }
 
       statements.push({
         kind: "local-as",
         asn: isPresentNode(asnNode) ? textOf(asnNode, source) : "",
-        asnRange: isPresentNode(asnNode) ? toRange(asnNode, source) : statementRange,
+        asnRange: isPresentNode(asnNode)
+          ? toRange(asnNode, source)
+          : statementRange,
         ...statementRange,
       });
       continue;
@@ -431,17 +498,28 @@ const parseProtocolStatements = (
       const asnNode = statementNode.childForFieldName("asn");
 
       if (!isPresentNode(addressNode)) {
-        pushMissingFieldIssue(issues, statementNode, "Missing neighbor address", source);
+        pushMissingFieldIssue(
+          issues,
+          statementNode,
+          "Missing neighbor address",
+          source,
+        );
       }
 
-      const addressText = isPresentNode(addressNode) ? textOf(addressNode, source) : "";
+      const addressText = isPresentNode(addressNode)
+        ? textOf(addressNode, source)
+        : "";
       const addressKind =
-        isPresentNode(addressNode) && isIpLiteralCandidate(addressText) ? "ip" : "other";
+        isPresentNode(addressNode) && isIpLiteralCandidate(addressText)
+          ? "ip"
+          : "other";
 
       statements.push({
         kind: "neighbor",
         address: addressText,
-        addressRange: isPresentNode(addressNode) ? toRange(addressNode, source) : statementRange,
+        addressRange: isPresentNode(addressNode)
+          ? toRange(addressNode, source)
+          : statementRange,
         addressKind,
         asn: isPresentNode(asnNode) ? textOf(asnNode, source) : undefined,
         asnRange: isPresentNode(asnNode) ? toRange(asnNode, source) : undefined,
@@ -450,7 +528,10 @@ const parseProtocolStatements = (
       continue;
     }
 
-    if (statementNode.type === "import_statement" || statementNode.type === "export_statement") {
+    if (
+      statementNode.type === "import_statement" ||
+      statementNode.type === "export_statement"
+    ) {
       statements.push(parseImportExportNode(statementNode, source));
       continue;
     }
@@ -458,7 +539,9 @@ const parseProtocolStatements = (
     if (statementNode.type === "channel_statement") {
       const channelTypeNode = statementNode.childForFieldName("channel_type");
       const channelBodyNode = statementNode.childForFieldName("body");
-      const channelTypeText = isPresentNode(channelTypeNode) ? textOf(channelTypeNode, source) : "";
+      const channelTypeText = isPresentNode(channelTypeNode)
+        ? textOf(channelTypeNode, source)
+        : "";
 
       statements.push({
         kind: "channel",
@@ -466,7 +549,9 @@ const parseProtocolStatements = (
         channelTypeRange: isPresentNode(channelTypeNode)
           ? toRange(channelTypeNode, source)
           : statementRange,
-        entries: isPresentNode(channelBodyNode) ? parseChannelEntries(channelBodyNode, source) : [],
+        entries: isPresentNode(channelBodyNode)
+          ? parseChannelEntries(channelBodyNode, source)
+          : [],
         ...statementRange,
       });
       continue;
@@ -489,7 +574,10 @@ const parseProtocolStatements = (
       continue;
     }
 
-    if (maybeChannelTypeNode.type !== "identifier" || maybeChannelBodyNode.type !== "block") {
+    if (
+      maybeChannelTypeNode.type !== "identifier" ||
+      maybeChannelBodyNode.type !== "block"
+    ) {
       continue;
     }
 
@@ -520,7 +608,10 @@ const parseProtocolStatements = (
   for (let index = 0; index < childNodes.length; index += 1) {
     const currentNode = childNodes[index];
 
-    if (PROTOCOL_STATEMENT_TYPES.has(currentNode.type) || fallbackChannelIndices.has(index)) {
+    if (
+      PROTOCOL_STATEMENT_TYPES.has(currentNode.type) ||
+      fallbackChannelIndices.has(index)
+    ) {
       continue;
     }
 
@@ -528,7 +619,10 @@ const parseProtocolStatements = (
 
     while (endIndex + 1 < childNodes.length) {
       const nextNode = childNodes[endIndex + 1];
-      if (PROTOCOL_STATEMENT_TYPES.has(nextNode.type) || fallbackChannelIndices.has(endIndex + 1)) {
+      if (
+        PROTOCOL_STATEMENT_TYPES.has(nextNode.type) ||
+        fallbackChannelIndices.has(endIndex + 1)
+      ) {
         break;
       }
 
@@ -552,11 +646,16 @@ const parseProtocolStatements = (
   return statements;
 };
 
-const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBodyStatement[] => {
+const parseControlStatements = (
+  bodyNode: SyntaxNode,
+  source: string,
+): FilterBodyStatement[] => {
   const statements: FilterBodyStatement[] = [];
   const bodyRange = toRange(bodyNode, source);
   const bodyText = textOf(bodyNode, source);
-  const tokenTexts = bodyNode.namedChildren.map((node) => textOf(node, source).toLowerCase());
+  const tokenTexts = bodyNode.namedChildren.map((node) =>
+    textOf(node, source).toLowerCase(),
+  );
 
   for (const statementNode of bodyNode.namedChildren) {
     const statementRange = toRange(statementNode, source);
@@ -566,7 +665,9 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     if (statementNode.type === "if_statement" || lowered === "if") {
       const thenIndex = lowered.indexOf(" then ");
       const conditionText =
-        lowered.startsWith("if ") && thenIndex > 0 ? text.slice(3, thenIndex).trim() : undefined;
+        lowered.startsWith("if ") && thenIndex > 0
+          ? text.slice(3, thenIndex).trim()
+          : undefined;
 
       statements.push({
         kind: "if",
@@ -622,7 +723,10 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     }
   }
 
-  if (tokenTexts.includes("if") && !statements.some((item) => item.kind === "if")) {
+  if (
+    tokenTexts.includes("if") &&
+    !statements.some((item) => item.kind === "if")
+  ) {
     statements.push({
       kind: "if",
       conditionText: undefined,
@@ -631,7 +735,10 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     });
   }
 
-  if (tokenTexts.includes("case") && !statements.some((item) => item.kind === "case")) {
+  if (
+    tokenTexts.includes("case") &&
+    !statements.some((item) => item.kind === "case")
+  ) {
     statements.push({
       kind: "case",
       subjectText: undefined,
@@ -639,21 +746,30 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     });
   }
 
-  if (tokenTexts.includes("accept") && !statements.some((item) => item.kind === "accept")) {
+  if (
+    tokenTexts.includes("accept") &&
+    !statements.some((item) => item.kind === "accept")
+  ) {
     statements.push({
       kind: "accept",
       ...bodyRange,
     });
   }
 
-  if (tokenTexts.includes("reject") && !statements.some((item) => item.kind === "reject")) {
+  if (
+    tokenTexts.includes("reject") &&
+    !statements.some((item) => item.kind === "reject")
+  ) {
     statements.push({
       kind: "reject",
       ...bodyRange,
     });
   }
 
-  if (tokenTexts.includes("return") && !statements.some((item) => item.kind === "return")) {
+  if (
+    tokenTexts.includes("return") &&
+    !statements.some((item) => item.kind === "return")
+  ) {
     statements.push({
       kind: "return",
       valueText: undefined,
@@ -661,7 +777,9 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
     });
   }
 
-  const hasExpressionStatement = statements.some((item) => item.kind === "expression");
+  const hasExpressionStatement = statements.some(
+    (item) => item.kind === "expression",
+  );
   if (!hasExpressionStatement) {
     const segments = bodyText
       .split(";")
@@ -669,7 +787,9 @@ const parseControlStatements = (bodyNode: SyntaxNode, source: string): FilterBod
       .filter((segment) => segment.length > 0);
 
     for (const segment of segments) {
-      const normalizedSegment = segment.replace(/^[\s{]+/, "").replace(/[\s}]+$/, "");
+      const normalizedSegment = segment
+        .replace(/^[\s{]+/, "")
+        .replace(/[\s}]+$/, "");
       if (normalizedSegment.length === 0) {
         continue;
       }
@@ -710,7 +830,9 @@ const collectLiteralsAndMatches = (
     }
 
     const suffix = token.slice(slashIndex);
-    const matched = suffix.match(/^\/(?:\d{1,3}(?:[+-]|\{\d{1,3}(?:,\d{1,3})?\})?)/);
+    const matched = suffix.match(
+      /^\/(?:\d{1,3}(?:[+-]|\{\d{1,3}(?:,\d{1,3})?\})?)/,
+    );
     return matched?.[0] ?? null;
   };
 
@@ -759,7 +881,10 @@ const collectLiteralsAndMatches = (
           const nextSuffix = nextNode ? extractPrefixSuffix(nextText) : null;
 
           if (nextSuffix && isIpLike(currentText)) {
-            const mergedRange = mergeRanges(currentRange, toRange(nextNode, source));
+            const mergedRange = mergeRanges(
+              currentRange,
+              toRange(nextNode, source),
+            );
             literals.push({
               kind: "prefix",
               value: `${currentText}${nextSuffix}`,
@@ -780,7 +905,10 @@ const collectLiteralsAndMatches = (
         const leftNode = current.childForFieldName("left");
         const rightNode = current.childForFieldName("right");
 
-        if (isPresentNode(operatorNode) && textOf(operatorNode, source) === "~") {
+        if (
+          isPresentNode(operatorNode) &&
+          textOf(operatorNode, source) === "~"
+        ) {
           matches.push({
             operator: "~",
             left: isPresentNode(leftNode) ? textOf(leftNode, source) : "",
@@ -862,13 +990,20 @@ const parseIncludeDeclaration = (
   const declarationRange = toRange(declarationNode, source);
   const pathNode = declarationNode.childForFieldName("path");
   if (!isPresentNode(pathNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing path for include declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing path for include declaration",
+      source,
+    );
   }
 
   return {
     kind: "include",
     path: isPresentNode(pathNode) ? stripQuotes(textOf(pathNode, source)) : "",
-    pathRange: isPresentNode(pathNode) ? toRange(pathNode, source) : declarationRange,
+    pathRange: isPresentNode(pathNode)
+      ? toRange(pathNode, source)
+      : declarationRange,
     ...declarationRange,
   };
 };
@@ -881,13 +1016,20 @@ const parseDefineDeclaration = (
   const declarationRange = toRange(declarationNode, source);
   const nameNode = declarationNode.childForFieldName("name");
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for define declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for define declaration",
+      source,
+    );
   }
 
   return {
     kind: "define",
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
     ...declarationRange,
   };
 };
@@ -912,7 +1054,10 @@ interface TopLevelToken {
   range: SourceRange;
 }
 
-const topLevelTokensOf = (statementNode: SyntaxNode, source: string): TopLevelToken[] => {
+const topLevelTokensOf = (
+  statementNode: SyntaxNode,
+  source: string,
+): TopLevelToken[] => {
   const tokens: TopLevelToken[] = [];
   for (const tokenNode of statementNode.namedChildren) {
     const tokenText = textOf(tokenNode, source).trim();
@@ -962,7 +1107,12 @@ const parseRouterIdFromStatement = (
     .map((token) => token.text)
     .join(" ")
     .trim();
-  const valueRange = mergedTokenRange(declarationRange, tokens, 2, Math.max(tokens.length - 1, 2));
+  const valueRange = mergedTokenRange(
+    declarationRange,
+    tokens,
+    2,
+    Math.max(tokens.length - 1, 2),
+  );
 
   if (value.length === 0) {
     issues.push({
@@ -1057,7 +1207,10 @@ const parseTableFromStatement = (
     name = tokens[2]?.text ?? "";
     nameTokenIndex = 2;
     attrsStartIndex = 3;
-  } else if (TABLE_TYPES.has(tokens[0]?.lowered ?? "") && tokens[1]?.lowered === "table") {
+  } else if (
+    TABLE_TYPES.has(tokens[0]?.lowered ?? "") &&
+    tokens[1]?.lowered === "table"
+  ) {
     tableType = normalizeTableType(tokens[0]?.text ?? "");
     tableTypeRange = tokens[0]?.range ?? declarationRange;
     name = tokens[2]?.text ?? "";
@@ -1081,7 +1234,12 @@ const parseTableFromStatement = (
       .slice(attrsStartIndex)
       .map((token) => token.text)
       .join(" ");
-    attrsRange = mergedTokenRange(declarationRange, tokens, attrsStartIndex, tokens.length - 1);
+    attrsRange = mergedTokenRange(
+      declarationRange,
+      tokens,
+      attrsStartIndex,
+      tokens.length - 1,
+    );
   }
 
   if (name.length === 0) {
@@ -1155,7 +1313,10 @@ const parseRouterIdDeclaration = (
     };
   }
 
-  if (valueNode.type === "ipv4_literal" && isStrictIpv4Literal(textOf(valueNode, source))) {
+  if (
+    valueNode.type === "ipv4_literal" &&
+    isStrictIpv4Literal(textOf(valueNode, source))
+  ) {
     return {
       kind: "router-id",
       value: textOf(valueNode, source),
@@ -1195,7 +1356,12 @@ const parseTableDeclaration = (
   const attrsNode = declarationNode.childForFieldName("attrs");
 
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for table declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for table declaration",
+      source,
+    );
   }
 
   const firstToken = declarationNode.children[0];
@@ -1212,9 +1378,13 @@ const parseTableDeclaration = (
       ? toRange(tableTypeNode, source)
       : declarationRange,
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
     attrsText: isPresentNode(attrsNode) ? textOf(attrsNode, source) : undefined,
-    attrsRange: isPresentNode(attrsNode) ? toRange(attrsNode, source) : undefined,
+    attrsRange: isPresentNode(attrsNode)
+      ? toRange(attrsNode, source)
+      : undefined,
     ...declarationRange,
   };
 };
@@ -1226,11 +1396,14 @@ const parseProtocolDeclaration = (
 ): ProtocolDeclaration => {
   const declarationRange = toRange(declarationNode, source);
   const protocolTypeNode = declarationNode.childForFieldName("protocol_type");
-  const protocolVariantNode = declarationNode.childForFieldName("protocol_variant");
+  const protocolVariantNode =
+    declarationNode.childForFieldName("protocol_variant");
   const nameNode = declarationNode.childForFieldName("name");
   const fromTemplateNode = declarationNode.childForFieldName("from_template");
   const bodyNode = declarationNode.childForFieldName("body");
-  const hasFromKeyword = declarationNode.children.some((entry) => entry.type === "from");
+  const hasFromKeyword = declarationNode.children.some(
+    (entry) => entry.type === "from",
+  );
 
   if (!isPresentNode(protocolTypeNode)) {
     pushMissingFieldIssue(
@@ -1242,7 +1415,12 @@ const parseProtocolDeclaration = (
   }
 
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for protocol declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for protocol declaration",
+      source,
+    );
   }
 
   if (hasFromKeyword && !isPresentNode(fromTemplateNode)) {
@@ -1274,12 +1452,18 @@ const parseProtocolDeclaration = (
     protocolType,
     protocolTypeRange,
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
-    fromTemplate: isPresentNode(fromTemplateNode) ? textOf(fromTemplateNode, source) : undefined,
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
+    fromTemplate: isPresentNode(fromTemplateNode)
+      ? textOf(fromTemplateNode, source)
+      : undefined,
     fromTemplateRange: isPresentNode(fromTemplateNode)
       ? toRange(fromTemplateNode, source)
       : undefined,
-    statements: isPresentNode(bodyNode) ? parseProtocolStatements(bodyNode, source, issues) : [],
+    statements: isPresentNode(bodyNode)
+      ? parseProtocolStatements(bodyNode, source, issues)
+      : [],
     ...declarationRange,
   };
 };
@@ -1314,7 +1498,12 @@ const parseTemplateDeclaration = (
   }
 
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for template declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for template declaration",
+      source,
+    );
   }
 
   if (hasFromKeyword && !isPresentNode(fromTemplateNode)) {
@@ -1336,12 +1525,16 @@ const parseTemplateDeclaration = (
 
   return {
     kind: "template",
-    templateType: isPresentNode(templateTypeNode) ? textOf(templateTypeNode, source) : "",
+    templateType: isPresentNode(templateTypeNode)
+      ? textOf(templateTypeNode, source)
+      : "",
     templateTypeRange: isPresentNode(templateTypeNode)
       ? toRange(templateTypeNode, source)
       : declarationRange,
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
     fromTemplate: isPresentNode(fromTemplateNode)
       ? textOf(fromTemplateNode, source)
       : inferredFromTemplate,
@@ -1364,7 +1557,12 @@ const parseFilterDeclaration = (
   const bodyNode = declarationNode.childForFieldName("body");
 
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for filter declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for filter declaration",
+      source,
+    );
   }
 
   if (!isPresentNode(bodyNode)) {
@@ -1382,8 +1580,12 @@ const parseFilterDeclaration = (
   return {
     kind: "filter",
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
-    statements: isPresentNode(bodyNode) ? parseControlStatements(bodyNode, source) : [],
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
+    statements: isPresentNode(bodyNode)
+      ? parseControlStatements(bodyNode, source)
+      : [],
     literals: extracted.literals,
     matches: extracted.matches,
     ...declarationRange,
@@ -1400,7 +1602,12 @@ const parseFunctionDeclaration = (
   const bodyNode = declarationNode.childForFieldName("body");
 
   if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(issues, declarationNode, "Missing name for function declaration", source);
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for function declaration",
+      source,
+    );
   }
 
   if (!isPresentNode(bodyNode)) {
@@ -1418,8 +1625,12 @@ const parseFunctionDeclaration = (
   return {
     kind: "function",
     name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode) ? toRange(nameNode, source) : declarationRange,
-    statements: isPresentNode(bodyNode) ? parseControlStatements(bodyNode, source) : [],
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
+    statements: isPresentNode(bodyNode)
+      ? parseControlStatements(bodyNode, source)
+      : [],
     literals: extracted.literals,
     matches: extracted.matches,
     ...declarationRange,
@@ -1475,7 +1686,11 @@ export const parseDeclarations = (
     }
 
     if (child.type === "top_level_statement") {
-      const routerFromTopLevel = parseRouterIdFromStatement(child, source, issues);
+      const routerFromTopLevel = parseRouterIdFromStatement(
+        child,
+        source,
+        issues,
+      );
       if (routerFromTopLevel) {
         declarations.push(routerFromTopLevel);
         continue;

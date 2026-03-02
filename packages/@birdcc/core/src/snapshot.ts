@@ -1,6 +1,9 @@
 import type { ParsedBirdDocument } from "@birdcc/parser";
 import type { CoreSnapshot, TypeCheckOptions } from "./types.js";
-import { buildSymbolTableFromParsed, pushSymbolTableDiagnostics } from "./symbol-table.js";
+import {
+  buildSymbolTableFromParsed,
+  pushSymbolTableDiagnostics,
+} from "./symbol-table.js";
 import { collectSemanticDiagnostics } from "./semantic-diagnostics.js";
 import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
 import { checkTypes } from "./type-checker.js";

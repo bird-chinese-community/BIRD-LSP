@@ -1,5 +1,9 @@
 import type { CrossFileResolutionResult, SymbolTable } from "@birdcc/core";
-import { buildCoreSnapshotFromParsed, type BirdDiagnostic, type CoreSnapshot } from "@birdcc/core";
+import {
+  buildCoreSnapshotFromParsed,
+  type BirdDiagnostic,
+  type CoreSnapshot,
+} from "@birdcc/core";
 import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
 import { collectBgpRuleDiagnostics } from "./rules/bgp.js";
 import { collectCfgRuleDiagnostics } from "./rules/cfg.js";
@@ -47,7 +51,9 @@ const diagnosticsForUri = (
   uri: string,
   entryUri: string,
 ): BirdDiagnostic[] => {
-  return diagnostics.filter((diagnostic) => (diagnostic.uri ?? entryUri) === uri);
+  return diagnostics.filter(
+    (diagnostic) => (diagnostic.uri ?? entryUri) === uri,
+  );
 };
 
 const createMergedCoreSnapshot = (
@@ -79,13 +85,18 @@ export const lintBirdConfig = async (
   options: LintBirdConfigOptions = {},
 ): Promise<LintResult> => {
   const parsed = options.parsed ?? (await parseBirdConfig(text));
-  const core = options.core ?? buildCoreSnapshotFromParsed(parsed, { uri: options.uri });
+  const core =
+    options.core ?? buildCoreSnapshotFromParsed(parsed, { uri: options.uri });
 
   const context: RuleContext = { text, parsed, core };
 
-  const normalizedBaseDiagnostics = normalizeBaseDiagnostics(parsed, core.diagnostics, {
-    uri: options.uri,
-  });
+  const normalizedBaseDiagnostics = normalizeBaseDiagnostics(
+    parsed,
+    core.diagnostics,
+    {
+      uri: options.uri,
+    },
+  );
   const ruleDiagnostics: BirdDiagnostic[] = [
     ...collectSymRuleDiagnostics(context),
     ...collectCfgRuleDiagnostics(context),
@@ -101,7 +112,10 @@ export const lintBirdConfig = async (
   return {
     parsed,
     core,
-    diagnostics: dedupeDiagnostics([...normalizedBaseDiagnostics, ...ruleDiagnostics]),
+    diagnostics: dedupeDiagnostics([
+      ...normalizedBaseDiagnostics,
+      ...ruleDiagnostics,
+    ]),
   };
 };
 
@@ -110,7 +124,10 @@ export const lintResolvedCrossFileGraph = async (
 ): Promise<CrossFileLintResult> => {
   const byUri: Record<string, LintResult> = {};
   const diagnostics: BirdDiagnostic[] = [];
-  const uris = resolution.visitedUris.length > 0 ? resolution.visitedUris : [resolution.entryUri];
+  const uris =
+    resolution.visitedUris.length > 0
+      ? resolution.visitedUris
+      : [resolution.entryUri];
 
   for (const uri of uris) {
     const text = resolution.documents[uri];

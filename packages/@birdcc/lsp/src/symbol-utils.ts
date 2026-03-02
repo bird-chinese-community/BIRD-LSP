@@ -6,7 +6,11 @@ export interface SymbolLookupIndex {
   referencesByName: Map<string, SymbolReference[]>;
 }
 
-const addToMapList = <T>(map: Map<string, T[]>, key: string, value: T): void => {
+const addToMapList = <T>(
+  map: Map<string, T[]>,
+  key: string,
+  value: T,
+): void => {
   const existing = map.get(key);
   if (existing) {
     existing.push(value);
@@ -38,7 +42,9 @@ export const containsPosition = (
   return true;
 };
 
-export const toLocation = (symbol: SymbolDefinition | SymbolReference): Location => ({
+export const toLocation = (
+  symbol: SymbolDefinition | SymbolReference,
+): Location => ({
   uri: symbol.uri,
   range: {
     start: {
@@ -52,7 +58,10 @@ export const toLocation = (symbol: SymbolDefinition | SymbolReference): Location
   },
 });
 
-export const extractWordAtPosition = (text: string, position: Position): string => {
+export const extractWordAtPosition = (
+  text: string,
+  position: Position,
+): string => {
   const lineText = text.split(/\r?\n/)[position.line] ?? "";
   if (position.character < 0 || position.character > lineText.length) {
     return "";

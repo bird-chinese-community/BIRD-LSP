@@ -25,7 +25,8 @@ const loadLanguage = async (): Promise<Language> => {
     }
   }
 
-  const errorMessage = lastError instanceof Error ? lastError.message : String(lastError);
+  const errorMessage =
+    lastError instanceof Error ? lastError.message : String(lastError);
   const availablePaths = languageWasmPaths.join(", ");
   throw new Error(
     `Unable to load Tree-sitter WASM language from any candidate path: ${availablePaths}. Last error: ${errorMessage}`,

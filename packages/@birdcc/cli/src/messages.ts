@@ -5,7 +5,8 @@ export const CLI_MESSAGES = {
     `Invalid formatter engine: "${engine}" (choose from: dprint, builtin)`,
   fmtWritten: "Files formatted successfully",
   fmtAlreadyFormatted: "All files are already properly formatted",
-  fmtCheckFailed: "Format check failed. Run `birdcc fmt <file> --write` to fix.",
+  fmtCheckFailed:
+    "Format check failed. Run `birdcc fmt <file> --write` to fix.",
   fmtCheckPassed: "Format check passed — all files look good",
   lspRequiresStdio: "Only `birdcc lsp --stdio` is currently supported",
 } as const;

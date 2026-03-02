@@ -1,4 +1,8 @@
-import type { SymbolDefinition, SymbolReference, SymbolTable } from "@birdcc/core";
+import type {
+  SymbolDefinition,
+  SymbolReference,
+  SymbolTable,
+} from "@birdcc/core";
 import type { Location, Position } from "vscode-languageserver/node.js";
 import {
   containsPosition,
@@ -61,14 +65,25 @@ export const createReferenceLocations = (
   position: Position,
   sourceText: string,
 ): Location[] => {
-  const index = createSymbolLookupIndex(symbolTable.definitions, symbolTable.references);
-  const target = findTargetSymbol(symbolTable, index, uri, position, sourceText);
+  const index = createSymbolLookupIndex(
+    symbolTable.definitions,
+    symbolTable.references,
+  );
+  const target = findTargetSymbol(
+    symbolTable,
+    index,
+    uri,
+    position,
+    sourceText,
+  );
   if (!target) {
     return [];
   }
 
   const lowerName = target.name.toLowerCase();
-  const definitionMatches = (index.definitionsByName.get(lowerName) ?? []).filter((item) => {
+  const definitionMatches = (
+    index.definitionsByName.get(lowerName) ?? []
+  ).filter((item) => {
     if (!target.kind) {
       return true;
     }
@@ -76,13 +91,17 @@ export const createReferenceLocations = (
     return item.kind === target.kind;
   });
 
-  const referenceMatches = (index.referencesByName.get(lowerName) ?? []).filter((item) => {
-    if (!target.kind) {
-      return true;
-    }
+  const referenceMatches = (index.referencesByName.get(lowerName) ?? []).filter(
+    (item) => {
+      if (!target.kind) {
+        return true;
+      }
 
-    return item.kind === target.kind;
-  });
+      return item.kind === target.kind;
+    },
+  );
 
-  return dedupeLocations([...definitionMatches, ...referenceMatches].map(toLocation));
+  return dedupeLocations(
+    [...definitionMatches, ...referenceMatches].map(toLocation),
+  );
 };

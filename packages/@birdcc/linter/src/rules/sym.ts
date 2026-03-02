@@ -21,8 +21,15 @@ import {
   type BirdRule,
 } from "./shared.js";
 
-const normalizeProtocolFamily = (text: string): string => normalizeClause(text).split(" ")[0] ?? "";
-const BUILTIN_FILTER_NAMES = new Set(["all", "none", "accept", "reject", "announce"]);
+const normalizeProtocolFamily = (text: string): string =>
+  normalizeClause(text).split(" ")[0] ?? "";
+const BUILTIN_FILTER_NAMES = new Set([
+  "all",
+  "none",
+  "accept",
+  "reject",
+  "announce",
+]);
 const BUILTIN_FUNCTION_NAMES = new Set([
   "net",
   "bgp_path",
@@ -42,7 +49,11 @@ const BUILTIN_FUNCTION_NAMES = new Set([
 
 const isImportOrExportFilterClause = (
   value: unknown,
-): value is { mode: "filter"; filterName?: string; filterNameRange?: SourceRange } => {
+): value is {
+  mode: "filter";
+  filterName?: string;
+  filterNameRange?: SourceRange;
+} => {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -53,7 +64,8 @@ const isImportOrExportFilterClause = (
 const isChannelFilterClause = (
   entry: ChannelEntry,
 ): entry is ChannelImportEntry | ChannelExportEntry =>
-  (entry.kind === "import" || entry.kind === "export") && entry.mode === "filter";
+  (entry.kind === "import" || entry.kind === "export") &&
+  entry.mode === "filter";
 
 const collectProtocolFilterClauses = (
   declaration: ProtocolDeclaration,
@@ -129,7 +141,9 @@ const symProtoTypeMismatchRule: BirdRule = ({ parsed }) => {
 const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
-  const filterNames = new Set(filterDeclarations(parsed).map((item) => item.name.toLowerCase()));
+  const filterNames = new Set(
+    filterDeclarations(parsed).map((item) => item.name.toLowerCase()),
+  );
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const clause of collectProtocolFilterClauses(declaration)) {
@@ -148,7 +162,10 @@ const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
       }
 
       const loweredName = name.toLowerCase();
-      if (!filterNames.has(loweredName) && !hasSymbolKind(core, "filter", name)) {
+      if (
+        !filterNames.has(loweredName) &&
+        !hasSymbolKind(core, "filter", name)
+      ) {
         if (BUILTIN_FILTER_NAMES.has(loweredName)) {
           continue;
         }
@@ -172,12 +189,16 @@ const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
 const symFunctionRequiredRule: BirdRule = ({ parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
-  const functions = new Set(functionDeclarations(parsed).map((item) => item.name.toLowerCase()));
+  const functions = new Set(
+    functionDeclarations(parsed).map((item) => item.name.toLowerCase()),
+  );
   for (const builtin of BUILTIN_FUNCTION_NAMES) {
     functions.add(builtin);
   }
 
-  for (const { statement, declarationName } of eachFilterBodyExpression(parsed)) {
+  for (const { statement, declarationName } of eachFilterBodyExpression(
+    parsed,
+  )) {
     const textParts: string[] = [];
     if (statement.kind === "expression") {
       textParts.push(statement.expressionText);
@@ -195,7 +216,10 @@ const symFunctionRequiredRule: BirdRule = ({ parsed, core }) => {
 
     const joined = textParts.join(" ");
     for (const callName of extractFunctionCalls(joined)) {
-      if (functions.has(callName.toLowerCase()) || hasSymbolKind(core, "function", callName)) {
+      if (
+        functions.has(callName.toLowerCase()) ||
+        hasSymbolKind(core, "function", callName)
+      ) {
         continue;
       }
 
@@ -217,7 +241,9 @@ const symFunctionRequiredRule: BirdRule = ({ parsed, core }) => {
 const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
-  const tableNames = new Set(tableDeclarations(parsed).map((item) => item.name.toLowerCase()));
+  const tableNames = new Set(
+    tableDeclarations(parsed).map((item) => item.name.toLowerCase()),
+  );
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
@@ -282,7 +308,10 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
         continue;
       }
 
-      if (!tableNames.has(tableName.toLowerCase()) && !hasSymbolKind(core, "table", tableName)) {
+      if (
+        !tableNames.has(tableName.toLowerCase()) &&
+        !hasSymbolKind(core, "table", tableName)
+      ) {
         pushUniqueDiagnostic(
           diagnostics,
           seen,
@@ -306,6 +335,8 @@ export const symRules: BirdRule[] = [
   symTableRequiredRule,
 ];
 
-export const collectSymRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectSymRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return symRules.flatMap((rule) => rule(context));
 };

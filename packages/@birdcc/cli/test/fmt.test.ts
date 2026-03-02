@@ -45,9 +45,12 @@ describe("@birdcc/cli fmt runtime", () => {
   it("passes explicit engine option to formatter", async () => {
     await runFmt("/tmp/bird.conf", { engine: "builtin" });
 
-    expect(formatBirdConfigMock).toHaveBeenCalledWith("protocol bgp edge {}\n", {
-      engine: "builtin",
-    });
+    expect(formatBirdConfigMock).toHaveBeenCalledWith(
+      "protocol bgp edge {}\n",
+      {
+        engine: "builtin",
+      },
+    );
   });
 
   it("passes formatter style options to formatter package", async () => {
@@ -57,11 +60,14 @@ describe("@birdcc/cli fmt runtime", () => {
       safeMode: false,
     });
 
-    expect(formatBirdConfigMock).toHaveBeenCalledWith("protocol bgp edge {}\n", {
-      indentSize: 4,
-      lineWidth: 100,
-      safeMode: false,
-    });
+    expect(formatBirdConfigMock).toHaveBeenCalledWith(
+      "protocol bgp edge {}\n",
+      {
+        indentSize: 4,
+        lineWidth: 100,
+        safeMode: false,
+      },
+    );
   });
 
   it("does not fallback when explicit engine fails", async () => {
@@ -69,7 +75,9 @@ describe("@birdcc/cli fmt runtime", () => {
       throw new Error("dprint failed");
     });
 
-    await expect(runFmt("/tmp/bird.conf", { engine: "dprint" })).rejects.toThrow("dprint failed");
+    await expect(
+      runFmt("/tmp/bird.conf", { engine: "dprint" }),
+    ).rejects.toThrow("dprint failed");
     expect(formatBirdConfigMock).toHaveBeenCalledTimes(1);
   });
 
@@ -89,10 +97,18 @@ describe("@birdcc/cli fmt runtime", () => {
     const result = await runFmt("/tmp/bird.conf");
 
     expect(result.changed).toBe(true);
-    expect(formatBirdConfigMock).toHaveBeenNthCalledWith(1, "protocol bgp edge {}\n", {});
-    expect(formatBirdConfigMock).toHaveBeenNthCalledWith(2, "protocol bgp edge {}\n", {
-      engine: "builtin",
-    });
+    expect(formatBirdConfigMock).toHaveBeenNthCalledWith(
+      1,
+      "protocol bgp edge {}\n",
+      {},
+    );
+    expect(formatBirdConfigMock).toHaveBeenNthCalledWith(
+      2,
+      "protocol bgp edge {}\n",
+      {
+        engine: "builtin",
+      },
+    );
     expect(errorSpy).toHaveBeenCalledOnce();
   });
 

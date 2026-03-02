@@ -13,7 +13,8 @@ interface MatchPair {
   right: string;
 }
 
-const normalizeLeftExpression = (value: string): string => value.replace(/^\s*if\s+/i, "").trim();
+const normalizeLeftExpression = (value: string): string =>
+  value.replace(/^\s*if\s+/i, "").trim();
 
 const normalizeRightExpression = (value: string): string =>
   value
@@ -130,7 +131,11 @@ const typeSetIncompatibleRule: BirdRule = ({ parsed, text }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
 
-  const evaluateSetCompatibility = (left: string, right: string, range: SourceRange): void => {
+  const evaluateSetCompatibility = (
+    left: string,
+    right: string,
+    range: SourceRange,
+  ): void => {
     const normalizedRight = normalizeRightExpression(right);
     if (!normalizedRight.startsWith("[") || !normalizedRight.endsWith("]")) {
       return;
@@ -193,8 +198,13 @@ const typeSetIncompatibleRule: BirdRule = ({ parsed, text }) => {
   return diagnostics;
 };
 
-export const typeRules: BirdRule[] = [typeNotIterableRule, typeSetIncompatibleRule];
+export const typeRules: BirdRule[] = [
+  typeNotIterableRule,
+  typeSetIncompatibleRule,
+];
 
-export const collectTypeRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectTypeRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return typeRules.flatMap((rule) => rule(context));
 };

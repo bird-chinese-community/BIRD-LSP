@@ -39,7 +39,11 @@ const normalizeCode = (code: string): RuleCode => {
   return "cfg/incompatible-type";
 };
 
-const normalizeMessage = (code: string, mappedCode: RuleCode, message: string): string => {
+const normalizeMessage = (
+  code: string,
+  mappedCode: RuleCode,
+  message: string,
+): string => {
   if (code === mappedCode) {
     return message;
   }

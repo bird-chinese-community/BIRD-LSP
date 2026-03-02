@@ -13,7 +13,11 @@ interface MockDocument extends ValidationDocument {
   text: string;
 }
 
-const createDocument = (uri: string, text: string, version = 1): MockDocument => ({
+const createDocument = (
+  uri: string,
+  text: string,
+  version = 1,
+): MockDocument => ({
   uri,
   version,
   text,
@@ -29,10 +33,13 @@ describe("@birdcc/lsp validation scheduler", () => {
 
   it("debounces rapid document changes and validates only latest text", async () => {
     vi.useFakeTimers();
-    const validate = vi.fn(async (document: MockDocument): Promise<MockDiagnostic[]> => {
-      return [{ code: document.getText() }];
-    });
-    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+    const validate = vi.fn(
+      async (document: MockDocument): Promise<MockDiagnostic[]> => {
+        return [{ code: document.getText() }];
+      },
+    );
+    const publish =
+      vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
     const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
       debounceMs: 100,
       validate,
@@ -68,7 +75,8 @@ describe("@birdcc/lsp validation scheduler", () => {
           void document;
         }),
     );
-    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+    const publish =
+      vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
     const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
       debounceMs: 1,
       validate,
@@ -94,17 +102,21 @@ describe("@birdcc/lsp validation scheduler", () => {
   it("publishes reopened document diagnostics after close while dropping older in-flight results", async () => {
     vi.useFakeTimers();
 
-    let resolveFirstValidation: ((value: MockDiagnostic[]) => void) | null = null;
-    const validate = vi.fn((document: MockDocument): Promise<MockDiagnostic[]> => {
-      if (document.version === 1) {
-        return new Promise((resolve) => {
-          resolveFirstValidation = resolve;
-        });
-      }
+    let resolveFirstValidation: ((value: MockDiagnostic[]) => void) | null =
+      null;
+    const validate = vi.fn(
+      (document: MockDocument): Promise<MockDiagnostic[]> => {
+        if (document.version === 1) {
+          return new Promise((resolve) => {
+            resolveFirstValidation = resolve;
+          });
+        }
 
-      return Promise.resolve([{ code: `v${document.version}` }]);
-    });
-    const publish = vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
+        return Promise.resolve([{ code: `v${document.version}` }]);
+      },
+    );
+    const publish =
+      vi.fn<(payload: ValidationPublishPayload<MockDiagnostic>) => void>();
     const scheduler = createValidationScheduler<MockDocument, MockDiagnostic>({
       debounceMs: 1,
       validate,

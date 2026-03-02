@@ -54,7 +54,9 @@ export type {
  * Parse one BIRD configuration text into AST V2 declarations and parser diagnostics.
  * Returns a degraded document with `parser/runtime-error` when Tree-sitter runtime cannot initialize.
  */
-export const parseBirdConfig = async (input: string): Promise<ParsedBirdDocument> => {
+export const parseBirdConfig = async (
+  input: string,
+): Promise<ParsedBirdDocument> => {
   let parser;
   try {
     parser = await getParser();

@@ -13,7 +13,8 @@ const outputWasmPath = resolve(
 );
 const distWasmPath = resolve(packageDir, "dist", "dprint-plugin-bird.wasm");
 
-const rustupAvailable = spawnSync("rustup", ["--version"], { encoding: "utf8" }).status === 0;
+const rustupAvailable =
+  spawnSync("rustup", ["--version"], { encoding: "utf8" }).status === 0;
 const toolchainRustc = rustupAvailable
   ? spawnSync("rustup", ["which", "rustc", "--toolchain", "stable"], {
       encoding: "utf8",
@@ -31,15 +32,21 @@ const rustEnv =
       }
     : process.env;
 const ensureTarget = rustupAvailable
-  ? spawnSync("rustup", ["target", "add", "--toolchain", "stable", "wasm32-unknown-unknown"], {
-      cwd: packageDir,
-      encoding: "utf8",
-    })
+  ? spawnSync(
+      "rustup",
+      ["target", "add", "--toolchain", "stable", "wasm32-unknown-unknown"],
+      {
+        cwd: packageDir,
+        encoding: "utf8",
+      },
+    )
   : { status: 0, stderr: "", stdout: "" };
 
 if (ensureTarget.status !== 0) {
   const reason =
-    ensureTarget.stderr?.trim() || ensureTarget.stdout?.trim() || "unknown rustup error";
+    ensureTarget.stderr?.trim() ||
+    ensureTarget.stdout?.trim() ||
+    "unknown rustup error";
   throw new Error(`Failed to add wasm32 target: ${reason}`);
 }
 
@@ -60,12 +67,17 @@ const buildResult = spawnSync(buildCommand, buildArgs, {
 });
 
 if (buildResult.status !== 0) {
-  const reason = buildResult.stderr?.trim() || buildResult.stdout?.trim() || "unknown cargo error";
+  const reason =
+    buildResult.stderr?.trim() ||
+    buildResult.stdout?.trim() ||
+    "unknown cargo error";
   throw new Error(`Failed to build dprint plugin wasm: ${reason}`);
 }
 
 if (!existsSync(outputWasmPath)) {
-  throw new Error(`Cargo build succeeded but wasm artifact is missing: ${outputWasmPath}`);
+  throw new Error(
+    `Cargo build succeeded but wasm artifact is missing: ${outputWasmPath}`,
+  );
 }
 
 mkdirSync(dirname(distWasmPath), { recursive: true });

@@ -55,7 +55,9 @@ const fileExists = async (path: string): Promise<boolean> => {
   }
 };
 
-const findConfigPath = async (targetFilePath: string): Promise<string | undefined> => {
+const findConfigPath = async (
+  targetFilePath: string,
+): Promise<string | undefined> => {
   let current = resolve(dirname(targetFilePath));
 
   while (true) {

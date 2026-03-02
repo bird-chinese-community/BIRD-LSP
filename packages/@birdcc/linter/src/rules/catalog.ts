@@ -51,7 +51,9 @@ export type RuleCode =
   | (typeof RULE_CODES.bgp)[number]
   | (typeof RULE_CODES.ospf)[number];
 
-const ruleSeverityEntries: ReadonlyArray<readonly [RuleCode, BirdDiagnosticSeverity]> = [
+const ruleSeverityEntries: ReadonlyArray<
+  readonly [RuleCode, BirdDiagnosticSeverity]
+> = [
   ...RULE_CODES.sym.map((code) => [code, "error"] as const),
   ...RULE_CODES.cfg.map((code) => [code, "error"] as const),
   ...RULE_CODES.net.map((code) => [code, "error"] as const),
@@ -60,9 +62,11 @@ const ruleSeverityEntries: ReadonlyArray<readonly [RuleCode, BirdDiagnosticSever
   ...RULE_CODES.ospf.map((code) => [code, "warning"] as const),
 ];
 
-export const RULE_SEVERITY: Record<RuleCode, BirdDiagnosticSeverity> = Object.fromEntries(
-  ruleSeverityEntries,
-) as Record<RuleCode, BirdDiagnosticSeverity>;
+export const RULE_SEVERITY: Record<RuleCode, BirdDiagnosticSeverity> =
+  Object.fromEntries(ruleSeverityEntries) as Record<
+    RuleCode,
+    BirdDiagnosticSeverity
+  >;
 
 export const LEGACY_CODE_PATTERNS = [
   /^protocol\//,

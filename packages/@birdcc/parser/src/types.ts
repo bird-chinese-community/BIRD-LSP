@@ -109,7 +109,14 @@ export interface ExportStatement extends StatementBase {
 }
 
 interface ChannelEntryBase extends SourceRange {
-  kind: "table" | "import" | "export" | "limit" | "debug" | "keep-filtered" | "other";
+  kind:
+    | "table"
+    | "import"
+    | "export"
+    | "limit"
+    | "debug"
+    | "keep-filtered"
+    | "other";
 }
 
 export interface ChannelTableEntry extends ChannelEntryBase {

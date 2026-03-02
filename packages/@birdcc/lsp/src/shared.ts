@@ -45,7 +45,10 @@ export const toLspRange = (range: SourceRange): Range => ({
   },
 });
 
-export const isPositionInRange = (position: Position, range: SourceRange): boolean => {
+export const isPositionInRange = (
+  position: Position,
+  range: SourceRange,
+): boolean => {
   const line = position.line + 1;
   const character = position.character + 1;
 
@@ -153,7 +156,9 @@ export const declarationMetadata = (
         completionDetail: "include path",
       };
     case "router-id": {
-      const fromSource = declaration.fromSource ? ` (${declaration.fromSource})` : "";
+      const fromSource = declaration.fromSource
+        ? ` (${declaration.fromSource})`
+        : "";
       return {
         symbolName: `router id ${declaration.value}`,
         selectionRange: declaration.valueRange,

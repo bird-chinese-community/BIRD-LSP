@@ -10,7 +10,10 @@ const fixtureFiles = [
 ] as const;
 
 const readFixture = (name: string): string => {
-  const url = new URL(`../../../../refer/BIRD-tm-language-grammar/sample/${name}`, import.meta.url);
+  const url = new URL(
+    `../../../../refer/BIRD-tm-language-grammar/sample/${name}`,
+    import.meta.url,
+  );
   return readFileSync(url, "utf8");
 };
 
@@ -21,7 +24,9 @@ describe("@birdcc/parser fixtures", () => {
       const parsed = await parseBirdConfig(text);
 
       expect(parsed.program.declarations.length).toBeGreaterThan(0);
-      expect(parsed.issues.filter((item) => item.code === "parser/syntax-error")).toHaveLength(0);
+      expect(
+        parsed.issues.filter((item) => item.code === "parser/syntax-error"),
+      ).toHaveLength(0);
     });
   }
 
@@ -29,7 +34,9 @@ describe("@birdcc/parser fixtures", () => {
     const text = readFixture("protocol_phrases.conf");
     const parsed = await parseBirdConfig(text);
 
-    const protocols = parsed.program.declarations.filter((item) => item.kind === "protocol");
+    const protocols = parsed.program.declarations.filter(
+      (item) => item.kind === "protocol",
+    );
     const statements = protocols.flatMap((protocol) =>
       protocol.statements.map((item) => item.kind),
     );

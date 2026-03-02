@@ -39,7 +39,8 @@ const createRange = (line: number, column: number, width = 1) => ({
   endColumn: column + width,
 });
 
-const normalizeMessage = (message: string): string => message.replace(/^bird:\s*/i, "").trim();
+const normalizeMessage = (message: string): string =>
+  message.replace(/^bird:\s*/i, "").trim();
 
 /** Parses stderr output from `bird -p` into normalized diagnostics. */
 export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
@@ -49,9 +50,12 @@ export const parseBirdStderr = (stderr: string): BirdDiagnostic[] => {
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  const colonPattern = /^(?<file>.+?):(?<line>\d+):(?<column>\d+)\s+(?<message>.+)$/;
-  const parseErrorPattern = /^Parse error\s+(?<file>.+),\s+line\s+(?<line>\d+):\s*(?<message>.+)$/i;
-  const legacyPattern = /^(?<file>.+),\s+line\s+(?<line>\d+):(?<column>\d+)\s+(?<message>.+)$/i;
+  const colonPattern =
+    /^(?<file>.+?):(?<line>\d+):(?<column>\d+)\s+(?<message>.+)$/;
+  const parseErrorPattern =
+    /^Parse error\s+(?<file>.+),\s+line\s+(?<line>\d+):\s*(?<message>.+)$/i;
+  const legacyPattern =
+    /^(?<file>.+),\s+line\s+(?<line>\d+):(?<column>\d+)\s+(?<message>.+)$/i;
 
   for (const lineText of lines) {
     const matched =
@@ -159,14 +163,19 @@ const readUtf8File = async (filePath: string): Promise<string> => {
   try {
     return await readFile(filePath, "utf8");
   } catch (error) {
-    throw new Error(`Failed to read file '${filePath}': ${formatIoError(error)}`);
+    throw new Error(
+      `Failed to read file '${filePath}': ${formatIoError(error)}`,
+    );
   }
 };
 
 const createTempFilePath = (filePath: string): string =>
   `${filePath}.birdcc-tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-const writeUtf8FileAtomically = async (filePath: string, content: string): Promise<void> => {
+const writeUtf8FileAtomically = async (
+  filePath: string,
+  content: string,
+): Promise<void> => {
   const tempPath = createTempFilePath(filePath);
 
   try {
@@ -174,7 +183,9 @@ const writeUtf8FileAtomically = async (filePath: string, content: string): Promi
     await rename(tempPath, filePath);
   } catch (error) {
     await unlink(tempPath).catch(() => {});
-    throw new Error(`Failed to write file '${filePath}': ${formatIoError(error)}`);
+    throw new Error(
+      `Failed to write file '${filePath}': ${formatIoError(error)}`,
+    );
   }
 };
 
@@ -296,7 +307,9 @@ export const runBirdValidation = (
   const validateTemplate = resolveValidateTemplate(validateCommand);
   const commandTokens = parseCommandTokens(validateTemplate);
   if (!commandTokens || commandTokens.length === 0) {
-    const message = createBirdRunnerErrorMessage("invalid bird command template");
+    const message = createBirdRunnerErrorMessage(
+      "invalid bird command template",
+    );
     return {
       command: validateTemplate,
       exitCode: 1,
@@ -336,7 +349,10 @@ export const runBirdValidation = (
     };
   }
 
-  const execResult = runCommand(expandedCommand.executable, expandedCommand.args);
+  const execResult = runCommand(
+    expandedCommand.executable,
+    expandedCommand.args,
+  );
 
   if (execResult.errorReason) {
     const message = createBirdRunnerErrorMessage(execResult.errorReason);
@@ -381,7 +397,8 @@ export interface BirdccLintOutput {
   diagnostics: BirdDiagnostic[];
 }
 
-const toFileUri = (filePath: string): string => pathToFileURL(resolve(filePath)).toString();
+const toFileUri = (filePath: string): string =>
+  pathToFileURL(resolve(filePath)).toString();
 
 const diagnosticDedupKey = (diagnostic: BirdDiagnostic): string =>
   [
@@ -420,7 +437,10 @@ const applySeverityOverrides = (
   }
 
   return diagnostics.map((diagnostic) => {
-    const severity = resolveSeverityOverride(diagnostic.code, severityOverrides);
+    const severity = resolveSeverityOverride(
+      diagnostic.code,
+      severityOverrides,
+    );
     if (!severity || severity === diagnostic.severity) {
       return diagnostic;
     }
@@ -472,7 +492,9 @@ export const runLint = async (
     diagnostics.push(...birdResult.diagnostics);
   }
 
-  return { diagnostics: applySeverityOverrides(diagnostics, options.severityOverrides) };
+  return {
+    diagnostics: applySeverityOverrides(diagnostics, options.severityOverrides),
+  };
 };
 
 export interface FmtResult {
@@ -487,8 +509,12 @@ export const formatBirdConfigText = async (
 ): Promise<FmtResult> => {
   const formatterOptions = {
     engine: "builtin" as const,
-    ...(options.indentSize !== undefined ? { indentSize: options.indentSize } : {}),
-    ...(options.lineWidth !== undefined ? { lineWidth: options.lineWidth } : {}),
+    ...(options.indentSize !== undefined
+      ? { indentSize: options.indentSize }
+      : {}),
+    ...(options.lineWidth !== undefined
+      ? { lineWidth: options.lineWidth }
+      : {}),
     ...(options.safeMode !== undefined ? { safeMode: options.safeMode } : {}),
   };
   const result = await formatBirdConfig(text, formatterOptions);
@@ -524,7 +550,10 @@ const formatWithFormatterPackage = async (
 };
 
 /** Formats one file and writes back when `options.write` is enabled. */
-export const runFmt = async (filePath: string, options: FmtOptions = {}): Promise<FmtResult> => {
+export const runFmt = async (
+  filePath: string,
+  options: FmtOptions = {},
+): Promise<FmtResult> => {
   const text = await readUtf8File(filePath);
   let result: FmtResult;
 

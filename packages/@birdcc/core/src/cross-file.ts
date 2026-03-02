@@ -12,14 +12,20 @@ import type {
   SymbolTable,
 } from "./types.js";
 import { buildCoreSnapshotFromParsed } from "./snapshot.js";
-import { mergeSymbolTables, pushSymbolTableDiagnostics } from "./symbol-table.js";
+import {
+  mergeSymbolTables,
+  pushSymbolTableDiagnostics,
+} from "./symbol-table.js";
 import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
 
 export const DEFAULT_CROSS_FILE_MAX_DEPTH = 16;
 export const DEFAULT_CROSS_FILE_MAX_FILES = 256;
 
 const PARSED_DOCUMENT_CACHE_LIMIT = 512;
-const parsedDocumentCache = new Map<string, { text: string; parsed: ParsedBirdDocument }>();
+const parsedDocumentCache = new Map<
+  string,
+  { text: string; parsed: ParsedBirdDocument }
+>();
 
 const DEFAULT_RANGE = {
   line: 1,
@@ -42,7 +48,8 @@ const toFilePath = (uri: string): string | null => {
   return null;
 };
 
-const normalizeUriForPrefixMatch = (uri: string): string => uri.replace(/\/+$/, "");
+const normalizeUriForPrefixMatch = (uri: string): string =>
+  uri.replace(/\/+$/, "");
 
 const toDefaultWorkspaceRootUri = (entryUri: string): string => {
   const entryPath = toFilePath(entryUri);
@@ -53,7 +60,10 @@ const toDefaultWorkspaceRootUri = (entryUri: string): string => {
   return normalize(dirname(entryUri));
 };
 
-const isWithinWorkspaceRoot = (candidateUri: string, workspaceRootUri: string): boolean => {
+const isWithinWorkspaceRoot = (
+  candidateUri: string,
+  workspaceRootUri: string,
+): boolean => {
   const candidatePath = toFilePath(candidateUri);
   const workspaceRootPath = toFilePath(workspaceRootUri);
 
@@ -62,13 +72,21 @@ const isWithinWorkspaceRoot = (candidateUri: string, workspaceRootUri: string): 
     const resolvedCandidate = normalize(candidatePath);
     const relPath = relative(resolvedRoot, resolvedCandidate);
 
-    return relPath.length === 0 || (!relPath.startsWith("..") && !isAbsolute(relPath));
+    return (
+      relPath.length === 0 ||
+      (!relPath.startsWith("..") && !isAbsolute(relPath))
+    );
   }
 
-  const normalizedRoot = normalizeUriForPrefixMatch(normalize(workspaceRootUri));
-  const normalizedCandidate = normalizeUriForPrefixMatch(normalize(candidateUri));
+  const normalizedRoot = normalizeUriForPrefixMatch(
+    normalize(workspaceRootUri),
+  );
+  const normalizedCandidate = normalizeUriForPrefixMatch(
+    normalize(candidateUri),
+  );
   return (
-    normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+    normalizedCandidate === normalizedRoot ||
+    normalizedCandidate.startsWith(`${normalizedRoot}/`)
   );
 };
 
@@ -176,8 +194,10 @@ export const resolveCrossFileReferences = async (
   const maxFiles = options.maxFiles ?? DEFAULT_CROSS_FILE_MAX_FILES;
   const loadFromFileSystem = options.loadFromFileSystem ?? true;
   const readFileText = options.readFileText ?? defaultReadFileText;
-  const workspaceRootUri = options.workspaceRootUri ?? toDefaultWorkspaceRootUri(options.entryUri);
-  const allowIncludeOutsideWorkspace = options.allowIncludeOutsideWorkspace ?? false;
+  const workspaceRootUri =
+    options.workspaceRootUri ?? toDefaultWorkspaceRootUri(options.entryUri);
+  const allowIncludeOutsideWorkspace =
+    options.allowIncludeOutsideWorkspace ?? false;
 
   const stats: CrossFileResolutionStats = {
     loadedFromMemory: options.documents?.length ?? 0,
@@ -271,7 +291,11 @@ export const resolveCrossFileReferences = async (
       continue;
     }
 
-    const parsed = await parseDocumentWithCache(current.uri, document.text, stats);
+    const parsed = await parseDocumentWithCache(
+      current.uri,
+      document.text,
+      stats,
+    );
     parsedDocuments.set(current.uri, parsed);
     snapshots[current.uri] = buildCoreSnapshotFromParsed(parsed, {
       uri: current.uri,
@@ -286,7 +310,10 @@ export const resolveCrossFileReferences = async (
       const includeUri = resolveIncludeUri(current.uri, declaration.path);
       const includeRange = declaration.pathRange;
 
-      if (!allowIncludeOutsideWorkspace && !isWithinWorkspaceRoot(includeUri, workspaceRootUri)) {
+      if (
+        !allowIncludeOutsideWorkspace &&
+        !isWithinWorkspaceRoot(includeUri, workspaceRootUri)
+      ) {
         diagnostics.push(
           includeDiagnostic(
             current.uri,

@@ -2,11 +2,17 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { formatBirdConfigText, parseBirdStderr, runBirdValidation, runLint } from "../src/index.js";
+import {
+  formatBirdConfigText,
+  parseBirdStderr,
+  runBirdValidation,
+  runLint,
+} from "../src/index.js";
 
 describe("@birdcc/cli bird parser", () => {
   it("parses bird colon format diagnostics", () => {
-    const input = "/etc/bird.conf:12:9 syntax error, unexpected CF_SYM_UNDEFINED";
+    const input =
+      "/etc/bird.conf:12:9 syntax error, unexpected CF_SYM_UNDEFINED";
     const diagnostics = parseBirdStderr(input);
 
     expect(diagnostics).toHaveLength(1);
@@ -15,7 +21,8 @@ describe("@birdcc/cli bird parser", () => {
   });
 
   it("parses Parse error format diagnostics", () => {
-    const input = "Parse error /etc/bird.conf, line 15: unknown symbol local_as";
+    const input =
+      "Parse error /etc/bird.conf, line 15: unknown symbol local_as";
     const diagnostics = parseBirdStderr(input);
 
     expect(diagnostics).toHaveLength(1);
@@ -28,11 +35,15 @@ describe("@birdcc/cli bird parser", () => {
     const result = await formatBirdConfigText(input);
 
     expect(result.changed).toBe(true);
-    expect(result.formattedText).toBe("router id 192.0.2.1;\n\nprotocol bgp test {}\n");
+    expect(result.formattedText).toBe(
+      "router id 192.0.2.1;\n\nprotocol bgp test {}\n",
+    );
   });
 
   it("applies lint severity overrides from options at output layer", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-severity-override-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-severity-override-"),
+    );
     const entryFile = join(workspaceDir, "main.conf");
 
     await writeFile(entryFile, "router id 192.0.2.1;\n", "utf8");
@@ -43,7 +54,9 @@ describe("@birdcc/cli bird parser", () => {
       },
     });
 
-    const diagnostic = result.diagnostics.find((item) => item.code === "cfg/no-protocol");
+    const diagnostic = result.diagnostics.find(
+      (item) => item.code === "cfg/no-protocol",
+    );
     expect(diagnostic?.severity).toBe("warning");
   });
 
@@ -53,7 +66,9 @@ describe("@birdcc/cli bird parser", () => {
 
     try {
       const result = runBirdValidation("/tmp/bird.conf");
-      expect(result.command).toBe("/definitely-not-existing-bird-binary -p -c /tmp/bird.conf");
+      expect(result.command).toBe(
+        "/definitely-not-existing-bird-binary -p -c /tmp/bird.conf",
+      );
       expect(result.diagnostics).toHaveLength(1);
       expect(result.diagnostics[0].code).toBe("bird/runner-error");
     } finally {
@@ -80,7 +95,9 @@ describe("@birdcc/cli bird parser", () => {
   });
 
   it("enables cross-file lint by default and resolves include symbols", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-cross-file-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-cross-file-"),
+    );
     const entryFile = join(workspaceDir, "main.conf");
     const includeFile = join(workspaceDir, "filters.conf");
 
@@ -100,14 +117,22 @@ describe("@birdcc/cli bird parser", () => {
     );
 
     const singleFile = await runLint(entryFile, { crossFile: false });
-    expect(singleFile.diagnostics.some((item) => item.code === "sym/filter-required")).toBe(true);
+    expect(
+      singleFile.diagnostics.some(
+        (item) => item.code === "sym/filter-required",
+      ),
+    ).toBe(true);
 
     const crossFile = await runLint(entryFile);
-    expect(crossFile.diagnostics.some((item) => item.code === "sym/filter-required")).toBe(false);
+    expect(
+      crossFile.diagnostics.some((item) => item.code === "sym/filter-required"),
+    ).toBe(false);
   });
 
   it("reports include depth limit warnings without aborting lint", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-include-depth-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-include-depth-"),
+    );
     const entryFile = join(workspaceDir, "main.conf");
     const includeA = join(workspaceDir, "a.conf");
     const includeB = join(workspaceDir, "b.conf");
@@ -117,18 +142,26 @@ describe("@birdcc/cli bird parser", () => {
     await writeFile(includeB, "filter never_reached { reject; }\n", "utf8");
 
     const result = await runLint(entryFile, { includeMaxDepth: 1 });
-    expect(result.diagnostics.some((item) => item.message.includes("max depth"))).toBe(true);
+    expect(
+      result.diagnostics.some((item) => item.message.includes("max depth")),
+    ).toBe(true);
   });
 
   it("keeps cross-file diagnostics and bird diagnostics when both are enabled", async () => {
-    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-cli-bird-cross-file-"));
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-bird-cross-file-"),
+    );
     const entryFile = join(workspaceDir, "main.conf");
     const includeFile = join(workspaceDir, "filters.conf");
 
     await writeFile(includeFile, "filter shared_in { accept; }\n", "utf8");
     await writeFile(
       entryFile,
-      ['include "filters.conf";', "protocol bgp edge { import filter shared_in; }", ""].join("\n"),
+      [
+        'include "filters.conf";',
+        "protocol bgp edge { import filter shared_in; }",
+        "",
+      ].join("\n"),
       "utf8",
     );
 
@@ -137,7 +170,11 @@ describe("@birdcc/cli bird parser", () => {
       validateCommand: "/definitely-not-existing-bird-binary -p -c {file}",
     });
 
-    expect(result.diagnostics.some((item) => item.code === "bird/runner-error")).toBe(true);
-    expect(result.diagnostics.some((item) => item.code === "sym/filter-required")).toBe(false);
+    expect(
+      result.diagnostics.some((item) => item.code === "bird/runner-error"),
+    ).toBe(true);
+    expect(
+      result.diagnostics.some((item) => item.code === "sym/filter-required"),
+    ).toBe(false);
   });
 });

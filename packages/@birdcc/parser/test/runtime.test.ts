@@ -7,7 +7,9 @@ import {
   setLanguageWasmPathsForTests,
 } from "../src/runtime.js";
 
-const VALID_WASM_PATH = fileURLToPath(new URL("../src/tree-sitter-birdcc.wasm", import.meta.url));
+const VALID_WASM_PATH = fileURLToPath(
+  new URL("../src/tree-sitter-birdcc.wasm", import.meta.url),
+);
 
 describe("@birdcc/parser runtime", () => {
   afterEach(() => {
@@ -16,7 +18,11 @@ describe("@birdcc/parser runtime", () => {
   });
 
   it("reuses a single parser instance for concurrent callers", async () => {
-    const [parserA, parserB, parserC] = await Promise.all([getParser(), getParser(), getParser()]);
+    const [parserA, parserB, parserC] = await Promise.all([
+      getParser(),
+      getParser(),
+      getParser(),
+    ]);
 
     expect(parserA).toBe(parserB);
     expect(parserA).toBe(parserC);
@@ -24,7 +30,9 @@ describe("@birdcc/parser runtime", () => {
 
   it("recovers from initialization failure and supports retry", async () => {
     setLanguageWasmPathsForTests(["/tmp/not-found-tree-sitter-birdcc.wasm"]);
-    await expect(getParser()).rejects.toThrow("Unable to load Tree-sitter WASM language");
+    await expect(getParser()).rejects.toThrow(
+      "Unable to load Tree-sitter WASM language",
+    );
 
     setLanguageWasmPathsForTests([VALID_WASM_PATH]);
     await expect(getParser()).resolves.toBeDefined();
@@ -32,7 +40,9 @@ describe("@birdcc/parser runtime", () => {
 
   it("returns degraded parse result when runtime cannot be initialized", async () => {
     setLanguageWasmPathsForTests(["/tmp/not-found-tree-sitter-birdcc.wasm"]);
-    const parsed = await parseBirdConfig("protocol bgp edge { local as 65001; }");
+    const parsed = await parseBirdConfig(
+      "protocol bgp edge { local as 65001; }",
+    );
 
     expect(parsed.program.declarations).toHaveLength(0);
     expect(parsed.issues).toHaveLength(1);

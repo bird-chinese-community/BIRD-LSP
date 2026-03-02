@@ -17,7 +17,9 @@ describe("@birdcc/core boundaries", () => {
     const result = await buildCoreSnapshot(sample);
     expect(
       result.diagnostics.some(
-        (item) => item.code === "semantic/duplicate-definition" && item.severity === "error",
+        (item) =>
+          item.code === "semantic/duplicate-definition" &&
+          item.severity === "error",
       ),
     ).toBe(true);
   });
@@ -29,9 +31,11 @@ describe("@birdcc/core boundaries", () => {
     `;
 
     const result = await buildCoreSnapshot(sample);
-    expect(result.diagnostics.some((item) => item.code === "semantic/undefined-reference")).toBe(
-      true,
-    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(true);
   });
 
   it("reports invalid router id", async () => {
@@ -40,9 +44,11 @@ describe("@birdcc/core boundaries", () => {
     `;
 
     const result = await buildCoreSnapshot(sample);
-    expect(result.diagnostics.some((item) => item.code === "semantic/invalid-router-id")).toBe(
-      true,
-    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/invalid-router-id",
+      ),
+    ).toBe(true);
   });
 
   it("reports invalid neighbor address", async () => {
@@ -55,7 +61,9 @@ describe("@birdcc/core boundaries", () => {
 
     const result = await buildCoreSnapshot(sample);
     expect(
-      result.diagnostics.some((item) => item.code === "semantic/invalid-neighbor-address"),
+      result.diagnostics.some(
+        (item) => item.code === "semantic/invalid-neighbor-address",
+      ),
     ).toBe(true);
   });
 
@@ -68,7 +76,9 @@ describe("@birdcc/core boundaries", () => {
     `;
 
     const result = await buildCoreSnapshot(sample);
-    expect(result.diagnostics.some((item) => item.code === "semantic/invalid-cidr")).toBe(true);
+    expect(
+      result.diagnostics.some((item) => item.code === "semantic/invalid-cidr"),
+    ).toBe(true);
   });
 
   it("passes valid router and prefix literals", async () => {
@@ -116,10 +126,14 @@ describe("@birdcc/core boundaries", () => {
     const parsed = await parseBirdConfig(sample);
     const snapshot = buildCoreSnapshotFromParsed(parsed);
 
-    expect(snapshot.typeDiagnostics.some((item) => item.code === "type/mismatch")).toBe(true);
-    expect(snapshot.typeDiagnostics.some((item) => item.code === "type/undefined-variable")).toBe(
-      true,
-    );
+    expect(
+      snapshot.typeDiagnostics.some((item) => item.code === "type/mismatch"),
+    ).toBe(true);
+    expect(
+      snapshot.typeDiagnostics.some(
+        (item) => item.code === "type/undefined-variable",
+      ),
+    ).toBe(true);
   });
 
   it("checkTypes works with explicit program + symbolTable input", async () => {
@@ -173,7 +187,9 @@ describe("@birdcc/core boundaries", () => {
     const parsed = await parseBirdConfig(sample);
     const snapshot = buildCoreSnapshotFromParsed(parsed);
     const diagnostics = checkTypes(parsed.program, snapshot.symbolTable);
-    const mismatchDiagnostics = diagnostics.filter((item) => item.code === "type/mismatch");
+    const mismatchDiagnostics = diagnostics.filter(
+      (item) => item.code === "type/mismatch",
+    );
 
     expect(mismatchDiagnostics).toHaveLength(1);
   });
@@ -270,9 +286,11 @@ describe("@birdcc/core boundaries", () => {
     `;
 
     const result = await buildCoreSnapshot(sample);
-    expect(result.diagnostics.some((item) => item.code === "semantic/circular-template")).toBe(
-      true,
-    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/circular-template",
+      ),
+    ).toBe(true);
   });
 
   it("reports circular template inheritance across includes", async () => {
@@ -311,9 +329,11 @@ describe("@birdcc/core boundaries", () => {
       ],
     });
 
-    expect(result.diagnostics.some((item) => item.code === "semantic/circular-template")).toBe(
-      true,
-    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/circular-template",
+      ),
+    ).toBe(true);
   });
 
   it("loads include files through readFileText fallback", async () => {
@@ -343,11 +363,15 @@ describe("@birdcc/core boundaries", () => {
       readFileText,
     });
 
-    expect(result.visitedUris).toContain("file:///workspace/templates/common.conf");
-    expect(result.stats.loadedFromFileSystem).toBe(1);
-    expect(result.diagnostics.some((item) => item.code === "semantic/undefined-reference")).toBe(
-      false,
+    expect(result.visitedUris).toContain(
+      "file:///workspace/templates/common.conf",
     );
+    expect(result.stats.loadedFromFileSystem).toBe(1);
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(false);
   });
 
   it("emits include warning when max depth is reached", async () => {
@@ -371,7 +395,9 @@ describe("@birdcc/core boundaries", () => {
     });
 
     expect(result.stats.skippedByDepth).toBeGreaterThan(0);
-    expect(result.diagnostics.some((item) => item.message.includes("max depth"))).toBe(true);
+    expect(
+      result.diagnostics.some((item) => item.message.includes("max depth")),
+    ).toBe(true);
   });
 
   it("emits include warning when max files limit is reached", async () => {
@@ -398,7 +424,9 @@ describe("@birdcc/core boundaries", () => {
     });
 
     expect(result.stats.skippedByFileLimit).toBeGreaterThan(0);
-    expect(result.diagnostics.some((item) => item.message.includes("max files"))).toBe(true);
+    expect(
+      result.diagnostics.some((item) => item.message.includes("max files")),
+    ).toBe(true);
   });
 
   it("skips include paths outside workspace root by default", async () => {
@@ -425,9 +453,11 @@ describe("@birdcc/core boundaries", () => {
 
     expect(result.visitedUris).toContain("/workspace/inside.conf");
     expect(result.visitedUris).not.toContain("/outside.conf");
-    expect(result.diagnostics.some((item) => item.message.includes("outside workspace root"))).toBe(
-      true,
-    );
+    expect(
+      result.diagnostics.some((item) =>
+        item.message.includes("outside workspace root"),
+      ),
+    ).toBe(true);
   });
 
   it("allows include paths outside workspace root when explicitly enabled", async () => {

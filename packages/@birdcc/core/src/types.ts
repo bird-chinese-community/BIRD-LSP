@@ -16,7 +16,12 @@ export interface BirdDiagnostic {
   uri?: string;
 }
 
-export type BirdSymbolKind = "protocol" | "template" | "filter" | "function" | "table";
+export type BirdSymbolKind =
+  | "protocol"
+  | "template"
+  | "filter"
+  | "function"
+  | "table";
 
 export interface SymbolDefinition {
   kind: BirdSymbolKind;

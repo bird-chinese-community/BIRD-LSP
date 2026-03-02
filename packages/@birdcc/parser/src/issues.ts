@@ -85,7 +85,10 @@ export const dedupeIssues = (issues: ParseIssue[]): ParseIssue[] => {
   return unique;
 };
 
-export const ensureBraceBalanceIssue = (source: string, issues: ParseIssue[]): void => {
+export const ensureBraceBalanceIssue = (
+  source: string,
+  issues: ParseIssue[],
+): void => {
   let balance = 0;
   let line = 1;
   let column = 1;
@@ -115,7 +118,9 @@ export const ensureBraceBalanceIssue = (source: string, issues: ParseIssue[]): v
     return;
   }
 
-  const alreadyHasUnbalanced = issues.some((item) => item.code === "syntax/unbalanced-brace");
+  const alreadyHasUnbalanced = issues.some(
+    (item) => item.code === "syntax/unbalanced-brace",
+  );
   if (alreadyHasUnbalanced) {
     return;
   }

@@ -10,7 +10,10 @@ export interface ValidationPublishPayload<TDiagnostic> {
   diagnostics: TDiagnostic[];
 }
 
-export interface ValidationSchedulerOptions<TDocument extends ValidationDocument, TDiagnostic> {
+export interface ValidationSchedulerOptions<
+  TDocument extends ValidationDocument,
+  TDiagnostic,
+> {
   debounceMs: number;
   validate(document: TDocument): Promise<TDiagnostic[]>;
   publish(payload: ValidationPublishPayload<TDiagnostic>): void;
@@ -21,7 +24,10 @@ export interface ValidationScheduler<TDocument extends ValidationDocument> {
   close(uri: string): void;
 }
 
-export const createValidationScheduler = <TDocument extends ValidationDocument, TDiagnostic>(
+export const createValidationScheduler = <
+  TDocument extends ValidationDocument,
+  TDiagnostic,
+>(
   options: ValidationSchedulerOptions<TDocument, TDiagnostic>,
 ): ValidationScheduler<TDocument> => {
   const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();

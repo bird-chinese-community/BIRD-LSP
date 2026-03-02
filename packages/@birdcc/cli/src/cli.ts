@@ -2,7 +2,10 @@
 import { cac } from "cac";
 import { loadBirdccConfigForFile } from "./config.js";
 import { runFmt, runLint, runLspStdio } from "./index.js";
-import { CLI_MESSAGES, createInvalidPositiveIntegerOptionMessage } from "./messages.js";
+import {
+  CLI_MESSAGES,
+  createInvalidPositiveIntegerOptionMessage,
+} from "./messages.js";
 
 interface LintOptions {
   format?: "json" | "text";
@@ -23,10 +26,17 @@ interface LspOptions {
   stdio?: boolean;
 }
 
-type FileAction<TOptions extends object> = (file: string, options: TOptions) => Promise<void>;
-type CommandAction<TOptions extends object> = (options: TOptions) => Promise<void>;
+type FileAction<TOptions extends object> = (
+  file: string,
+  options: TOptions,
+) => Promise<void>;
+type CommandAction<TOptions extends object> = (
+  options: TOptions,
+) => Promise<void>;
 
-const withActionErrorHandling = <TOptions extends object>(action: FileAction<TOptions>) => {
+const withActionErrorHandling = <TOptions extends object>(
+  action: FileAction<TOptions>,
+) => {
   return async (file: string, options: TOptions): Promise<void> => {
     try {
       await action(file, options);
@@ -37,7 +47,9 @@ const withActionErrorHandling = <TOptions extends object>(action: FileAction<TOp
   };
 };
 
-const withCommandErrorHandling = <TOptions extends object>(action: CommandAction<TOptions>) => {
+const withCommandErrorHandling = <TOptions extends object>(
+  action: CommandAction<TOptions>,
+) => {
   return async (options: TOptions): Promise<void> => {
     try {
       await action(options);
@@ -65,7 +77,9 @@ const parseOptionalPositiveInteger = (
 
   const parsed = Number.parseInt(rawValue, 10);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(createInvalidPositiveIntegerOptionMessage(optionName, rawValue));
+    throw new Error(
+      createInvalidPositiveIntegerOptionMessage(optionName, rawValue),
+    );
   }
 
   return parsed;
@@ -81,7 +95,10 @@ cli
     default: true,
   })
   .option("--include-max-depth <n>", "Max include expansion depth")
-  .option("--include-max-files <n>", "Max number of files for include expansion")
+  .option(
+    "--include-max-files <n>",
+    "Max number of files for include expansion",
+  )
   .option("--validate-command <command>", "Validation command template")
   .action(
     withActionErrorHandling(async (file: string, options: LintOptions) => {
@@ -100,7 +117,8 @@ cli
         crossFile: options.crossFile !== false,
         includeMaxDepth,
         includeMaxFiles,
-        validateCommand: options.validateCommand ?? loadedConfig.config.bird?.validateCommand,
+        validateCommand:
+          options.validateCommand ?? loadedConfig.config.bird?.validateCommand,
         severityOverrides: loadedConfig.config.linter?.rules,
       });
 
@@ -119,7 +137,9 @@ cli
         }
       }
 
-      const hasError = result.diagnostics.some((item) => item.severity === "error");
+      const hasError = result.diagnostics.some(
+        (item) => item.severity === "error",
+      );
       if (hasError) {
         process.exitCode = 1;
       }
@@ -162,7 +182,11 @@ cli
       });
 
       if (writeMode) {
-        console.log(result.changed ? CLI_MESSAGES.fmtWritten : CLI_MESSAGES.fmtAlreadyFormatted);
+        console.log(
+          result.changed
+            ? CLI_MESSAGES.fmtWritten
+            : CLI_MESSAGES.fmtAlreadyFormatted,
+        );
         return;
       }
 

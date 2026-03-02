@@ -31,7 +31,9 @@ const extractPrefixes = (text: string): PrefixParts[] => {
     }
 
     const normalizedLength = lengthText.trim();
-    const length = /^\d+$/.test(normalizedLength) ? Number.parseInt(normalizedLength, 10) : null;
+    const length = /^\d+$/.test(normalizedLength)
+      ? Number.parseInt(normalizedLength, 10)
+      : null;
     prefixes.push({ address: address.trim(), length, raw });
 
     matched = prefixPattern.exec(text);
@@ -144,7 +146,11 @@ const analyzePrefix = (
   pushUniqueDiagnostic(
     diagnostics,
     seen,
-    createRuleDiagnostic("net/invalid-ipv4-prefix", `Invalid IP prefix '${prefix.raw}'`, range),
+    createRuleDiagnostic(
+      "net/invalid-ipv4-prefix",
+      `Invalid IP prefix '${prefix.raw}'`,
+      range,
+    ),
   );
 };
 
@@ -194,7 +200,10 @@ const netMaxPrefixRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (statement.channelType !== "ipv4" && statement.channelType !== "ipv6") {
+      if (
+        statement.channelType !== "ipv4" &&
+        statement.channelType !== "ipv6"
+      ) {
         continue;
       }
 
@@ -246,6 +255,8 @@ const netMaxPrefixRule: BirdRule = ({ parsed }) => {
 
 export const netRules: BirdRule[] = [netPrefixRules, netMaxPrefixRule];
 
-export const collectNetRuleDiagnostics = (context: Parameters<BirdRule>[0]): BirdDiagnostic[] => {
+export const collectNetRuleDiagnostics = (
+  context: Parameters<BirdRule>[0],
+): BirdDiagnostic[] => {
   return netRules.flatMap((rule) => rule(context));
 };
