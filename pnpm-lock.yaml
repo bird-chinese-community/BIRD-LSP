@@ -119,6 +119,9 @@ importers:
 
   packages/@birdcc/vscode:
     dependencies:
+      '@birdcc/formatter':
+        specifier: workspace:*
+        version: link:../formatter
       vscode-languageclient:
         specifier: ^9.0.1
         version: 9.0.1

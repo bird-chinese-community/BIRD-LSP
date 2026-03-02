@@ -1,4 +1,4 @@
-import { window, workspace } from "vscode";
+import { languages, window, workspace } from "vscode";
 import type { ExtensionContext } from "vscode";
 
 import { createBirdClientLifecycle } from "./client/index.js";
@@ -8,7 +8,9 @@ import {
   createFallbackValidator,
   type FallbackValidator,
 } from "./fallback/index.js";
+import { createBirdFormattingProvider } from "./formatter/index.js";
 import { createDefaultRuntimeState } from "./types.js";
+import { LANGUAGE_ID } from "./constants.js";
 
 export const runtimeState = createDefaultRuntimeState();
 
@@ -57,6 +59,10 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const outputChannel = window.createOutputChannel(EXTENSION_NAME);
   const configurationManager = createConfigurationManager();
   const lifecycle = createBirdClientLifecycle(outputChannel);
+  const formattingProvider = createBirdFormattingProvider(
+    () => runtimeState.configuration,
+    outputChannel,
+  );
   const createOrGetFallbackValidator = (): FallbackValidator => {
     if (!fallbackValidator) {
       fallbackValidator = createFallbackValidator(
@@ -95,6 +101,13 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
       configurationManager.refreshFromWorkspace("workspace-change");
     }),
+  );
+
+  context.subscriptions.push(
+    languages.registerDocumentFormattingEditProvider(
+      { language: LANGUAGE_ID, scheme: "file" },
+      formattingProvider,
+    ),
   );
 
   context.subscriptions.push({

@@ -45,3 +45,4 @@ export {
   parseBirdValidationOutput,
   type FallbackValidator,
 } from "./fallback/index.js";
+export { createBirdFormattingProvider } from "./formatter/index.js";
