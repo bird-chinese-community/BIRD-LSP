@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { stat } from "node:fs/promises";
 import { isAbsolute, normalize, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -63,6 +64,42 @@ const isPathInsideWorkspace = (
   return workspaceRoots.some((workspaceRoot) =>
     isPathInsideRoot(filePath, workspaceRoot),
   );
+};
+
+const isWorldWritable = (mode: number): boolean => (mode & 0o002) !== 0;
+
+type FilePermissionCheckResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: "world-writable" | "stat-failed";
+      readonly details?: string;
+    };
+
+const checkFilePermission = async (
+  filePath: string,
+): Promise<FilePermissionCheckResult> => {
+  if (process.platform === "win32") {
+    return { ok: true };
+  }
+
+  try {
+    const fileStat = await stat(filePath);
+    if (isWorldWritable(fileStat.mode)) {
+      return {
+        ok: false,
+        reason: "world-writable",
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "stat-failed",
+      details: sanitizeLogMessage(String(error)),
+    };
+  }
 };
 
 export const createFallbackValidator = (
@@ -153,6 +190,32 @@ export const createFallbackValidator = (
           `[bird2-lsp] validation command blocked for file outside workspace root: ${document.uri.fsPath}`,
         ),
       );
+      clearDocumentDiagnostics(document);
+      return;
+    }
+
+    const permissionCheck = await checkFilePermission(document.uri.fsPath);
+    if (!permissionCheck.ok) {
+      if (permissionCheck.reason === "world-writable") {
+        outputChannel.appendLine(
+          sanitizeLogMessage(
+            `[bird2-lsp] fallback validation skipped for world-writable file: ${document.uri.fsPath}`,
+          ),
+        );
+      } else {
+        outputChannel.appendLine(
+          sanitizeLogMessage(
+            [
+              "[bird2-lsp] fallback validation skipped because file permission check failed:",
+              document.uri.fsPath,
+              permissionCheck.details ? `(${permissionCheck.details})` : "",
+            ]
+              .join(" ")
+              .trim(),
+          ),
+        );
+      }
+
       clearDocumentDiagnostics(document);
       return;
     }
