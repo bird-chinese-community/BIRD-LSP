@@ -78,6 +78,21 @@ describe("@birdcc/cli config", () => {
     );
   });
 
+  it("throws readable errors for malformed JSON syntax", async () => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-json-"));
+    const targetFile = join(workspaceDir, "bird.conf");
+    await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
+    await writeFile(
+      join(workspaceDir, "birdcc.config.json"),
+      '{"formatter":{"lineWidth":80},}',
+      "utf8",
+    );
+
+    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
+      "JSON parse failed",
+    );
+  });
+
   it("rejects out-of-range formatter options", async () => {
     const workspaceDir = await mkdtemp(
       join(tmpdir(), "birdcc-config-out-of-range-"),
@@ -113,6 +128,16 @@ describe("@birdcc/cli config", () => {
     expect(
       resolveSeverityOverride("bgp/missing-neighbor", rules),
     ).toBeUndefined();
+  });
+
+  it("prefers the longest wildcard prefix when multiple patterns match", () => {
+    const rules = {
+      "cfg/*": "warning",
+      "cfg/no/*": "info",
+    } as const;
+
+    expect(resolveSeverityOverride("cfg/no/protocol", rules)).toBe("info");
+    expect(resolveSeverityOverride("cfg/no-router-id", rules)).toBe("warning");
   });
 
   it("propagates permission errors during config discovery", async () => {
