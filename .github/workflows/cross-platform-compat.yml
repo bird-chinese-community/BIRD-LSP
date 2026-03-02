@@ -1,0 +1,81 @@
+name: Cross Platform Compat
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native-smoke:
+    name: Native Smoke (${{ matrix.name }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            runs_on: ubuntu-latest
+          - name: linux-arm64
+            runs_on: ubuntu-24.04-arm
+          - name: macos-amd64
+            runs_on: macos-13
+          - name: macos-arm64
+            runs_on: macos-14
+          - name: windows-amd64
+            runs_on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @birdcc/formatter lint
+      - run: pnpm --filter @birdcc/formatter typecheck
+      - run: pnpm --filter @birdcc/formatter test
+      - run: pnpm --filter @birdcc/formatter build
+      - run: pnpm --filter @birdcc/cli... build
+      - run: node tools/ci/smoke-cli-lint-fmt.mjs
+
+  bird-parse-docker:
+    name: Bird Parse Docker (${{ matrix.platform_tag }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            platform_tag: linux-amd64
+          - platform: linux/arm64
+            platform_tag: linux-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @birdcc/cli... build
+      - run: node tools/ci/smoke-cli-lint-fmt.mjs
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build BIRD2 image
+        run: |
+          docker buildx build \
+            --platform "${{ matrix.platform }}" \
+            --load \
+            --tag "birdcc/bird2-ci:${{ matrix.platform_tag }}" \
+            docker/bird2
+      - name: Validate config via bird -p
+        run: |
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            -v "$PWD/.tmp/ci-bird-smoke:/work:ro" \
+            --entrypoint /usr/sbin/bird \
+            "birdcc/bird2-ci:${{ matrix.platform_tag }}" \
+            -p -c /work/bird.conf
