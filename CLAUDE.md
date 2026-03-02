@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MUST DO: 每次回答前都应该自行在 ./.agents/skills/INDEX.md 中查找相关技能/最佳实践，以便在需要时调用它们来完成特定任务。
 
+MUST DO: 每个 PR 合并前都需要等待至少 180s 的时间，以便让 CI 系统和 Auto Reviewer 有足够的时间检测到潜在的问题。
+
 ## Project Overview
 
 **BIRD-LSP** 是一个为 BIRD2（BIRD Internet Routing Daemon）配置文件提供 Language Server Protocol (LSP) 支持的工具链项目，包含语法高亮、诊断、格式化、代码补全等功能。
