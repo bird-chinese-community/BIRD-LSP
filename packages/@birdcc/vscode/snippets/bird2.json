@@ -46,7 +46,7 @@
       "protocol ospf ${1:v2} {",
       "  area ${2:0.0.0.0} {",
       "    ${3:stub};",
-      "    interface ${4:\"eth0\"} {",
+      "    interface \"${4:eth0}\" {",
       "      cost ${5:10};",
       "      hello ${6:10};",
       "      retransmit ${7:5};",
@@ -97,8 +97,8 @@
     "description": "Route filter definition",
     "body": [
       "filter ${1:filter_name} {",
-      "  if (${2:net ~ [ 10.0.0.0/8+ ]}) then {",
-      "    ${3:bgp_community.add((65530,1))};",
+      "  if (${2:net} ~ [ ${3:10.0.0.0/8+} ]) then {",
+      "    ${4:bgp_community.add((65530,1))};",
       "    accept;",
       "  }",
       "  ",
@@ -132,8 +132,9 @@
     "description": "Filter based on prefix lists",
     "body": [
       "filter ${1:filter_name} {",
-      "  if (${2:net} ~ [ ${3:10.0.0.0/8+}, ${4:192.168.0.0/16{16,24}} ]) then",
+      "  if (${2:net} ~ [ ${3:10.0.0.0/8+}, ${4:192.168.0.0/16{16,24}} ]) then {",
       "    accept;",
+      "  }",
       "  reject;",
       "  $0",
       "}"
@@ -143,9 +144,9 @@
     "prefix": ["function"],
     "description": "Filter function definition",
     "body": [
-      "function ${1:function_name}(${2:int a}) -> ${3|int,bool,prefix,ip,string|}",
+      "function ${1:function_name}(${2:int} ${3:a}) -> ${4|int,bool,prefix,ip,string|}",
       "{",
-      "  return ${4:a};",
+      "  return $3;",
       "  $0",
       "}"
     ]
@@ -156,7 +157,7 @@
     "body": [
       "function ${1:prepend_once}() -> bgppath",
       "{",
-      "  return ${2:bgp_path.prepend(${3:bgp_as})};",
+      "  return ${2:bgp_path}.prepend(${3:bgp_as});",
       "  $0",
       "}"
     ]
@@ -165,9 +166,9 @@
     "prefix": ["function-community"],
     "description": "Function to tag routes with BGP communities",
     "body": [
-      "function ${1:tag_route}(${2:pair community}) -> bool",
+      "function ${1:tag_route}(${2:pair} ${3:community}) -> bool",
       "{",
-      "  bgp_community.add(${3:community});",
+      "  bgp_community.add($3);",
       "  return true;",
       "  $0",
       "}"
@@ -236,10 +237,10 @@
     "prefix": ["if"],
     "description": "Conditional statement",
     "body": [
-      "if (${1:net ~ [ 10.0.0.0/8+ ]}) then {",
-      "  ${2:accept};",
+      "if (${1:net} ~ [ ${2:10.0.0.0/8+} ]) then {",
+      "  ${3:accept};",
       "} else {",
-      "  ${3:reject};",
+      "  ${4:reject};",
       "}"
     ]
   },
@@ -250,7 +251,7 @@
       "define ${1:MY_PREFIXES} = [",
       "  ${2:10.0.0.0/8+},",
       "  ${3:192.168.0.0/16{16,24}}",
-      "]"
+      "];"
     ]
   }
 }
