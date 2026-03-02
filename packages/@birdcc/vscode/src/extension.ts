@@ -4,7 +4,6 @@ import type { ExtensionContext } from "vscode";
 import { createBirdClientLifecycle } from "./client/index.js";
 import { registerBirdCommands } from "./commands/index.js";
 import { createConfigurationManager } from "./config/index.js";
-import { shouldRunLifecycleForConfigurationChange } from "./config/reload-policy.js";
 import { EXTENSION_NAME } from "./constants.js";
 import {
   createFallbackValidator,
@@ -150,11 +149,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     });
   };
   const reloadConfiguration = async (): Promise<void> => {
-    const change =
-      configurationManager.refreshFromWorkspace("workspace-change");
-    if (shouldRunLifecycleForConfigurationChange(change)) {
-      runLifecycleSafely(change, "configuration-change");
-    }
+    configurationManager.refreshFromWorkspace("workspace-change");
   };
   const validateActiveDocument = async (): Promise<void> => {
     const isLanguageServerEnabled = runtimeState.configuration.enabled;
