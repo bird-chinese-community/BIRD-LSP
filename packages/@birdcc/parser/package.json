@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
-    "format": "oxfmt --check src test"
+    "format": "oxfmt src test"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.25.10"

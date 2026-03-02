@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: oxfmt-check
         name: oxfmt check
-        entry: pnpm exec oxfmt --check
+        entry: pnpm exec oxfmt
         language: system
         files: '^packages/@birdcc/.*/(src|test)/.*\.tsx?$'
       - id: oxlint
