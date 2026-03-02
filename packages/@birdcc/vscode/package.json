@@ -274,6 +274,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "pnpm --filter @birdcc/parser build && vitest run",
-    "format": "oxfmt ."
+    "format": "oxfmt .",
+    "coverage": "pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
   }
 }

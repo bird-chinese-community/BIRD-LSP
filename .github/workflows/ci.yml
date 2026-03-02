@@ -85,3 +85,27 @@ jobs:
           fi
 
           pnpm exec commitlint --config commitlint.config.cjs --from "$FROM" --to "${{ github.sha }}"
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize required submodules
+        run: |
+          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar refer/config-examples
+          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar refer/config-examples
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm coverage
+      - name: Upload coverage summaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summaries
+          path: packages/@birdcc/*/coverage/coverage-summary.json
+          if-no-files-found: error

@@ -9,7 +9,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "format": "turbo run format"
+    "format": "turbo run format",
+    "coverage": "turbo run coverage"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -21,6 +22,7 @@
     "@commitlint/config-conventional": "^20.0.0",
     "@j178/prek": "^0.3.4",
     "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.26.0",
     "turbo": "^2.8.3",

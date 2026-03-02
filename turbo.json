@@ -20,6 +20,10 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "coverage": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
     }
   }
 }
