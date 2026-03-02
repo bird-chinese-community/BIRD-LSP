@@ -76,6 +76,12 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "snippets": [
+      {
+        "language": "bird2",
+        "path": "./snippets/bird2.json"
+      }
+    ],
     "commands": [
       {
         "command": "bird2-lsp.restartLanguageServer",
