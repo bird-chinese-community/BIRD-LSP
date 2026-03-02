@@ -1,6 +1,7 @@
 import type { OutputChannel } from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node.js";
 
+import { toSanitizedErrorDetails } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { createLanguageClient } from "./client.js";
 
@@ -67,7 +68,7 @@ export const createBirdClientLifecycle = (
         setState("error");
         activeClient = undefined;
         outputChannel.appendLine(
-          `[bird2-lsp] failed to start language client: ${String(error)}`,
+          `[bird2-lsp] failed to start language client: ${toSanitizedErrorDetails(error)}`,
         );
         throw error;
       }

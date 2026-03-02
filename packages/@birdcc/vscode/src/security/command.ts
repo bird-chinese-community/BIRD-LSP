@@ -31,6 +31,8 @@ const shellExecutionFlags = new Set([
   "-encodedcommand",
 ]);
 const disallowedShellMetacharacterPattern = /[;&|`$<>]/u;
+const disallowedEnvironmentExpansionPattern =
+  /\$\{env:[^}]+\}|%[a-z_][a-z0-9_]*%/iu;
 
 const commandTokenPattern = /"[^"]*"|'[^']*'|\S+/g;
 const validationPlaceholder = "__BIRD2_LSP_FILE_PATH__";
@@ -51,6 +53,8 @@ const normalizeTokens = (tokens: readonly string[]): readonly string[] =>
 
 const hasDisallowedShellMetacharacter = (value: string): boolean =>
   disallowedShellMetacharacterPattern.test(value);
+const hasDisallowedEnvironmentExpansion = (value: string): boolean =>
+  disallowedEnvironmentExpansionPattern.test(value);
 
 const isShellWrapper = (command: string, args: readonly string[]): boolean => {
   const executable = basename(command).toLowerCase();
@@ -74,6 +78,13 @@ const toCommandResolution = (tokens: readonly string[]): CommandResolution => {
     return {
       ok: false,
       reason: "command contains control characters",
+    };
+  }
+
+  if (normalized.some((token) => hasDisallowedEnvironmentExpansion(token))) {
+    return {
+      ok: false,
+      reason: "environment variable expansion syntax is blocked in commands",
     };
   }
 
@@ -141,6 +152,14 @@ export const resolveValidationCommandTemplate = (
       ok: false,
       reason:
         "validation command template contains potentially dangerous shell metacharacters",
+    };
+  }
+
+  if (hasDisallowedEnvironmentExpansion(commandTemplate)) {
+    return {
+      ok: false,
+      reason:
+        "validation command template contains blocked environment variable expansion syntax",
     };
   }
 

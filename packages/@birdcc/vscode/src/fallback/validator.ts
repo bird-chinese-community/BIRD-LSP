@@ -14,9 +14,12 @@ import {
   type TextDocument,
 } from "vscode";
 
-import { LANGUAGE_ID } from "../constants.js";
+import { DEFAULT_VALIDATION_COMMAND, LANGUAGE_ID } from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
-import { resolveValidationCommandTemplate } from "../security/index.js";
+import {
+  resolveValidationCommandTemplate,
+  sanitizeLogMessage,
+} from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
 
@@ -70,10 +73,40 @@ export const createFallbackValidator = (
     languages.createDiagnosticCollection("bird2-fallback");
   const disposables: Disposable[] = [];
   const warningCache = new Set<string>();
+  const approvedCustomValidationCommands = new Set<string>();
   let trustWarningShown = false;
 
   const clearDocumentDiagnostics = (document: TextDocument): void => {
     diagnosticCollection.delete(document.uri);
+  };
+
+  const approveValidationCommandIfNeeded = async (
+    configuration: ExtensionConfiguration,
+  ): Promise<boolean> => {
+    const commandTemplate = configuration.validationCommand.trim();
+    if (commandTemplate === DEFAULT_VALIDATION_COMMAND) {
+      return true;
+    }
+
+    if (approvedCustomValidationCommands.has(commandTemplate)) {
+      return true;
+    }
+
+    const selection = await window.showWarningMessage(
+      [
+        "BIRD2 fallback validation will execute a custom command from workspace settings.",
+        "Only allow this if you trust the workspace and command.",
+      ].join("\n"),
+      { modal: true },
+      "Allow in this session",
+      "Cancel",
+    );
+    if (selection !== "Allow in this session") {
+      return false;
+    }
+
+    approvedCustomValidationCommands.add(commandTemplate);
+    return true;
   };
 
   const validateDocument = async (document: TextDocument): Promise<void> => {
@@ -116,7 +149,17 @@ export const createFallbackValidator = (
     ).filter((path) => path.length > 0);
     if (!isPathInsideWorkspace(document.uri.fsPath, workspaceRoots)) {
       outputChannel.appendLine(
-        `[bird2-lsp] validation command blocked for file outside workspace root: ${document.uri.fsPath}`,
+        sanitizeLogMessage(
+          `[bird2-lsp] validation command blocked for file outside workspace root: ${document.uri.fsPath}`,
+        ),
+      );
+      clearDocumentDiagnostics(document);
+      return;
+    }
+
+    if (!(await approveValidationCommandIfNeeded(configuration))) {
+      outputChannel.appendLine(
+        "[bird2-lsp] fallback validation command execution cancelled by user",
       );
       clearDocumentDiagnostics(document);
       return;
@@ -136,7 +179,9 @@ export const createFallbackValidator = (
 
     const { command: bin, args } = command.value;
     outputChannel.appendLine(
-      `[bird2-lsp] fallback validate: ${[bin, ...args].join(" ")}`,
+      sanitizeLogMessage(
+        `[bird2-lsp] fallback validate: ${[bin, ...args].join(" ")}`,
+      ),
     );
 
     try {
@@ -161,7 +206,9 @@ export const createFallbackValidator = (
       if (diagnostics.length === 0) {
         diagnosticCollection.set(document.uri, [
           {
-            message: typedError.message || "bird -p validation failed",
+            message: sanitizeLogMessage(
+              typedError.message || "bird -p validation failed",
+            ),
             severity: DiagnosticSeverity.Error,
             source: "bird -p",
             range: document.validateRange(

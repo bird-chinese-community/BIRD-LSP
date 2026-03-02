@@ -4,6 +4,7 @@ import { Range, TextEdit, type DocumentFormattingEditProvider } from "vscode";
 
 import { LANGUAGE_ID } from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
+import { toSanitizedErrorDetails } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 
 const getDocumentFullRange = (document: TextDocument): Range =>
@@ -49,7 +50,7 @@ export const createBirdFormattingProvider = (
         return [TextEdit.replace(getDocumentFullRange(document), result.text)];
       } catch (error) {
         outputChannel.appendLine(
-          `[bird2-lsp] formatting failed: ${String(error)}`,
+          `[bird2-lsp] formatting failed: ${toSanitizedErrorDetails(error)}`,
         );
         return [];
       }
