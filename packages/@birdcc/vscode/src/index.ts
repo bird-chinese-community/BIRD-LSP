@@ -8,6 +8,8 @@ export {
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
+  DEFAULT_VALIDATION_ON_SAVE,
+  DEFAULT_VALIDATION_TIMEOUT_MS,
   EXTENSION_ID,
   EXTENSION_NAME,
   LANGUAGE_ID,
@@ -38,3 +40,8 @@ export {
   type BirdClientLifecycle,
   type ClientLifecycleState,
 } from "./client/index.js";
+export {
+  createFallbackValidator,
+  parseBirdValidationOutput,
+  type FallbackValidator,
+} from "./fallback/index.js";

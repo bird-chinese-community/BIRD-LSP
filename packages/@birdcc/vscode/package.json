@@ -131,6 +131,20 @@
           "markdownDescription": "Command template for fallback validation. `{file}` will be replaced with current file path.",
           "scope": "resource"
         },
+        "bird2-lsp.validation.onSave": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Run fallback validation when BIRD2 documents are saved.",
+          "scope": "resource"
+        },
+        "bird2-lsp.validation.timeout": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "markdownDescription": "Timeout for fallback validation command in milliseconds.",
+          "scope": "resource"
+        },
         "bird2-lsp.formatter.engine": {
           "type": "string",
           "enum": [

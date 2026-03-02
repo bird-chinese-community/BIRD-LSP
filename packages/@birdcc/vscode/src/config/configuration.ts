@@ -14,6 +14,8 @@ import {
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
+  DEFAULT_VALIDATION_ON_SAVE,
+  DEFAULT_VALIDATION_TIMEOUT_MS,
   RESTART_REQUIRED_CONFIGURATION_PATHS,
 } from "../constants.js";
 import {
@@ -59,6 +61,14 @@ const readWorkspaceConfiguration = (): ExtensionConfiguration => {
     validationCommand: config.get(
       "validation.command",
       DEFAULT_VALIDATION_COMMAND,
+    ),
+    validationOnSave: config.get(
+      "validation.onSave",
+      DEFAULT_VALIDATION_ON_SAVE,
+    ),
+    validationTimeoutMs: config.get(
+      "validation.timeout",
+      DEFAULT_VALIDATION_TIMEOUT_MS,
     ),
     formatterEngine: config.get("formatter.engine", DEFAULT_FORMATTER_ENGINE),
     formatterSafeMode: config.get(
