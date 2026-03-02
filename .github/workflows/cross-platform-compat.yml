@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: cross-platform-compat-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   native-smoke:
     name: Native Smoke (${{ matrix.name }})
