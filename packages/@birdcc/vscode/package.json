@@ -1,0 +1,126 @@
+{
+  "name": "@birdcc/vscode",
+  "version": "0.0.1-alpha.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "BIRD Chinese Community",
+    "email": "npm-dev@birdcc.link",
+    "url": "https://github.com/bird-chinese-community/"
+  },
+  "displayName": "BIRD2 LSP",
+  "description": "Language Server Protocol support for BIRD2 configuration files",
+  "publisher": "birdcc",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "main": "./dist/extension.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./extension": {
+      "types": "./src/extension.ts",
+      "default": "./dist/extension.js"
+    }
+  },
+  "activationEvents": [
+    "onLanguage:bird2",
+    "workspaceContains:**/bird.conf",
+    "workspaceContains:**/*.bird",
+    "workspaceContains:**/*.bird2"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "bird2",
+        "aliases": [
+          "BIRD2",
+          "bird2"
+        ],
+        "extensions": [
+          ".bird",
+          ".bird2"
+        ],
+        "filenames": [
+          "bird.conf",
+          "bird2.conf"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "title": "BIRD2 LSP",
+      "properties": {
+        "bird2-lsp.serverPath": {
+          "markdownDescription": "Path to the birdcc language server executable.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "default": [
+            "birdcc",
+            "lsp",
+            "--stdio"
+          ],
+          "scope": "machine-overridable"
+        },
+        "bird2-lsp.validation.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable fallback validation with `bird -p` when needed.",
+          "scope": "resource"
+        },
+        "bird2-lsp.validation.command": {
+          "type": "string",
+          "default": "bird -p -c {file}",
+          "markdownDescription": "Command template for fallback validation. `{file}` will be replaced with current file path.",
+          "scope": "resource"
+        },
+        "bird2-lsp.formatter.engine": {
+          "type": "string",
+          "enum": [
+            "dprint",
+            "builtin"
+          ],
+          "default": "dprint",
+          "markdownDescription": "Preferred formatter engine for BIRD2 documents.",
+          "scope": "resource"
+        },
+        "bird2-lsp.formatter.safeMode": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable formatter safe mode to reduce risky rewrites.",
+          "scope": "resource"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.106.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings src",
+    "format": "oxfmt ."
+  }
+}
