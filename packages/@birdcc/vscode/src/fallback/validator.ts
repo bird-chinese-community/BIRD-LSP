@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { stat } from "node:fs/promises";
 import { isAbsolute, normalize, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
@@ -63,6 +64,21 @@ const isPathInsideWorkspace = (
   return workspaceRoots.some((workspaceRoot) =>
     isPathInsideRoot(filePath, workspaceRoot),
   );
+};
+
+const isWorldWritable = (mode: number): boolean => (mode & 0o002) !== 0;
+
+const isSafeFilePermission = async (filePath: string): Promise<boolean> => {
+  if (process.platform === "win32") {
+    return true;
+  }
+
+  try {
+    const fileStat = await stat(filePath);
+    return !isWorldWritable(fileStat.mode);
+  } catch {
+    return true;
+  }
 };
 
 export const createFallbackValidator = (
@@ -151,6 +167,16 @@ export const createFallbackValidator = (
       outputChannel.appendLine(
         sanitizeLogMessage(
           `[bird2-lsp] validation command blocked for file outside workspace root: ${document.uri.fsPath}`,
+        ),
+      );
+      clearDocumentDiagnostics(document);
+      return;
+    }
+
+    if (!(await isSafeFilePermission(document.uri.fsPath))) {
+      outputChannel.appendLine(
+        sanitizeLogMessage(
+          `[bird2-lsp] fallback validation skipped for world-writable file: ${document.uri.fsPath}`,
         ),
       );
       clearDocumentDiagnostics(document);
