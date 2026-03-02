@@ -1,6 +1,7 @@
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { extname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const loadWorkspaceApis = async () => {
   try {
@@ -164,10 +165,11 @@ const runWorker = async ({
   timeoutMs,
 }) => {
   const workerPath = new URL("./bench-realworld-worker.mjs", import.meta.url);
+  const workerFilePath = fileURLToPath(workerPath);
 
   return await new Promise((resolvePromise) => {
     const args = [
-      workerPath.pathname,
+      workerFilePath,
       "--file",
       filePath,
       "--engine",
