@@ -21,19 +21,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 packages/
-  @birdcc/parser/      # Tree-sitter grammar + WASM + JS adapter
-  @birdcc/core/        # AST / Symbol Table / Type Checker
-  @birdcc/linter/      # Lint rules / Diagnostics
-  @birdcc/lsp/         # LSP server implementation
-  @birdcc/formatter/   # dprint plugin for formatting
-  @birdcc/cli/         # birdcc CLI (lint/fmt/lsp commands)
+  @birdcc/parser/              # Tree-sitter grammar + WASM + JS adapter
+  @birdcc/core/                # AST / Symbol Table / Type Checker / Cross-file resolution
+  @birdcc/linter/              # Lint rules / Diagnostics (32+ rules)
+  @birdcc/lsp/                 # LSP server implementation
+  @birdcc/formatter/           # dprint plugin + builtin formatter
+  @birdcc/dprint-plugin-bird/  # Official dprint plugin (Rust/WASM)
+  @birdcc/cli/                 # birdcc CLI (lint/fmt/lsp commands)
 
-refer/                 # Git submodules - reference materials
-  BIRD-source-code/    # Official BIRD daemon C source
-  BIRD-tm-language-grammar/  # Existing TextMate grammar
-  BIRD2-vim-grammar/   # Vim syntax highlighting
+refer/                         # Git submodules - reference materials
+  BIRD-source-code/            # Official BIRD daemon C source
+  BIRD-tm-language-grammar/    # Existing TextMate grammar
+  BIRD2-vim-grammar/           # Vim syntax highlighting
 
-.agents/skills/        # Claude Code skills for this project
+.agents/skills/                # Claude Code skills for this project
 ```
 
 ## Common Commands
@@ -75,13 +76,22 @@ CLI 入口位于 `packages/@birdcc/cli/dist/cli.js`:
 
 ```bash
 # Lint BIRD2 config files
-node packages/@birdcc/cli/dist/cli.js lint <file.conf> --format json --max-warnings 0
+node packages/@birdcc/cli/dist/cli.js lint <file.conf> --format json
+
+# Lint with BIRD validation
+node packages/@birdcc/cli/dist/cli.js lint <file.conf> --bird
+
+# Cross-file lint (default enabled)
+node packages/@birdcc/cli/dist/cli.js lint <file.conf> --cross-file --include-max-depth 10
 
 # Format check
 node packages/@birdcc/cli/dist/cli.js fmt <file.conf> --check
 
 # Format write
 node packages/@birdcc/cli/dist/cli.js fmt <file.conf> --write
+
+# Format with specific engine
+node packages/@birdcc/cli/dist/cli.js fmt <file.conf> --write --engine dprint
 
 # Start LSP server
 node packages/@birdcc/cli/dist/cli.js lsp --stdio
@@ -109,31 +119,32 @@ Editors (VSCode/Neovim)
          |
          v
     @birdcc/lsp
- (diagnostics/hover/completion)
+ (diagnostics/hover/completion/definition/references/documentSymbol)
      |                      \
      v                       v
   @birdcc/linter        @birdcc/formatter
- (Rules/Diagnostics)      (dprint plugin)
+ (32+ Rules/Diagnostics)  (dprint + builtin)
      ^                       ^
      |                       |
   @birdcc/core  <-----------+
-(AST/Symbol/TypeChecker)
+ (AST/Symbol/TypeChecker/CrossFile)
      ^
      |
   @birdcc/parser
-(tree-sitter + wasm adapter)
+ (tree-sitter + wasm adapter)
      |
      v
-bird -p / birdc adapter
+bird -p adapter（optional）
 ```
 
 ### 关键设计决策
 
-1. **Parser**: Tree-sitter 负责语法解析，产出 CST/AST
-2. **语义层**: `@birdcc/core` 负责符号表、类型检查
-3. **规则层**: `@birdcc/linter` 负责协议/安全/性能规则
-4. **Formatter**: dprint 插件为主，Prettier 仅作兼容层
-5. **BIRD 集成**: MVP 使用 `bird -p` 子进程验证，后续考虑 `birdc`
+1. **Parser**: Tree-sitter 负责语法解析，产出 CST/AST，支持错误恢复
+2. **语义层**: `@birdcc/core` 负责符号表、类型检查、跨文件解析
+3. **规则层**: `@birdcc/linter` 负责协议/安全/性能规则（32+ 条）
+4. **Formatter**: dprint 插件为主，builtin 作为安全回退
+5. **BIRD 集成**: 使用 `bird -p` 子进程验证，支持自定义验证命令模板
+6. **跨文件**: 支持 `include` 展开、符号表合并、循环检测
 
 ### 双层语言模型
 
@@ -164,11 +175,20 @@ git submodule update --recursive --remote
 
 基于 TASKLIST.md 的执行进展:
 
-- **M1 进行中**: Tree-sitter grammar 原型已完成，支持多词短语识别（`local as`、`next hop self` 等）
-- **Parser**: 配置 DSL 主干声明解析已接入（`include/define/protocol/template/filter/function`）
-- **CLI**: `birdcc lint/fmt/lsp --stdio` 已打通，`lsp --stdio` 可启动最小诊断服务
-- **BIRD 集成**: `bird -p` 诊断解析器已实现（支持 `file:line:col` 与 `Parse error ..., line N:` 两类输出）
-- **Fixtures**: `sample/*.conf` 已接入 parser 测试覆盖
+- **M1** ✅: Tree-sitter grammar 已完成，支持多词短语识别（`local as`、`next hop self` 等）
+- **M2** ✅: LSP 基础 + 错误恢复 + `bird -p` PoC 已完成
+- **M3** ✅: Symbol/Type Checker + include 跨文件支持已完成
+- **M4** 🚧: 协议规则完善 + dprint 稳定化 + 发布体系进行中
+
+### 已完成功能
+
+- ✅ `@birdcc/parser`: Tree-sitter + WASM，异步 API `parseBirdConfig(input) => Promise<ParsedBirdDocument>`
+- ✅ `@birdcc/core`: 符号表、类型检查、跨文件解析（`resolveCrossFileReferences`）
+- ✅ `@birdcc/linter`: 32+ 条规则（sym/cfg/net/type/bgp/ospf）
+- ✅ `@birdcc/lsp`: LSP 服务器（diagnostics, hover, definition, references, completion, documentSymbol）
+- ✅ `@birdcc/formatter`: dprint + builtin 双引擎，支持 safe mode
+- ✅ `@birdcc/cli`: `birdcc lint/fmt/lsp` 已打通
+- ✅ `bird -p` 诊断解析器（支持 `file:line:col` 与 `Parse error ..., line N:` 两类输出）
 
 ## Package Dependency Graph
 
@@ -181,7 +201,9 @@ git submodule update --recursive --remote
     ↑
 @birdcc/lsp (依赖 core, linter)
 
-@birdcc/cli (聚合入口，依赖 core, lsp, linter)
+@birdcc/formatter (独立，依赖 parser)
+@birdcc/dprint-plugin-bird (独立 dprint 插件)
+@birdcc/cli (聚合入口，依赖 core, lsp, linter, formatter)
 ```
 
 所有包使用 `type: "module"` (ESM) 和 `workspace:*` 协议进行内部依赖管理。
@@ -190,21 +212,32 @@ git submodule update --recursive --remote
 
 ### 里程碑规划
 
-- **M1** (4-5 周): Tree-sitter grammar + fixtures
-- **M2** (6-7 周): LSP 基础 + 错误恢复 + `bird -p` PoC
-- **M3** (6-8 周): Symbol/Type Checker + include 支持
-- **M4** (8-10 周): 协议规则 + dprint 稳定 + `birdc` 集成
+| 阶段 | 周期    | 关键目标                                                     |
+| ---- | ------- | ------------------------------------------------------------ |
+| M1   | 4-5 周  | Tree-sitter grammar（配置 DSL 主干）+ fixtures               |
+| M2   | 6-7 周  | LSP 基础能力 + 错误恢复处理器 + `bird -p` PoC                |
+| M3   | 6-8 周  | Symbol/Type Checker 基础 + include 支持 + `bird -p` 稳定校验 |
+| M4   | 8-10 周 | 协议规则完善 + dprint 稳定化 + 发布体系                      |
 
 ### Linter 规则分级
 
-| 分类            | 默认级别 | CI 策略 |
-| --------------- | -------- | ------- |
-| `syntax/*`      | error    | 阻塞    |
-| `semantic/*`    | error    | 阻塞    |
-| `security/*`    | error    | 阻塞    |
-| `structure/*`   | warning  | 非阻塞  |
-| `protocol/*`    | warning  | 非阻塞  |
-| `performance/*` | info     | 非阻塞  |
+| 分类     | 默认级别 | CI 策略 |
+| -------- | -------- | ------- |
+| `sym/*`  | error    | 阻塞    |
+| `cfg/*`  | error    | 阻塞    |
+| `net/*`  | error    | 阻塞    |
+| `type/*` | error    | 阻塞    |
+| `bgp/*`  | warning  | 非阻塞  |
+| `ospf/*` | warning  | 非阻塞  |
+
+规则列表：
+
+- **sym/\*** (7条): undefined, duplicate, proto-type-mismatch, filter-required, function-required, table-required, variable-scope
+- **cfg/\*** (9条): no-protocol, missing-router-id, syntax-error, value-out-of-range, switch-value-expected, number-expected, incompatible-type, ip-network-mismatch, circular-template
+- **net/\*** (4条): invalid-prefix-length, invalid-ipv4-prefix, invalid-ipv6-prefix, max-prefix-length
+- **type/\*** (3条): mismatch, not-iterable, set-incompatible
+- **bgp/\*** (5条): missing-local-as, missing-neighbor, missing-remote-as, as-mismatch, timer-invalid
+- **ospf/\*** (4条): missing-area, backbone-stub, vlink-in-backbone, asbr-stub-area
 
 ## Tooling Stack
 
@@ -222,12 +255,18 @@ git submodule update --recursive --remote
   "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
   "formatter": {
     "engine": "dprint",
+    "indentSize": 2,
+    "lineWidth": 100,
     "safeMode": true
   },
   "linter": {
     "rules": {
-      "security/*": "error",
-      "performance/*": "info"
+      "sym/*": "error",
+      "cfg/*": "error",
+      "net/*": "error",
+      "type/*": "error",
+      "bgp/*": "warning",
+      "ospf/*": "warning"
     }
   },
   "bird": {
@@ -236,11 +275,26 @@ git submodule update --recursive --remote
 }
 ```
 
+配置支持通配符规则（如 `"sym/*": "error"`），按最长前缀匹配。
+
+## LSP Server Capabilities
+
+当前 LSP 服务器支持的能力：
+
+- `textDocumentSync`: Incremental
+- `documentSymbolProvider`: ✅
+- `hoverProvider`: ✅
+- `definitionProvider`: ✅
+- `referencesProvider`: ✅
+- `completionProvider`: ✅ (triggerCharacters: ` `, `.`)
+
 ## References
 
 - `TASKLIST.md`: 详细的实施计划和技术选型报告
+- `README.md`: 用户文档和项目介绍
 - `.agents/skills/`: Claude Code skills for specialized tasks
   - `vscode-extension-builder/`: VS Code 扩展开发指南
   - `turborepo/`: Turborepo 最佳实践
   - `vitest/`: 测试指南
   - `typescript-e2e-testing/`: E2E 测试指南
+  - `rust-engineer/`: Rust 开发指南（用于 dprint 插件）

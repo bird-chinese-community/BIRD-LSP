@@ -9,6 +9,8 @@ description: Vibe Coding 与项目管理标准化操作流程 (SOP)
 
 (仅供本仓库使用，请搭配 GitHub Projects v2 使用，推荐使用 `Bug tracker` 模板创建 Project)
 
+本仓库的核心 TASK List 为 Issue #61，所有相关的开发任务都 MUST 以此 Issue 为父 Issue 进行拆分和关联，确保上下文的完整性和可追踪性，并且 MUST NOT 关闭此 Issue。
+
 创建 Projects 时，请确保包含以下自定义字段：
 
 ### 修改状态 (`Status`)
