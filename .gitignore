@@ -23,3 +23,8 @@ refer/docs/**
 
 # Rust
 target
+
+# VS Code test runner
+.vscode-test
+.vscode-test-*.zip
+*.zip
