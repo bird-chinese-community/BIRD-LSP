@@ -10,3 +10,6 @@
 [submodule "refer/vscode-bird2"]
 	path = refer/vscode-bird2
 	url = https://github.com/bird-chinese-community/vscode-bird2.git
+[submodule "refer/vscode-nix-ide"]
+	path = refer/vscode-nix-ide
+	url = https://github.com/nix-community/vscode-nix-ide.git
