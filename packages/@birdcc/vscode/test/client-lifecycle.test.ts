@@ -46,7 +46,7 @@ describe("client lifecycle startup timeout cleanup", () => {
     vi.clearAllMocks();
   });
 
-  it("waits startup completion before stopping timed-out client", async () => {
+  it("rejects timeout promptly and keeps cleanup in background", async () => {
     const startDeferred = createDeferred<void>();
     let running = false;
     const client = {
@@ -67,18 +67,18 @@ describe("client lifecycle startup timeout cleanup", () => {
     const lifecycle = createBirdClientLifecycle(createOutputChannelMock());
     const startPromise = lifecycle.start(createConfiguration(20));
 
-    await sleep(40);
-    expect(client.stop).not.toHaveBeenCalled();
-
-    startDeferred.resolve();
     await expect(startPromise).rejects.toThrow(
       "language client startup timed out",
     );
+    expect(client.stop).not.toHaveBeenCalled();
+
+    startDeferred.resolve();
+    await sleep(10);
     expect(client.stop).toHaveBeenCalledTimes(1);
     expect(lifecycle.state).toBe("error");
   });
 
-  it("does not create a second client before timed-out startup cleanup finishes", async () => {
+  it("rejects new start attempts while timeout cleanup is still pending", async () => {
     const firstStartDeferred = createDeferred<void>();
     let firstRunning = false;
     const firstClient = {
@@ -106,14 +106,16 @@ describe("client lifecycle startup timeout cleanup", () => {
     const lifecycle = createBirdClientLifecycle(createOutputChannelMock());
     const firstStart = lifecycle.start(createConfiguration(20));
 
-    await sleep(40);
+    await expect(firstStart).rejects.toThrow("startup timed out");
     const secondStart = lifecycle.start(createConfiguration(20));
-    await sleep(10);
+    await expect(secondStart).rejects.toThrow(
+      "previous timed-out startup is still cleaning up in background",
+    );
     expect(vi.mocked(createLanguageClient)).toHaveBeenCalledTimes(1);
 
     firstStartDeferred.resolve();
-    await expect(firstStart).rejects.toThrow("startup timed out");
-    await secondStart;
+    await sleep(10);
+    await lifecycle.start(createConfiguration(20));
 
     expect(vi.mocked(createLanguageClient)).toHaveBeenCalledTimes(2);
     expect(secondClient.start).toHaveBeenCalledTimes(1);
