@@ -1,7 +1,7 @@
 {
   "name": "bird-lsp",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "GPL-3.0-only",
   "packageManager": "pnpm@10.18.3",
   "scripts": {
     "build": "turbo run build",

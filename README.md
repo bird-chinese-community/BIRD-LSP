@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License" />
+    <img src="https://img.shields.io/badge/license-GPL%203.0-green.svg?style=flat-square" alt="License" />
   </a>
   <a href="https://www.typescriptlang.org/">
     <img src="https://img.shields.io/badge/typescript-5.9+-3178c6.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
@@ -439,7 +439,7 @@ BIRD-LSP/
 
 ## 📝 许可证
 
-本项目采用 [MIT License](LICENSE) 开源许可证。
+本项目采用 [GPL-3.0 License](LICENSE) 开源许可证。
 
 ---
 

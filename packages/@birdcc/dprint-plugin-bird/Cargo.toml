@@ -1,9 +1,9 @@
 [package]
 name = "dprint-plugin-bird"
 version = "0.0.1"
-authors = ["bird-chinese-community"]
+authors = ["bird-chinese-community", "BIRD Chinese Community <rust-dev@birdcc.link>"]
 edition = "2021"
-license = "MIT"
+license = "GPL-3.0+"
 description = "BIRD config formatter plugin for dprint"
 repository = "https://github.com/bird-chinese-community/BIRD-LSP"
 

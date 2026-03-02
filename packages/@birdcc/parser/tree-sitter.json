@@ -1,17 +1,35 @@
 {
   "grammars": [
     {
-      "name": "birdcc",
-      "camelcase": "Birdcc",
+      "name": "bird",
+      "camelcase": "BIRD",
       "scope": "source.bird",
       "path": ".",
-      "file-types": ["conf", "bird"]
+      "file-types": [
+        "bird",
+        "bird.conf",
+        "conf",
+        "bird",
+        "bird2",
+        "bird3",
+        "bird6"
+      ]
     }
   ],
   "metadata": {
     "version": "0.0.1-alpha.0",
-    "license": "MIT",
-    "description": "Tree-sitter grammar for BIRD configuration"
+    "license": "GPL-3.0",
+    "description": "BIRD configuration grammar for Tree-sitter",
+    "authors": [
+      {
+        "name": "BIRD Chinese Community",
+        "email": "grammar-dev@birdcc.link"
+      }
+    ],
+
+    "links": {
+      "repository": "https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/%40birdcc/parser"
+    }
   },
   "bindings": {
     "c": true
