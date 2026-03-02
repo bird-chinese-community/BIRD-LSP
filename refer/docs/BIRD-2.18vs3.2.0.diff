@@ -1,0 +1,936 @@
+diff --git a/refer/docs/BIRD-2.18.md b/refer/docs/BIRD-3.2.0.md
+index 8a41904..22cf9de 100644
+--- a/refer/docs/BIRD-2.18.md
++++ b/refer/docs/BIRD-3.2.0.md
+@@ -1,6 +1,6 @@
+-Title: BIRD 2.18 User's Guide
++Title: BIRD 3.2.0 User's Guide
+ 
+-URL Source: https://bird.nic.cz/doc/bird-2.18.html
++URL Source: https://bird.nic.cz/doc/bird-3.2.0.html
+ 
+ Markdown Content:
+ Introduction
+@@ -121,13 +121,13 @@ The global best route selection algorithm is (roughly) as follows:
+ - If source protocols are the same (e.g. BGP vs. BGP), the protocol's route selection algorithm is invoked.
+ - If source protocols are different (e.g. BGP vs. OSPF), result of the algorithm is undefined.
+ 
+-Usually, a routing table just chooses a selected route from a list of entries for one network. Optionally, these lists of entries are kept completely sorted (according to preference or some protocol-dependent metric). See [sorted](https://bird.nic.cz/doc/bird-2.18.html#rtable-sorted) table option for details.
++Usually, a routing table just chooses a selected route from a list of entries for one network. Optionally, these lists of entries are kept completely sorted (according to preference or some protocol-dependent metric). See [sorted](https://bird.nic.cz/doc/bird-3.2.0.html#rtable-sorted) table option for details.
+ 
+ ### Routes and network types
+ 
+ BIRD works with several types of routes. Some of them are typical IP routes, others are better described as forwarding rules. We call them all routes, regardless of this difference.
+ 
+-Every route consists of several attributes (read more about them in the [Route attributes](https://bird.nic.cz/doc/bird-2.18.html#route-attributes) section); the common for all routes are:
++Every route consists of several attributes (read more about them in the [Route attributes](https://bird.nic.cz/doc/bird-3.2.0.html#route-attributes) section); the common for all routes are:
+ 
+ - IP address of router which told us about this route
+ - Source protocol instance
+@@ -200,11 +200,11 @@ Each protocol is connected to a routing table through a channel. Some protocols
+ 
+ When BIRD is started after restart or crash, it repopulates routing tables in an uncoordinated manner, like after clean start. This may be impractical in some cases, because if the forwarding plane (i.e. kernel routing tables) remains intact, then its synchronization with BIRD would temporarily disrupt packet forwarding until protocols converge. Graceful restart is a mechanism that could help with this issue. Generally, it works by starting protocols and letting them repopulate routing tables while deferring route propagation until protocols acknowledge their convergence. Note that graceful restart behavior have to be configured for all relevant protocols and requires protocol-specific support (currently implemented for Kernel and BGP protocols), it is activated for particular boot by option `-R`.
+ 
+-Some protocols (e.g. BGP) could be restarted gracefully after both intentional outage and crash, while others (e.g. OSPF) after intentional outage only. For planned graceful restart, BIRD must be shut down by [graceful restart](https://bird.nic.cz/doc/bird-2.18.html#cli-graceful-restart) command instead of regular [down](https://bird.nic.cz/doc/bird-2.18.html#cli-down) command. In this way routing neighbors are notified about planned graceful restart and routes are kept in kernel table after shutdown.
++Some protocols (e.g. BGP) could be restarted gracefully after both intentional outage and crash, while others (e.g. OSPF) after intentional outage only. For planned graceful restart, BIRD must be shut down by [graceful restart](https://bird.nic.cz/doc/bird-3.2.0.html#cli-graceful-restart) command instead of regular [down](https://bird.nic.cz/doc/bird-3.2.0.html#cli-down) command. In this way routing neighbors are notified about planned graceful restart and routes are kept in kernel table after shutdown.
+ 
+ ### MPLS
+ 
+-Multiprotocol Label Switching (MPLS) is a networking technology which works below IP routing but above the link (e.g. ethernet) layer. It is described in [RFC 3031](https://datatracker.ietf.org/doc/rfc3031). In regular IP forwarding, the destination address of a packet is independently examined in each hop, a route with longest prefix match is selected from the routing table, and packet is processed accordingly. In general, there is no difference between border routers and internal routers w.r.t. IP forwarding. In MPLS forwarding, when a packet enters the network, it is classified (based on destination address, ingress interface and other factors) into one of forwarding equivalence classes (FECs), then a header with a MPLS label identifying the FEC is attached to it, and the packet is forwarded. In internal routers, only the MPLS label is examined, the matching MPLS route is selected from the MPLS routing table, and the packet is processed accordingly. The specific value of MPLS label has local meaning only and may change between hops (that is why it is called label switching). When the packet leaves the network, the MPLS header is removed. The advantage of the MPLS approach is that other factors than the destination address can be considered and used consistently in the whole network, for example IP traffic with multiple overlapping private address ranges could be mixed together, or particular paths for specific flows could be defined. Another advantage is that MPLS forwarding by internal routers can be much simpler than IP forwarding, as instead of the longest prefix match algorithm it uses simpler exact match for MPLS route selection. The disadvantage is additional complexity in signaling. For further details, see [RFC 3031](https://datatracker.ietf.org/doc/rfc3031). MPLS-aware routing protocols not only distribute IP routing information, but they also distribute labels. Therefore, they produce labeled routes - routes representing label switched paths (LSPs) through the MPLS domain. Such routes have IP prefix and next hop address like regular (non-labeled) routes, but they also have local MPLS label (in route attribute [mpls_label](https://bird.nic.cz/doc/bird-2.18.html#rta-mpls-label)) and outgoing MPLS label (as a part of the next hop). They are stored in regular IP routing tables. Labeled routes are used for exchange of routing information between routing protocols and for ingress (IP -> MPLS) forwarding, but they are not directly used for MPLS forwarding. For that purpose [MPLS routes](https://bird.nic.cz/doc/bird-2.18.html#mpls-routes) are used. These are routes that have local MPLS label as a primary key and they are stored in the MPLS routing table. In BIRD, the whole process generally works this way: A MPLS-aware routing protocol (say BGP) receives routing information including remote label. It produces a route with attribute [mpls_policy](https://bird.nic.cz/doc/bird-2.18.html#rta-mpls-policy) specifying desired [MPLS label policy](https://bird.nic.cz/doc/bird-2.18.html#mpls-channel-label-policy). Such route then passes the import filter (which could modify the MPLS label policy or perhaps assign a static label) and when it is accepted, a local MPLS label is selected (according to the label policy) and attached to the route, producing labeled route. When a new MPLS label is allocated, the MPLS-aware protocol automatically produces corresponding MPLS route. When all labeled routes that use specific local MPLS label are retracted, the corresponding MPLS route is retracted too. There are three important concepts for MPLS in BIRD: MPLS domains, MPLS tables and MPLS channels. MPLS domain represents an independent label space, all MPLS-aware protocols are associated with some MPLS domain. It is responsible for label management, handling label allocation requests from MPLS-aware protocols. MPLS table is just a routing table for MPLS routes. Routers usually have one MPLS domain and one MPLS table, with Kernel protocol to export MPLS routes into kernel FIB. MPLS channels make protocols MPLS-aware, they are responsible for keeping track of active FECs (and corresponding allocated labels), selecting FECs / local labels for labeled routes, and maintaining correspondence between labeled routes and MPLS routes. Note that local labels are allocated to individual MPLS-aware protocols and therefore it is not possible to share local labels between different protocols.
++Multiprotocol Label Switching (MPLS) is a networking technology which works below IP routing but above the link (e.g. ethernet) layer. It is described in [RFC 3031](https://datatracker.ietf.org/doc/rfc3031). In regular IP forwarding, the destination address of a packet is independently examined in each hop, a route with longest prefix match is selected from the routing table, and packet is processed accordingly. In general, there is no difference between border routers and internal routers w.r.t. IP forwarding. In MPLS forwarding, when a packet enters the network, it is classified (based on destination address, ingress interface and other factors) into one of forwarding equivalence classes (FECs), then a header with a MPLS label identifying the FEC is attached to it, and the packet is forwarded. In internal routers, only the MPLS label is examined, the matching MPLS route is selected from the MPLS routing table, and the packet is processed accordingly. The specific value of MPLS label has local meaning only and may change between hops (that is why it is called label switching). When the packet leaves the network, the MPLS header is removed. The advantage of the MPLS approach is that other factors than the destination address can be considered and used consistently in the whole network, for example IP traffic with multiple overlapping private address ranges could be mixed together, or particular paths for specific flows could be defined. Another advantage is that MPLS forwarding by internal routers can be much simpler than IP forwarding, as instead of the longest prefix match algorithm it uses simpler exact match for MPLS route selection. The disadvantage is additional complexity in signaling. For further details, see [RFC 3031](https://datatracker.ietf.org/doc/rfc3031). MPLS-aware routing protocols not only distribute IP routing information, but they also distribute labels. Therefore, they produce labeled routes - routes representing label switched paths (LSPs) through the MPLS domain. Such routes have IP prefix and next hop address like regular (non-labeled) routes, but they also have local MPLS label (in route attribute [mpls_label](https://bird.nic.cz/doc/bird-3.2.0.html#rta-mpls-label)) and outgoing MPLS label (as a part of the next hop). They are stored in regular IP routing tables. Labeled routes are used for exchange of routing information between routing protocols and for ingress (IP -> MPLS) forwarding, but they are not directly used for MPLS forwarding. For that purpose [MPLS routes](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-routes) are used. These are routes that have local MPLS label as a primary key and they are stored in the MPLS routing table. In BIRD, the whole process generally works this way: A MPLS-aware routing protocol (say BGP) receives routing information including remote label. It produces a route with attribute [mpls_policy](https://bird.nic.cz/doc/bird-3.2.0.html#rta-mpls-policy) specifying desired [MPLS label policy](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-channel-label-policy). Such route then passes the import filter (which could modify the MPLS label policy or perhaps assign a static label) and when it is accepted, a local MPLS label is selected (according to the label policy) and attached to the route, producing labeled route. When a new MPLS label is allocated, the MPLS-aware protocol automatically produces corresponding MPLS route. When all labeled routes that use specific local MPLS label are retracted, the corresponding MPLS route is retracted too. There are three important concepts for MPLS in BIRD: MPLS domains, MPLS tables and MPLS channels. MPLS domain represents an independent label space, all MPLS-aware protocols are associated with some MPLS domain. It is responsible for label management, handling label allocation requests from MPLS-aware protocols. MPLS table is just a routing table for MPLS routes. Routers usually have one MPLS domain and one MPLS table, with Kernel protocol to export MPLS routes into kernel FIB. MPLS channels make protocols MPLS-aware, they are responsible for keeping track of active FECs (and corresponding allocated labels), selecting FECs / local labels for labeled routes, and maintaining correspondence between labeled routes and MPLS routes. Note that local labels are allocated to individual MPLS-aware protocols and therefore it is not possible to share local labels between different protocols.
+ 
+ ## Configuration
+ 
+@@ -214,7 +214,7 @@ BIRD is configured using a text configuration file. Upon startup, BIRD reads _pr
+ 
+ In the config, everything on a line after `#` or inside `/* */` is a comment, whitespace characters are treated as a single space. If there's a variable number of options, they are grouped using the `{ }` brackets. Each option is terminated by a `;`. Configuration is case sensitive. There are two ways how to name symbols (like protocol names, filter names, constants etc.). You can either use a simple string starting with a letter (or underscore) followed by any combination of letters, numbers and underscores (e.g. `R123`, `my_filter`, `bgp5`) or you can enclose the name into apostrophes (`'`) and than you can use any combination of numbers, letters, underscores, hyphens, dots and colons (e.g. `'1:strange-name'`, `'-NAME-'`, `'cool::name'`).
+ 
+-In most cases where options use an argument that is a basic data type (e.g. number, string, IP address) it is possible to use a named constant (defined by [define](https://bird.nic.cz/doc/bird-2.18.html#opt-define) statement), or a constant expression enclosed in parenthesis (e.g. `(2 + 2)`). These expressions use [the BIRD filter language](https://bird.nic.cz/doc/bird-2.18.html#filters).
++In most cases where options use an argument that is a basic data type (e.g. number, string, IP address) it is possible to use a named constant (defined by [define](https://bird.nic.cz/doc/bird-3.2.0.html#opt-define) statement), or a constant expression enclosed in parenthesis (e.g. `(2 + 2)`). These expressions use [the BIRD filter language](https://bird.nic.cz/doc/bird-3.2.0.html#filters).
+ 
+ Here is an example of a simple config file. It enables synchronization of routing tables with OS kernel, learns network interfaces and runs RIP on all network interfaces found.
+ 
+@@ -248,7 +248,7 @@ ipv6 table
+ include "tablename.conf";;
+ ```
+ 
+-log "_filename_" [_limit_ "_backup_"] | syslog [name _name_] | stderr | udp _address_ [port _port_] all|{ _list of classes_ }
++log "_filename_" [_limit_ "_backup_"] | fixed "_filename_" _size_ | syslog [name _name_] | stderr | udp _address_ [port _port_] all|{ _list of classes_ }
+ Set logging of messages having the given class (either `all` or
+ 
+ ```
+@@ -260,24 +260,24 @@ _..._`] }` etc.) into selected destination - a file specified as a filename stri
+ 
+ Classes are: `info`, `warning`, `error` and `fatal` for messages about local problems, `debug` for debugging messages, `trace` when you want to know what happens in the network, `remote` for messages about misbehavior of remote machines, `auth` about authentication failures, `bug` for internal BIRD bugs.
+ 
+-Logging directly to file supports basic log rotation -- there is an optional log file limit and a backup filename, when log file reaches the limit, the current log file is renamed to the backup filename and a new log file is created.
++Logging directly to file supports basic log rotation -- there is an optional log file limit and a backup filename, when log file reaches the limit, the current log file is renamed to the backup filename and a new log file is created. It's also possible to log to a single file behaving as a ring buffer with a fixed size.
+ 
+ You may specify more than one `log` line to establish logging to multiple destinations. Default: log everything to the system log, or to the debug output if debugging is enabled by `-d`/`-D` command-line option.
+ 
+ debug protocols all|off|{ states|routes|filters|interfaces|events|packets [, _..._] }
+-Set global defaults of protocol debugging options. See [debug](https://bird.nic.cz/doc/bird-2.18.html#proto-debug) in the following section. Default: off.
++Set global defaults of protocol debugging options. See [debug](https://bird.nic.cz/doc/bird-3.2.0.html#proto-debug) in the following section. Default: off.
+ 
+ debug channels all|off|{ states|routes|filters|events [, _..._] }
+-Set global defaults of channel debugging options. See [debug](https://bird.nic.cz/doc/bird-2.18.html#channel-debug) in the channel section. Default: off.
++Set global defaults of channel debugging options. See [debug](https://bird.nic.cz/doc/bird-3.2.0.html#channel-debug) in the channel section. Default: off.
+ 
+ debug tables all|off|{ states|routes|filters|events [, _..._] }
+-Set global defaults of table debugging options. See [debug](https://bird.nic.cz/doc/bird-2.18.html#table-debug) in the table section. Default: off.
++Set global defaults of table debugging options. See [debug](https://bird.nic.cz/doc/bird-3.2.0.html#rtable-debug) in the table section. Default: off.
+ 
+ debug commands _number_
+ Control logging of client connections (0 for no logging, 1 for logging of connects and disconnects, 2 and higher for logging of all client commands). Default: 0.
+ 
+-debug latency _switch_
+-Activate tracking of elapsed time for internal events. Recent events could be examined using `dump events` command. Default: off.
++debug latency all|off|{ ping|wakeup|scheduling|sockets|events|timers }
++Activate tracking of internal scheduler actions. This is a developer and technical support tool for cases when internal events are missed. You should keep this off unless you know what you are doing. Default: off.
+ 
+ debug latency limit _time_
+ If `debug latency` is enabled, this option allows to specify a limit for elapsed time. Events exceeding the limit are logged. Default: 1 s.
+@@ -316,7 +316,7 @@ router id _number_ | _IPv4 address_
+ Set BIRD's router ID. It's a 4-byte non-zero integer that should be unique within an AS. Default: the lowest IPv4 address of the router.
+ 
+ router id from [-] [ "_mask_" ] [ _prefix_ ] [, _..._]
+-Set BIRD's router ID based on an IPv4 address of an interface specified by an interface pattern. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) section for detailed description of interface patterns with extended clauses.
++Set BIRD's router ID based on an IPv4 address of an interface specified by an interface pattern. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) section for detailed description of interface patterns with extended clauses.
+ 
+ hostname "_name_"
+ Set hostname. Default: node name as returned by `uname -n'.
+@@ -348,21 +348,48 @@ There are several shorthands: `iso long` is a ISO 8601 date/time format (YYYY-MM
+ By default, BIRD uses the `iso short ms` format for `route` and `protocol` times, and the `iso long ms` format for `base` and `log` times.
+ 
+ _nettype_ table _name_ [ { _option_; [_..._] } ]
+-Define a new routing table. The default routing tables `master4` and `master6` are defined implicitly, other routing tables have to be defined by this option. See the [routing table configuration section](https://bird.nic.cz/doc/bird-2.18.html#rtable-opts) for routing table options.
++Define a new routing table. The default routing tables `master4` and `master6` are defined implicitly, other routing tables have to be defined by this option. See the [routing table configuration section](https://bird.nic.cz/doc/bird-3.2.0.html#rtable-opts) for routing table options.
+ 
+ mpls domain _name_ [ { _option_; [_..._] } ]
+-Define a new MPLS domain. MPLS domains represent independent label spaces and are responsible for MPLS label management. All MPLS-aware protocols are associated with some MPLS domain. See the [MPLS configuration section](https://bird.nic.cz/doc/bird-2.18.html#mpls-opts) for MPLS domain options.
++Define a new MPLS domain. MPLS domains represent independent label spaces and are responsible for MPLS label management. All MPLS-aware protocols are associated with some MPLS domain. See the [MPLS configuration section](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-opts) for MPLS domain options.
+ 
+ eval _expr_
+ Evaluates given filter expression. It is used by the developers for testing of filters.
+ 
++#### Thread setup
++
++BIRD runs in several threads. There is one main thread, taking care about startup, shutdown, (re)configuration, CLI and several protocols which have not yet been updated to run in other threads. Then there are several thread groups, running the rest.
++
++Default thread group is `worker`. This group runs (by default) BGP, BMP, MRT, Pipe and RPKI. Also the routing table maintenance routines run in these threads. For BFD, there is another thread group called `express`, with minimal latency, expecting all tasks to be extremely fast. The threads are started as soon as some work is required from them, therefore if you don't configure BFD, the express thread won't start.
++
++Any configuration of thread groups must be strictly placed before any table or protocol configuration, as these depend on the thread group existence.
++
++Thread groups are configured by writing `thread group`_name_`{}` blocks, which contain the following options:
++
++threads _number_
++Set how many threads should BIRD spawn in this thread group. Every thread can utilize one complete CPU core. You probably want to keep at least one free core for other processes. The maximum feasible thread count heavily depends on the actual workload and must be determined by testing or estimation. Default: 1
++
++default _bool_
++Mark this thread group as default. There must be exactly one thread group marked as default. Default default thread group: `worker`
++
++max latency _time_
++Set maximum latency for the thread group. The group tries to dispatch every event before this time elapses. Setting this too low causes BIRD to spend lots of time on overhead and fill logs with reports. Setting this too high causes BIRD to hold locks for long times. Do not change unless you know what you are doing. Default: 1 s for worker, 10 ms for express.
++
++min time _time_
++Set minimum awarded loop execution time for the thread group. This is an internal performance tuning knob which may change between minor versions. Do not change unless you know what you are doing. Default: 10 ms for worker, 1 ms for express.
++
++max time _time_
++Set maximum awarded loop execution time for the thread group. This is an internal performance tuning knob which may change between minor versions. Do not change unless you know what you are doing. Default: 300 ms for worker, 10 ms for express.
++
++wakeup time _time_
++Set maximum sleep time for the thread group. Every thread will wake up after this time even if no work is requested. This is an internal IO loop knob which may change between minor versions. Do not change unless you know what you are doing. Default: 31415 s for worker, 60 s for express.
++
++There is also a "simple" thread group setting. If you write `threads`_number_ on top level, it is equivalent to setting the worker group thread count to that number, and the express group thread count to one. This setting is deprecated and may disappear in some future version.
++
+ ### Routing table options
+ 
+ Most routing tables do not need any options and are defined without an option block, but there are still some options to tweak routing table behavior. Note that implicit tables (`master4` and `master6`) can be redefined in order to set options.
+ 
+-debug all|off|{ states|routes|filters [, _..._] }
+-Set table debugging options. Like in [protocol debugging](https://bird.nic.cz/doc/bird-2.18.html#proto-debug), tables are capable of writing trace messages about its work to the log (with category `trace`). For now, this does nothing, but in version 3, it is used. Default: off.
+-
+ sorted _switch_
+ Usually, a routing table just chooses the selected (best) route from a list of routes for each network, while keeping remaining routes unsorted. If enabled, these lists of routes are kept completely sorted (according to preference or some protocol-dependent metric).
+ 
+@@ -371,13 +398,7 @@ This is needed for some protocol features (e.g. `secondary` option of BGP protoc
+ trie _switch_
+ BIRD routing tables are implemented with hash tables, which is efficient for exact-match lookups, but inconvenient for longest-match lookups or interval lookups (finding superprefix or subprefixes). This option activates additional trie structure that is used to accelerate these lookups, while using the hash table for exact-match lookups.
+ 
+-This has advantage for [RPKI](https://bird.nic.cz/doc/bird-2.18.html#rpki) (on ROA tables), for [recursive next-hops](https://bird.nic.cz/doc/bird-2.18.html#bgp-gateway) (on IGP tables), and is required for [flowspec validation](https://bird.nic.cz/doc/bird-2.18.html#bgp-validate) (on base IP tables). Another advantage is that interval results (like from `show route in ...` command) are lexicographically sorted. The disadvantage is that trie-enabled routing tables require more memory, which may be an issue especially in multi-table setups. Default: off.
+-
+-min settle time _time_
+-Specify a minimum value of the settle time. When a ROA table changes, automatic [RPKI reload](https://bird.nic.cz/doc/bird-2.18.html#proto-rpki-reload) may be triggered, after a short settle time. Minimum settle time is a delay from the last ROA table change to wait for more updates. Default: 1 s.
+-
+-max settle time _time_
+-Specify a maximum value of the settle time. When a ROA table changes, automatic [RPKI reload](https://bird.nic.cz/doc/bird-2.18.html#proto-rpki-reload) may be triggered, after a short settle time. Maximum settle time is an upper limit to the settle time from the initial ROA table change even if there are consecutive updates gradually renewing the settle time. Default: 20 s.
++This has advantage for [RPKI](https://bird.nic.cz/doc/bird-3.2.0.html#rpki) (on ROA tables), for [recursive next-hops](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-gateway) (on IGP tables), and is required for [flowspec validation](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-validate) (on base IP tables). Another advantage is that interval results (like from `show route in ...` command) are lexicographically sorted. The disadvantage is that trie-enabled routing tables require more memory, which may be an issue especially in multi-table setups. Default: off.
+ 
+ gc threshold _number_
+ Specify a minimum amount of removed networks that triggers a garbage collection (GC) cycle. Default: 1000.
+@@ -385,6 +406,24 @@ Specify a minimum amount of removed networks that triggers a garbage collection
+ gc period _time_
+ Specify a period of time between consecutive GC cycles. When there is a significant amount of route withdraws, GC cycles are executed repeatedly with given period time (with some random factor). When there is just small amount of changes, GC cycles are not executed. In extensive route server setups, running GC on hundreds of full BGP routing tables can take significant amount of time, therefore they should use higher GC periods. Default: adaptive, based on number of routing tables in the configuration. From 10 s (with <= 25 routing tables) up to 600 s (with >= 1500 routing tables).
+ 
++cork threshold _number_ _number_
++Too many pending exports may lead to memory bloating. In such cases, BIRD tries to relieve the memory pressure by pausing some routines until the queue sizes get low enough. This option allows the user to set the thresholds; first value is the low threshold (when to resume), the second one is the high threshold (when to pause). The higher is the threshold, the more memory can get used. In most cases, the defaults should work for you but if you experience memory bloating on import surges, this knob is the first to turn down. Default: 333300 1011010.
++
++export settle time _time_ _time_
++Minimum and maximum settle times, respectively, for export announcements. When multiple routes are changing, this mechanism waits for the changes to settle before waking up sleeping export threads but if the changes are coming steadily, BIRD isn't waiting forever; at most the maximum time. Default values: `1 ms 100 ms`. You have to always provide both values.
++
++route refresh export settle time _time_ _time_
++Minimum and maximum settle times, respectively, for export announcements (the same as above), valid when any channel is currently doing a route refresh. This serves a purpose of even more aggresive change bundling, knowing that there is some active process generating changes in a fast pace. If you don't want this feature, set this to the same values as [export settle time](https://bird.nic.cz/doc/bird-3.2.0.html#rtable-export-settle-time). Default values: `100 ms 3 s`.
++
++digest settle time _time_ _time_
++Minimum and maximum settle times, respectively, for table change digests. This settle time applies to ROA table changes where a trie is generated containing all changed ROAs to automatically reload depending channels. Default values: `1 s 20 s`.
++
++debug all|off|{ states|routes|events [, _..._] }
++Set table debugging options. Each table can write some trace messages into log with category `trace`. You can request `all` trace messages or select some types: `states` for table state changes and auxiliary processes, `routes` for auxiliary route notifications (next hop update, flowspec revalidation) and `events` for more detailed auxiliary routine debug. See also [channel debugging option](https://bird.nic.cz/doc/bird-3.2.0.html#channel-debug). Default: off.
++
++thread group _name_
++Assign this table's maintenance tasks to this thread group. Default: `worker`.
++
+ ### Protocol options
+ 
+ For each protocol instance, you can configure a bunch of options. Some of them (those described in this section) are generic, some are specific to the protocol (see sections talking about the protocols).
+@@ -394,8 +433,11 @@ Several options use a _switch_ argument. It can be either `on`, `yes` or a numer
+ disabled _switch_
+ Disables the protocol. You can change the disable/enable status from the command line interface without needing to touch the configuration. Disabled protocols are not activated. Default: protocol is enabled.
+ 
++restart time limit _time_
++Set time limit for subsequent automatic restarts of the protocol. If the protocol hits the limit (with a restart action) before this time elapses from starting the protocol, the protocol is disabled with an error message in the config file. This doesn't apply to manual restarts or reconfiguration. Default: 5 s.
++
+ debug all|off|{ states|routes|filters|interfaces|events|packets [, _..._] }
+-Set protocol debugging options. If asked, each protocol is capable of writing trace messages about its work to the log (with category `trace`). You can either request printing of `all` trace messages or only of the selected types: `states` for protocol state changes (protocol going up, down, starting, stopping etc.), `routes` for routes exchanged with the routing table, `filters` for details on route filtering, `interfaces` for interface change events sent to the protocol, `events` for events internal to the protocol and `packets` for packets sent and received by the protocol. Classes `routes` and `filters` can be also set per-channel using [channel debugging option](https://bird.nic.cz/doc/bird-2.18.html#channel-debug)) Default: off.
++Set protocol debugging options. If asked, each protocol is capable of writing trace messages about its work to the log (with category `trace`). You can either request printing of `all` trace messages or only of the selected types: `states` for protocol state changes (protocol going up, down, starting, stopping etc.), `routes` for routes exchanged with the routing table, `filters` for details on route filtering, `interfaces` for interface change events sent to the protocol, `events` for events internal to the protocol and `packets` for packets sent and received by the protocol. Classes `routes` and `filters` can be also set per-channel using [channel debugging option](https://bird.nic.cz/doc/bird-3.2.0.html#channel-debug)) Default: off.
+ 
+ mrtdump all|off|{ states|messages [, _..._] }
+ Set protocol MRTdump flags. MRTdump is a standard binary format for logging information from routing protocols and daemons. These flags control what kind of information is logged from the protocol to the MRTdump file (which must be specified by global `mrtdump` option, see the previous section). Although these flags are similar to flags of `debug` option, their meaning is different and protocol-specific. For BGP protocol, `states` logs BGP state changes and `messages` logs received BGP messages. Other protocols does not support MRTdump yet.
+@@ -414,10 +456,13 @@ Associate the protocol with specific VRF. The protocol will be restricted to int
+ 
+ By selecting `default`, the protocol is associated with the default VRF; i.e., it will be restricted to interfaces not assigned to any regular VRF. That is different from not specifying `vrf` at all, in which case the protocol may use any interface regardless of its VRF status.
+ 
+-Note that for proper VRF support it is necessary to use Linux kernel version at least 4.14, older versions have limited VRF implementation. Before Linux kernel 5.0, a socket bound to a port in default VRF collide with others in regular VRFs. In BGP, this can be avoided by using [strict bind](https://bird.nic.cz/doc/bird-2.18.html#bgp-strict-bind) option.
++Note that for proper VRF support it is necessary to use Linux kernel version at least 4.14, older versions have limited VRF implementation. Before Linux kernel 5.0, a socket bound to a port in default VRF collide with others in regular VRFs. In BGP, this can be avoided by using [strict bind](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-strict-bind) option.
+ 
+ _channel name_ [{_channel config_}]
+-Every channel must be explicitly stated. See the protocol-specific configuration for the list of supported channel names. See the [channel configuration section](https://bird.nic.cz/doc/bird-2.18.html#channel-opts) for channel definition.
++Every channel must be explicitly stated. See the protocol-specific configuration for the list of supported channel names. See the [channel configuration section](https://bird.nic.cz/doc/bird-3.2.0.html#channel-opts) for channel definition.
++
++thread group _name_
++Assign this protocol's tasks to this thread group. Ignored in protocols not yet updated for the multithreaded execution model. Default: `worker`.
+ 
+ There are several options that give sense only with certain protocols:
+ 
+@@ -453,7 +498,7 @@ This option specifies the local packet priority. This may affect how the protoco
+ password "_password_" | _bytestring_ [ { _password options_ } ]
+ Specifies a password that can be used by the protocol as a shared secret key. Password option can be used more times to specify more passwords. If more passwords are specified, it is a protocol-dependent decision which one is really used. Specifying passwords does not mean that authentication is enabled, authentication can be enabled by separate, protocol-dependent `authentication` option.
+ 
+-A password can be specified as a string or as a sequence of hexadecimal digit pairs ([bytestring](https://bird.nic.cz/doc/bird-2.18.html#type-bytestring)).
++A password can be specified as a string or as a sequence of hexadecimal digit pairs ([bytestring](https://bird.nic.cz/doc/bird-3.2.0.html#type-bytestring)).
+ 
+ This option is allowed in BFD, OSPF, RIP, and Babel protocols. BGP has also `password` option, but it is slightly different and described separately. Default: none.
+ 
+@@ -488,7 +533,7 @@ The message authentication algorithm for the password when cryptographic authent
+ Every channel belongs to a protocol and is configured inside its block. The minimal channel config is empty, then it uses default values. The name of the channel implies its nettype. Channel definitions can be inherited from protocol templates. Multiple definitions of the same channel are forbidden, but channels inherited from templates can be updated by new definitions.
+ 
+ debug all|off|{ states|routes|filters [, _..._] }
+-Set channel debugging options. Like in [protocol debugging](https://bird.nic.cz/doc/bird-2.18.html#proto-debug), channels are capable of writing trace messages about its work to the log (with category `trace`). You can either request printing of `all` trace messages or only of the selected types: `states` for channel state changes (channel going up, down, feeding, reloading etc.), `routes` for routes propagated through the channel, `filters` for details on route filtering, remaining debug flags are not used in channel debug. Default: off.
++Set channel debugging options. Like in [protocol debugging](https://bird.nic.cz/doc/bird-3.2.0.html#proto-debug), channels are capable of writing trace messages about its work to the log (with category `trace`). You can either request printing of `all` trace messages or only of the selected types: `states` for channel state changes (channel going up, down, feeding, reloading etc.), `routes` for routes propagated through the channel, `filters` for details on route filtering, remaining debug flags are not used in channel debug. Default: off.
+ 
+ table _name_
+ Specify a table to which the channel is connected. Default: the first table of given nettype.
+@@ -499,14 +544,14 @@ Sets the preference of routes generated by the protocol and imported through thi
+ import all | none | filter _name_ | filter { _filter commands_ } | where _boolean filter expression_
+ Specify a filter to be used for filtering routes coming from the protocol to the routing table. `all` is for keeping all routes, `none` is for dropping all routes. Default: `all` (except for EBGP).
+ 
+-export _filter_
+-This is similar to the `import` keyword, except that it works in the direction from the routing table to the protocol. Default: `none` (except for EBGP and L3VPN).
++export [ in _prefix_ ] _filter_
++This is similar to the `import` keyword, except that it works in the direction from the routing table to the protocol. If `in` keyword is used, only routes inside the given prefix are exported. Other routes are completely ignored (e.g. no logging and no statistics). Default: `none` (except for EBGP and L3VPN).
+ 
+ import keep filtered _switch_
+ Usually, if an import filter rejects a route, the route is forgotten. When this option is active, these routes are kept in the routing table, but they are hidden and not propagated to other protocols. But it is possible to show them using `show route filtered`. Note that this option does not work for the pipe protocol. Default: off.
+ 
+ rpki reload _switch_
+-Import or export filters may depend on route RPKI status (using `roa_check()` or `aspa_check()` operators). In contrast to other filter operators, this status for the same route may change as the content of ROA and ASPA tables changes. When this option is active, BIRD activates automatic reload of affected channels whenever ROA and ASPA tables are updated (after a short settle time). When disabled, route reloads have to be requested manually. The option is ignored if neither `roa_check()` nor `aspa_check()` is used in channel filters. Note that for BGP channels, automatic reload requires [import table](https://bird.nic.cz/doc/bird-2.18.html#bgp-import-table) or [export table](https://bird.nic.cz/doc/bird-2.18.html#bgp-export-table) (for respective direction). Default: on.
++Import or export filters may depend on route RPKI status (using `roa_check()` or `aspa_check()` operators). In contrast to other filter operators, this status for the same route may change as the content of ROA and ASPA tables changes. When this option is active, BIRD activates automatic reload of the appropriate subset of prefixes imported or exported by the channels whenever ROA and ASPA tables are updated (after a short settle time). When disabled, route reloads have to be requested manually. The option is ignored if neither `roa_check()` nor `aspa_check()` is used in channel filters. Note that for BGP channels, automatic reload requires [import table](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-import-table) or [export table](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-export-table) (for respective direction). Default: on.
+ 
+ import limit [_number_ | off ] [action warn | block | restart | disable]
+ Specify an import route limit (a maximum number of routes imported from the protocol) and optionally the action to be taken when the limit is hit. Warn action just prints warning log message. Block action discards new routes coming from the protocol. Restart and disable actions shut the protocol down like appropriate commands. Disable is the default action if an action is not explicitly specified. Note that limits are reset during protocol reconfigure, reload or restart. Default: `off`.
+@@ -538,6 +583,9 @@ import
+ 
+ option, but for the routes exported to the protocol. This option is experimental, there are some problems in details of its behavior -- the number of exported routes can temporarily exceed the limit without triggering it during protocol reload, exported routes counter ignores route blocking and block action also blocks route updates of already accepted routes -- and these details will probably change in the future. Default: `off`.
+ 
++export block _number_
++Set the minimum amount of routes exported at once when feeding or if `merge paths` or `secondary` is selected. This affects overall latency. Basically, when your export filters are very expensive, processing the whole block of routes may take too much time. In such cases, you may need to shrink this value to improve responsiveness. Default: `16384`.
++
+ This is a trivial example of RIP configured for IPv6 on all interfaces:
+ 
+ ```
+@@ -599,7 +647,7 @@ Note that the MPLS subsystem is experimental, it is likely that there will be so
+ label range _name_ { start _number_; length _number_; [_..._] }
+ Define a new label range, or redefine implicit label ranges `static` and `dynamic`. MPLS channels use configured label ranges for dynamic label allocation, while `static` label range is used for static label allocation. The label range definition must specify the extent of the range. By default, the range `static` is 16-1000, while the range `dynamic` is 1000-10000.
+ 
+-MPLS channel should be defined in each MPLS-aware protocol in addition to its regular channels. It is responsible for label allocation and for announcing MPLS routes to the MPLS routing table. Besides common [channel options](https://bird.nic.cz/doc/bird-2.18.html#channel-opts), MPLS channels have some specific options:
++MPLS channel should be defined in each MPLS-aware protocol in addition to its regular channels. It is responsible for label allocation and for announcing MPLS routes to the MPLS routing table. Besides common [channel options](https://bird.nic.cz/doc/bird-3.2.0.html#channel-opts), MPLS channels have some specific options:
+ 
+ domain _name_
+ Specify a MPLS domain to which this channel and protocol belongs. Default: The first defined MPLS domain.
+@@ -610,7 +658,7 @@ Use specific label range for dynamic label allocation. Note that static labels a
+ label policy static|prefix|aggregate|vrf
+ Label policy specifies how routes are grouped to forwarding equivalence classes (FECs) and how labels are assigned to them.
+ 
+-The policy `static` means no dynamic label allocation is done, and static labels must be set in import filters using the route attribute [mpls_label](https://bird.nic.cz/doc/bird-2.18.html#rta-mpls-label).
++The policy `static` means no dynamic label allocation is done, and static labels must be set in import filters using the route attribute [mpls_label](https://bird.nic.cz/doc/bird-3.2.0.html#rta-mpls-label).
+ 
+ The policy `prefix` means each prefix uses separate label associated with that prefix. When a labeled route is updated, it keeps the label. This policy is appropriate for IGPs.
+ 
+@@ -665,9 +713,15 @@ There is also lightweight variant of BIRD client called `birdcl`, which does not
+ 
+ By default, BIRD opens `bird.ctl` UNIX domain socket and the CLI tool connects to it. If changed on the command line by the `-s` option, BIRD or the CLI tool connects there instead.
+ 
+-It's also possible to configure additional remote control sockets in the configuration file by `cli "name";` and you can open how many sockets you wish. There are no checks whether the user configured the same socket multiple times and BIRD may behave weirdly if this happens. On shutdown, the additional sockets get removed immediately and only the main socket stays until the very end.
++It's also possible to configure additional remote control sockets in the configuration file by `cli "name" { <m`options/ };/ and you can open how many sockets you wish. There are no checks whether the user configured the same socket multiple times and BIRD may behave weirdly if this happens. On shutdown, the additional sockets get removed immediately and only the main socket stays until the very end. If there are no options, the braces may be omitted.
++
++Options:
++
++restrict
++Set the socket to be restricted as if the user always sent the `restrict` command after connecting. The user may still overload the daemon by requesting insanely complex filters so you shouldn't expose this socket to public even if restricted.
+ 
+-The remote control socket can be also set as restricted by `cli "name" { restrict; };` instead of sending the `restrict` command after connecting. The user may still overload the daemon by requesting insanely complex filters so you shouldn't expose this socket to public anyway.
++v2 attributes
++Display the names and composition of route attributes the same way as BIRD 2 does. This is a compatibility option for easier transition from BIRD 2 to BIRD 3.
+ 
+ ### Usage
+ 
+@@ -684,6 +738,9 @@ Show the list of interfaces. For each interface, print its type, state, MTU and
+ show protocols [all]
+ Show list of protocol instances along with tables they are connected to and protocol status, possibly giving verbose information, if `all` is specified.
+ 
++reload bgp [in|out] [_name_]
++Manually request (in) or send (out) route refresh (or both) on the given BGP protocol(s).
++
+ show ospf interface [_name_] ["_interface_"]
+ Show detailed information about OSPF interfaces.
+ 
+@@ -741,12 +798,12 @@ option), you can show them instead of routes by using `filtered` switch.
+ The `stats` switch requests showing of route statistics (the number of networks, number of routes before and after filtering). If you use `count` instead, only the statistics will be printed.
+ 
+ mrt dump table _name_|"_pattern_" to "_filename_" [filter _f_|where _c_]
+-Dump content of a routing table to a specified file in MRT table dump format. See [MRT protocol](https://bird.nic.cz/doc/bird-2.18.html#mrt) for details.
++Dump content of a routing table to a specified file in MRT table dump format. See [MRT protocol](https://bird.nic.cz/doc/bird-3.2.0.html#mrt) for details.
+ 
+ configure [soft] ["_config file_"] [timeout [_number_]]
+ Reload configuration from a given file. BIRD will smoothly switch itself to the new configuration, protocols are reconfigured if possible, restarted otherwise. Changes in filters usually lead to restart of affected protocols.
+ 
+-The previous configuration is saved and the user can switch back to it with [configure undo](https://bird.nic.cz/doc/bird-2.18.html#cli-configure-undo) command. The old saved configuration is released (even if the reconfiguration attempt fails due to e.g. a syntax error).
++The previous configuration is saved and the user can switch back to it with [configure undo](https://bird.nic.cz/doc/bird-3.2.0.html#cli-configure-undo) command. The old saved configuration is released (even if the reconfiguration attempt fails due to e.g. a syntax error).
+ 
+ If `soft` option is used, changes in filters does not cause BIRD to restart affected protocols, therefore already accepted routes (according to old filters) would be still propagated, but new routes would be processed according to the new filters.
+ 
+@@ -764,23 +821,25 @@ Read and parse given config file, but do not use it. useful for checking syntact
+ enable|disable|restart _name_|"_pattern_"|all
+ Enable, disable or restart a given protocol instance, instances matching the _pattern_ or `all` instances.
+ 
+-reload [in|out] _name_|"_pattern_"|all
++reload filters [in|out] (_name_|"_pattern_"|all) [partial prefix]
+ Reload a given protocol instance, that means re-import routes from the protocol instance and re-export preferred routes to the instance. If `in` or `out` options are used, the command is restricted to one direction (re-import or re-export).
+ 
+ This command is useful if appropriate filters have changed but the protocol instance was not restarted (or reloaded), therefore it still propagates the old set of routes. For example when `configure soft` command was used to change filters.
+ 
++If `partial prefix` option is used, only corresponding routes are reloaded. Protocol BGP does partial reload only if it has import table enabled, otherwise partial reload for BGP is refused.
++
+ Re-export always succeeds, but re-import is protocol-dependent and might fail (for example, if BGP neighbor does not support route-refresh extension). In that case, re-export is also skipped. Note that for the pipe protocol, both directions are always reloaded together (`in` or `out` options are ignored in that case).
+ 
+ timeformat "_format1_" [_limit_ "_format2_"]
+ Override format of date/time used by BIRD in this CLI session.
+ 
+-Meaning of "_format1_", _limit_, and "_format2_" is the same as in the [timeformat](https://bird.nic.cz/doc/bird-2.18.html#opt-timeformat) configuration option. Also, the same `iso ...` shorthands may be used.
++Meaning of "_format1_", _limit_, and "_format2_" is the same as in the [timeformat](https://bird.nic.cz/doc/bird-3.2.0.html#opt-timeformat) configuration option. Also, the same `iso ...` shorthands may be used.
+ 
+ down
+ Shut BIRD down.
+ 
+ graceful restart
+-Shut BIRD down for graceful restart. See [graceful restart](https://bird.nic.cz/doc/bird-2.18.html#graceful-restart) section for details.
++Shut BIRD down for graceful restart. See [graceful restart](https://bird.nic.cz/doc/bird-3.2.0.html#graceful-restart) section for details.
+ 
+ debug _protocol_|_pattern_|all all|off|{ states|routes|filters|events|packets [, _..._] }
+ Control protocol debugging.
+@@ -789,7 +848,7 @@ dump resources|sockets|ao keys|events|interfaces|neighbors|attributes|routes|pro
+ Creates the given file (it must not exist) and dumps contents of internal data structures there. By sending SIGUSR1, you get all of these concatenated to `bird.dump` in the current directory. The file is only readable for the user running the daemon. The format of dump files is internal and could change in the future without any notice.
+ 
+ echo all|off|{ _list of log classes_ } [ _buffer-size_ ]
+-Control echoing of log messages to the command-line output. See [log option](https://bird.nic.cz/doc/bird-2.18.html#opt-log) for a list of log classes.
++Control echoing of log messages to the command-line output. See [log option](https://bird.nic.cz/doc/bird-3.2.0.html#opt-log) for a list of log classes.
+ 
+ eval _expr_
+ Evaluate given expression.
+@@ -1132,7 +1191,7 @@ The `case` is similar to case from Pascal. Syntax is
+ case
+ ```
+ 
+-_expr_`{ else: |`_set_body_expr_`/:`_statement_`; [... ] }`. The expression after `case` can be of any type that could be a member of a set, while the _set_body_expr_ before `:` can be anything (constants, intervals, expressions) that could be a part of a set literal. One exception is prefix type, which can be used in sets bud not in `case` structure. Multiple commands are allowed without `{}` grouping. If _expr_ matches one of the `:` clauses, statements between it and next `:` statement are executed. If _expr_ matches neither of the `:` clauses, the statements after `else:` are executed.
++_expr_`{ else: |`_set_body_expr_`/:`_statement_`; [... ] }`. The expression after `case` can be of any type that could be a member of a set, while the _set_body_expr_ before `:` can be anything (constants, intervals, expressions) that could be a part of a set literal. One exception is prefix type, which can be used in sets bud not in `case` structure. Multiple commands must be grouped by `{}`. If _expr_ matches one of the `:` clauses, the statement or block after it is executed. If _expr_ matches neither of the `:` clauses, the statement or block after `else:` is executed.
+ 
+ Here is example that uses `if` and `case` structures:
+ 
+@@ -1148,7 +1207,7 @@ for int asn in bgp_path do {
+ }
+ 
+ case arg1 {
+-    2: print "two"; print "I can do more commands without {}";
++    2: { print "two"; print "Multiple commands must brace themselves."; }
+     3 .. 5: print "three to five";
+     else: print "something else";
+ }
+@@ -1156,16 +1215,13 @@ case arg1 {
+ 
+ ### Route attributes
+ 
+-A filter is implicitly passed a route, and it can access its attributes just like it accesses variables. There are common route attributes, protocol-specific route attributes and custom route attributes. Most common attributes are mandatory (always defined), while remaining are optional. Attempts to access undefined attribute result in a runtime error; you can check if an attribute is defined by using the `defined(`_attribute_`)` operator. One notable exception to this rule are attributes of bgppath and *clist types, where undefined value is regarded as empty bgppath/*clist for most purposes. Attributes can be defined by just setting them in filters. Custom attributes have to be first declared by [attribute](https://bird.nic.cz/doc/bird-2.18.html#opt-attribute) global option. You can also undefine optional attribute back to non-existence by using the `unset(`_attribute_`)` operator. Common route attributes are:
++A filter is implicitly passed a route, and it can access its attributes just like it accesses variables. There are common route attributes, protocol-specific route attributes and custom route attributes. Most common attributes are mandatory (always defined), while remaining are optional. Attempts to access undefined attribute result in a runtime error; you can check if an attribute is defined by using the `defined(`_attribute_`)` operator. One notable exception to this rule are attributes of bgppath and *clist types, where undefined value is regarded as empty bgppath/*clist for most purposes. Attributes can be defined by just setting them in filters. Custom attributes have to be first declared by [attribute](https://bird.nic.cz/doc/bird-3.2.0.html#opt-attribute) global option. You can also undefine optional attribute back to non-existence by using the `unset(`_attribute_`)` operator. Common route attributes are:
+ 
+ _prefix_ net
+-The network prefix or anything else the route is talking about. The primary key of the routing table. Read-only. (See the [chapter about routes](https://bird.nic.cz/doc/bird-2.18.html#routes).)
+-
+-_enum_ scope
+-The scope of the route. Possible values: `SCOPE_HOST` for routes local to this host, `SCOPE_LINK` for those specific for a physical link, `SCOPE_SITE` and `SCOPE_ORGANIZATION` for private routes and `SCOPE_UNIVERSE` for globally visible routes. This attribute is not interpreted by BIRD and can be used to mark routes in filters. The default value for new routes is `SCOPE_UNIVERSE`.
++The network prefix or anything else the route is talking about. The primary key of the routing table. Read-only. (See the [chapter about routes](https://bird.nic.cz/doc/bird-3.2.0.html#routes).)
+ 
+ _int_ preference
+-Preference of the route. Valid values are 0-65535. (See the chapter about routing tables.)
++Preference of the route.
+ 
+ _ip_ from
+ The router which the route has originated from.
+@@ -1188,26 +1244,26 @@ Name of the outgoing interface. Sink routes (like blackhole, unreachable or proh
+ _int_ ifindex
+ Index of the outgoing interface. System wide index of the interface. May be used for interface matching, however indexes might change on interface creation/removal. Zero is returned for routes with undefined outgoing interfaces. Read-only.
+ 
+-_bool_ onlink
+-Onlink flag means that the specified nexthop is accessible on the interface regardless of IP prefixes configured on the interface. The attribute can be used to configure such next hops by first setting `onlink = true` and `ifname`, and then setting `gw`. Possible use case for setting this flag is to automatically build overlay IP-IP networks on linux.
+-
+ _int_ weight
+-Multipath weight of route next hops. Valid values are 1-256. Reading returns the weight of the first next hop, setting it sets weights of all next hops to the specified value. Therefore, this attribute is not much useful for manipulating individual next hops of an ECMP route, but can be used in BGP multipath setup to set weights of individual routes that are merged to one ECMP route during export to the Kernel protocol (with active [marge paths](https://bird.nic.cz/doc/bird-2.18.html#krt-merge-paths) option).
++Multipath weight of route next hops. Valid values are 1-256. Reading returns the weight of the first next hop, setting it sets weights of all next hops to the specified value. Therefore, this attribute is not much useful for manipulating individual next hops of an ECMP route, but can be used in BGP multipath setup to set weights of individual routes that are merged to one ECMP route during export to the Kernel protocol (with active [marge paths](https://bird.nic.cz/doc/bird-3.2.0.html#krt-merge-paths) option).
+ 
+ _int_ gw_mpls
+ Outgoing MPLS label attached to route (i.e., incoming MPLS label on the next hop router for this label-switched path). Reading returns the label value and setting it sets it to the start of the label stack. Setting implicit-NULL label (3) disables the MPLS label stack. Only the first next hop and only one label in the label stack supported right now. This is experimental option, will be likely changed in the future to handle full MPLS label stack.
+ 
+ _int_ igp_metric
+-The optional attribute that can be used to specify a distance to the network for routes that do not have a native protocol metric attribute (like `ospf_metric1` for OSPF routes). It is used mainly by BGP to compare internal distances to boundary routers (see below).
++The optional attribute that can be used to specify a distance to the network for routes that do not have a native protocol metric attribute (like `ospf_metric1` for OSPF routes). It is used to fill in [local_metric](https://bird.nic.cz/doc/bird-3.2.0.html#rta-local-metric) attribute when recursive nexthops are resolved, so that BGP can compare internal distances to boundary routers (see below).
++
++_int_ local_metric
++Attribute storing the route's metric to the resolved recursive nexthop, mainly used by BGP best route selection. Also known as "interior cost" in RFC 4271. It's the copy of the underlying protocol's metric, e.g. `ospf_metric1`, or the generic `igp_metric`. For recursive nexthops, setting the `local_metric` attribute in the import filters is futile, as the nexthop resolver overwrites it. Note: In versions 3.0.x and 3.1.x, the `igp_metric` attribute was confusingly used for this purpose.
+ 
+ _int_ mpls_label
+ Local MPLS label attached to the route. This attribute is produced by MPLS-aware protocols for labeled routes. It can also be set in import filters to assign static labels, but that also requires static MPLS label policy.
+ 
+ _enum_ mpls_policy
+-For MPLS-aware protocols, this attribute defines which [MPLS label policy](https://bird.nic.cz/doc/bird-2.18.html#mpls-channel-label-policy) will be used for the route. It can be set in import filters to change it on per-route basis. Valid values are `MPLS_POLICY_NONE` (no label), `MPLS_POLICY_STATIC` (static label), `MPLS_POLICY_PREFIX` (per-prefix label), `MPLS_POLICY_AGGREGATE` (aggregated label), and `MPLS_POLICY_VRF` (per-VRF label). See [MPLS label policy](https://bird.nic.cz/doc/bird-2.18.html#mpls-channel-label-policy) for details.
++For MPLS-aware protocols, this attribute defines which [MPLS label policy](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-channel-label-policy) will be used for the route. It can be set in import filters to change it on per-route basis. Valid values are `MPLS_POLICY_NONE` (no label), `MPLS_POLICY_STATIC` (static label), `MPLS_POLICY_PREFIX` (per-prefix label), `MPLS_POLICY_AGGREGATE` (aggregated label), and `MPLS_POLICY_VRF` (per-VRF label). See [MPLS label policy](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-channel-label-policy) for details.
+ 
+ _int_ mpls_class
+-When [MPLS label policy](https://bird.nic.cz/doc/bird-2.18.html#mpls-channel-label-policy) is set to `aggregate`, it may be useful to apply more fine-grained aggregation than just one based on next hops. When routes have different value of this attribute, they will not be aggregated under one local label even if they have the same next hops.
++When [MPLS label policy](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-channel-label-policy) is set to `aggregate`, it may be useful to apply more fine-grained aggregation than just one based on next hops. When routes have different value of this attribute, they will not be aggregated under one local label even if they have the same next hops.
+ 
+ Protocol-specific route attributes are described in the corresponding protocol sections.
+ 
+@@ -1289,7 +1345,7 @@ BIRD implements an extension for IPv6 source-specific routing (SSR or SADR), but
+ 
+ #### Configuration
+ 
+-The Babel protocol support both IPv4 and IPv6 channels; both can be configured simultaneously. It can also be configured with [IPv6 SADR](https://bird.nic.cz/doc/bird-2.18.html#ip-sadr-routes) channel instead of regular IPv6 channel, in such case SADR support is enabled. Babel supports no global configuration options apart from those common to all other protocols, but supports the following per-interface configuration options:
++The Babel protocol support both IPv4 and IPv6 channels; both can be configured simultaneously. It can also be configured with [IPv6 SADR](https://bird.nic.cz/doc/bird-3.2.0.html#ip-sadr-routes) channel instead of regular IPv6 channel, in such case SADR support is enabled. Babel supports no global configuration options apart from those common to all other protocols, but supports the following per-interface configuration options:
+ 
+ ```
+ protocol babel [<name>] {
+@@ -1359,7 +1415,7 @@ port _number_
+ This option selects an UDP port to operate on. The default is to operate on port 6696 as specified in the Babel RFC.
+ 
+ tx class|dscp|priority _number_
+-These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing Babel packets. See [tx class](https://bird.nic.cz/doc/bird-2.18.html#proto-tx-class) common option for detailed description.
++These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing Babel packets. See [tx class](https://bird.nic.cz/doc/bird-3.2.0.html#proto-tx-class) common option for detailed description.
+ 
+ rx buffer _number_
+ This option specifies the size of buffers used for packet processing. The buffer size should be bigger than maximal size of received packets. The default value is the interface MTU, and the value will be clamped to a minimum of 512 bytes + IP packet overhead.
+@@ -1377,13 +1433,13 @@ next hop ipv6 _address_
+ Set the IPv6 next hop address advertised for routes advertised on this interface. If not set, the same link-local address that is used as the source for Babel packets will be used. In normal operation, it should not be necessary to set this option.
+ 
+ next hop prefer native|ipv6
+-By default, BIRD prefers to advertise IPv4 routes with an IPv4 next hop address, using an IPv6 next hop address only when IPv4 addresses are absent from the interface. When set to `ipv6`, BIRD will advertise IPv4 routes with an IPv6 next hop address even when IPv4 addresses are present on the interface (assuming the option [extended next hop](https://bird.nic.cz/doc/bird-2.18.html#babel-extended-next-hop) is enabled). Default: native.
++By default, BIRD prefers to advertise IPv4 routes with an IPv4 next hop address, using an IPv6 next hop address only when IPv4 addresses are absent from the interface. When set to `ipv6`, BIRD will advertise IPv4 routes with an IPv6 next hop address even when IPv4 addresses are present on the interface (assuming the option [extended next hop](https://bird.nic.cz/doc/bird-3.2.0.html#babel-extended-next-hop) is enabled). Default: native.
+ 
+ extended next hop _switch_
+-Specify whether BIRD should allow IPv4 routes with an IPv6 next hop, as described in [RFC 9229](https://datatracker.ietf.org/doc/rfc9229). Note that when both IPv4 and IPv6 next hops are available, the option [next hop prefer](https://bird.nic.cz/doc/bird-2.18.html#babel-next-hop-prefer) controls which one is advertised. Default: yes.
++Specify whether BIRD should allow IPv4 routes with an IPv6 next hop, as described in [RFC 9229](https://datatracker.ietf.org/doc/rfc9229). Note that when both IPv4 and IPv6 next hops are available, the option [next hop prefer](https://bird.nic.cz/doc/bird-3.2.0.html#babel-next-hop-prefer) controls which one is advertised. Default: yes.
+ 
+ rtt cost _number_
+-The RTT-based cost that will be applied to all routes from each neighbour based on the measured RTT to that neighbour. If this value is set, timestamps will be included in generated Babel Hello and IHU messages, and (if the neighbours also have timestamps enabled), the RTT to each neighbour will be computed. An additional cost is added to a neighbour if its RTT is above the [rtt min](https://bird.nic.cz/doc/bird-2.18.html#babel-rtt-min) value configured on the interface. The added cost scales linearly from 0 up to the RTT cost configured in this option; the full cost is applied if the neighbour RTT reaches the RTT configured in the [rtt max](https://bird.nic.cz/doc/bird-2.18.html#babel-rtt-max) option (and for all RTTs above this value). Default: 0 (disabled), except for tunnel interfaces, where it is 96.
++The RTT-based cost that will be applied to all routes from each neighbour based on the measured RTT to that neighbour. If this value is set, timestamps will be included in generated Babel Hello and IHU messages, and (if the neighbours also have timestamps enabled), the RTT to each neighbour will be computed. An additional cost is added to a neighbour if its RTT is above the [rtt min](https://bird.nic.cz/doc/bird-3.2.0.html#babel-rtt-min) value configured on the interface. The added cost scales linearly from 0 up to the RTT cost configured in this option; the full cost is applied if the neighbour RTT reaches the RTT configured in the [rtt max](https://bird.nic.cz/doc/bird-3.2.0.html#babel-rtt-max) option (and for all RTTs above this value). Default: 0 (disabled), except for tunnel interfaces, where it is 96.
+ 
+ rtt min _time_ s|ms
+ The minimum RTT above which the RTT cost will start to be applied (scaling linearly from zero up to the full cost). Default: 10 ms
+@@ -1401,7 +1457,7 @@ authentication none|mac [permissive]
+ Selects authentication method to be used. `none` means that packets are not authenticated at all, `mac` means MAC authentication is performed as described in [RFC 8967](https://datatracker.ietf.org/doc/rfc8967). If MAC authentication is selected, the `permissive` suffix can be used to select an operation mode where outgoing packets are signed, but incoming packets will be accepted even if they fail authentication. This can be useful for incremental deployment of MAC authentication across a network. If MAC authentication is selected, a key must be specified with the `password` configuration option. Default: none.
+ 
+ password "_text_"
+-Specifies a password used for authentication. See the [password](https://bird.nic.cz/doc/bird-2.18.html#proto-pass) common option for a detailed description. The Babel protocol will only accept HMAC-based algorithms or one of the Blake algorithms, and the length of the supplied password string must match the key size used by the selected algorithm.
++Specifies a password used for authentication. See the [password](https://bird.nic.cz/doc/bird-3.2.0.html#proto-pass) common option for a detailed description. The Babel protocol will only accept HMAC-based algorithms or one of the Blake algorithms, and the length of the supplied password string must match the key size used by the selected algorithm.
+ 
+ #### Attributes
+ 
+@@ -1460,6 +1516,8 @@ A BFD instance not associated with any VRF handles session requests from all oth
+ 
+ Some of BFD session options require _time_ value, which has to be specified with the appropriate unit: _number_`s`|`ms`|`us`. Although microseconds are allowed as units, practical minimum values are usually in order of tens of milliseconds.
+ 
++Beware, all BFD instances pick up requests and sessions asynchronously, and any instance can pick up any matching request, regardless of the order in the configuration file. There may be a future update, allowing for strict matching, yet for now, we do not have such an option.
++
+ ```
+ protocol bfd [<name>] {
+     accept [ipv4|ipv6] [direct|multihop];
+@@ -1508,7 +1566,7 @@ zero udp6 checksum rx _switch_
+ UDP checksum computation is optional in IPv4 while it is mandatory in IPv6. Some BFD implementations send UDP datagrams with zero (blank) checksum even in IPv6 case. This option configures BFD listening sockets to accept such datagrams. It is available only on platforms that support the relevant socket option (e.g. `UDP_NO_CHECK6_RX` on Linux). Default: disabled.
+ 
+ interface _pattern_ [, _..._] { _options_ }
+-Interface definitions allow to specify options for sessions associated with such interfaces and also may contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common option for a detailed description of interface patterns. Note that contrary to the behavior of `interface` definitions of other protocols, BFD protocol would accept sessions (in default configuration) even on interfaces not covered by such definitions.
++Interface definitions allow to specify options for sessions associated with such interfaces and also may contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common option for a detailed description of interface patterns. Note that contrary to the behavior of `interface` definitions of other protocols, BFD protocol would accept sessions (in default configuration) even on interfaces not covered by such definitions.
+ 
+ multihop { _options_ }
+ Multihop definitions allow to specify options for multihop BFD sessions, in the same manner as `interface` definitions are used for directly connected sessions. Currently only one such definition (for all multihop sessions) could be used.
+@@ -1550,7 +1608,7 @@ An authentication code is appended to each packet. The cryptographic algorithm i
+ The `meticulous` variant means that cryptographic sequence numbers are increased for each sent packet, while in the basic variant they are increased about once per second. Generally, the `meticulous` variant offers better resistance to replay attacks but may require more computation.
+ 
+ password "_text_"
+-Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-2.18.html#proto-pass) common option for detailed description. Note that password option `algorithm` is not available in BFD protocol. The algorithm is selected by `authentication` option for all passwords.
++Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-3.2.0.html#proto-pass) common option for detailed description. Note that password option `algorithm` is not available in BFD protocol. The algorithm is selected by `authentication` option for all passwords.
+ 
+ #### Example
+ 
+@@ -1636,7 +1694,7 @@ BGP doesn't have any simple metric, so the rules for selection of an optimal rou
+ - Prefer IGP origin over EGP and EGP origin over incomplete.
+ - Prefer the lowest value of the Multiple Exit Discriminator.
+ - Prefer routes received via eBGP over ones received via iBGP.
+-- Prefer routes with lower internal distance to a boundary router.
++- Prefer routes with lower [internal distance](https://bird.nic.cz/doc/bird-3.2.0.html#rta-local-metric) to a boundary router.
+ - Prefer the route with the lowest value of router ID of the advertising router.
+ 
+ #### IGP routing table
+@@ -1826,13 +1884,13 @@ check link _switch_
+ BGP could use hardware link state into consideration. If enabled, BIRD tracks the link state of the associated interface and when link disappears (e.g. an ethernet cable is unplugged), the BGP session is immediately shut down. Note that this option cannot be used with multihop BGP. Default: enabled for direct BGP, disabled otherwise.
+ 
+ bfd _switch_|graceful| { _options_ }
+-BGP could use BFD protocol as an advisory mechanism for neighbor liveness and failure detection. If enabled, BIRD setups a BFD session for the BGP neighbor and tracks its liveness by it. This has an advantage of an order of magnitude lower detection times in case of failure. When a neighbor failure is detected, the BGP session is restarted. Optionally, it can be configured (by `graceful` argument) to trigger graceful restart instead of regular restart. It is also possible to specify section with per-peer BFD session options instead of just the switch argument. All BFD session-specific options are allowed here. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-2.18.html#bfd) section for details. Default: disabled.
++BGP could use BFD protocol as an advisory mechanism for neighbor liveness and failure detection. If enabled, BIRD setups a BFD session for the BGP neighbor and tracks its liveness by it. This has an advantage of an order of magnitude lower detection times in case of failure. When a neighbor failure is detected, the BGP session is restarted. Optionally, it can be configured (by `graceful` argument) to trigger graceful restart instead of regular restart. It is also possible to specify section with per-peer BFD session options instead of just the switch argument. All BFD session-specific options are allowed here. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-3.2.0.html#bfd) section for details. Default: disabled.
+ 
+ ttl security _switch_
+ Use GTSM ([RFC 5082](https://datatracker.ietf.org/doc/rfc5082) - the generalized TTL security mechanism). GTSM protects against spoofed packets by ignoring received packets with a smaller than expected TTL. To work properly, GTSM have to be enabled on both sides of a BGP session. If both `ttl security` and `multihop` options are enabled, `multihop` option should specify proper hop value to compute expected TTL. Kernel support required: Linux: 2.6.34+ (IPv4), 2.6.35+ (IPv6), BSD: since long ago, IPv4 only. Note that full (ICMP protection, for example) [RFC 5082](https://datatracker.ietf.org/doc/rfc5082) support is provided by Linux only. Default: disabled.
+ 
+ authentication none|md5|ao
+-Selects authentication method to be used. `none` means that the BGP session is not authenticated at all. `md5` means that the TCP MD5 authentication of BGP sessions ([RFC 2385](https://datatracker.ietf.org/doc/rfc2385)) is used, in that case the option [password](https://bird.nic.cz/doc/bird-2.18.html#bgp-password) is used to specify the (single) password. Finally, `ao` means to use TCP Authentication Option (TCP-AO, [RFC 5925](https://datatracker.ietf.org/doc/rfc5925)), allowing multiple keys and different cryptographic algorithms. These are specified using the option [keys](https://bird.nic.cz/doc/bird-2.18.html#bgp-keys). Note that TCP-AO authentication is not supported on dynamic BGP sessions. Default: none.
++Selects authentication method to be used. `none` means that the BGP session is not authenticated at all. `md5` means that the TCP MD5 authentication of BGP sessions ([RFC 2385](https://datatracker.ietf.org/doc/rfc2385)) is used, in that case the option [password](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-password) is used to specify the (single) password. Finally, `ao` means to use TCP Authentication Option (TCP-AO, [RFC 5925](https://datatracker.ietf.org/doc/rfc5925)), allowing multiple keys and different cryptographic algorithms. These are specified using the option [keys](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-keys). Note that TCP-AO authentication is not supported on dynamic BGP sessions. Default: none.
+ 
+ password "_text_"
+ Use this password for MD5 authentication of BGP sessions ([RFC 2385](https://datatracker.ietf.org/doc/rfc2385)). When used on BSD systems, see also `setkey` option below. Default: no authentication.
+@@ -1845,7 +1903,7 @@ Define a set of cryptographic keys that are used for TCP-AO authentication of BG
+ 
+ TCP-AO key has two IDs - for outgoing and incoming direction (Send / Recv ID). Among keys on one protocol all Send IDs must be unique and all Recv IDs must be unique. They must be in range 0-255 and they can be set independently with key options `send id` and `recv id`, or together with option `id`. Note that specifying these IDs is mandatory.
+ 
+-Of course, TCP-AO key contains a shared secret key. It is specified by the option `secret` as a text string or as a sequence of hexadecimal digit pairs ([bytestring](https://bird.nic.cz/doc/bird-2.18.html#type-bytestring)).
++Of course, TCP-AO key contains a shared secret key. It is specified by the option `secret` as a text string or as a sequence of hexadecimal digit pairs ([bytestring](https://bird.nic.cz/doc/bird-3.2.0.html#type-bytestring)).
+ 
+ Used cryptographic algorithm can be specified for each key with the option `algorithm`. Possible values are: `hmac md5`, `hmac sha1`, `hmac sha224`, `hmac sha256`, `hmac sha384`, `hmac sha512`, and `cmac aes128`. Default value is `hmac sha1`.
+ 
+@@ -1918,7 +1976,7 @@ require graceful restart _switch_
+ If enabled, the BGP Graceful Restart capability ([RFC 4724](https://datatracker.ietf.org/doc/rfc4724)) must be announced by the BGP neighbor, otherwise the BGP session will not be established. Default: off.
+ 
+ long lived graceful restart _switch_|aware
+-The long-lived graceful restart is an extension of the traditional [BGP graceful restart](https://bird.nic.cz/doc/bird-2.18.html#bgp-graceful-restart), where stale routes are kept even after the [restart time](https://bird.nic.cz/doc/bird-2.18.html#bgp-graceful-restart-time) expires for additional long-lived stale time, but they are marked with the LLGR_STALE community, depreferenced, and withdrawn from routers not supporting LLGR. Like traditional BGP graceful restart, it has three states: disabled, aware (receiving-only), and enabled. Note that long-lived graceful restart requires at least aware level of traditional BGP graceful restart. Default: aware, unless graceful restart is disabled.
++The long-lived graceful restart is an extension of the traditional [BGP graceful restart](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-graceful-restart), where stale routes are kept even after the [restart time](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-graceful-restart-time) expires for additional long-lived stale time, but they are marked with the LLGR_STALE community, depreferenced, and withdrawn from routers not supporting LLGR. Like traditional BGP graceful restart, it has three states: disabled, aware (receiving-only), and enabled. Note that long-lived graceful restart requires at least aware level of traditional BGP graceful restart. Default: aware, unless graceful restart is disabled.
+ 
+ long lived stale time _number_
+ The long-lived stale time is announced in the BGP Long-lived Graceful Restart capability and specifies how long the neighbor would keep stale routes depreferenced during long-lived graceful restart until either the session is re-stablished and synchronized or the stale time expires and routes are removed. Default: 3600 seconds.
+@@ -2005,7 +2063,7 @@ med metric _switch_
+ Enable comparison of MED attributes (during best route selection) even between routes received from different ASes. This may be useful if all MED attributes contain some consistent metric, perhaps enforced in import filters of AS boundary routers. If this option is disabled, MED attributes are compared only if routes are received from the same AS (which is the standard behavior). Default: off.
+ 
+ deterministic med _switch_
+-BGP route selection algorithm is often viewed as a comparison between individual routes (e.g. if a new route appears and is better than the current best one, it is chosen as the new best one). But the proper route selection, as specified by [RFC 4271](https://datatracker.ietf.org/doc/rfc4271), cannot be fully implemented in that way. The problem is mainly in handling the MED attribute. BIRD, by default, uses an simplification based on individual route comparison, which in some cases may lead to temporally dependent behavior (i.e. the selection is dependent on the order in which routes appeared). This option enables a different (and slower) algorithm implementing proper [RFC 4271](https://datatracker.ietf.org/doc/rfc4271) route selection, which is deterministic. Alternative way how to get deterministic behavior is to use `med metric` option. This option is incompatible with [sorted tables](https://bird.nic.cz/doc/bird-2.18.html#dsc-table-sorted). Default: off.
++BGP route selection algorithm is often viewed as a comparison between individual routes (e.g. if a new route appears and is better than the current best one, it is chosen as the new best one). But the proper route selection, as specified by [RFC 4271](https://datatracker.ietf.org/doc/rfc4271), cannot be fully implemented in that way. The problem is mainly in handling the MED attribute. BIRD, by default, uses an simplification based on individual route comparison, which in some cases may lead to temporally dependent behavior (i.e. the selection is dependent on the order in which routes appeared). This option enables a different (and slower) algorithm implementing proper [RFC 4271](https://datatracker.ietf.org/doc/rfc4271) route selection, which is deterministic. Alternative way how to get deterministic behavior is to use `med metric` option. This option is incompatible with [sorted tables](https://bird.nic.cz/doc/bird-3.2.0.html#dsc-table-sorted). Default: off.
+ 
+ igp metric _switch_
+ Enable comparison of internal distances to boundary routers during best route selection. Default: on.
+@@ -2029,6 +2087,9 @@ Possible _role-name_ values are: `provider`, `rs_server`, `rs_client`, `customer
+ require roles _switch_
+ If this option is set, the BGP roles must be defined on both sides, otherwise the session will not be established. This behavior is defined in [RFC 9234](https://datatracker.ietf.org/doc/rfc9234) as "strict mode" and is used to enforce corresponding configuration at your conterpart side. Default: disabled.
+ 
++tx size warning _number_
++If this option is set, the bgp protocol prints warning when it consumes at least given size of memory. This includes also the memory consumed by any export table. Zero means disabled. Default: disabled.
++
+ #### Channel configuration
+ 
+ BGP supports several AFIs and SAFIs over one connection. Every AFI/SAFI announced to the peer corresponds to one channel. The table of supported AFI/SAFIs together with their appropriate channels follows.
+@@ -2069,7 +2130,7 @@ next hop address _ip_
+ Specify which address to use when our own local address should be announced in the Next Hop attribute. Default: the source address of the BGP session (if acceptable), or the preferred address of an associated interface.
+ 
+ next hop prefer global|local
+-For IPv6 routes, the Next Hop attribute may contain both a global IP address and a link-local IP address. For IBGP sessions, the global IP address is resolved ([gateway recursive](https://bird.nic.cz/doc/bird-2.18.html#bgp-gateway)) through an IGP routing table ([igp table](https://bird.nic.cz/doc/bird-2.18.html#bgp-igp-table)) to get an immediate next hop. If the resulting IGP route is a direct route (i.e., the next hop is a direct neighbor), then the link-local IP address from the Next Hop attribute is used as the immediate next hop. This option changes it to prefer global or link-local IP address, respectively. Note that even with this option set to global, route may end with a link-local immediate next hop when the IGP route has one.
++For IPv6 routes, the Next Hop attribute may contain both a global IP address and a link-local IP address. For IBGP sessions, the global IP address is resolved ([gateway recursive](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-gateway)) through an IGP routing table ([igp table](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-igp-table)) to get an immediate next hop. If the resulting IGP route is a direct route (i.e., the next hop is a direct neighbor), then the link-local IP address from the Next Hop attribute is used as the immediate next hop. This option changes it to prefer global or link-local IP address, respectively. Note that even with this option set to global, route may end with a link-local immediate next hop when the IGP route has one.
+ 
+ When set to `local`, prefer link-local IPv6 addresses over global addresses for immediate next hops of received routes. When set to `global`, prefer global IPv6 address to link-local IPv6 address for immediate next hops of received routes. Default: global in direct mode (EBGP), local in recursive mode (IBGP).
+ 
+@@ -2079,7 +2140,7 @@ For IPv6 routes, BGP assumes that the Next Hop attribute contains a global IPv6
+ gateway direct|recursive
+ For received routes, their `gw` (immediate next hop) attribute is computed from received `bgp_next_hop` attribute. This option specifies how it is computed. Direct mode means that the IP address from `bgp_next_hop` is used and must be directly reachable. Recursive mode means that the gateway is computed by an IGP routing table lookup for the IP address from `bgp_next_hop`. Note that there is just one level of indirection in recursive mode - the route obtained by the lookup must not be recursive itself, to prevent mutually recursive routes.
+ 
+-Recursive mode is the behavior specified by the BGP standard. Direct mode is simpler, does not require any routes in a routing table, and was used in older versions of BIRD, but does not handle well nontrivial iBGP setups and multihop. Recursive mode is incompatible with [sorted tables](https://bird.nic.cz/doc/bird-2.18.html#dsc-table-sorted). Default: `direct` for direct sessions, `recursive` for multihop sessions.
++Recursive mode is the behavior specified by the BGP standard. Direct mode is simpler, does not require any routes in a routing table, and was used in older versions of BIRD, but does not handle well nontrivial iBGP setups and multihop. Recursive mode is incompatible with [sorted tables](https://bird.nic.cz/doc/bird-3.2.0.html#dsc-table-sorted). Default: `direct` for direct sessions, `recursive` for multihop sessions.
+ 
+ igp table _name_
+ Specifies a table that is used as an IGP routing table. The type of this table must be as allowed in the table above. This option is allowed once for every allowed table type. Default: the same as the main table the channel is connected to (if eligible).
+@@ -2087,18 +2148,19 @@ Specifies a table that is used as an IGP routing table. The type of this table m
+ import table _switch_
+ A BGP import table contains all received routes from given BGP neighbor, before application of import filters. It is also called **Adj-RIB-In** in BGP terminology. BIRD BGP by default operates without import tables, in which case received routes are just processed by import filters, accepted ones are stored in the master table, and the rest is forgotten. Enabling `import table` allows to store unprocessed routes, which can be examined later by `show route`, and can be used to reconfigure import filters without full route refresh. Default: off.
+ 
+-Note that currently the import table breaks routes with recursive nexthops (e.g. ones from IBGP, see [gateway recursive](https://bird.nic.cz/doc/bird-2.18.html#bgp-gateway)), they are not properly updated after next hop change. For the same reason, it also breaks re-evaluation of flowspec routes with [flowspec validation](https://bird.nic.cz/doc/bird-2.18.html#bgp-validate) option enabled on flowspec channels.
+-
+ export table _switch_
+ A BGP export table contains all routes sent to given BGP neighbor, after application of export filters. It is also called **Adj-RIB-Out** in BGP terminology. BIRD BGP by default operates without export tables, in which case routes from master table are just processed by export filters and then announced by BGP. Enabling `export table` allows to store routes after export filter processing, so they can be examined later by `show route`, and can be used to eliminate unnecessary updates or withdraws. Default: off.
+ 
++export settle time _time_ _time_
++Minimum and maximum settle times, respectively, for announcements from export table to external readers. These values don't apply for regular TX, just for side channel exports. You will probably never need to change these values. Default values: `10 ms 100 ms`. You have to always provide both values.
++
+ secondary _switch_
+-Usually, if an export filter rejects a selected route, no other route is propagated for that network. This option allows to try the next route in order until one that is accepted is found or all routes for that network are rejected. This can be used for route servers that need to propagate different tables to each client but do not want to have these tables explicitly (to conserve memory). This option requires that the connected routing table is [sorted](https://bird.nic.cz/doc/bird-2.18.html#dsc-table-sorted). Default: off.
++Usually, if an export filter rejects a selected route, no other route is propagated for that network. This option allows to try the next route in order until one that is accepted is found or all routes for that network are rejected. This can be used for route servers that need to propagate different tables to each client but do not want to have these tables explicitly (to conserve memory). This option requires that the connected routing table is [sorted](https://bird.nic.cz/doc/bird-3.2.0.html#dsc-table-sorted). Default: off.
+ 
+ validate _switch_
+-Apply flowspec validation procedure as described in [RFC 8955](https://datatracker.ietf.org/doc/rfc8955) section 6 and [RFC 9117](https://datatracker.ietf.org/doc/rfc9117). The Validation procedure enforces that only routers in the forwarding path for a network can originate flowspec rules for that network. The validation procedure should be used for EBGP to prevent injection of malicious flowspec rules from outside, but it should also be used for IBGP to ensure that selected flowspec rules are consistent with selected IP routes. The validation procedure uses an IP routing table ([base table](https://bird.nic.cz/doc/bird-2.18.html#bgp-base-table), see below) against which flowspec rules are validated. This option is limited to flowspec channels. Default: off (for compatibility reasons).
++Apply flowspec validation procedure as described in [RFC 8955](https://datatracker.ietf.org/doc/rfc8955) section 6 and [RFC 9117](https://datatracker.ietf.org/doc/rfc9117). The Validation procedure enforces that only routers in the forwarding path for a network can originate flowspec rules for that network. The validation procedure should be used for EBGP to prevent injection of malicious flowspec rules from outside, but it should also be used for IBGP to ensure that selected flowspec rules are consistent with selected IP routes. The validation procedure uses an IP routing table ([base table](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-base-table), see below) against which flowspec rules are validated. This option is limited to flowspec channels. Default: off (for compatibility reasons).
+ 
+-Note that currently the flowspec validation does not work reliably together with [import table](https://bird.nic.cz/doc/bird-2.18.html#bgp-import-table) option enabled on flowspec channels.
++Note that currently the flowspec validation does not work reliably together with [import table](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-import-table) option enabled on flowspec channels.
+ 
+ base table _name_
+ Specifies an IP table used for the flowspec validation procedure. The table must have enabled `trie` option, otherwise the validation procedure would not work. The type of the table must be `ipv4` for `flow4` channels and `ipv6` for `flow6` channels. This option is limited to flowspec channels. Default: the main table of the `ipv4` / `ipv6` channel of the same BGP instance, or the `master4` / `master6` table if there is no such channel.
+@@ -2123,28 +2185,28 @@ The AIGP extension ([RFC 7311](https://datatracker.ietf.org/doc/rfc7311)) allows
+ This option controls whether AIGP attribute propagation is allowed on the session. Optionally, it can be set to `originate`, which not only allows AIGP attribute propagation, but also new AIGP attributes are automatically attached to non-BGP routes with valid IGP metric (e.g. `ospf_metric1`) as they are exported to the BGP session. Default: enabled for IBGP (and intra-confederation EBGP), disabled for regular EBGP.
+ 
+ cost _number_
+-When BGP [gateway mode](https://bird.nic.cz/doc/bird-2.18.html#bgp-gateway) is `recursive` (mainly multihop IBGP sessions), then the distance to BGP next hop is based on underlying IGP metric. This option specifies the distance to BGP next hop for BGP sessions in direct gateway mode (mainly direct EBGP sessions).
++When BGP [gateway mode](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-gateway) is `recursive` (mainly multihop IBGP sessions), then the distance to BGP next hop is based on underlying IGP metric. This option specifies the distance to BGP next hop for BGP sessions in direct gateway mode (mainly direct EBGP sessions).
+ 
+ graceful restart _switch_
+-Although BGP graceful restart is configured mainly by protocol-wide [options](https://bird.nic.cz/doc/bird-2.18.html#bgp-graceful-restart), it is possible to configure restarting role per AFI/SAFI pair by this channel option. The option is ignored if graceful restart is disabled by protocol-wide option. Default: off in aware mode, on in full mode.
++Although BGP graceful restart is configured mainly by protocol-wide [options](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-graceful-restart), it is possible to configure restarting role per AFI/SAFI pair by this channel option. The option is ignored if graceful restart is disabled by protocol-wide option. Default: off in aware mode, on in full mode.
+ 
+ long lived graceful restart _switch_
+-BGP long-lived graceful restart is configured mainly by protocol-wide [options](https://bird.nic.cz/doc/bird-2.18.html#bgp-long-lived-graceful-restart), but the restarting role can be set per AFI/SAFI pair by this channel option. The option is ignored if long-lived graceful restart is disabled by protocol-wide option. Default: off in aware mode, on in full mode.
++BGP long-lived graceful restart is configured mainly by protocol-wide [options](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-long-lived-graceful-restart), but the restarting role can be set per AFI/SAFI pair by this channel option. The option is ignored if long-lived graceful restart is disabled by protocol-wide option. Default: off in aware mode, on in full mode.
+ 
+ long lived stale time _number_
+-Like previous graceful restart channel options, this option allows to set [long lived stale time](https://bird.nic.cz/doc/bird-2.18.html#bgp-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
++Like previous graceful restart channel options, this option allows to set [long lived stale time](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
+ 
+ min long lived stale time _number_
+-Like previous graceful restart channel options, this option allows to set [min long lived stale time](https://bird.nic.cz/doc/bird-2.18.html#bgp-min-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
++Like previous graceful restart channel options, this option allows to set [min long lived stale time](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-min-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
+ 
+ max long lived stale time _number_
+-Like previous graceful restart channel options, this option allows to set [max long lived stale time](https://bird.nic.cz/doc/bird-2.18.html#bgp-max-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
++Like previous graceful restart channel options, this option allows to set [max long lived stale time](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-max-long-lived-stale-time) per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide option.
+ 
+ #### Reconfiguration
+ 
+ Running the `configure` command with a changed configuration file will trigger a reconfiguration. This may cause a reload of the affected channel or a restart of the BGP protocol. A change in options that just affect route processing generally causes a reload, while a change in setting of BGP capabilities or other properties negotiated during session establishment always leads to a restart.
+ 
+-With the `configure soft` command, configuration changes do not trigger a reload, but instead just log a message about the change, suggesting manual reload of the channel. However, changes demanding restart still trigger a restart of the protocol. See [configure](https://bird.nic.cz/doc/bird-2.18.html#cli-configure) and [reload](https://bird.nic.cz/doc/bird-2.18.html#cli-reload) commands for more details. In the rest of the section, we assume the usage of the `configure` command without the `soft` option.
++With the `configure soft` command, configuration changes do not trigger a reload, but instead just log a message about the change, suggesting manual reload of the channel. However, changes demanding restart still trigger a restart of the protocol. See [configure](https://bird.nic.cz/doc/bird-3.2.0.html#cli-configure) and [reload](https://bird.nic.cz/doc/bird-3.2.0.html#cli-reload) commands for more details. In the rest of the section, we assume the usage of the `configure` command without the `soft` option.
+ 
+ Changes in these channel options cause a reload of the channel in the import direction (re-import of routes from the BGP neighbor):
+ 
+@@ -2250,7 +2312,7 @@ void bgp_aigp [O]
+ This attribute contains accumulated IGP metric, which is a total distance to the destination through multiple autonomous systems. Currently, the attribute is not accessible from filters.
+ 
+ int bgp_otc [O]
+-This attribute is defined in [RFC 9234](https://datatracker.ietf.org/doc/rfc9234). OTC is a flag that marks routes that should be sent only to customers. If [local role](https://bird.nic.cz/doc/bird-2.18.html#bgp-local-role) is configured it set automatically.
++This attribute is defined in [RFC 9234](https://datatracker.ietf.org/doc/rfc9234). OTC is a flag that marks routes that should be sent only to customers. If [local role](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-local-role) is configured it set automatically.
+ 
+ For attributes unknown by BIRD, the user can assign a name (on top level) to an attribute by its number. This defined name can be used then to get, set (as a bytestring, transitive) or unset the given attribute even though BIRD knows nothing about it.
+ 
+@@ -2318,7 +2380,7 @@ protocol bgp {
+ 
+ The BGP Monitoring Protocol is used for monitoring BGP sessions and obtaining routing table data. The current implementation in BIRD is a preliminary release with a limited feature set, it will be subject to significant changes in the future. It is not ready for production usage and therefore it is not compiled by default and have to be enabled during installation by the configure option `--with-protocols=`.
+ 
+-The implementation supports monitoring protocol state changes, pre-policy routes (in [BGP import tables](https://bird.nic.cz/doc/bird-2.18.html#bgp-import-table)) and post-policy routes (in regular routing tables). All BGP protocols are monitored automatically.
++The implementation supports monitoring protocol state changes, pre-policy routes (in [BGP import tables](https://bird.nic.cz/doc/bird-3.2.0.html#bgp-import-table)) and post-policy routes (in regular routing tables). All BGP protocols are monitored automatically.
+ 
+ #### Configuration (incomplete)
+ 
+@@ -2355,7 +2417,7 @@ scan time _number_
+ Time in seconds between two scans of the network interface list. On systems where we are notified about interface status changes asynchronously (such as newer versions of Linux), we need to scan the list only in order to avoid confusion by lost notification messages, so the default time is set to a large value.
+ 
+ interface _pattern_ [, _..._]
+-By default, the Device protocol handles all interfaces without any configuration. Interface definitions allow to specify optional parameters for specific interfaces. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common option for detailed description. Currently only one interface option is available:
++By default, the Device protocol handles all interfaces without any configuration. Interface definitions allow to specify optional parameters for specific interfaces. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common option for detailed description. Currently only one interface option is available:
+ 
+ preferred _ip_
+ If a network interface has more than one IP address, BIRD chooses one of them as a preferred one. Preferred IP address is used as source address for packets or announced next hop by routing protocols. Precisely, BIRD chooses one preferred IPv4 address, one preferred IPv6 address and one preferred link-local IPv6 address. By default, BIRD chooses the first found IP address as the preferred one.
+@@ -2376,14 +2438,14 @@ protocol device {
+ 
+ ### Direct
+ 
+-The Direct protocol is a simple generator of device routes for all the directly connected networks according to the list of interfaces provided by the kernel via the Device protocol. The Direct protocol supports both IPv4 and IPv6 channels; both can be configured simultaneously. It can also be configured with [IPv6 SADR](https://bird.nic.cz/doc/bird-2.18.html#ip-sadr-routes) channel instead of regular IPv6 channel in order to be used together with SADR-enabled Babel protocol.
++The Direct protocol is a simple generator of device routes for all the directly connected networks according to the list of interfaces provided by the kernel via the Device protocol. The Direct protocol supports both IPv4 and IPv6 channels; both can be configured simultaneously. It can also be configured with [IPv6 SADR](https://bird.nic.cz/doc/bird-3.2.0.html#ip-sadr-routes) channel instead of regular IPv6 channel in order to be used together with SADR-enabled Babel protocol.
+ 
+ The question is whether it is a good idea to have such device routes in BIRD routing table. OS kernel usually handles device routes for directly connected networks by itself so we don't need (and don't want) to export these routes to the kernel protocol. OSPF protocol creates device routes for its interfaces itself and BGP protocol is usually used for exporting aggregate routes. But the Direct protocol is necessary for distance-vector protocols like RIP or Babel to announce local networks.
+ 
+ There are just few configuration options for the Direct protocol:
+ 
+ interface _pattern_ [, _..._]
+-By default, the Direct protocol will generate device routes for all the interfaces available. If you want to restrict it to some subset of interfaces or addresses (e.g. if you're using multiple routing tables for policy routing and some of the policy domains don't contain all interfaces), just use this clause. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common option for detailed description. The Direct protocol uses extended interface clauses.
++By default, the Direct protocol will generate device routes for all the interfaces available. If you want to restrict it to some subset of interfaces or addresses (e.g. if you're using multiple routing tables for policy routing and some of the policy domains don't contain all interfaces), just use this clause. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common option for detailed description. The Direct protocol uses extended interface clauses.
+ 
+ check link _switch_
+ If enabled, a hardware link state (reported by OS) is taken into consideration. Routes for directly connected networks are generated only if link up is reported and they are withdrawn when link disappears (e.g., an ethernet cable is unplugged). Default value is no.
+@@ -2410,7 +2472,7 @@ If your OS supports only a single routing table, you can configure only one inst
+ 
+ Because the kernel protocol is partially integrated with the connected routing table, there are two limitations - it is not possible to connect more kernel protocols to the same routing table and changing route destination (gateway) in an export filter of a kernel protocol does not work. Both limitations can be overcome using another routing table and the pipe protocol.
+ 
+-The Kernel protocol supports both IPv4 and IPv6 channels; only one channel can be configured in each protocol instance. On Linux, it also supports [IPv6 SADR](https://bird.nic.cz/doc/bird-2.18.html#ip-sadr-routes) and [MPLS](https://bird.nic.cz/doc/bird-2.18.html#mpls-routes) channels.
++The Kernel protocol supports both IPv4 and IPv6 channels; only one channel can be configured in each protocol instance. On Linux, it also supports [IPv6 SADR](https://bird.nic.cz/doc/bird-3.2.0.html#ip-sadr-routes) and [MPLS](https://bird.nic.cz/doc/bird-3.2.0.html#mpls-routes) channels.
+ 
+ #### Configuration
+ 
+@@ -2497,7 +2559,7 @@ protocol kernel {       # Secondary routing table
+ 
+ The L3VPN protocol serves as a translator between IP routes and VPN routes. It is a component for BGP/MPLS IP VPNs ([RFC 4364](https://datatracker.ietf.org/doc/rfc4364)) and implements policies defined there. In import direction (VPN -> IP), VPN routes matching import target specification are stripped of route distinguisher and MPLS labels and announced as IP routes, In export direction (IP -> VPN), IP routes are expanded with specific route distinguisher, export target communities and MPLS label and announced as labeled VPN routes. Unlike the Pipe protocol, the L3VPN protocol propagates just the best route for each network.
+ 
+-In BGP/MPLS IP VPNs, route distribution is controlled by Route Targets (RT). VRFs are associated with one or more RTs. Routes are also associated with one or more RTs, which are encoded as route target extended communities in [bgp_ext_community](https://bird.nic.cz/doc/bird-2.18.html#rta-bgp-ext-community). A route is then imported into each VRF that shares an associated Route Target. The L3VPN protocol implements this mechanism through mandatory `import target` and `export target` protocol options.
++In BGP/MPLS IP VPNs, route distribution is controlled by Route Targets (RT). VRFs are associated with one or more RTs. Routes are also associated with one or more RTs, which are encoded as route target extended communities in [bgp_ext_community](https://bird.nic.cz/doc/bird-3.2.0.html#rta-bgp-ext-community). A route is then imported into each VRF that shares an associated Route Target. The L3VPN protocol implements this mechanism through mandatory `import target` and `export target` protocol options.
+ 
+ #### Configuration
+ 
+@@ -2585,7 +2647,7 @@ protocol l3vpn l3vpn0 {
+ 
+ #### Introduction
+ 
+-The MRT protocol is a component responsible for handling the Multi-Threaded Routing Toolkit (MRT) routing information export format, which is mainly used for collecting and analyzing of routing information from BGP routers. The MRT protocol can be configured to do periodic dumps of routing tables, created MRT files can be analyzed later by other tools. Independent MRT table dumps can also be requested from BIRD client. There is also a feature to save incoming BGP messages in MRT files, but it is controlled by [mrtdump](https://bird.nic.cz/doc/bird-2.18.html#proto-mrtdump) options independently of MRT protocol, although that might change in the future. BIRD implements the main MRT format specification as defined in [RFC 6396](https://datatracker.ietf.org/doc/rfc6396) and the ADD_PATH extension ([RFC 8050](https://datatracker.ietf.org/doc/rfc8050)).
++The MRT protocol is a component responsible for handling the Multi-Threaded Routing Toolkit (MRT) routing information export format, which is mainly used for collecting and analyzing of routing information from BGP routers. The MRT protocol can be configured to do periodic dumps of routing tables, created MRT files can be analyzed later by other tools. Independent MRT table dumps can also be requested from BIRD client. There is also a feature to save incoming BGP messages in MRT files, but it is controlled by [mrtdump](https://bird.nic.cz/doc/bird-3.2.0.html#proto-mrtdump) options independently of MRT protocol, although that might change in the future. BIRD implements the main MRT format specification as defined in [RFC 6396](https://datatracker.ietf.org/doc/rfc6396) and the ADD_PATH extension ([RFC 8050](https://datatracker.ietf.org/doc/rfc8050)).
+ 
+ #### Configuration
+ 
+@@ -2810,7 +2872,7 @@ Stub networks are networks that are not transit networks between OSPF routers. T
+ Each instance of this option adds a stub network with given network prefix to the set of propagated stub network, unless option `hidden` is used. It also suppresses default stub networks for given network prefix. When option `summary` is used, also default stub networks that are subnetworks of given stub network are suppressed. This might be used, for example, to aggregate generated stub networks.
+ 
+ interface _pattern_ [instance _number_]
+-Defines that the specified interfaces belong to the area being defined. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common option for detailed description. In OSPFv2, extended interface clauses are used, because each network prefix is handled as a separate virtual interface.
++Defines that the specified interfaces belong to the area being defined. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common option for detailed description. In OSPFv2, extended interface clauses are used, because each network prefix is handled as a separate virtual interface.
+ 
+ You can specify alternative instance ID for the interface definition, therefore it is possible to have several instances of that interface with different options or even in different areas. For OSPFv2, instance ID support is an extension ([RFC 6549](https://datatracker.ietf.org/doc/rfc6549)) and is supposed to be set per-protocol. For OSPFv3, it is an integral feature.
+ 
+@@ -2888,7 +2950,7 @@ check link _switch_
+ If set, a hardware link state (reported by OS) is taken into consideration. When a link disappears (e.g. an ethernet cable is unplugged), neighbors are immediately considered unreachable and only the address of the iface (instead of whole network prefix) is propagated. It is possible that some hardware drivers or platforms do not implement this feature. Default value is yes.
+ 
+ bfd _switch_
+-OSPF could use BFD protocol as an advisory mechanism for neighbor liveness and failure detection. If enabled, BIRD setups a BFD session for each OSPF neighbor and tracks its liveness by it. This has an advantage of an order of magnitude lower detection times in case of failure. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-2.18.html#bfd) section for details. Default value is no.
++OSPF could use BFD protocol as an advisory mechanism for neighbor liveness and failure detection. If enabled, BIRD setups a BFD session for each OSPF neighbor and tracks its liveness by it. This has an advantage of an order of magnitude lower detection times in case of failure. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-3.2.0.html#bfd) section for details. Default value is no.
+ 
+ ttl security [_switch_ | tx only]
+ TTL security is a feature that protects routing protocols from remote spoofed packets by using TTL 255 instead of TTL 1 for protocol packets destined to neighbors. Because TTL is decremented when packets are forwarded, it is non-trivial to spoof packets with TTL 255 from remote locations. Note that this option would interfere with OSPF virtual links.
+@@ -2896,7 +2958,7 @@ TTL security is a feature that protects routing protocols from remote spoofed pa
+ If this option is enabled, the router will send OSPF packets with TTL 255 and drop received packets with TTL less than 255. If this option si set to `tx only`, TTL 255 is used for sent packets, but is not checked for received packets. Default value is no.
+ 
+ tx class|dscp|priority _number_
+-These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing OSPF packets. See [tx class](https://bird.nic.cz/doc/bird-2.18.html#proto-tx-class) common option for detailed description.
++These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing OSPF packets. See [tx class](https://bird.nic.cz/doc/bird-3.2.0.html#proto-tx-class) common option for detailed description.
+ 
+ ecmp weight _number_
+ When ECMP (multipath) routes are allowed, this value specifies a relative weight used for nexthops going through the iface. Allowed values are 1-256. Default value is 1.
+@@ -2911,7 +2973,7 @@ authentication cryptographic
+ An authentication code is appended to every packet. The specific cryptographic algorithm is selected by option `algorithm` for each key. The default cryptographic algorithm for OSPFv2 keys is Keyed-MD5 and for OSPFv3 keys is HMAC-SHA-256. Passwords are not sent open via network, so this mechanism is quite secure. Packets can still be read by an attacker.
+ 
+ password "_text_"
+-Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-2.18.html#proto-pass) common option for detailed description.
++Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-3.2.0.html#proto-pass) common option for detailed description.
+ 
+ neighbors { _set_ }
+ A set of neighbors to which Hello messages on NBMA or PtMP networks are to be sent. For NBMA networks, some of them could be marked as eligible. In OSPFv3, link-local addresses should be used, using global ones is possible, but it is nonstandard and might be problematic. And definitely, link-local and global addresses should not be mixed.
+@@ -2998,40 +3060,6 @@ protocol ospf MyOSPF {
+ }
+ ```
+ 
+-### Perf
+-
+-#### Introduction
+-
+-The Perf protocol is a generator of fake routes together with a time measurement framework. Its purpose is to check BIRD performance and to benchmark filters.
+-
+-Import mode of this protocol runs in several steps. In each step, it generates 2^x routes, imports them into the appropriate table and withdraws them. The exponent x is configurable. It runs the benchmark several times for the same x, then it increases x by one until it gets too high, then it stops.
+-
+-Export mode of this protocol repeats route refresh from table and measures how long it takes.
+-
+-Output data is logged on info level. There is a Perl script `proto/perf/parse.pl` which may be handy to parse the data and draw some plots.
+-
+-Implementation of this protocol is experimental. Use with caution and do not keep any instance of Perf in production configs for long time. The config interface is also unstable and may change in future versions without warning.
+-
+-#### Configuration
+-
+-mode import|export
+-Set perf mode. Default: import
+-
+-repeat _number_
+-Run this amount of iterations of the benchmark for every amount step. Default: 4
+-
+-exp from _number_
+-Begin benchmarking on this exponent for number of generated routes in one step. Default: 10
+-
+-exp to _number_
+-Stop benchmarking on this exponent. Default: 20
+-
+-threshold min _time_
+-If a run for the given exponent took less than this time for route import, increase the exponent immediately. Default: 1 ms
+-
+-threshold max _time_
+-If every run for the given exponent took at least this time for route import, stop benchmarking. Default: 500 ms
+-
+ ### Pipe
+ 
+ #### Introduction
+@@ -3049,6 +3077,9 @@ Essentially, the Pipe protocol is just a channel connected to a table on both si
+ peer table _table_
+ Defines secondary routing table to connect to. The primary one is selected by the `table` keyword.
+ 
++max generation _expr_
++Sets maximal generation of route that may pass through this pipe. The generation value is increased by one by each pipe on its path. Not meeting this requirement causes an error message complaining about an overpiped route. If you have long chains of pipes, you probably want to raise this value; anyway the default of 16 should be enough for even most strange uses. Maximum is 254.
++
+ #### Attributes
+ 
+ The Pipe protocol doesn't define any route attributes.
+@@ -3120,7 +3151,7 @@ The RAdv protocols supports just IPv6 channel.
+ There are several classes of definitions in RAdv configuration -- interface definitions, prefix definitions and DNS definitions:
+ 
+ interface _pattern_ [, _..._] { _options_ }
+-Interface definitions specify a set of interfaces on which the protocol is activated and contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common options for detailed description.
++Interface definitions specify a set of interfaces on which the protocol is activated and contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common options for detailed description.
+ 
+ prefix _prefix_ { _options_ }
+ Prefix definitions allow to modify a list of advertised prefixes. By default, the advertised prefixes are the same as the network prefixes assigned to the interface. For each network prefix, the matching prefix definition is found and its options are used. If no matching prefix definition is found, the prefix is used with default options.
+@@ -3192,18 +3223,18 @@ current hop limit _expr_
+ This option specifies which value of Hop Limit should be used by hosts. Valid values are 0-255, 0 means unspecified. Default: 64
+ 
+ default lifetime _expr_ [sensitive _switch_]
+-This option specifies the time (in seconds) how long (since the receipt of RA) hosts may use the router as a default router. 0 means do not use as a default router. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-2.18.html#radv-trigger). Default: 3 \* `max ra interval`, `sensitive` yes.
++This option specifies the time (in seconds) how long (since the receipt of RA) hosts may use the router as a default router. 0 means do not use as a default router. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-3.2.0.html#radv-trigger). Default: 3 \* `max ra interval`, `sensitive` yes.
+ 
+ default preference low|medium|high
+ This option specifies the Default Router Preference value to advertise to hosts. Default: medium.
+ 
+ route lifetime _expr_ [sensitive _switch_]
+-This option specifies the default value of advertised lifetime for specific routes; i.e., the time (in seconds) for how long (since the receipt of RA) hosts should consider these routes valid. A special value 0xffffffff represents infinity. The lifetime can be overriden on a per route basis by the [ra_lifetime](https://bird.nic.cz/doc/bird-2.18.html#rta-ra-lifetime) route attribute. Default: 3 \* `max ra interval`, `sensitive` no.
++This option specifies the default value of advertised lifetime for specific routes; i.e., the time (in seconds) for how long (since the receipt of RA) hosts should consider these routes valid. A special value 0xffffffff represents infinity. The lifetime can be overriden on a per route basis by the [ra_lifetime](https://bird.nic.cz/doc/bird-3.2.0.html#rta-ra-lifetime) route attribute. Default: 3 \* `max ra interval`, `sensitive` no.
+ 
+-For the `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-2.18.html#radv-trigger). If `sensitive` is enabled, even the routes with the `ra_lifetime` attribute become sensitive to the trigger.
++For the `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-3.2.0.html#radv-trigger). If `sensitive` is enabled, even the routes with the `ra_lifetime` attribute become sensitive to the trigger.
+ 
+ route preference low|medium|high
+-This option specifies the default value of advertised route preference for specific routes. The value can be overriden on a per route basis by the [ra_preference](https://bird.nic.cz/doc/bird-2.18.html#rta-ra-preference) route attribute. Default: medium.
++This option specifies the default value of advertised route preference for specific routes. The value can be overriden on a per route basis by the [ra_preference](https://bird.nic.cz/doc/bird-3.2.0.html#rta-ra-preference) route attribute. Default: medium.
+ 
+ prefix linger time _expr_
+ When a prefix or a route disappears, it is advertised for some time with zero lifetime, to inform clients it is no longer valid. This option specifies the time (in seconds) for how long prefixes are advertised that way. Default: 3 \* `max ra interval`.
+@@ -3235,10 +3266,10 @@ pd preferred _switch_
+ This option specifies whether hosts should use prefix delegation in DHCPv6 instead of using stateless address autoconfiguration (SLAAC). Default: no.
+ 
+ valid lifetime _expr_ [sensitive _switch_]
+-This option specifies the time (in seconds) how long (after the receipt of RA) the prefix information is valid, i.e., autoconfigured IP addresses can be assigned and hosts with that IP addresses are considered directly reachable. 0 means the prefix is no longer valid. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-2.18.html#radv-trigger). Default: 86400 (1 day), `sensitive` no.
++This option specifies the time (in seconds) how long (after the receipt of RA) the prefix information is valid, i.e., autoconfigured IP addresses can be assigned and hosts with that IP addresses are considered directly reachable. 0 means the prefix is no longer valid. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-3.2.0.html#radv-trigger). Default: 86400 (1 day), `sensitive` no.
+ 
+ preferred lifetime _expr_ [sensitive _switch_]
+-This option specifies the time (in seconds) how long (after the receipt of RA) IP addresses generated from the prefix using stateless autoconfiguration remain preferred. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-2.18.html#radv-trigger). Default: 14400 (4 hours), `sensitive` no.
++This option specifies the time (in seconds) how long (after the receipt of RA) IP addresses generated from the prefix using stateless autoconfiguration remain preferred. For `sensitive` option, see [trigger](https://bird.nic.cz/doc/bird-3.2.0.html#radv-trigger). Default: 14400 (4 hours), `sensitive` no.
+ 
+ RDNSS specific options:
+ 
+@@ -3268,10 +3299,10 @@ This option specifies the time how long the DNSSL information may be used by cli
+ RAdv defines two route attributes:
+ 
+ enum ra*preference
+-The preference of the route. The value can be \_RA_PREF_LOW*, _RA_PREF_MEDIUM_ or _RA_PREF_HIGH_. If the attribute is not set, the [route preference](https://bird.nic.cz/doc/bird-2.18.html#radv-iface-route-preference) option is used.
++The preference of the route. The value can be \_RA_PREF_LOW*, _RA_PREF_MEDIUM_ or _RA_PREF_HIGH_. If the attribute is not set, the [route preference](https://bird.nic.cz/doc/bird-3.2.0.html#radv-iface-route-preference) option is used.
+ 
+ int ra_lifetime
+-The advertised lifetime of the route, in seconds. The special value of 0xffffffff represents infinity. If the attribute is not set, the [route lifetime](https://bird.nic.cz/doc/bird-2.18.html#radv-iface-route-lifetime) option is used.
++The advertised lifetime of the route, in seconds. The special value of 0xffffffff represents infinity. If the attribute is not set, the [route lifetime](https://bird.nic.cz/doc/bird-3.2.0.html#radv-iface-route-lifetime) option is used.
+ 
+ #### Example
+ 
+@@ -3393,7 +3424,7 @@ ecmp _switch_ [limit _number_]
+ This option specifies whether RIP is allowed to generate ECMP (equal-cost multipath) routes. Such routes are used when there are several directions to the destination, each with the same (computed) cost. This option also allows to specify a limit on maximum number of nexthops in one route. By default, ECMP is enabled if supported by Kernel. Default value of the limit is 16.
+ 
+ interface _pattern_ [, _..._] { _options_ }
+-Interface definitions specify a set of interfaces on which the protocol is activated and contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-2.18.html#proto-iface) common options for detailed description.
++Interface definitions specify a set of interfaces on which the protocol is activated and contain interface specific options. See [interface](https://bird.nic.cz/doc/bird-3.2.0.html#proto-iface) common options for detailed description.
+ 
+ Interface specific options:
+ 
+@@ -3446,7 +3477,7 @@ authentication none|plaintext|cryptographic
+ Selects authentication method to be used. `none` means that packets are not authenticated at all, `plaintext` means that a plaintext password is embedded into each packet, and `cryptographic` means that packets are authenticated using some cryptographic hash function selected by option `algorithm` for each key. The default cryptographic algorithm for RIP keys is Keyed-MD5. If you set authentication to not-none, it is a good idea to add `password` section. Default: none.
+ 
+ password "_text_"
+-Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-2.18.html#proto-pass) common option for detailed description.
++Specifies a password used for authentication. See [password](https://bird.nic.cz/doc/bird-3.2.0.html#proto-pass) common option for detailed description.
+ 
+ ttl security [_switch_ | tx only]
+ TTL security is a feature that protects routing protocols from remote spoofed packets by using TTL 255 instead of TTL 1 for protocol packets destined to neighbors. Because TTL is decremented when packets are forwarded, it is non-trivial to spoof packets with TTL 255 from remote locations.
+@@ -3456,7 +3487,7 @@ If this option is enabled, the router will send RIP packets with TTL 255 and dro
+ For RIPng, TTL security is a standard behavior (required by [RFC 2080](https://datatracker.ietf.org/doc/rfc2080)) and therefore default value is yes. For IPv4 RIP, default value is no.
+ 
+ tx class|dscp|priority _number_
+-These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing RIP packets. See [tx class](https://bird.nic.cz/doc/bird-2.18.html#proto-tx-class) common option for detailed description.
++These options specify the ToS/DiffServ/Traffic class/Priority of the outgoing RIP packets. See [tx class](https://bird.nic.cz/doc/bird-3.2.0.html#proto-tx-class) common option for detailed description.
+ 
+ rx buffer _number_
+ This option specifies the size of buffers used for packet processing. The buffer size should be bigger than maximal size of received packets. The default value is 532 for IPv4 RIP and interface MTU value for RIPng.
+@@ -3503,7 +3534,7 @@ protocol rip {
+ 
+ The Resource Public Key Infrastructure (RPKI) is mechanism for origin validation of BGP routes ([RFC 6480](https://datatracker.ietf.org/doc/rfc6480)). BIRD supports only so-called RPKI-based origin validation. There is implemented RPKI to Router (RPKI-RTR) protocol ([RFC 6810](https://datatracker.ietf.org/doc/rfc6810)). It uses some of the RPKI data to allow a router to verify that the autonomous system announcing an IP address prefix is in fact authorized to do so. This is not crypto checked so can be violated. But it should prevent the vast majority of accidental hijackings on the Internet today, e.g. the famous Pakistani accidental announcement of YouTube's address space.
+ 
+-The RPKI-RTR protocol receives and maintains a set of ROAs from a cache server (also called validator). You can validate routes ([RFC 6483](https://datatracker.ietf.org/doc/rfc6483), [RFC 6811](https://datatracker.ietf.org/doc/rfc6811)) using function `roa_check()` in filter and set it as import filter at the BGP protocol. BIRD offers crude automatic re-validating of affected routes after RPKI update, see option [rpki reload](https://bird.nic.cz/doc/bird-2.18.html#proto-rpki-reload). Or you can use a BIRD client command
++The RPKI-RTR protocol receives and maintains a set of ROAs from a cache server (also called validator). You can validate routes ([RFC 6483](https://datatracker.ietf.org/doc/rfc6483), [RFC 6811](https://datatracker.ietf.org/doc/rfc6811)) using function `roa_check()` in filter and set it as import filter at the BGP protocol. BIRD offers crude automatic re-validating of affected routes after RPKI update, see option [rpki reload](https://bird.nic.cz/doc/bird-3.2.0.html#proto-rpki-reload). Or you can use a BIRD client command
+ 
+ ```
+ reload in
+@@ -3675,7 +3706,7 @@ protocol rpki {
+ 
+ The Static protocol doesn't communicate with other routers in the network, but instead it allows you to define routes manually. This is often used for specifying how to forward packets to parts of the network which don't use dynamic routing at all and also for defining sink routes (i.e., those telling to return packets as undeliverable if they are in your IP block, you don't have any specific destination for them and you don't want to send them out through the default route to prevent routing loops).
+ 
+-There are three classes of definitions in Static protocol configuration -- global options, static route definitions, and per-route options. Usually, the definition of the protocol contains mainly a list of static routes. Static routes have no specific attributes, but [igp_metric](https://bird.nic.cz/doc/bird-2.18.html#rta-igp-metric) attribute is used to compare static routes with the same preference.
++There are three classes of definitions in Static protocol configuration -- global options, static route definitions, and per-route options. Usually, the definition of the protocol contains mainly a list of static routes. Static routes have no specific attributes, but [igp_metric](https://bird.nic.cz/doc/bird-3.2.0.html#rta-igp-metric) attribute is used to compare static routes with the same preference.
+ 
+ The list of static routes may contain multiple routes for the same network (usually, but not necessary, distinquished by `preference` or `igp_metric`), but only routes of the same network type are allowed, as the static protocol has just one channel. E.g., to have both IPv4 and IPv6 static routes, define two static protocols, each with appropriate routes and channel.
+ 
+@@ -3693,10 +3724,10 @@ Route definitions (each may also contain a block of per-route options):
+ 
+ #### Regular routes; MPLS switching rules
+ 
+-There exist several types of routes; keep in mind that _prefix_ syntax is [dependent on network type](https://bird.nic.cz/doc/bird-2.18.html#type-prefix).
++There exist several types of routes; keep in mind that _prefix_ syntax is [dependent on network type](https://bird.nic.cz/doc/bird-3.2.0.html#type-prefix).
+ 
+ route _prefix_ [mpls _number_] via _ip_|_"interface"_ [_per-nexthop options_] [via ...]
+-Regular routes may bear one or more [next hops](https://bird.nic.cz/doc/bird-2.18.html#route-next-hop). Every next hop is preceded by `via` and configured as shown.
++Regular routes may bear one or more [next hops](https://bird.nic.cz/doc/bird-3.2.0.html#route-next-hop). Every next hop is preceded by `via` and configured as shown.
+ 
+ When the Static protocol is MPLS-aware, the optional `mpls` statement after _prefix_ specifies a static label for the labeled route, instead of using dynamically allocated label.
+ 
+@@ -3720,7 +3751,7 @@ route 10.0.0.0/8 via 192.0.2.1 bfd weight 1 via 192.0.2.2 weight
+ describes a route with two nexthops, the first nexthop has two per-nexthop options (`bfd` and `weight 1`), the second nexthop has just `weight 2`.
+ 
+ bfd _switch_
+-The Static protocol could use BFD protocol for next hop liveness detection. If enabled, a BFD session to the route next hop is created and the static route is BFD-controlled -- the static route is announced only if the next hop liveness is confirmed by BFD. If the BFD session fails, the static route (or just the affected nexthop from multiple ones) is removed. Note that this is a bit different compared to other protocols, which may use BFD as an advisory mechanism for fast failure detection but ignore it if a BFD session is not even established. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-2.18.html#bfd) section for details. Default value is no.
++The Static protocol could use BFD protocol for next hop liveness detection. If enabled, a BFD session to the route next hop is created and the static route is BFD-controlled -- the static route is announced only if the next hop liveness is confirmed by BFD. If the BFD session fails, the static route (or just the affected nexthop from multiple ones) is removed. Note that this is a bit different compared to other protocols, which may use BFD as an advisory mechanism for fast failure detection but ignore it if a BFD session is not even established. Note that BFD protocol also has to be configured, see [BFD](https://bird.nic.cz/doc/bird-3.2.0.html#bfd) section for details. Default value is no.
+ 
+ dev _text_
+ The outgoing interface associated with the nexthop. Useful for link-local nexthop addresses or when multiple interfaces use the same network prefix. By default, the outgoing interface is resolved from the nexthop address.
