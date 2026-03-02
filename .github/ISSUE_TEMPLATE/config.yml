@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: BIRD-LSP Task Index
+    url: https://github.com/bird-chinese-community/BIRD-LSP/issues/62
+    about: Check current implementation index and linked sub-issues.
+  - name: BIRD-LSP Epic
+    url: https://github.com/bird-chinese-community/BIRD-LSP/issues/61
+    about: Review epic-level progress and cross-phase context.

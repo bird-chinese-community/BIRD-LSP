@@ -1,0 +1,97 @@
+name: Agent Incident Report
+description: Report blockers or unexpected incidents found during agent execution.
+title: "[Incident] <short summary>"
+labels:
+  - type/fix
+  - priority/P1
+  - agent/wip
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when execution is blocked, risky, or abnormal.
+
+  - type: dropdown
+    id: trigger
+    attributes:
+      label: Trigger Type
+      description: Select the trigger condition for this report.
+      options:
+        - Blocking > 30 minutes
+        - Cross-module high-risk change
+        - Security P0/P1 finding
+        - Architecture gap discovered
+        - CI / release pipeline blocker
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: related_links
+    attributes:
+      label: Parent and Related Links
+      description: |
+        All incidents must include `Part of #62`.
+        Include `Part of #61` when applicable, plus any related issue/PR links.
+      placeholder: "Part of #62, Part of #61, #74"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Incident Summary
+      description: One-paragraph summary of what happened and why it matters.
+      placeholder: Describe the incident and current status.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Scope
+      description: What is affected (users, modules, security, timeline)?
+      placeholder: |
+        - Affected modules:
+        - User impact:
+        - Security/performance impact:
+        - Delivery impact:
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal_repro
+    attributes:
+      label: Minimal Reproduction
+      description: Provide the smallest reproducible steps, logs, or commands.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+        Logs/trace:
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: Suggest a pragmatic fix path with tradeoffs.
+      placeholder: |
+        - Option A:
+        - Option B:
+        - Recommended:
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Submission Checklist
+      options:
+        - label: Added required parent links in the related links field.
+          required: true
+        - label: Included reproducible evidence (steps/logs).
+          required: true
+        - label: Added clear next action owner or unblock condition.
+          required: true
