@@ -70,6 +70,12 @@
     "configuration": {
       "title": "BIRD2 LSP",
       "properties": {
+        "bird2-lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable BIRD2 language server client.",
+          "scope": "resource"
+        },
         "bird2-lsp.serverPath": {
           "markdownDescription": "Path to the birdcc language server executable.",
           "oneOf": [
@@ -89,6 +95,29 @@
             "--stdio"
           ],
           "scope": "machine-overridable"
+        },
+        "bird2-lsp.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "markdownDescription": "Trace level for language client and server communication.",
+          "scope": "machine-overridable"
+        },
+        "bird2-lsp.hiddenErrors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "textDocument/definition",
+            "textDocument/references"
+          ],
+          "markdownDescription": "LSP request methods to suppress from noisy failure popups.",
+          "scope": "resource"
         },
         "bird2-lsp.validation.enabled": {
           "type": "boolean",
@@ -122,6 +151,7 @@
     }
   },
   "dependencies": {
+    "vscode-languageclient": "^9.0.1",
     "zod": "^4.1.11"
   },
   "devDependencies": {

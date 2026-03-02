@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 import {
+  DEFAULT_HIDDEN_ERRORS,
+  DEFAULT_LSP_ENABLED,
   DEFAULT_FORMATTER_ENGINE,
   DEFAULT_FORMATTER_SAFE_MODE,
   DEFAULT_SERVER_PATH,
+  DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
   EXTENSION_ID,
   EXTENSION_NAME,
@@ -15,9 +18,13 @@ const serverPathSchema = z.union([
 ]);
 
 export const formatterEngineSchema = z.enum(["dprint", "builtin"]);
+export const traceServerSchema = z.enum(["off", "messages", "verbose"]);
 
 export const extensionConfigurationSchema = z.object({
+  enabled: z.boolean(),
   serverPath: serverPathSchema,
+  traceServer: traceServerSchema,
+  hiddenErrors: z.array(z.string().min(1)),
   validationEnabled: z.boolean(),
   validationCommand: z.string().min(1),
   formatterEngine: formatterEngineSchema,
@@ -25,6 +32,7 @@ export const extensionConfigurationSchema = z.object({
 });
 
 export type FormatterEngine = z.infer<typeof formatterEngineSchema>;
+export type TraceServer = z.infer<typeof traceServerSchema>;
 export type ExtensionConfiguration = z.infer<
   typeof extensionConfigurationSchema
 >;
@@ -38,7 +46,10 @@ export interface ExtensionRuntimeState {
 
 export const defaultExtensionConfiguration: ExtensionConfiguration =
   extensionConfigurationSchema.parse({
+    enabled: DEFAULT_LSP_ENABLED,
     serverPath: [...DEFAULT_SERVER_PATH],
+    traceServer: DEFAULT_TRACE_SERVER,
+    hiddenErrors: [...DEFAULT_HIDDEN_ERRORS],
     validationEnabled: true,
     validationCommand: DEFAULT_VALIDATION_COMMAND,
     formatterEngine: DEFAULT_FORMATTER_ENGINE,
