@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { isAbsolute, normalize, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import {
@@ -29,6 +30,36 @@ export interface FallbackValidator {
 
 const isBirdDocument = (document: TextDocument): boolean =>
   document.languageId === LANGUAGE_ID && document.uri.scheme === "file";
+
+const normalizeForComparison = (filePath: string): string => {
+  const normalized = normalize(filePath);
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+};
+
+const isPathInsideRoot = (filePath: string, rootPath: string): boolean => {
+  const fileNormalized = normalizeForComparison(resolve(filePath));
+  const rootNormalized = normalizeForComparison(resolve(rootPath));
+  const relPath = relative(rootNormalized, fileNormalized);
+
+  if (!relPath) {
+    return true;
+  }
+
+  return !relPath.startsWith("..") && !isAbsolute(relPath);
+};
+
+const isPathInsideWorkspace = (
+  filePath: string,
+  workspaceRoots: readonly string[],
+): boolean => {
+  if (workspaceRoots.length === 0) {
+    return true;
+  }
+
+  return workspaceRoots.some((workspaceRoot) =>
+    isPathInsideRoot(filePath, workspaceRoot),
+  );
+};
 
 export const createFallbackValidator = (
   getConfiguration: () => ExtensionConfiguration,
@@ -66,6 +97,16 @@ export const createFallbackValidator = (
     }
 
     trustWarningShown = false;
+    const workspaceRoots = (
+      workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? []
+    ).filter((path) => path.length > 0);
+    if (!isPathInsideWorkspace(document.uri.fsPath, workspaceRoots)) {
+      outputChannel.appendLine(
+        `[bird2-lsp] validation command blocked for file outside workspace root: ${document.uri.fsPath}`,
+      );
+      clearDocumentDiagnostics(document);
+      return;
+    }
 
     const command = resolveValidationCommandTemplate(
       configuration.validationCommand,

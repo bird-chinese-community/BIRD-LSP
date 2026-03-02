@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
 
 import type { ExtensionConfiguration } from "../types.js";
 
@@ -30,6 +30,7 @@ const shellExecutionFlags = new Set([
   "-command",
   "-encodedcommand",
 ]);
+const disallowedShellMetacharacterPattern = /[;&|`$<>]/u;
 
 const commandTokenPattern = /"[^"]*"|'[^']*'|\S+/g;
 const validationPlaceholder = "__BIRD2_LSP_FILE_PATH__";
@@ -47,6 +48,9 @@ const tokenizeCommandLine = (commandLine: string): readonly string[] => {
 
 const normalizeTokens = (tokens: readonly string[]): readonly string[] =>
   tokens.map((token) => token.trim()).filter((token) => token.length > 0);
+
+const hasDisallowedShellMetacharacter = (value: string): boolean =>
+  disallowedShellMetacharacterPattern.test(value);
 
 const isShellWrapper = (command: string, args: readonly string[]): boolean => {
   const executable = basename(command).toLowerCase();
@@ -74,6 +78,14 @@ const toCommandResolution = (tokens: readonly string[]): CommandResolution => {
   }
 
   const [command, ...args] = normalized;
+  if (shellExecutables.has(basename(command).toLowerCase())) {
+    return {
+      ok: false,
+      reason:
+        "direct shell executable invocation is blocked (for example: bash, sh, cmd, powershell)",
+    };
+  }
+
   if (isShellWrapper(command, args)) {
     return {
       ok: false,
@@ -93,30 +105,63 @@ const toCommandResolution = (tokens: readonly string[]): CommandResolution => {
 
 const parseCommandTokens = (
   command: ExtensionConfiguration["serverPath"],
-): readonly string[] => {
+): CommandResolution => {
   if (Array.isArray(command)) {
-    return normalizeTokens(command);
+    return toCommandResolution(command);
   }
 
-  return tokenizeCommandLine(command);
+  if (hasDisallowedShellMetacharacter(command)) {
+    return {
+      ok: false,
+      reason:
+        "command string contains potentially dangerous shell metacharacters",
+    };
+  }
+
+  return toCommandResolution(tokenizeCommandLine(command));
 };
 
 export const resolveServerCommand = (
   serverPath: ExtensionConfiguration["serverPath"],
-): CommandResolution => toCommandResolution(parseCommandTokens(serverPath));
+): CommandResolution => parseCommandTokens(serverPath);
 
 export const resolveValidationCommandTemplate = (
   commandTemplate: string,
   filePath: string,
 ): CommandResolution => {
+  if (!commandTemplate.includes("{file}")) {
+    return {
+      ok: false,
+      reason: "validation command template must include the {file} placeholder",
+    };
+  }
+
+  if (hasDisallowedShellMetacharacter(commandTemplate)) {
+    return {
+      ok: false,
+      reason:
+        "validation command template contains potentially dangerous shell metacharacters",
+    };
+  }
+
   const placeholderRenderedTemplate = commandTemplate.replaceAll(
     "{file}",
     validationPlaceholder,
   );
 
-  const tokens = tokenizeCommandLine(placeholderRenderedTemplate).map((token) =>
-    token.replaceAll(validationPlaceholder, filePath),
+  const tokens = tokenizeCommandLine(placeholderRenderedTemplate);
+  if (!tokens.some((token) => token.includes(validationPlaceholder))) {
+    return {
+      ok: false,
+      reason:
+        "validation command template must place {file} in a tokenized argument",
+    };
+  }
+
+  const normalizedFilePath = resolve(filePath);
+  const resolvedTokens = tokens.map((token) =>
+    token.replaceAll(validationPlaceholder, normalizedFilePath),
   );
 
-  return toCommandResolution(tokens);
+  return toCommandResolution(resolvedTokens);
 };
