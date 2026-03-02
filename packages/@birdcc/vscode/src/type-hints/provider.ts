@@ -14,6 +14,7 @@ import {
 
 import { LANGUAGE_ID } from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
+import { toSanitizedErrorDetails } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import {
   collectFunctionReturnHints,
@@ -29,9 +30,6 @@ interface CachedHintSnapshot {
   readonly version: number;
   readonly hints: readonly FunctionReturnHint[];
 }
-
-const toErrorDetails = (error: unknown): string =>
-  error instanceof Error ? (error.stack ?? String(error)) : String(error);
 
 const toRange = (
   line: number,
@@ -152,7 +150,7 @@ export const registerBirdTypeHintProviders = ({
           );
         } catch (error) {
           outputChannel.appendLine(
-            `[bird2-lsp] type hints hover failed: ${toErrorDetails(error)}`,
+            `[bird2-lsp] type hints hover failed: ${toSanitizedErrorDetails(error)}`,
           );
           return null;
         }
@@ -222,7 +220,7 @@ export const registerBirdTypeHintProviders = ({
             });
         } catch (error) {
           outputChannel.appendLine(
-            `[bird2-lsp] type hints inlay failed: ${toErrorDetails(error)}`,
+            `[bird2-lsp] type hints inlay failed: ${toSanitizedErrorDetails(error)}`,
           );
           return [];
         }

@@ -4,3 +4,4 @@ export {
   type CommandResolution,
   type ResolvedCommand,
 } from "./command.js";
+export { sanitizeLogMessage, toSanitizedErrorDetails } from "./log.js";
