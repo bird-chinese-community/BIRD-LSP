@@ -1,6 +1,10 @@
 import { parseBirdConfig } from "@birdcc/parser";
 
-import type { BirdFormatResult, ResolvedFormatOptions } from "../types.js";
+import type {
+  BirdFormatResult,
+  BuiltinFormatOutput,
+  ResolvedFormatOptions,
+} from "../types.js";
 import {
   assertSafeModeSemanticEquivalence,
   createSemanticFingerprintFromParsed,
@@ -34,17 +38,11 @@ export const formatWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
 ): Promise<BirdFormatResult> => {
-  let beforeFingerprint: string | undefined;
-  let parserProtectedLines: Set<number>;
-
-  if (options.safeMode) {
-    const beforeParsed = await parseBirdConfig(text);
-    beforeFingerprint = createSemanticFingerprintFromParsed(beforeParsed);
-    parserProtectedLines = collectParserProtectedLinesFromParsed(beforeParsed);
-  } else {
-    const parsed = await parseBirdConfig(text);
-    parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
-  }
+  const parsed = await parseBirdConfig(text);
+  const beforeFingerprint = options.safeMode
+    ? createSemanticFingerprintFromParsed(parsed)
+    : undefined;
+  const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
 
   const builtinOutput = await normalizeTextWithBuiltin(
     text,
@@ -69,7 +67,7 @@ export const formatWithBuiltin = async (
 export const formatBuiltinForTest = async (
   text: string,
   options: ResolvedFormatOptions,
-) => {
+): Promise<BuiltinFormatOutput> => {
   const parsed = await parseBirdConfig(text);
   const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
   return normalizeTextWithBuiltin(text, options, parserProtectedLines);
