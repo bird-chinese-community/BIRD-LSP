@@ -35,8 +35,12 @@ const createTrustedTooltip = (state: ClientLifecycleState): string => {
       return "BIRD2 language server is running.\nClick to restart.";
     case "error":
       return "BIRD2 language server encountered an error.\nClick to open output channel.";
-    default:
+    case "idle":
       return "BIRD2 language server is idle.\nClick to restart.";
+    default: {
+      const exhaustiveCheck: never = state;
+      return `BIRD2 language server is in an unknown state: ${String(exhaustiveCheck)}`;
+    }
   }
 };
 
@@ -91,9 +95,16 @@ export const createBirdStatusBarManager = (): BirdStatusBarManager => {
           "statusBarItem.errorBackground",
         );
         break;
-      default:
+      case "idle":
         statusBarItem.text = "$(clock) BIRD2: Idle";
         statusBarItem.command = BIRD_COMMAND_IDS.restartLanguageServer;
+        break;
+      default: {
+        const exhaustiveCheck: never = snapshot.lifecycleState;
+        statusBarItem.text = `$(question) BIRD2: Unknown (${String(exhaustiveCheck)})`;
+        statusBarItem.command = BIRD_COMMAND_IDS.showOutputChannel;
+        break;
+      }
     }
 
     if (snapshot.lifecycleState !== "error") {

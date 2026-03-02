@@ -158,11 +158,6 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const initialChange =
     configurationManager.refreshFromWorkspace("initial-load");
   await runLifecycle(initialChange);
-  statusBarManager.render({
-    isWorkspaceTrusted: workspace.isTrusted,
-    lifecycleState: lifecycle.state,
-    configuration: runtimeState.configuration,
-  });
 
   context.subscriptions.push(
     configurationManager.onDidChange((event) => {
