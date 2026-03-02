@@ -37,6 +37,7 @@ export {
 export {
   createBirdClientLifecycle,
   createLanguageClient,
+  type BirdClientLifecycleOptions,
   type BirdClientLifecycle,
   type ClientLifecycleState,
 } from "./client/index.js";

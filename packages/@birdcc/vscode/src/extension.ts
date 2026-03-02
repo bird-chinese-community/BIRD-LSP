@@ -75,8 +75,18 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   runtimeState.activated = true;
   const outputChannel = window.createOutputChannel(EXTENSION_NAME);
   const configurationManager = createConfigurationManager();
-  const lifecycle = createBirdClientLifecycle(outputChannel);
   const statusBarManager = createBirdStatusBarManager();
+  let lifecycle!: ReturnType<typeof createBirdClientLifecycle>;
+  const refreshStatus = (): void => {
+    statusBarManager.render({
+      isWorkspaceTrusted: workspace.isTrusted,
+      lifecycleState: lifecycle.state,
+      configuration: runtimeState.configuration,
+    });
+  };
+  lifecycle = createBirdClientLifecycle(outputChannel, {
+    onStateChange: refreshStatus,
+  });
   const formattingProvider = createBirdFormattingProvider(
     () => runtimeState.configuration,
     outputChannel,
@@ -111,14 +121,6 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     if (workspace.isTrusted) {
       workspaceTrustWarningShown = false;
     }
-
-    const refreshStatus = (): void => {
-      statusBarManager.render({
-        isWorkspaceTrusted: workspace.isTrusted,
-        lifecycleState: lifecycle.state,
-        configuration: runtimeState.configuration,
-      });
-    };
 
     return runConfigurationLifecycle(
       change,

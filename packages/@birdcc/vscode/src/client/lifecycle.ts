@@ -19,12 +19,21 @@ export interface BirdClientLifecycle {
   dispose: () => Promise<void>;
 }
 
+export interface BirdClientLifecycleOptions {
+  readonly onStateChange?: (state: ClientLifecycleState) => void;
+}
+
 export const createBirdClientLifecycle = (
   outputChannel: OutputChannel,
+  options: BirdClientLifecycleOptions = {},
 ): BirdClientLifecycle => {
   let state: ClientLifecycleState = "idle";
   let activeClient: LanguageClient | undefined;
   let activeOperation: Promise<void> | undefined;
+  const setState = (nextState: ClientLifecycleState): void => {
+    state = nextState;
+    options.onStateChange?.(nextState);
+  };
 
   const runExclusive = async (operation: () => Promise<void>) => {
     while (activeOperation) {
@@ -46,16 +55,16 @@ export const createBirdClientLifecycle = (
         return;
       }
 
-      state = "starting";
+      setState("starting");
       outputChannel.appendLine("[bird2-lsp] starting language client");
 
       try {
         activeClient = createLanguageClient(configuration, outputChannel);
         await activeClient.start();
-        state = "running";
+        setState("running");
         outputChannel.appendLine("[bird2-lsp] language client started");
       } catch (error) {
-        state = "error";
+        setState("error");
         activeClient = undefined;
         outputChannel.appendLine(
           `[bird2-lsp] failed to start language client: ${String(error)}`,
@@ -67,18 +76,18 @@ export const createBirdClientLifecycle = (
   const stop = async (): Promise<void> =>
     runExclusive(async () => {
       if (!activeClient) {
-        state = "idle";
+        setState("idle");
         return;
       }
 
-      state = "stopping";
+      setState("stopping");
       outputChannel.appendLine("[bird2-lsp] stopping language client");
 
       try {
         await activeClient.stop();
       } finally {
         activeClient = undefined;
-        state = "idle";
+        setState("idle");
         outputChannel.appendLine("[bird2-lsp] language client stopped");
       }
     });
@@ -88,15 +97,15 @@ export const createBirdClientLifecycle = (
   ): Promise<void> =>
     runExclusive(async () => {
       if (activeClient) {
-        state = "stopping";
+        setState("stopping");
         outputChannel.appendLine("[bird2-lsp] restarting language client");
         await activeClient.stop();
       }
 
-      state = "starting";
+      setState("starting");
       activeClient = createLanguageClient(configuration, outputChannel);
       await activeClient.start();
-      state = "running";
+      setState("running");
       outputChannel.appendLine("[bird2-lsp] language client restarted");
     });
 
