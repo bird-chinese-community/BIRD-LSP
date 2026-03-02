@@ -4,24 +4,43 @@ import type { ExtensionContext } from "vscode";
 import { createBirdClientLifecycle } from "./client/index.js";
 import { createConfigurationManager } from "./config/index.js";
 import { EXTENSION_NAME } from "./constants.js";
+import {
+  createFallbackValidator,
+  type FallbackValidator,
+} from "./fallback/index.js";
 import { createDefaultRuntimeState } from "./types.js";
 
 export const runtimeState = createDefaultRuntimeState();
 
 let deactivateTask: Promise<void> | undefined;
+let fallbackValidator: FallbackValidator | undefined;
+
+const disposeFallbackValidator = (): void => {
+  if (!fallbackValidator) {
+    return;
+  }
+
+  fallbackValidator.dispose();
+  fallbackValidator = undefined;
+};
 
 const runConfigurationLifecycle = async (
   change: ReturnType<
     ReturnType<typeof createConfigurationManager>["refreshFromWorkspace"]
   >,
   lifecycle: ReturnType<typeof createBirdClientLifecycle>,
+  createOrGetFallbackValidator: () => FallbackValidator,
 ): Promise<void> => {
   runtimeState.configuration = change.current;
 
   if (!change.current.enabled) {
     await lifecycle.stop();
+    const validator = createOrGetFallbackValidator();
+    await validator.validateActiveEditor();
     return;
   }
+
+  disposeFallbackValidator();
 
   if (lifecycle.state === "running" && change.requiresRestart) {
     await lifecycle.restart(change.current);
@@ -38,14 +57,33 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const outputChannel = window.createOutputChannel(EXTENSION_NAME);
   const configurationManager = createConfigurationManager();
   const lifecycle = createBirdClientLifecycle(outputChannel);
+  const createOrGetFallbackValidator = (): FallbackValidator => {
+    if (!fallbackValidator) {
+      fallbackValidator = createFallbackValidator(
+        () => runtimeState.configuration,
+        outputChannel,
+      );
+      fallbackValidator.activate();
+    }
+
+    return fallbackValidator;
+  };
 
   const initialChange =
     configurationManager.refreshFromWorkspace("initial-load");
-  await runConfigurationLifecycle(initialChange, lifecycle);
+  await runConfigurationLifecycle(
+    initialChange,
+    lifecycle,
+    createOrGetFallbackValidator,
+  );
 
   context.subscriptions.push(
     configurationManager.onDidChange((event) => {
-      void runConfigurationLifecycle(event, lifecycle);
+      void runConfigurationLifecycle(
+        event,
+        lifecycle,
+        createOrGetFallbackValidator,
+      );
     }),
   );
 
@@ -62,6 +100,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   context.subscriptions.push({
     dispose: () => {
       configurationManager.dispose();
+      disposeFallbackValidator();
       deactivateTask = lifecycle.dispose();
     },
   });

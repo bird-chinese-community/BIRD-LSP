@@ -13,6 +13,8 @@ export const DEFAULT_HIDDEN_ERRORS = [
   "textDocument/references",
 ] as const;
 export const DEFAULT_VALIDATION_COMMAND = "bird -p -c {file}";
+export const DEFAULT_VALIDATION_ON_SAVE = true;
+export const DEFAULT_VALIDATION_TIMEOUT_MS = 30000;
 export const DEFAULT_FORMATTER_ENGINE = "dprint" as const;
 export const DEFAULT_FORMATTER_SAFE_MODE = true;
 

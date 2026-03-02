@@ -8,6 +8,8 @@ import {
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
+  DEFAULT_VALIDATION_ON_SAVE,
+  DEFAULT_VALIDATION_TIMEOUT_MS,
   EXTENSION_ID,
   EXTENSION_NAME,
 } from "./constants.js";
@@ -27,6 +29,8 @@ export const extensionConfigurationSchema = z.object({
   hiddenErrors: z.array(z.string().min(1)),
   validationEnabled: z.boolean(),
   validationCommand: z.string().min(1),
+  validationOnSave: z.boolean(),
+  validationTimeoutMs: z.number().int().min(1000).max(120000),
   formatterEngine: formatterEngineSchema,
   formatterSafeMode: z.boolean(),
 });
@@ -52,6 +56,8 @@ export const defaultExtensionConfiguration: ExtensionConfiguration =
     hiddenErrors: [...DEFAULT_HIDDEN_ERRORS],
     validationEnabled: true,
     validationCommand: DEFAULT_VALIDATION_COMMAND,
+    validationOnSave: DEFAULT_VALIDATION_ON_SAVE,
+    validationTimeoutMs: DEFAULT_VALIDATION_TIMEOUT_MS,
     formatterEngine: DEFAULT_FORMATTER_ENGINE,
     formatterSafeMode: DEFAULT_FORMATTER_SAFE_MODE,
   });
