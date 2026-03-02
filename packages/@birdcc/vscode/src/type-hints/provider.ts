@@ -13,6 +13,7 @@ import {
 } from "vscode";
 
 import { LANGUAGE_ID } from "../constants.js";
+import { enforceLargeFileGuard } from "../performance/large-file.js";
 import type { ExtensionConfiguration } from "../types.js";
 import {
   collectFunctionReturnHints,
@@ -72,6 +73,7 @@ export const registerBirdTypeHintProviders = ({
   outputChannel,
 }: BirdTypeHintRegistrationContext): readonly Disposable[] => {
   const cache = new Map<string, CachedHintSnapshot>();
+  const warningCache = new Set<string>();
 
   const loadHints = async (
     document: TextDocument,
@@ -101,6 +103,17 @@ export const registerBirdTypeHintProviders = ({
         }
 
         try {
+          const guard = await enforceLargeFileGuard({
+            document,
+            configuration,
+            outputChannel,
+            featureName: "type hints",
+            warningCache,
+          });
+          if (guard.skipped) {
+            return null;
+          }
+
           const hints = await loadHints(document);
           const matchedHint = hints.find((hint) =>
             toRange(
@@ -161,6 +174,17 @@ export const registerBirdTypeHintProviders = ({
         }
 
         try {
+          const guard = await enforceLargeFileGuard({
+            document,
+            configuration,
+            outputChannel,
+            featureName: "type hints",
+            warningCache,
+          });
+          if (guard.skipped) {
+            return [];
+          }
+
           const hints = await loadHints(document);
           return hints
             .filter((hint) => {
