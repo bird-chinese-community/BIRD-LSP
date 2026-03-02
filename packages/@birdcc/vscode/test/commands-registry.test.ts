@@ -94,7 +94,7 @@ describe("commands registry", () => {
 
     expect(handler).toBeDefined();
     handler?.();
-    await Promise.resolve();
+    await vi.waitUntil(() => mocks.showWarningMessage.mock.calls.length > 0);
 
     expect(mocks.showWarningMessage).toHaveBeenCalledTimes(1);
     expect(context.lifecycle.restart).not.toHaveBeenCalled();
@@ -110,8 +110,9 @@ describe("commands registry", () => {
 
     expect(handler).toBeDefined();
     handler?.();
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitUntil(
+      () => mocks.showInformationMessage.mock.calls.length > 0,
+    );
 
     expect(context.reloadConfiguration).toHaveBeenCalledTimes(1);
     expect(mocks.showInformationMessage).toHaveBeenCalledWith(
