@@ -265,7 +265,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
-    "test": "vitest run",
+    "test": "pnpm --filter @birdcc/parser build && vitest run",
     "format": "oxfmt ."
   }
 }
