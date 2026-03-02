@@ -15,6 +15,8 @@ import type { ExtensionConfiguration } from "../types.js";
 
 const DOCUMENTATION_URL =
   "https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/vscode";
+const toErrorDetails = (error: unknown): string =>
+  error instanceof Error ? (error.stack ?? String(error)) : String(error);
 
 export const BIRD_COMMAND_IDS = {
   restartLanguageServer: "bird2-lsp.restartLanguageServer",
@@ -94,7 +96,7 @@ export const registerBirdCommands = (
       void window.showInformationMessage("BIRD2 language server restarted.");
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] restart command failed: ${String(error)}`,
+        `[bird2-lsp] restart command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to restart BIRD2 language server.");
     }
@@ -112,7 +114,7 @@ export const registerBirdCommands = (
       void window.showInformationMessage("BIRD2 language server enabled.");
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] enable command failed: ${String(error)}`,
+        `[bird2-lsp] enable command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to enable BIRD2 language server.");
     }
@@ -132,7 +134,7 @@ export const registerBirdCommands = (
       );
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] disable command failed: ${String(error)}`,
+        `[bird2-lsp] disable command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to disable BIRD2 language server.");
     }
@@ -150,7 +152,7 @@ export const registerBirdCommands = (
       void window.showInformationMessage("BIRD2 validation command finished.");
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] validate command failed: ${String(error)}`,
+        `[bird2-lsp] validate command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to validate active BIRD2 document.");
     }
@@ -167,7 +169,7 @@ export const registerBirdCommands = (
       await commands.executeCommand("editor.action.formatDocument");
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] format command failed: ${String(error)}`,
+        `[bird2-lsp] format command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to format active BIRD2 document.");
     }
@@ -180,7 +182,7 @@ export const registerBirdCommands = (
       );
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] open settings command failed: ${String(error)}`,
+        `[bird2-lsp] open settings command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to open BIRD2 extension settings.");
     }
@@ -193,7 +195,7 @@ export const registerBirdCommands = (
       await env.openExternal(Uri.parse(DOCUMENTATION_URL));
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] show documentation command failed: ${String(error)}`,
+        `[bird2-lsp] show documentation command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to open BIRD2 documentation.");
     }
@@ -204,7 +206,7 @@ export const registerBirdCommands = (
       void window.showInformationMessage("BIRD2 configuration reloaded.");
     } catch (error) {
       context.outputChannel.appendLine(
-        `[bird2-lsp] reload configuration command failed: ${String(error)}`,
+        `[bird2-lsp] reload configuration command failed: ${toErrorDetails(error)}`,
       );
       void window.showErrorMessage("Failed to reload BIRD2 configuration.");
     }
