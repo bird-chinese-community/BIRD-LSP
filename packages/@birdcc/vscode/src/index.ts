@@ -37,6 +37,7 @@ export {
 export {
   createBirdClientLifecycle,
   createLanguageClient,
+  type BirdClientLifecycleOptions,
   type BirdClientLifecycle,
   type ClientLifecycleState,
 } from "./client/index.js";
@@ -52,3 +53,8 @@ export {
   type BirdCommandId,
   type BirdCommandRegistrationContext,
 } from "./commands/index.js";
+export {
+  createBirdStatusBarManager,
+  type BirdStatusBarManager,
+  type BirdStatusSnapshot,
+} from "./status/index.js";

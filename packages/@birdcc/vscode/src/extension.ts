@@ -10,6 +10,7 @@ import {
   type FallbackValidator,
 } from "./fallback/index.js";
 import { createBirdFormattingProvider } from "./formatter/index.js";
+import { createBirdStatusBarManager } from "./status/index.js";
 import { createDefaultRuntimeState } from "./types.js";
 import { LANGUAGE_ID } from "./constants.js";
 
@@ -35,32 +36,38 @@ const runConfigurationLifecycle = async (
   createOrGetFallbackValidator: () => FallbackValidator,
   isWorkspaceTrusted: boolean,
   onWorkspaceTrustBlocked: () => void,
+  onStatusUpdated: () => void,
 ): Promise<void> => {
   runtimeState.configuration = change.current;
+  onStatusUpdated();
 
-  if (!isWorkspaceTrusted) {
+  try {
+    if (!isWorkspaceTrusted) {
+      disposeFallbackValidator();
+      await lifecycle.stop();
+      onWorkspaceTrustBlocked();
+      return;
+    }
+
+    if (!change.current.enabled) {
+      await lifecycle.stop();
+      const validator = createOrGetFallbackValidator();
+      await validator.validateActiveEditor();
+      return;
+    }
+
     disposeFallbackValidator();
-    await lifecycle.stop();
-    onWorkspaceTrustBlocked();
-    return;
-  }
 
-  if (!change.current.enabled) {
-    await lifecycle.stop();
-    const validator = createOrGetFallbackValidator();
-    await validator.validateActiveEditor();
-    return;
-  }
+    if (lifecycle.state === "running" && change.requiresRestart) {
+      await lifecycle.restart(change.current);
+      return;
+    }
 
-  disposeFallbackValidator();
-
-  if (lifecycle.state === "running" && change.requiresRestart) {
-    await lifecycle.restart(change.current);
-    return;
-  }
-
-  if (lifecycle.state !== "running") {
-    await lifecycle.start(change.current);
+    if (lifecycle.state !== "running") {
+      await lifecycle.start(change.current);
+    }
+  } finally {
+    onStatusUpdated();
   }
 };
 
@@ -68,7 +75,18 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   runtimeState.activated = true;
   const outputChannel = window.createOutputChannel(EXTENSION_NAME);
   const configurationManager = createConfigurationManager();
-  const lifecycle = createBirdClientLifecycle(outputChannel);
+  const statusBarManager = createBirdStatusBarManager();
+  let lifecycle!: ReturnType<typeof createBirdClientLifecycle>;
+  const refreshStatus = (): void => {
+    statusBarManager.render({
+      isWorkspaceTrusted: workspace.isTrusted,
+      lifecycleState: lifecycle.state,
+      configuration: runtimeState.configuration,
+    });
+  };
+  lifecycle = createBirdClientLifecycle(outputChannel, {
+    onStateChange: refreshStatus,
+  });
   const formattingProvider = createBirdFormattingProvider(
     () => runtimeState.configuration,
     outputChannel,
@@ -110,6 +128,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       createOrGetFallbackValidator,
       workspace.isTrusted,
       onWorkspaceTrustBlocked,
+      refreshStatus,
     );
   };
   const reloadConfiguration = async (): Promise<void> => {
@@ -184,6 +203,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
   context.subscriptions.push({
     dispose: () => {
+      statusBarManager.dispose();
       configurationManager.dispose();
       disposeFallbackValidator();
       deactivateTask = lifecycle.dispose();
