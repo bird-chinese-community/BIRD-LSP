@@ -1,53 +1,76 @@
-import { workspace } from "vscode";
+import { window, workspace } from "vscode";
 import type { ExtensionContext } from "vscode";
 
-import {
-  CONFIG_SECTION,
-  DEFAULT_FORMATTER_ENGINE,
-  DEFAULT_FORMATTER_SAFE_MODE,
-  DEFAULT_SERVER_PATH,
-  DEFAULT_VALIDATION_COMMAND,
-} from "./constants.js";
-import {
-  createDefaultRuntimeState,
-  parseExtensionConfiguration,
-} from "./types.js";
+import { createBirdClientLifecycle } from "./client/index.js";
+import { createConfigurationManager } from "./config/index.js";
+import { EXTENSION_NAME } from "./constants.js";
+import { createDefaultRuntimeState } from "./types.js";
 
 export const runtimeState = createDefaultRuntimeState();
 
-const readConfiguration = () => {
-  const config = workspace.getConfiguration(CONFIG_SECTION);
+let deactivateTask: Promise<void> | undefined;
 
-  return parseExtensionConfiguration({
-    serverPath: config.get("serverPath", [...DEFAULT_SERVER_PATH]),
-    validationEnabled: config.get("validation.enabled", true),
-    validationCommand: config.get(
-      "validation.command",
-      DEFAULT_VALIDATION_COMMAND,
-    ),
-    formatterEngine: config.get("formatter.engine", DEFAULT_FORMATTER_ENGINE),
-    formatterSafeMode: config.get(
-      "formatter.safeMode",
-      DEFAULT_FORMATTER_SAFE_MODE,
-    ),
-  });
+const runConfigurationLifecycle = async (
+  change: ReturnType<
+    ReturnType<typeof createConfigurationManager>["refreshFromWorkspace"]
+  >,
+  lifecycle: ReturnType<typeof createBirdClientLifecycle>,
+): Promise<void> => {
+  runtimeState.configuration = change.current;
+
+  if (!change.current.enabled) {
+    await lifecycle.stop();
+    return;
+  }
+
+  if (lifecycle.state === "running" && change.requiresRestart) {
+    await lifecycle.restart(change.current);
+    return;
+  }
+
+  if (lifecycle.state !== "running") {
+    await lifecycle.start(change.current);
+  }
 };
 
 export const activate = async (context: ExtensionContext): Promise<void> => {
   runtimeState.activated = true;
-  runtimeState.configuration = readConfiguration();
+  const outputChannel = window.createOutputChannel(EXTENSION_NAME);
+  const configurationManager = createConfigurationManager();
+  const lifecycle = createBirdClientLifecycle(outputChannel);
+
+  const initialChange =
+    configurationManager.refreshFromWorkspace("initial-load");
+  await runConfigurationLifecycle(initialChange, lifecycle);
+
+  context.subscriptions.push(
+    configurationManager.onDidChange((event) => {
+      void runConfigurationLifecycle(event, lifecycle);
+    }),
+  );
 
   context.subscriptions.push(
     workspace.onDidChangeConfiguration((event) => {
-      if (!event.affectsConfiguration(CONFIG_SECTION)) {
+      if (!configurationManager.didSectionChange(event)) {
         return;
       }
 
-      runtimeState.configuration = readConfiguration();
+      configurationManager.refreshFromWorkspace("workspace-change");
     }),
   );
+
+  context.subscriptions.push({
+    dispose: () => {
+      configurationManager.dispose();
+      deactivateTask = lifecycle.dispose();
+    },
+  });
 };
 
 export const deactivate = async (): Promise<void> => {
   runtimeState.activated = false;
+  if (deactivateTask) {
+    await deactivateTask;
+    deactivateTask = undefined;
+  }
 };

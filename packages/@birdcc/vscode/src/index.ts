@@ -1,9 +1,12 @@
 export { activate, deactivate, runtimeState } from "./extension.js";
 export {
   CONFIG_SECTION,
+  DEFAULT_HIDDEN_ERRORS,
+  DEFAULT_LSP_ENABLED,
   DEFAULT_FORMATTER_ENGINE,
   DEFAULT_FORMATTER_SAFE_MODE,
   DEFAULT_SERVER_PATH,
+  DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
   EXTENSION_ID,
   EXTENSION_NAME,
@@ -16,9 +19,22 @@ export {
   extensionConfigurationSchema,
   formatterEngineSchema,
   parseExtensionConfiguration,
+  traceServerSchema,
 } from "./types.js";
 export type {
   ExtensionConfiguration,
   ExtensionRuntimeState,
   FormatterEngine,
+  TraceServer,
 } from "./types.js";
+export {
+  createConfigurationManager,
+  type ExtensionConfigurationChange,
+  type ExtensionConfigurationManager,
+} from "./config/index.js";
+export {
+  createBirdClientLifecycle,
+  createLanguageClient,
+  type BirdClientLifecycle,
+  type ClientLifecycleState,
+} from "./client/index.js";
