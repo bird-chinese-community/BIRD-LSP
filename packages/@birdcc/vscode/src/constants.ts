@@ -17,6 +17,9 @@ export const DEFAULT_VALIDATION_ON_SAVE = true;
 export const DEFAULT_VALIDATION_TIMEOUT_MS = 30000;
 export const DEFAULT_FORMATTER_ENGINE = "dprint" as const;
 export const DEFAULT_FORMATTER_SAFE_MODE = true;
+export const DEFAULT_TYPE_HINTS_ENABLED = true;
+export const DEFAULT_TYPE_HINTS_HOVER_ENABLED = true;
+export const DEFAULT_TYPE_HINTS_INLAY_ENABLED = true;
 
 export const RESTART_REQUIRED_CONFIGURATION_PATHS = [
   "enabled",

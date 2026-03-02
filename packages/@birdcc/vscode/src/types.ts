@@ -5,6 +5,9 @@ import {
   DEFAULT_LSP_ENABLED,
   DEFAULT_FORMATTER_ENGINE,
   DEFAULT_FORMATTER_SAFE_MODE,
+  DEFAULT_TYPE_HINTS_ENABLED,
+  DEFAULT_TYPE_HINTS_HOVER_ENABLED,
+  DEFAULT_TYPE_HINTS_INLAY_ENABLED,
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
@@ -33,6 +36,9 @@ export const extensionConfigurationSchema = z.object({
   validationTimeoutMs: z.number().int().min(1000).max(120000),
   formatterEngine: formatterEngineSchema,
   formatterSafeMode: z.boolean(),
+  typeHintsEnabled: z.boolean(),
+  typeHintsHoverEnabled: z.boolean(),
+  typeHintsInlayEnabled: z.boolean(),
 });
 
 export type FormatterEngine = z.infer<typeof formatterEngineSchema>;
@@ -60,6 +66,9 @@ export const defaultExtensionConfiguration: ExtensionConfiguration =
     validationTimeoutMs: DEFAULT_VALIDATION_TIMEOUT_MS,
     formatterEngine: DEFAULT_FORMATTER_ENGINE,
     formatterSafeMode: DEFAULT_FORMATTER_SAFE_MODE,
+    typeHintsEnabled: DEFAULT_TYPE_HINTS_ENABLED,
+    typeHintsHoverEnabled: DEFAULT_TYPE_HINTS_HOVER_ENABLED,
+    typeHintsInlayEnabled: DEFAULT_TYPE_HINTS_INLAY_ENABLED,
   });
 
 export const createDefaultRuntimeState = (): ExtensionRuntimeState => ({

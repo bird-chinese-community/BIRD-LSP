@@ -9,6 +9,9 @@ import {
   CONFIG_SECTION,
   DEFAULT_FORMATTER_ENGINE,
   DEFAULT_FORMATTER_SAFE_MODE,
+  DEFAULT_TYPE_HINTS_ENABLED,
+  DEFAULT_TYPE_HINTS_HOVER_ENABLED,
+  DEFAULT_TYPE_HINTS_INLAY_ENABLED,
   DEFAULT_HIDDEN_ERRORS,
   DEFAULT_LSP_ENABLED,
   DEFAULT_SERVER_PATH,
@@ -74,6 +77,18 @@ const readWorkspaceConfiguration = (): ExtensionConfiguration => {
     formatterSafeMode: config.get(
       "formatter.safeMode",
       DEFAULT_FORMATTER_SAFE_MODE,
+    ),
+    typeHintsEnabled: config.get(
+      "typeHints.enabled",
+      DEFAULT_TYPE_HINTS_ENABLED,
+    ),
+    typeHintsHoverEnabled: config.get(
+      "typeHints.hover.enabled",
+      DEFAULT_TYPE_HINTS_HOVER_ENABLED,
+    ),
+    typeHintsInlayEnabled: config.get(
+      "typeHints.inlay.enabled",
+      DEFAULT_TYPE_HINTS_INLAY_ENABLED,
     ),
   });
 };

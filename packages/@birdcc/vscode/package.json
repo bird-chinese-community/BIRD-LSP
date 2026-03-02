@@ -222,11 +222,30 @@
           "default": true,
           "markdownDescription": "Enable formatter safe mode to reduce risky rewrites.",
           "scope": "resource"
+        },
+        "bird2-lsp.typeHints.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable Type Hints integration for BIRD2 documents.",
+          "scope": "resource"
+        },
+        "bird2-lsp.typeHints.hover.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show function return type details in hover tooltips.",
+          "scope": "resource"
+        },
+        "bird2-lsp.typeHints.inlay.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show function return type as inlay hints (POC).",
+          "scope": "resource"
         }
       }
     }
   },
   "dependencies": {
+    "@birdcc/parser": "workspace:*",
     "@birdcc/formatter": "workspace:*",
     "vscode-languageclient": "^9.0.1",
     "zod": "^4.1.11"

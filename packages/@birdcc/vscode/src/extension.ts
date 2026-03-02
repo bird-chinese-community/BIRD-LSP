@@ -11,6 +11,7 @@ import {
 } from "./fallback/index.js";
 import { createBirdFormattingProvider } from "./formatter/index.js";
 import { createBirdStatusBarManager } from "./status/index.js";
+import { registerBirdTypeHintProviders } from "./type-hints/index.js";
 import { createDefaultRuntimeState } from "./types.js";
 import { LANGUAGE_ID } from "./constants.js";
 
@@ -190,6 +191,12 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       { language: LANGUAGE_ID, scheme: "file" },
       formattingProvider,
     ),
+  );
+  context.subscriptions.push(
+    ...registerBirdTypeHintProviders({
+      getConfiguration: () => runtimeState.configuration,
+      outputChannel,
+    }),
   );
   context.subscriptions.push(
     ...registerBirdCommands({
