@@ -71,6 +71,34 @@ describe("@birdcc/linter net+type rules", () => {
     expect(codes).toContain("net/invalid-prefix-length");
   });
 
+  it("hits net/max-prefix-length for ipv6 channel max prefix overflow", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 2001:db8::1 as 65002;
+        ipv6 {
+          max prefix 129;
+        };
+      }
+    `);
+
+    expect(codes).toContain("net/max-prefix-length");
+  });
+
+  it("hits net/invalid-prefix-length for non-numeric max prefix token", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv4 {
+          max prefix unlimited;
+        };
+      }
+    `);
+
+    expect(codes).toContain("net/invalid-prefix-length");
+  });
+
   it("hits type/mismatch", async () => {
     const codes = await codesOf(`
       filter f1 {
