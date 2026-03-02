@@ -20,6 +20,7 @@ import {
   collectFunctionReturnHints,
   type FunctionReturnHint,
 } from "./inference.js";
+import { createTypeHintCache } from "./cache.js";
 
 export interface BirdTypeHintRegistrationContext {
   readonly getConfiguration: () => ExtensionConfiguration;
@@ -30,6 +31,9 @@ interface CachedHintSnapshot {
   readonly version: number;
   readonly hints: readonly FunctionReturnHint[];
 }
+
+const TYPE_HINT_CACHE_MAX_ENTRIES = 50;
+const TYPE_HINT_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const toRange = (
   line: number,
@@ -70,20 +74,24 @@ export const registerBirdTypeHintProviders = ({
   getConfiguration,
   outputChannel,
 }: BirdTypeHintRegistrationContext): readonly Disposable[] => {
-  const cache = new Map<string, CachedHintSnapshot>();
+  const cache = createTypeHintCache<FunctionReturnHint>({
+    maxEntries: TYPE_HINT_CACHE_MAX_ENTRIES,
+    ttlMs: TYPE_HINT_CACHE_TTL_MS,
+  });
   const warningCache = new Set<string>();
 
   const loadHints = async (
     document: TextDocument,
   ): Promise<readonly FunctionReturnHint[]> => {
     const key = document.uri.toString();
-    const cached = cache.get(key);
-    if (cached && cached.version === document.version) {
-      return cached.hints;
+    const cachedHints = cache.get(key, document.version);
+    if (cachedHints) {
+      return cachedHints;
     }
 
     const hints = await collectFunctionReturnHints(document.getText());
-    cache.set(key, { version: document.version, hints });
+    const snapshot: CachedHintSnapshot = { version: document.version, hints };
+    cache.set(key, snapshot.version, snapshot.hints);
     return hints;
   };
 

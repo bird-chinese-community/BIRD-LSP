@@ -7,22 +7,9 @@ import {
 
 import {
   CONFIG_SECTION,
-  DEFAULT_FORMATTER_ENGINE,
-  DEFAULT_FORMATTER_SAFE_MODE,
-  DEFAULT_TYPE_HINTS_ENABLED,
-  DEFAULT_TYPE_HINTS_HOVER_ENABLED,
-  DEFAULT_TYPE_HINTS_INLAY_ENABLED,
-  DEFAULT_HIDDEN_ERRORS,
-  DEFAULT_LSP_ENABLED,
-  DEFAULT_SERVER_PATH,
-  DEFAULT_TRACE_SERVER,
-  DEFAULT_VALIDATION_COMMAND,
-  DEFAULT_VALIDATION_ON_SAVE,
-  DEFAULT_VALIDATION_TIMEOUT_MS,
-  DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
-  DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
   RESTART_REQUIRED_CONFIGURATION_PATHS,
 } from "../constants.js";
+import { extensionConfigurationFields } from "./schema.js";
 import {
   defaultExtensionConfiguration,
   parseExtensionConfiguration,
@@ -56,49 +43,66 @@ const areValuesEqual = (left: unknown, right: unknown): boolean =>
 
 const readWorkspaceConfiguration = (): ExtensionConfiguration => {
   const config = workspace.getConfiguration(CONFIG_SECTION);
+  const fields = extensionConfigurationFields;
 
   return parseExtensionConfiguration({
-    enabled: config.get("enabled", DEFAULT_LSP_ENABLED),
-    serverPath: config.get("serverPath", [...DEFAULT_SERVER_PATH]),
-    traceServer: config.get("trace.server", DEFAULT_TRACE_SERVER),
-    hiddenErrors: config.get("hiddenErrors", [...DEFAULT_HIDDEN_ERRORS]),
-    validationEnabled: config.get("validation.enabled", true),
+    enabled: config.get(
+      fields.enabled.workspaceKey,
+      fields.enabled.defaultValue,
+    ),
+    serverPath: config.get(fields.serverPath.workspaceKey, [
+      ...fields.serverPath.defaultValue,
+    ]),
+    traceServer: config.get(
+      fields.traceServer.workspaceKey,
+      fields.traceServer.defaultValue,
+    ),
+    hiddenErrors: config.get(fields.hiddenErrors.workspaceKey, [
+      ...fields.hiddenErrors.defaultValue,
+    ]),
+    validationEnabled: config.get(
+      fields.validationEnabled.workspaceKey,
+      fields.validationEnabled.defaultValue,
+    ),
     validationCommand: config.get(
-      "validation.command",
-      DEFAULT_VALIDATION_COMMAND,
+      fields.validationCommand.workspaceKey,
+      fields.validationCommand.defaultValue,
     ),
     validationOnSave: config.get(
-      "validation.onSave",
-      DEFAULT_VALIDATION_ON_SAVE,
+      fields.validationOnSave.workspaceKey,
+      fields.validationOnSave.defaultValue,
     ),
     validationTimeoutMs: config.get(
-      "validation.timeout",
-      DEFAULT_VALIDATION_TIMEOUT_MS,
+      fields.validationTimeoutMs.workspaceKey,
+      fields.validationTimeoutMs.defaultValue,
     ),
     performanceMaxFileSizeBytes: config.get(
-      "performance.maxFileSizeBytes",
-      DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
+      fields.performanceMaxFileSizeBytes.workspaceKey,
+      fields.performanceMaxFileSizeBytes.defaultValue,
     ),
     lspStartupTimeoutMs: config.get(
-      "performance.startupTimeoutMs",
-      DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
+      fields.lspStartupTimeoutMs.workspaceKey,
+      fields.lspStartupTimeoutMs.defaultValue,
     ),
-    formatterEngine: config.get("formatter.engine", DEFAULT_FORMATTER_ENGINE),
+    formatterEngine: config.get(
+      fields.formatterEngine.workspaceKey,
+      fields.formatterEngine.defaultValue,
+    ),
     formatterSafeMode: config.get(
-      "formatter.safeMode",
-      DEFAULT_FORMATTER_SAFE_MODE,
+      fields.formatterSafeMode.workspaceKey,
+      fields.formatterSafeMode.defaultValue,
     ),
     typeHintsEnabled: config.get(
-      "typeHints.enabled",
-      DEFAULT_TYPE_HINTS_ENABLED,
+      fields.typeHintsEnabled.workspaceKey,
+      fields.typeHintsEnabled.defaultValue,
     ),
     typeHintsHoverEnabled: config.get(
-      "typeHints.hover.enabled",
-      DEFAULT_TYPE_HINTS_HOVER_ENABLED,
+      fields.typeHintsHoverEnabled.workspaceKey,
+      fields.typeHintsHoverEnabled.defaultValue,
     ),
     typeHintsInlayEnabled: config.get(
-      "typeHints.inlay.enabled",
-      DEFAULT_TYPE_HINTS_INLAY_ENABLED,
+      fields.typeHintsInlayEnabled.workspaceKey,
+      fields.typeHintsInlayEnabled.defaultValue,
     ),
   });
 };

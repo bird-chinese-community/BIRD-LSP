@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { isAbsolute, normalize, relative, resolve } from "node:path";
-import { promisify } from "node:util";
 
 import {
   DiagnosticSeverity,
@@ -24,7 +23,40 @@ import {
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
 
-const execFileAsync = promisify(execFile);
+const VALIDATION_DEBOUNCE_MS = 300;
+
+const execFileAsync = async (
+  command: string,
+  args: readonly string[],
+  timeoutMs: number,
+): Promise<{ stdout: string; stderr: string }> =>
+  new Promise((resolvePromise, rejectPromise) => {
+    execFile(
+      command,
+      [...args],
+      { timeout: timeoutMs },
+      (error, stdout, stderr) => {
+        const normalizedStdout = String(stdout ?? "");
+        const normalizedStderr = String(stderr ?? "");
+
+        if (error) {
+          const execError = error as Error & {
+            stdout?: string;
+            stderr?: string;
+          };
+          execError.stdout = normalizedStdout;
+          execError.stderr = normalizedStderr;
+          rejectPromise(execError);
+          return;
+        }
+
+        resolvePromise({
+          stdout: normalizedStdout,
+          stderr: normalizedStderr,
+        });
+      },
+    );
+  });
 
 export interface FallbackValidator {
   activate: () => void;
@@ -111,7 +143,26 @@ export const createFallbackValidator = (
   const disposables: Disposable[] = [];
   const warningCache = new Set<string>();
   const approvedCustomValidationCommands = new Set<string>();
+  const pendingValidationTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  const latestValidationTicketByUri = new Map<string, number>();
+  let nextValidationTicket = 0;
   let trustWarningShown = false;
+
+  const clearPendingValidationTimer = (uri: string): void => {
+    const timer = pendingValidationTimers.get(uri);
+    if (!timer) {
+      return;
+    }
+
+    clearTimeout(timer);
+    pendingValidationTimers.delete(uri);
+  };
+
+  const isLatestValidationTicket = (uri: string, ticket: number): boolean =>
+    latestValidationTicketByUri.get(uri) === ticket;
 
   const clearDocumentDiagnostics = (document: TextDocument): void => {
     diagnosticCollection.delete(document.uri);
@@ -146,19 +197,31 @@ export const createFallbackValidator = (
     return true;
   };
 
-  const validateDocument = async (document: TextDocument): Promise<void> => {
+  const runValidation = async (
+    document: TextDocument,
+    ticket: number,
+  ): Promise<void> => {
+    const uri = document.uri.toString();
+    if (!isLatestValidationTicket(uri, ticket)) {
+      return;
+    }
+
     if (!isBirdDocument(document)) {
       return;
     }
 
     const configuration = getConfiguration();
     if (!configuration.validationEnabled) {
-      clearDocumentDiagnostics(document);
+      if (isLatestValidationTicket(uri, ticket)) {
+        clearDocumentDiagnostics(document);
+      }
       return;
     }
 
     if (!workspace.isTrusted) {
-      clearDocumentDiagnostics(document);
+      if (isLatestValidationTicket(uri, ticket)) {
+        clearDocumentDiagnostics(document);
+      }
       if (!trustWarningShown) {
         outputChannel.appendLine(
           "[bird2-lsp] workspace is untrusted; skip fallback validation command execution",
@@ -176,6 +239,10 @@ export const createFallbackValidator = (
       featureName: "fallback validation",
       warningCache,
     });
+    if (!isLatestValidationTicket(uri, ticket)) {
+      return;
+    }
+
     if (guard.skipped) {
       clearDocumentDiagnostics(document);
       return;
@@ -195,6 +262,10 @@ export const createFallbackValidator = (
     }
 
     const permissionCheck = await checkFilePermission(document.uri.fsPath);
+    if (!isLatestValidationTicket(uri, ticket)) {
+      return;
+    }
+
     if (!permissionCheck.ok) {
       if (permissionCheck.reason === "world-writable") {
         outputChannel.appendLine(
@@ -220,7 +291,12 @@ export const createFallbackValidator = (
       return;
     }
 
-    if (!(await approveValidationCommandIfNeeded(configuration))) {
+    const approved = await approveValidationCommandIfNeeded(configuration);
+    if (!isLatestValidationTicket(uri, ticket)) {
+      return;
+    }
+
+    if (!approved) {
       outputChannel.appendLine(
         "[bird2-lsp] fallback validation command execution cancelled by user",
       );
@@ -248,11 +324,16 @@ export const createFallbackValidator = (
     );
 
     try {
-      await execFileAsync(bin, args, {
-        timeout: configuration.validationTimeoutMs,
-      });
+      await execFileAsync(bin, args, configuration.validationTimeoutMs);
+      if (!isLatestValidationTicket(uri, ticket)) {
+        return;
+      }
       clearDocumentDiagnostics(document);
     } catch (error) {
+      if (!isLatestValidationTicket(uri, ticket)) {
+        return;
+      }
+
       const typedError = error as {
         stdout?: string;
         stderr?: string;
@@ -286,6 +367,32 @@ export const createFallbackValidator = (
     }
   };
 
+  const validateDocument = async (document: TextDocument): Promise<void> => {
+    const uri = document.uri.toString();
+    clearPendingValidationTimer(uri);
+    const ticket = ++nextValidationTicket;
+    latestValidationTicketByUri.set(uri, ticket);
+    await runValidation(document, ticket);
+  };
+
+  const scheduleValidation = (document: TextDocument): void => {
+    if (!isBirdDocument(document)) {
+      return;
+    }
+
+    const uri = document.uri.toString();
+    clearPendingValidationTimer(uri);
+    const ticket = ++nextValidationTicket;
+    latestValidationTicketByUri.set(uri, ticket);
+
+    const timer = setTimeout(() => {
+      pendingValidationTimers.delete(uri);
+      void runValidation(document, ticket);
+    }, VALIDATION_DEBOUNCE_MS);
+
+    pendingValidationTimers.set(uri, timer);
+  };
+
   const validateActiveEditor = async (): Promise<void> => {
     const activeDocument = window.activeTextEditor?.document;
     if (!activeDocument) {
@@ -298,7 +405,7 @@ export const createFallbackValidator = (
   const activate = (): void => {
     disposables.push(
       workspace.onDidOpenTextDocument((document) => {
-        void validateDocument(document);
+        scheduleValidation(document);
       }),
     );
 
@@ -308,7 +415,16 @@ export const createFallbackValidator = (
           return;
         }
 
-        void validateDocument(document);
+        scheduleValidation(document);
+      }),
+    );
+
+    disposables.push(
+      workspace.onDidCloseTextDocument((document) => {
+        const uri = document.uri.toString();
+        clearPendingValidationTimer(uri);
+        latestValidationTicketByUri.delete(uri);
+        clearDocumentDiagnostics(document);
       }),
     );
 
@@ -323,6 +439,12 @@ export const createFallbackValidator = (
   };
 
   const dispose = (): void => {
+    for (const timer of pendingValidationTimers.values()) {
+      clearTimeout(timer);
+    }
+    pendingValidationTimers.clear();
+    latestValidationTicketByUri.clear();
+
     for (const disposable of disposables) {
       disposable.dispose();
     }
