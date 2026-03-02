@@ -7,9 +7,9 @@
     "target/*",
     "*.lock",
     "pnpm-*.yaml",
-    "*-lock.json",
+    "*-lock.json"
   ],
   "printWidth": 80,
   "tabWidth": 2,
-  "useTabs": false,
+  "useTabs": false
 }

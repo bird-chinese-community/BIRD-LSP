@@ -40,14 +40,14 @@ console.log(result.diagnostics);
 
 ## 规则分级
 
-| 分类            | 默认级别 | CI 策略 |
-| --------------- | -------- | ------- |
-| `sym/*`         | error    | 阻塞    |
-| `cfg/*`         | error    | 阻塞    |
-| `net/*`         | error    | 阻塞    |
-| `type/*`        | error    | 阻塞    |
-| `bgp/*`         | warning  | 非阻塞  |
-| `ospf/*`        | warning  | 非阻塞  |
+| 分类     | 默认级别 | CI 策略 |
+| -------- | -------- | ------- |
+| `sym/*`  | error    | 阻塞    |
+| `cfg/*`  | error    | 阻塞    |
+| `net/*`  | error    | 阻塞    |
+| `type/*` | error    | 阻塞    |
+| `bgp/*`  | warning  | 非阻塞  |
+| `ospf/*` | warning  | 非阻塞  |
 
 ---
 
