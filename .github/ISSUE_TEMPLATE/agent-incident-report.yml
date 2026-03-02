@@ -10,9 +10,6 @@ body:
     attributes:
       value: |
         Use this form when execution is blocked, risky, or abnormal.
-        Please include parent links using:
-        - `Part of #62`
-        - `Part of #61` (when applicable)
 
   - type: dropdown
     id: trigger
@@ -32,9 +29,11 @@ body:
   - type: input
     id: related_links
     attributes:
-      label: Related Links
-      description: Parent issue/PR links or IDs (for example #68, #62, #74).
-      placeholder: "#62, #67, #74"
+      label: Parent and Related Links
+      description: |
+        All incidents must include `Part of #62`.
+        Include `Part of #61` when applicable, plus any related issue/PR links.
+      placeholder: "Part of #62, Part of #61, #74"
     validations:
       required: true
 
@@ -90,7 +89,7 @@ body:
     attributes:
       label: Submission Checklist
       options:
-        - label: Added parent links (`Part of #62` and optional `Part of #61`).
+        - label: Added required parent links in the related links field.
           required: true
         - label: Included reproducible evidence (steps/logs).
           required: true

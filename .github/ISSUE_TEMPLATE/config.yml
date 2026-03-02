@@ -1,4 +1,4 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: BIRD-LSP Task Index
     url: https://github.com/bird-chinese-community/BIRD-LSP/issues/62
