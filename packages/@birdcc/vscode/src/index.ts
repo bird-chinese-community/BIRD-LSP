@@ -46,3 +46,9 @@ export {
   type FallbackValidator,
 } from "./fallback/index.js";
 export { createBirdFormattingProvider } from "./formatter/index.js";
+export {
+  BIRD_COMMAND_IDS,
+  registerBirdCommands,
+  type BirdCommandId,
+  type BirdCommandRegistrationContext,
+} from "./commands/index.js";

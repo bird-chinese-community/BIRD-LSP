@@ -34,6 +34,15 @@
   },
   "activationEvents": [
     "onLanguage:bird2",
+    "onCommand:bird2-lsp.restartLanguageServer",
+    "onCommand:bird2-lsp.enableLanguageServer",
+    "onCommand:bird2-lsp.disableLanguageServer",
+    "onCommand:bird2-lsp.validateActiveDocument",
+    "onCommand:bird2-lsp.formatActiveDocument",
+    "onCommand:bird2-lsp.openSettings",
+    "onCommand:bird2-lsp.showOutputChannel",
+    "onCommand:bird2-lsp.showDocumentation",
+    "onCommand:bird2-lsp.reloadConfiguration",
     "workspaceContains:**/bird.conf",
     "workspaceContains:**/bird2.conf",
     "workspaceContains:**/bird3.conf",
@@ -65,6 +74,53 @@
           "bird2.conf"
         ],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "bird2-lsp.restartLanguageServer",
+        "title": "BIRD2: Restart Language Server",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.enableLanguageServer",
+        "title": "BIRD2: Enable Language Server",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.disableLanguageServer",
+        "title": "BIRD2: Disable Language Server",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.validateActiveDocument",
+        "title": "BIRD2: Validate Active Document",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.formatActiveDocument",
+        "title": "BIRD2: Format Active Document",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.openSettings",
+        "title": "BIRD2: Open Extension Settings",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.showOutputChannel",
+        "title": "BIRD2: Show Output Channel",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.showDocumentation",
+        "title": "BIRD2: Open Documentation",
+        "category": "BIRD2"
+      },
+      {
+        "command": "bird2-lsp.reloadConfiguration",
+        "title": "BIRD2: Reload Configuration",
+        "category": "BIRD2"
       }
     ],
     "configuration": {

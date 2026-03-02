@@ -2,6 +2,7 @@ import { languages, window, workspace } from "vscode";
 import type { ExtensionContext } from "vscode";
 
 import { createBirdClientLifecycle } from "./client/index.js";
+import { registerBirdCommands } from "./commands/index.js";
 import { createConfigurationManager } from "./config/index.js";
 import { EXTENSION_NAME } from "./constants.js";
 import {
@@ -111,6 +112,31 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       onWorkspaceTrustBlocked,
     );
   };
+  const reloadConfiguration = async (): Promise<void> => {
+    const change =
+      configurationManager.refreshFromWorkspace("workspace-change");
+    if (change.changedPaths.length === 0) {
+      await runLifecycle(change);
+    }
+  };
+  const validateActiveDocument = async (): Promise<void> => {
+    const isLanguageServerEnabled = runtimeState.configuration.enabled;
+    if (!isLanguageServerEnabled) {
+      const validator = createOrGetFallbackValidator();
+      await validator.validateActiveEditor();
+      return;
+    }
+
+    const oneShotValidator = createFallbackValidator(
+      () => runtimeState.configuration,
+      outputChannel,
+    );
+    try {
+      await oneShotValidator.validateActiveEditor();
+    } finally {
+      oneShotValidator.dispose();
+    }
+  };
 
   const initialChange =
     configurationManager.refreshFromWorkspace("initial-load");
@@ -145,6 +171,15 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       { language: LANGUAGE_ID, scheme: "file" },
       formattingProvider,
     ),
+  );
+  context.subscriptions.push(
+    ...registerBirdCommands({
+      outputChannel,
+      lifecycle,
+      getConfiguration: () => runtimeState.configuration,
+      validateActiveDocument,
+      reloadConfiguration,
+    }),
   );
 
   context.subscriptions.push({
