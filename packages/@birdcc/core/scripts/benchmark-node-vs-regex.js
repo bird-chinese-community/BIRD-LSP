@@ -1,4 +1,4 @@
-// Run: node bench-ip.mjs
+// Run: pnpm --filter @birdcc/core bench:ip-check
 
 import { bench, run, summary, barplot } from "mitata";
 import { isIP } from "node:net";
@@ -34,16 +34,26 @@ const samples = [
   "999.999.999.999", // invalid (out of range)
 ];
 
-const sample100k = Array.from(
-  { length: 100000 },
-  () => samples[Math.floor(Math.random() * samples.length)],
-);
+const parseSampleSize = (value) => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 100000;
+  }
+  return parsed;
+};
+
+const sampleSize = parseSampleSize(process.env.BENCH_SAMPLE_SIZE);
+const samplePool = Array.from({ length: sampleSize }, (_, index) => {
+  return samples[index % samples.length];
+});
 
 // Sanity-check: both implementations must agree on every sample
 for (const s of samples) {
   const r = isIP_regex(s);
   const n = isIP(s);
-  if (r !== n) console.warn(`[mismatch] "${s}"  regex=${r}  node=${n}`);
+  if (r !== n) {
+    throw new Error(`[mismatch] "${s}" regex=${r} node=${n}`);
+  }
 }
 
 // --- benchmarks ---
@@ -64,11 +74,11 @@ summary(() => {
     bench("node   · 10-sample mixed loop", () => {
       for (const s of samples) isIP(s);
     });
-    bench("regex  · 100k-sample random loop", () => {
-      for (const s of sample100k) isIP_regex(s);
+    bench(`regex  · ${sampleSize}-sample deterministic loop`, () => {
+      for (const s of samplePool) isIP_regex(s);
     });
-    bench("node   · 100k-sample random loop", () => {
-      for (const s of sample100k) isIP(s);
+    bench(`node   · ${sampleSize}-sample deterministic loop`, () => {
+      for (const s of samplePool) isIP(s);
     });
   });
 });

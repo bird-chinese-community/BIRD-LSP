@@ -23,6 +23,10 @@ on:
         description: "Worker timeout (ms) when isolate=true"
         required: false
         default: "60000"
+      ip_bench_sample_size:
+        description: "Sample size for core IP benchmark"
+        required: false
+        default: "100000"
 
 jobs:
   bench:
@@ -43,6 +47,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Run core node-vs-regex IP benchmark
+        run: |
+          BENCH_SAMPLE_SIZE="${{ inputs.ip_bench_sample_size }}" \
+            pnpm --filter @birdcc/core bench:ip-check | tee bench-ip-check.txt
       - run: |
           EXTRA_ARGS=""
           if [ "${{ inputs.isolate }}" = "true" ]; then
@@ -58,4 +66,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bench-realworld-configs
-          path: bench-realworld.json
+          path: |
+            bench-realworld.json
+            bench-ip-check.txt
