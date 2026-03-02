@@ -1,8 +1,8 @@
 name: Cross Platform Compat
 
 on:
-  push:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: cross-platform-compat-${{ github.ref }}
