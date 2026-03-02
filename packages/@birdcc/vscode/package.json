@@ -275,7 +275,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "pnpm --filter @birdcc/parser build && vitest run",
-    "test:e2e": "pnpm --filter @birdcc/parser build && node e2e/run.mjs",
+    "test:e2e": "pnpm --filter @birdcc/parser build && pnpm --filter @birdcc/formatter build && node e2e/run.mjs",
     "format": "oxfmt .",
     "coverage": "pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
   }
