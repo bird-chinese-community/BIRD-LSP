@@ -13,3 +13,6 @@
 [submodule "refer/vscode-nix-ide"]
 	path = refer/vscode-nix-ide
 	url = https://github.com/nix-community/vscode-nix-ide.git
+[submodule "refer/vscode-nginx-conf"]
+	path = refer/vscode-nginx-conf
+	url = https://github.com/ahmadalli/vscode-nginx-conf.git
