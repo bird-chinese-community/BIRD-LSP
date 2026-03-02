@@ -14,6 +14,7 @@ import {
   DEFAULT_VALIDATION_ON_SAVE,
   DEFAULT_VALIDATION_TIMEOUT_MS,
   DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
+  DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
   EXTENSION_ID,
   EXTENSION_NAME,
 } from "./constants.js";
@@ -40,6 +41,7 @@ export const extensionConfigurationSchema = z.object({
     .int()
     .min(64 * 1024)
     .max(100 * 1024 * 1024),
+  lspStartupTimeoutMs: z.number().int().min(1000).max(120000),
   formatterEngine: formatterEngineSchema,
   formatterSafeMode: z.boolean(),
   typeHintsEnabled: z.boolean(),
@@ -71,6 +73,7 @@ export const defaultExtensionConfiguration: ExtensionConfiguration =
     validationOnSave: DEFAULT_VALIDATION_ON_SAVE,
     validationTimeoutMs: DEFAULT_VALIDATION_TIMEOUT_MS,
     performanceMaxFileSizeBytes: DEFAULT_PERFORMANCE_MAX_FILE_SIZE_BYTES,
+    lspStartupTimeoutMs: DEFAULT_PERFORMANCE_STARTUP_TIMEOUT_MS,
     formatterEngine: DEFAULT_FORMATTER_ENGINE,
     formatterSafeMode: DEFAULT_FORMATTER_SAFE_MODE,
     typeHintsEnabled: DEFAULT_TYPE_HINTS_ENABLED,

@@ -14,6 +14,7 @@ import { createBirdStatusBarManager } from "./status/index.js";
 import { registerBirdTypeHintProviders } from "./type-hints/index.js";
 import { createDefaultRuntimeState } from "./types.js";
 import { LANGUAGE_ID } from "./constants.js";
+import { toSanitizedErrorDetails } from "./security/index.js";
 
 export const runtimeState = createDefaultRuntimeState();
 
@@ -132,11 +133,26 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       refreshStatus,
     );
   };
+  const runLifecycleSafely = (
+    change: ReturnType<
+      ReturnType<typeof createConfigurationManager>["refreshFromWorkspace"]
+    >,
+    source: "initial-load" | "configuration-change" | "workspace-trust",
+  ): void => {
+    void runLifecycle(change).catch((error) => {
+      outputChannel.appendLine(
+        `[bird2-lsp] lifecycle update failed (${source}): ${toSanitizedErrorDetails(error)}`,
+      );
+      const validator = createOrGetFallbackValidator();
+      void validator.validateActiveEditor();
+      refreshStatus();
+    });
+  };
   const reloadConfiguration = async (): Promise<void> => {
     const change =
       configurationManager.refreshFromWorkspace("workspace-change");
     if (change.changedPaths.length === 0) {
-      await runLifecycle(change);
+      runLifecycleSafely(change, "configuration-change");
     }
   };
   const validateActiveDocument = async (): Promise<void> => {
@@ -160,11 +176,11 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
   const initialChange =
     configurationManager.refreshFromWorkspace("initial-load");
-  await runLifecycle(initialChange);
+  runLifecycleSafely(initialChange, "initial-load");
 
   context.subscriptions.push(
     configurationManager.onDidChange((event) => {
-      void runLifecycle(event);
+      runLifecycleSafely(event, "configuration-change");
     }),
   );
 
@@ -182,7 +198,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       workspaceTrustWarningShown = false;
       const change =
         configurationManager.refreshFromWorkspace("workspace-change");
-      void runLifecycle(change);
+      runLifecycleSafely(change, "workspace-trust");
     }),
   );
 
