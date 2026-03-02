@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -96,6 +98,6 @@ describe("validation template resolution", () => {
     expect(result.value.args).toHaveLength(3);
     expect(result.value.args[0]).toBe("-p");
     expect(result.value.args[1]).toBe("-c");
-    expect(result.value.args[2]).toContain("fixtures/test.conf");
+    expect(basename(result.value.args[2])).toBe("test.conf");
   });
 });
