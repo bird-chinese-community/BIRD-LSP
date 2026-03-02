@@ -1,9 +1,5 @@
 import { isIP } from "node:net";
-import {
-  parseBirdConfig,
-  type FunctionDeclaration,
-  type ReturnStatement,
-} from "@birdcc/parser";
+import { parseBirdConfig, type FunctionDeclaration } from "@birdcc/parser";
 
 export type BirdHintType =
   | "int"
@@ -40,6 +36,69 @@ const BOOLEAN_OPERATORS = [
 ] as const;
 
 const prefixLiteralPattern = /^([0-9a-fA-F:.]+)\s*\/\s*([0-9]{1,3})$/;
+const returnExpressionPattern = /\breturn\s+([^;]+)\s*;/gu;
+
+interface SourceRangeLike {
+  readonly line: number;
+  readonly column: number;
+  readonly endLine: number;
+  readonly endColumn: number;
+}
+
+const buildLineOffsets = (source: string): readonly number[] => {
+  const offsets: number[] = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      offsets.push(index + 1);
+    }
+  }
+
+  return offsets;
+};
+
+const toOffset = (
+  source: string,
+  lineOffsets: readonly number[],
+  line: number,
+  column: number,
+): number => {
+  const lineIndex = Math.max(line - 1, 0);
+  const lineStart = lineOffsets[lineIndex] ?? 0;
+  const lineEnd =
+    lineIndex + 1 < lineOffsets.length
+      ? (lineOffsets[lineIndex + 1] ?? source.length)
+      : source.length;
+  const offset = lineStart + Math.max(column - 1, 0);
+  return Math.max(lineStart, Math.min(offset, lineEnd));
+};
+
+const sliceSourceRange = (
+  source: string,
+  lineOffsets: readonly number[],
+  range: SourceRangeLike,
+): string => {
+  const start = toOffset(source, lineOffsets, range.line, range.column);
+  const end = toOffset(source, lineOffsets, range.endLine, range.endColumn);
+  return source.slice(start, end);
+};
+
+const containsBooleanOperator = (value: string): boolean => {
+  for (const operator of BOOLEAN_OPERATORS) {
+    if (operator === "<" || operator === ">" || operator === "~") {
+      const pattern = new RegExp(`\\s\\${operator}\\s`, "u");
+      if (pattern.test(value)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (value.includes(operator)) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const inferLiteralType = (expression: string): BirdHintType => {
   const value = expression.trim();
@@ -63,11 +122,11 @@ const inferLiteralType = (expression: string): BirdHintType => {
     return "string";
   }
 
-  if (value.includes(".mask(")) {
+  if (/\.[A-Za-z_][A-Za-z0-9_]*\s*\(/u.test(value) && value.includes(".mask")) {
     return "prefix";
   }
 
-  if (value.includes(".len")) {
+  if (/\.[A-Za-z_][A-Za-z0-9_]*/u.test(value) && value.includes(".len")) {
     return "int";
   }
 
@@ -85,10 +144,7 @@ const inferLiteralType = (expression: string): BirdHintType => {
     return "ip";
   }
 
-  if (
-    BOOLEAN_OPERATORS.some((operator) => value.includes(operator)) ||
-    value.startsWith("defined(")
-  ) {
+  if (containsBooleanOperator(value) || value.startsWith("defined(")) {
     return "bool";
   }
 
@@ -97,46 +153,64 @@ const inferLiteralType = (expression: string): BirdHintType => {
 
 const collectDeclaredReturnType = (
   source: string,
+  lineOffsets: readonly number[],
   declaration: FunctionDeclaration,
 ): string | undefined => {
-  const declarationLine = source.split(/\r?\n/u)[declaration.line - 1];
-  if (!declarationLine) {
-    return undefined;
-  }
-
-  const arrowIndex = declarationLine.indexOf("->");
-  if (arrowIndex === -1) {
-    return undefined;
-  }
-
-  const beforeBody = declarationLine.slice(arrowIndex + 2).split("{")[0];
-  const returnType = beforeBody.trim().split(/\s+/u)[0];
-  if (!returnType) {
-    return undefined;
-  }
-
-  return returnType;
+  const declarationText = sliceSourceRange(source, lineOffsets, declaration);
+  const headerText = declarationText.split("{")[0] ?? declarationText;
+  const match = headerText.match(/->\s*([A-Za-z_][A-Za-z0-9_]*)/u);
+  return match?.[1];
 };
 
 const inferFunctionReturnType = (
+  source: string,
+  lineOffsets: readonly number[],
   declaration: FunctionDeclaration,
 ): {
   inferredReturnType: BirdHintType;
   returnDetails: readonly FunctionReturnDetail[];
 } => {
-  const returnDetails = declaration.statements
+  const statementDetails = declaration.statements
     .filter(
-      (statement): statement is ReturnStatement =>
-        statement.kind === "return" && Boolean(statement.valueText),
+      (statement): statement is SourceRangeLike & { kind: "return" } =>
+        statement.kind === "return",
     )
     .map((statement) => {
-      const expression = statement.valueText?.trim() ?? "";
+      const statementText = sliceSourceRange(source, lineOffsets, statement);
+      const expression = statementText
+        .replace(/^\s*return/u, "")
+        .replace(/;\s*$/u, "")
+        .trim();
+
+      if (!expression) {
+        return null;
+      }
+
       return {
         line: statement.line,
         expression,
         inferredType: inferLiteralType(expression),
       } satisfies FunctionReturnDetail;
+    })
+    .filter((detail): detail is FunctionReturnDetail => detail !== null);
+
+  let returnDetails = statementDetails;
+  if (returnDetails.length === 0) {
+    const declarationText = sliceSourceRange(source, lineOffsets, declaration);
+    returnDetails = Array.from(
+      declarationText.matchAll(returnExpressionPattern),
+    ).map((match) => {
+      const expression = (match[1] ?? "").trim();
+      const prefix = declarationText.slice(0, match.index ?? 0);
+      const lineOffset = prefix.split(/\r?\n/u).length - 1;
+
+      return {
+        line: declaration.line + Math.max(lineOffset, 0),
+        expression,
+        inferredType: inferLiteralType(expression),
+      } satisfies FunctionReturnDetail;
     });
+  }
 
   if (returnDetails.length === 0) {
     return { inferredReturnType: "unknown", returnDetails };
@@ -168,6 +242,7 @@ const inferFunctionReturnType = (
 export const collectFunctionReturnHints = async (
   source: string,
 ): Promise<readonly FunctionReturnHint[]> => {
+  const lineOffsets = buildLineOffsets(source);
   const parsed = await parseBirdConfig(source);
 
   return parsed.program.declarations
@@ -176,11 +251,19 @@ export const collectFunctionReturnHints = async (
         declaration.kind === "function",
     )
     .map((declaration) => {
-      const returnSummary = inferFunctionReturnType(declaration);
+      const returnSummary = inferFunctionReturnType(
+        source,
+        lineOffsets,
+        declaration,
+      );
 
       return {
         declaration,
-        declaredReturnType: collectDeclaredReturnType(source, declaration),
+        declaredReturnType: collectDeclaredReturnType(
+          source,
+          lineOffsets,
+          declaration,
+        ),
         inferredReturnType: returnSummary.inferredReturnType,
         returnDetails: returnSummary.returnDetails,
       } satisfies FunctionReturnHint;

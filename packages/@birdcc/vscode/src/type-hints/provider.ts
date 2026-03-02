@@ -6,6 +6,7 @@ import {
   Position,
   Range,
   languages,
+  workspace,
   type Disposable,
   type OutputChannel,
   type TextDocument,
@@ -50,21 +51,19 @@ const appendReturnDetails = (
   hint: FunctionReturnHint,
 ): void => {
   if (hint.returnDetails.length === 0) {
-    markdown.appendMarkdown("No explicit `return` statement found.\n");
+    markdown.appendText("No explicit return statement found.\n");
     return;
   }
 
-  markdown.appendMarkdown("Return expressions:\n");
+  markdown.appendText("Return expressions:\n");
   for (const detail of hint.returnDetails.slice(0, 5)) {
-    markdown.appendMarkdown(
-      `- L${detail.line}: \`${detail.expression}\` -> \`${detail.inferredType}\`\n`,
+    markdown.appendText(
+      `- L${detail.line}: ${detail.expression} -> ${detail.inferredType}\n`,
     );
   }
 
   if (hint.returnDetails.length > 5) {
-    markdown.appendMarkdown(
-      `- ... and ${hint.returnDetails.length - 5} more\n`,
-    );
+    markdown.appendText(`- ... and ${hint.returnDetails.length - 5} more\n`);
   }
 };
 
@@ -116,17 +115,15 @@ export const registerBirdTypeHintProviders = ({
             return null;
           }
 
-          const markdown = new MarkdownString("", true);
-          markdown.appendMarkdown(
-            `**function** \`${matchedHint.declaration.name}\`\n\n`,
-          );
+          const markdown = new MarkdownString("", false);
+          markdown.appendText(`function ${matchedHint.declaration.name}\n\n`);
           if (matchedHint.declaredReturnType) {
-            markdown.appendMarkdown(
-              `Declared return type: \`${matchedHint.declaredReturnType}\`\n\n`,
+            markdown.appendText(
+              `Declared return type: ${matchedHint.declaredReturnType}\n\n`,
             );
           }
-          markdown.appendMarkdown(
-            `Inferred return type: \`${matchedHint.inferredReturnType}\` (POC)\n\n`,
+          markdown.appendText(
+            `Inferred return type: ${matchedHint.inferredReturnType} (POC)\n\n`,
           );
           appendReturnDetails(markdown, matchedHint);
           markdown.isTrusted = false;
@@ -209,5 +206,9 @@ export const registerBirdTypeHintProviders = ({
     },
   );
 
-  return [hoverProvider, inlayProvider];
+  const closeSubscription = workspace.onDidCloseTextDocument((document) => {
+    cache.delete(document.uri.toString());
+  });
+
+  return [hoverProvider, inlayProvider, closeSubscription];
 };
