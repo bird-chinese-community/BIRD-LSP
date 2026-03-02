@@ -1,0 +1,61 @@
+name: Perf (Real-world Configs)
+
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: "Formatter engine: parse-only | builtin | dprint"
+        required: false
+        default: "builtin"
+      limit:
+        description: "Max files to benchmark"
+        required: false
+        default: "50"
+      max_bytes:
+        description: "Max file size in bytes"
+        required: false
+        default: "1048576"
+      isolate:
+        description: "Run each file in a worker with timeout (true/false)"
+        required: false
+        default: "false"
+      timeout_ms:
+        description: "Worker timeout (ms) when isolate=true"
+        required: false
+        default: "60000"
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: |
+          EXTRA_ARGS=""
+          if [ "${{ inputs.isolate }}" = "true" ]; then
+            EXTRA_ARGS="--isolate --timeout-ms ${{ inputs.timeout_ms }}"
+          fi
+
+          node tools/bench-realworld-configs.mjs \
+            --engine "${{ inputs.engine }}" \
+            --limit "${{ inputs.limit }}" \
+            --max-bytes "${{ inputs.max_bytes }}" \
+            $EXTRA_ARGS \
+            --json bench-realworld.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-realworld-configs
+          path: bench-realworld.json
