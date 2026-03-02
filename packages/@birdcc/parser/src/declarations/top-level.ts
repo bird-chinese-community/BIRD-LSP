@@ -2,6 +2,7 @@ import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { ParseIssue } from "../types.js";
 import { toRange } from "../tree.js";
 import {
+  TABLE_TYPES,
   type RouterIdDeclaration,
   type TableDeclaration,
   isNumericToken,
@@ -129,9 +130,7 @@ export const parseTableFromStatement = (
     nameTokenIndex = 2;
     attrsStartIndex = 3;
   } else if (
-    ["ipv4", "ipv6", "vpn4", "vpn6", "roa4", "roa6", "flow4", "flow6"].includes(
-      tokens[0]?.lowered ?? "",
-    ) &&
+    TABLE_TYPES.has(tokens[0]?.lowered ?? "") &&
     tokens[1]?.lowered === "table"
   ) {
     tableType = normalizeTableType(tokens[0]?.text ?? "");

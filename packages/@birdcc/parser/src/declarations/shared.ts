@@ -41,7 +41,7 @@ export const PROTOCOL_STATEMENT_TYPES = new Set([
   "expression_statement",
 ]);
 
-const TABLE_TYPES = new Set([
+export const TABLE_TYPES = new Set([
   "routing",
   "ipv4",
   "ipv6",
