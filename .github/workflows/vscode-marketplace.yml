@@ -1,0 +1,83 @@
+name: VSCode Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_marketplace:
+        description: "Publish to VS Code Marketplace (requires VSCE_PAT)"
+        required: true
+        default: false
+        type: boolean
+      publish_openvsx:
+        description: "Publish to OpenVSX (requires OVSX_PAT)"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  package-vsix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @birdcc/vscode marketplace:package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bird2-lsp-vsix
+          path: packages/@birdcc/vscode/dist/bird2-lsp.vsix
+          if-no-files-found: error
+
+  publish-vscode-marketplace:
+    needs: package-vsix
+    if: ${{ github.event.inputs.publish_marketplace == 'true' && secrets.VSCE_PAT != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-lsp-vsix
+          path: packages/@birdcc/vscode/dist
+      - run: pnpm --filter @birdcc/vscode marketplace:publish:vsce
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+  publish-openvsx:
+    needs: package-vsix
+    if: ${{ github.event.inputs.publish_openvsx == 'true' && secrets.OVSX_PAT != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-lsp-vsix
+          path: packages/@birdcc/vscode/dist
+      - run: pnpm --filter @birdcc/vscode marketplace:publish:ovsx
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
