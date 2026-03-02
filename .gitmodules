@@ -19,3 +19,12 @@
 [submodule "refer/bird2-autotype-beta"]
 	path = refer/bird2-autotype-beta
 	url = https://github.com/bird-chinese-community/bird2-autotype.git
+[submodule "refer/config-examples/net186"]
+	path = refer/config-examples/net186
+	url = https://github.com/186526/net186-config.git
+[submodule "refer/config-examples/jknet"]
+	path = refer/config-examples/jknet
+	url = https://github.com/HuJK-Data/JKNET-BIRD.git
+[submodule "refer/config-examples/poema-ix"]
+	path = refer/config-examples/poema-ix
+	url = https://github.com/PoemaIX/IX-BIRD-RS-Generator.git
