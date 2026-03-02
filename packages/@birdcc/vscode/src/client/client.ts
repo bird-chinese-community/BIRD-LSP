@@ -13,16 +13,8 @@ import {
   EXTENSION_NAME,
   LANGUAGE_ID,
 } from "../constants.js";
+import { resolveServerCommand } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
-
-const toServerCommand = (serverPath: ExtensionConfiguration["serverPath"]) => {
-  if (Array.isArray(serverPath)) {
-    const [command, ...args] = serverPath;
-    return { command, args };
-  }
-
-  return { command: serverPath, args: [] as string[] };
-};
 
 const toTraceLevel = (traceServer: ExtensionConfiguration["traceServer"]) => {
   switch (traceServer) {
@@ -39,10 +31,14 @@ export const createLanguageClient = (
   configuration: ExtensionConfiguration,
   outputChannel: OutputChannel,
 ): LanguageClient => {
-  const serverCommand = toServerCommand(configuration.serverPath);
+  const serverCommand = resolveServerCommand(configuration.serverPath);
+  if (!serverCommand.ok) {
+    throw new Error(`invalid bird2-lsp.serverPath: ${serverCommand.reason}`);
+  }
+
   const serverOptions: ServerOptions = {
-    command: serverCommand.command,
-    args: serverCommand.args,
+    command: serverCommand.value.command,
+    args: [...serverCommand.value.args],
   };
 
   const clientOptions: LanguageClientOptions = {
