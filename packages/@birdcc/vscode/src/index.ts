@@ -52,3 +52,8 @@ export {
   type BirdCommandId,
   type BirdCommandRegistrationContext,
 } from "./commands/index.js";
+export {
+  createBirdStatusBarManager,
+  type BirdStatusBarManager,
+  type BirdStatusSnapshot,
+} from "./status/index.js";
