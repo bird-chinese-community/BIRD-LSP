@@ -65,23 +65,89 @@ const CHANNEL_TYPES = new Set([
   "mpls",
 ]);
 
-const IPV4_LITERAL_PATTERN =
-  /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
-const IPV6_LITERAL_PATTERN = /^[0-9A-Fa-f:.]+$/;
-const IPV4_CANDIDATE_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/;
-const IPV6_CANDIDATE_PATTERN = /^[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*$/;
-
 export const isStrictIpv4Literal = (value: string): boolean =>
-  IPV4_LITERAL_PATTERN.test(value) && isIP(value) === 4;
+  isIP(value) === 4;
 
 export const isStrictIpv6Literal = (value: string): boolean =>
-  value.includes(":") && IPV6_LITERAL_PATTERN.test(value) && isIP(value) === 6;
+  isIP(value) === 6;
 
 export const isStrictIpLiteral = (value: string): boolean =>
   isStrictIpv4Literal(value) || isStrictIpv6Literal(value);
 
-export const isIpLiteralCandidate = (value: string): boolean =>
-  IPV4_CANDIDATE_PATTERN.test(value) || IPV6_CANDIDATE_PATTERN.test(value);
+const isAsciiDigit = (char: string): boolean => char >= "0" && char <= "9";
+
+const isAsciiHexDigit = (char: string): boolean =>
+  isAsciiDigit(char) ||
+  (char >= "a" && char <= "f") ||
+  (char >= "A" && char <= "F");
+
+const isIpv4CandidateShape = (value: string): boolean => {
+  let dotCount = 0;
+  let segmentLength = 0;
+
+  for (const char of value) {
+    if (isAsciiDigit(char)) {
+      segmentLength += 1;
+      if (segmentLength > 3) {
+        return false;
+      }
+      continue;
+    }
+
+    if (char !== ".") {
+      return false;
+    }
+
+    if (segmentLength === 0) {
+      return false;
+    }
+
+    dotCount += 1;
+    segmentLength = 0;
+  }
+
+  return dotCount === 3 && segmentLength > 0;
+};
+
+const isIpv6CandidateShape = (value: string): boolean => {
+  let hasColon = false;
+
+  for (const char of value) {
+    if (char === ":") {
+      hasColon = true;
+      continue;
+    }
+
+    if (char === "." || isAsciiHexDigit(char)) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return hasColon;
+};
+
+export const isIpLiteralCandidate = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+
+  if (isIP(trimmed) !== 0) {
+    return true;
+  }
+
+  if (trimmed.includes(".")) {
+    return isIpv4CandidateShape(trimmed);
+  }
+
+  if (trimmed.includes(":")) {
+    return isIpv6CandidateShape(trimmed);
+  }
+
+  return false;
+};
 
 export const protocolStatementNodesOf = (
   blockNode: SyntaxNode,
