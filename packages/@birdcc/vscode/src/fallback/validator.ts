@@ -15,6 +15,7 @@ import {
 } from "vscode";
 
 import { LANGUAGE_ID } from "../constants.js";
+import { enforceLargeFileGuard } from "../performance/large-file.js";
 import { resolveValidationCommandTemplate } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
@@ -68,6 +69,7 @@ export const createFallbackValidator = (
   const diagnosticCollection =
     languages.createDiagnosticCollection("bird2-fallback");
   const disposables: Disposable[] = [];
+  const warningCache = new Set<string>();
   let trustWarningShown = false;
 
   const clearDocumentDiagnostics = (document: TextDocument): void => {
@@ -97,6 +99,18 @@ export const createFallbackValidator = (
     }
 
     trustWarningShown = false;
+    const guard = await enforceLargeFileGuard({
+      document,
+      configuration,
+      outputChannel,
+      featureName: "fallback validation",
+      warningCache,
+    });
+    if (guard.skipped) {
+      clearDocumentDiagnostics(document);
+      return;
+    }
+
     const workspaceRoots = (
       workspace.workspaceFolders?.map((folder) => folder.uri.fsPath) ?? []
     ).filter((path) => path.length > 0);

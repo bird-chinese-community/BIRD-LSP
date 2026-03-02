@@ -207,6 +207,14 @@
           "markdownDescription": "Timeout for fallback validation command in milliseconds.",
           "scope": "resource"
         },
+        "bird2-lsp.performance.maxFileSizeBytes": {
+          "type": "number",
+          "default": 2097152,
+          "minimum": 65536,
+          "maximum": 104857600,
+          "markdownDescription": "Skip expensive extension features when file size exceeds this byte threshold.",
+          "scope": "resource"
+        },
         "bird2-lsp.formatter.engine": {
           "type": "string",
           "enum": [
