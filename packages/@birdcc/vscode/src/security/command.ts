@@ -169,11 +169,22 @@ export const resolveValidationCommandTemplate = (
   );
 
   const tokens = tokenizeCommandLine(placeholderRenderedTemplate);
-  if (!tokens.some((token) => token.includes(validationPlaceholder))) {
+  const placeholderTokens = tokens.filter((token) =>
+    token.includes(validationPlaceholder),
+  );
+  if (placeholderTokens.length === 0) {
     return {
       ok: false,
       reason:
         "validation command template must place {file} in a tokenized argument",
+    };
+  }
+
+  if (placeholderTokens.some((token) => token !== validationPlaceholder)) {
+    return {
+      ok: false,
+      reason:
+        "validation command template must place {file} as a standalone argument token",
     };
   }
 

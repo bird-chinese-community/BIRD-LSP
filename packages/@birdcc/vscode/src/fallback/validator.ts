@@ -68,16 +68,37 @@ const isPathInsideWorkspace = (
 
 const isWorldWritable = (mode: number): boolean => (mode & 0o002) !== 0;
 
-const isSafeFilePermission = async (filePath: string): Promise<boolean> => {
+type FilePermissionCheckResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: "world-writable" | "stat-failed";
+      readonly details?: string;
+    };
+
+const checkFilePermission = async (
+  filePath: string,
+): Promise<FilePermissionCheckResult> => {
   if (process.platform === "win32") {
-    return true;
+    return { ok: true };
   }
 
   try {
     const fileStat = await stat(filePath);
-    return !isWorldWritable(fileStat.mode);
-  } catch {
-    return true;
+    if (isWorldWritable(fileStat.mode)) {
+      return {
+        ok: false,
+        reason: "world-writable",
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: "stat-failed",
+      details: sanitizeLogMessage(String(error)),
+    };
   }
 };
 
@@ -173,12 +194,28 @@ export const createFallbackValidator = (
       return;
     }
 
-    if (!(await isSafeFilePermission(document.uri.fsPath))) {
-      outputChannel.appendLine(
-        sanitizeLogMessage(
-          `[bird2-lsp] fallback validation skipped for world-writable file: ${document.uri.fsPath}`,
-        ),
-      );
+    const permissionCheck = await checkFilePermission(document.uri.fsPath);
+    if (!permissionCheck.ok) {
+      if (permissionCheck.reason === "world-writable") {
+        outputChannel.appendLine(
+          sanitizeLogMessage(
+            `[bird2-lsp] fallback validation skipped for world-writable file: ${document.uri.fsPath}`,
+          ),
+        );
+      } else {
+        outputChannel.appendLine(
+          sanitizeLogMessage(
+            [
+              "[bird2-lsp] fallback validation skipped because file permission check failed:",
+              document.uri.fsPath,
+              permissionCheck.details ? `(${permissionCheck.details})` : "",
+            ]
+              .join(" ")
+              .trim(),
+          ),
+        );
+      }
+
       clearDocumentDiagnostics(document);
       return;
     }
