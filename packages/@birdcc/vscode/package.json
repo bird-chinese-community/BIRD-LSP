@@ -35,8 +35,14 @@
   "activationEvents": [
     "onLanguage:bird2",
     "workspaceContains:**/bird.conf",
+    "workspaceContains:**/bird2.conf",
+    "workspaceContains:**/bird3.conf",
+    "workspaceContains:**/*.conf",
     "workspaceContains:**/*.bird",
-    "workspaceContains:**/*.bird2"
+    "workspaceContains:**/*.bird2",
+    "workspaceContains:**/*.bird3",
+    "workspaceContains:**/*.bird2.conf",
+    "workspaceContains:**/*.bird3.conf"
   ],
   "contributes": {
     "languages": [
@@ -47,8 +53,12 @@
           "bird2"
         ],
         "extensions": [
+          ".conf",
           ".bird",
-          ".bird2"
+          ".bird2",
+          ".bird3",
+          ".bird2.conf",
+          ".bird3.conf"
         ],
         "filenames": [
           "bird.conf",
