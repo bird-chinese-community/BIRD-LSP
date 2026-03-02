@@ -1,4 +1,3 @@
-import { formatBirdConfig } from "@birdcc/formatter";
 import type { OutputChannel, TextDocument } from "vscode";
 import { Range, TextEdit, type DocumentFormattingEditProvider } from "vscode";
 
@@ -12,6 +11,15 @@ const getDocumentFullRange = (document: TextDocument): Range =>
     document.positionAt(0),
     document.positionAt(document.getText().length),
   );
+
+let formatterModulePromise:
+  | Promise<typeof import("@birdcc/formatter")>
+  | undefined;
+
+const getFormatterModule = (): Promise<typeof import("@birdcc/formatter")> => {
+  formatterModulePromise ??= import("@birdcc/formatter");
+  return formatterModulePromise;
+};
 
 export const createBirdFormattingProvider = (
   getConfiguration: () => ExtensionConfiguration,
@@ -38,6 +46,7 @@ export const createBirdFormattingProvider = (
       }
 
       try {
+        const { formatBirdConfig } = await getFormatterModule();
         const result = await formatBirdConfig(document.getText(), {
           engine: configuration.formatterEngine,
           safeMode: configuration.formatterSafeMode,
