@@ -149,11 +149,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     });
   };
   const reloadConfiguration = async (): Promise<void> => {
-    const change =
-      configurationManager.refreshFromWorkspace("workspace-change");
-    if (change.changedPaths.length === 0) {
-      runLifecycleSafely(change, "configuration-change");
-    }
+    configurationManager.refreshFromWorkspace("workspace-change");
   };
   const validateActiveDocument = async (): Promise<void> => {
     const isLanguageServerEnabled = runtimeState.configuration.enabled;

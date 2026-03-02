@@ -26,6 +26,6 @@ export const DEFAULT_TYPE_HINTS_INLAY_ENABLED = true;
 export const RESTART_REQUIRED_CONFIGURATION_PATHS = [
   "enabled",
   "serverPath",
-  "trace.server",
+  "traceServer",
   "hiddenErrors",
 ] as const;
