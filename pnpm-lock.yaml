@@ -117,6 +117,16 @@ importers:
         specifier: 0.25.10
         version: 0.25.10
 
+  packages/@birdcc/vscode:
+    dependencies:
+      zod:
+        specifier: ^4.1.11
+        version: 4.3.6
+    devDependencies:
+      '@types/vscode':
+        specifier: ^1.106.0
+        version: 1.109.0
+
 packages:
 
   '@babel/code-frame@7.29.0':
@@ -727,6 +737,9 @@ packages:
 
   '@types/node@24.11.0':
     resolution: {integrity: sha512-fPxQqz4VTgPI/IQ+lj9r0h+fDR66bzoeMGHp8ASee+32OSGIkeASsoZuJixsQoVef1QJbeubcPBxKk22QVoWdw==}
+
+  '@types/vscode@1.109.0':
+    resolution: {integrity: sha512-0Pf95rnwEIwDbmXGC08r0B4TQhAbsHQ5UyTIgVgoieDe4cOnf92usuR5dEczb6bTKEp7ziZH4TV1TRGPPCExtw==}
 
   '@vitest/expect@3.2.4':
     resolution: {integrity: sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig==}
@@ -1884,6 +1897,8 @@ snapshots:
   '@types/node@24.11.0':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/vscode@1.109.0': {}
 
   '@vitest/expect@3.2.4':
     dependencies:
