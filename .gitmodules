@@ -7,3 +7,6 @@
 [submodule "refer/BIRD2-vim-grammar"]
 	path = refer/BIRD2-vim-grammar
 	url = https://github.com/bird-chinese-community/BIRD2.vim.git
+[submodule "refer/vscode-bird2"]
+	path = refer/vscode-bird2
+	url = https://github.com/bird-chinese-community/vscode-bird2.git
