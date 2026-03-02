@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 与我的对话应该使用 Chinese, 但代码注释和文档字符串可以使用 English 来提高国际化可读性。
 
+你应该自行分析代码库结构和依赖关系，以便在修改或添加代码时能够正确地处理模块之间的关系。
+
+MUST DO: 每次回答前都应该自行在 ./.agents/skills/INDEX.md 中查找相关技能/最佳实践，以便在需要时调用它们来完成特定任务。
+
 ## Project Overview
 
 **BIRD-LSP** 是一个为 BIRD2（BIRD Internet Routing Daemon）配置文件提供 Language Server Protocol (LSP) 支持的工具链项目，包含语法高亮、诊断、格式化、代码补全等功能。
