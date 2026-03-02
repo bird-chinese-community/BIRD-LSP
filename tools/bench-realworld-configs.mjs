@@ -1,81 +1,17 @@
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { extname, isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeFile } from "node:fs/promises";
 
-const loadWorkspaceApis = async () => {
-  try {
-    const parser = await import(
-      new URL("../packages/@birdcc/parser/dist/index.js", import.meta.url)
-    );
-    const formatter = await import(
-      new URL("../packages/@birdcc/formatter/dist/index.js", import.meta.url)
-    );
-
-    return {
-      parseBirdConfig: parser.parseBirdConfig,
-      formatBirdConfig: formatter.formatBirdConfig,
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? (error.stack ?? String(error)) : String(error);
-    throw new Error(
-      `Failed to load workspace dist modules. Run "pnpm build" first.\n\n${message}`,
-    );
-  }
-};
-
-const allowedExtensions = new Set([
-  ".conf",
-  ".bird",
-  ".bird2",
-  ".bird3",
-  ".bird2.conf",
-  ".bird3.conf",
-]);
-
-const allowedBasenames = new Set(["bird.conf", "bird2.conf", "bird3.conf"]);
-
-const isBirdConfigFile = (path) => {
-  const extension = extname(path);
-  if (allowedExtensions.has(extension)) {
-    return true;
-  }
-  const filename = path.split("/").pop() ?? path;
-  return allowedBasenames.has(filename);
-};
-
-const discoverFiles = async (root) => {
-  const output = [];
-  const stack = [root];
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
-    }
-
-    let entries;
-    try {
-      entries = await readdir(current, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      const entryPath = resolve(current, entry.name);
-      if (entry.isDirectory()) {
-        stack.push(entryPath);
-        continue;
-      }
-      if (entry.isFile()) {
-        output.push(entryPath);
-      }
-    }
-  }
-
-  return output;
-};
+import {
+  benchmarkConfigFile,
+  clampRepeats,
+  loadWorkspaceApis,
+  nowNs,
+  nsToMs,
+  runWarmup,
+} from "./bench-realworld-core.mjs";
+import { collectBirdConfigCandidates } from "./realworld-config-files.mjs";
 
 const parseArgs = (argv) => {
   const options = {
@@ -140,9 +76,6 @@ const parseArgs = (argv) => {
 
   return options;
 };
-
-const nowNs = () => process.hrtime.bigint();
-const nsToMs = (ns) => Number(ns) / 1e6;
 
 const percentile = (values, p) => {
   if (values.length === 0) {
@@ -258,41 +191,20 @@ const main = async () => {
     ? options.root
     : resolve(process.cwd(), options.root);
 
-  const warmupText = "router id 192.0.2.1;\n";
-  const warmup = { parseMs: 0, formatMs: 0 };
-  if (options.warmup && !options.isolate) {
-    const parseStart = nowNs();
-    await parseBirdConfig(warmupText);
-    warmup.parseMs = nsToMs(nowNs() - parseStart);
+  const safeRepeats = clampRepeats(options.repeats);
+  const warmup =
+    options.warmup && !options.isolate
+      ? await runWarmup({
+          parseBirdConfig,
+          formatBirdConfig,
+          engine: options.engine,
+        })
+      : { parseMs: 0, formatMs: 0 };
 
-    if (options.engine !== "parse-only") {
-      const formatStart = nowNs();
-      await formatBirdConfig(warmupText, { engine: options.engine });
-      warmup.formatMs = nsToMs(nowNs() - formatStart);
-    }
-  }
-
-  const allFiles = await discoverFiles(root);
-  const candidates = [];
-
-  for (const path of allFiles) {
-    if (!isBirdConfigFile(path)) {
-      continue;
-    }
-
-    let bytes = 0;
-    try {
-      bytes = (await stat(path)).size;
-    } catch {
-      continue;
-    }
-
-    if (!Number.isFinite(bytes) || bytes <= 0 || bytes > options.maxBytes) {
-      continue;
-    }
-
-    candidates.push({ path, bytes });
-  }
+  const candidates = await collectBirdConfigCandidates({
+    root,
+    maxBytes: options.maxBytes,
+  });
 
   candidates.sort((left, right) =>
     options.includeLargest
@@ -305,9 +217,6 @@ const main = async () => {
     console.log("No matching config files found for benchmarking.");
     return;
   }
-
-  const repeats = Number.isFinite(options.repeats) ? options.repeats : 1;
-  const safeRepeats = Math.max(1, Math.min(20, Math.floor(repeats)));
 
   const results = [];
 
@@ -358,59 +267,17 @@ const main = async () => {
       continue;
     }
 
-    const text = await readFile(file.path, "utf8");
-    const lines = text.split("\n").length;
-
-    let parsed;
-    const parseSamples = [];
-    for (let sample = 0; sample < safeRepeats; sample += 1) {
-      const parseStart = nowNs();
-      // eslint-disable-next-line no-await-in-loop
-      parsed = await parseBirdConfig(text);
-      parseSamples.push(nsToMs(nowNs() - parseStart));
-    }
-    const parseMs =
-      parseSamples.reduce((a, b) => a + b, 0) / parseSamples.length;
-
-    const hasRuntimeIssue = parsed.issues.some(
-      (issue) => issue.code === "parser/runtime-error",
-    );
-
-    let formatMs = 0;
-    let changed = false;
-    let formattedBytes = 0;
-
-    if (options.engine !== "parse-only") {
-      const formatSamples = [];
-      let formatted;
-      for (let sample = 0; sample < safeRepeats; sample += 1) {
-        const formatStart = nowNs();
-        // eslint-disable-next-line no-await-in-loop
-        formatted = await formatBirdConfig(text, {
-          engine: options.engine,
-        });
-        formatSamples.push(nsToMs(nowNs() - formatStart));
-      }
-
-      formatMs =
-        formatSamples.reduce((a, b) => a + b, 0) / formatSamples.length;
-      changed = formatted.changed;
-      formattedBytes = Buffer.byteLength(formatted.text, "utf8");
-    }
-
-    results.push({
-      path: file.path,
-      bytes: file.bytes,
-      lines,
-      parseMs,
-      formatMs,
+    // eslint-disable-next-line no-await-in-loop
+    const row = await benchmarkConfigFile({
+      filePath: file.path,
+      bytesHint: file.bytes,
       engine: options.engine,
-      samples: safeRepeats,
-      changed,
-      formattedBytes,
-      issues: parsed.issues.length,
-      runtimeError: hasRuntimeIssue,
+      repeats: safeRepeats,
+      parseBirdConfig,
+      formatBirdConfig,
     });
+
+    results.push(row);
   }
 
   const parseTimes = results.map((row) => row.parseMs).filter((ms) => ms > 0);
