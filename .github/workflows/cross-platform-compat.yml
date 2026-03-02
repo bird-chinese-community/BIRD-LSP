@@ -16,8 +16,6 @@ jobs:
             runs_on: ubuntu-latest
           - name: linux-arm64
             runs_on: ubuntu-24.04-arm
-          - name: macos-amd64
-            runs_on: macos-13
           - name: macos-arm64
             runs_on: macos-14
           - name: windows-amd64
