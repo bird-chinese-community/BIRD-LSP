@@ -1,6 +1,10 @@
 const assert = require("node:assert/strict");
+const manifest = require("../../package.json");
 
-const EXTENSION_ID = "birdcc.bird2-lsp";
+assert.ok(manifest.publisher, "manifest.publisher is required");
+assert.ok(manifest.name, "manifest.name is required");
+
+const EXTENSION_ID = `${manifest.publisher}.${manifest.name}`;
 
 async function run() {
   const vscode = require("vscode");

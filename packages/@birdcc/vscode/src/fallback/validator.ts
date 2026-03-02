@@ -36,18 +36,23 @@ const execFileAsync = async (
       [...args],
       { timeout: timeoutMs },
       (error, stdout, stderr) => {
+        const normalizedStdout = String(stdout ?? "");
+        const normalizedStderr = String(stderr ?? "");
+
         if (error) {
-          rejectPromise({
-            ...error,
-            stdout: stdout ?? "",
-            stderr: stderr ?? "",
-          });
+          const execError = error as Error & {
+            stdout?: string;
+            stderr?: string;
+          };
+          execError.stdout = normalizedStdout;
+          execError.stderr = normalizedStderr;
+          rejectPromise(execError);
           return;
         }
 
         resolvePromise({
-          stdout: stdout ?? "",
-          stderr: stderr ?? "",
+          stdout: normalizedStdout,
+          stderr: normalizedStderr,
         });
       },
     );

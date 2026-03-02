@@ -235,4 +235,42 @@ describe("fallback validator scheduling", () => {
 
     expect(mocks.diagnosticSet).not.toHaveBeenCalled();
   });
+
+  it("preserves execFile error message when stdout/stderr are empty", async () => {
+    mocks.execFile.mockImplementation(
+      (
+        _command: string,
+        _args: readonly string[],
+        _options: { timeout: number },
+        callback: (
+          error: Error | null,
+          stdout: string | Buffer,
+          stderr: string | Buffer,
+        ) => void,
+      ) => {
+        callback(new Error("spawn bird ENOENT"), "", "");
+      },
+    );
+
+    const validator = createFallbackValidator(getConfiguration, {
+      appendLine: vi.fn(),
+      dispose: vi.fn(),
+    } as never);
+    const document = createDocument();
+
+    await validator.validateDocument(document);
+
+    expect(mocks.parseBirdValidationOutput).toHaveBeenCalledWith(
+      "spawn bird ENOENT",
+      document.uri,
+    );
+    expect(mocks.diagnosticSet).toHaveBeenCalledWith(
+      document.uri,
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "spawn bird ENOENT",
+        }),
+      ]),
+    );
+  });
 });
