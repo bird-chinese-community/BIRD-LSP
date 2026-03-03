@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +13,7 @@ interface HoverDocYamlEntry {
   readonly detail: string;
   readonly diff: HoverDocDiffType;
   readonly version: HoverDocVersionTag;
+  readonly usage?: string;
   readonly anchor?: string;
   readonly anchors?: {
     readonly v2?: string;
@@ -33,6 +34,26 @@ interface HoverDocYamlSource {
   readonly entries: readonly HoverDocYamlEntry[];
 }
 
+interface HoverDocYamlFragment {
+  readonly version?: number;
+  readonly baseUrls?: {
+    readonly v2?: string;
+    readonly v3?: string;
+  };
+  readonly entries?: readonly HoverDocYamlEntry[];
+}
+
+interface HoverUsageYamlEntry {
+  readonly keyword: string;
+  readonly usage: string;
+  readonly path?: string | readonly string[];
+}
+
+interface HoverUsageYamlFragment {
+  readonly version?: number;
+  readonly entries?: readonly HoverUsageYamlEntry[];
+}
+
 const normalizeAnchor = (value: string | undefined): string | undefined => {
   if (typeof value !== "string") {
     return undefined;
@@ -42,19 +63,128 @@ const normalizeAnchor = (value: string | undefined): string | undefined => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
-const loadHoverDocYaml = (): HoverDocYamlSource => {
-  const hoverDocsPath = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "hover-docs.yaml",
-  );
-  const raw = readFileSync(hoverDocsPath, "utf8");
-  const parsed = parse(raw) as HoverDocYamlSource;
-
-  if (!parsed || !Array.isArray(parsed.entries) || !parsed.baseUrls) {
-    throw new Error("Invalid hover docs yaml structure");
+const resolveDataDir = (directoryName: string): string => {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.join(currentDir, directoryName),
+    path.resolve(currentDir, "..", "data", directoryName),
+  ];
+  const resolved = candidates.find((candidate) => existsSync(candidate));
+  if (!resolved) {
+    throw new Error(`${directoryName} directory not found`);
   }
 
-  return parsed;
+  return resolved;
+};
+
+const loadHoverDocYaml = (): HoverDocYamlSource => {
+  const hoverDocsDir = resolveDataDir("hover-docs");
+
+  const fileNames = readdirSync(hoverDocsDir)
+    .filter((fileName) => fileName.endsWith(".yaml"))
+    .sort((left, right) => left.localeCompare(right));
+  if (fileNames.length === 0) {
+    throw new Error("Hover docs directory is empty");
+  }
+
+  let version = 1;
+  let v2BaseUrl: string | undefined;
+  let v3BaseUrl: string | undefined;
+  const entries: HoverDocYamlEntry[] = [];
+
+  for (const fileName of fileNames) {
+    const filePath = path.join(hoverDocsDir, fileName);
+    const raw = readFileSync(filePath, "utf8");
+    const parsed = parse(raw) as HoverDocYamlFragment;
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error(`Invalid hover docs yaml fragment: ${fileName}`);
+    }
+
+    if (typeof parsed.version === "number") {
+      version = parsed.version;
+    }
+
+    if (parsed.baseUrls?.v2) {
+      v2BaseUrl = parsed.baseUrls.v2;
+    }
+    if (parsed.baseUrls?.v3) {
+      v3BaseUrl = parsed.baseUrls.v3;
+    }
+
+    if (parsed.entries !== undefined && !Array.isArray(parsed.entries)) {
+      throw new Error(
+        `Invalid entries in hover docs yaml fragment: ${fileName}`,
+      );
+    }
+    if (Array.isArray(parsed.entries)) {
+      entries.push(...parsed.entries);
+    }
+  }
+
+  if (!v2BaseUrl || !v3BaseUrl) {
+    throw new Error("Missing baseUrls.v2 or baseUrls.v3 in hover docs yaml");
+  }
+  if (entries.length === 0) {
+    throw new Error("No hover docs entries found");
+  }
+
+  return {
+    version,
+    baseUrls: {
+      v2: v2BaseUrl,
+      v3: v3BaseUrl,
+    },
+    entries,
+  };
+};
+
+const loadHoverUsageMap = (): ReadonlyMap<string, string> => {
+  const hoverUsageDir = resolveDataDir("hover-usage");
+  const fileNames = readdirSync(hoverUsageDir)
+    .filter((fileName) => fileName.endsWith(".yaml"))
+    .sort((left, right) => left.localeCompare(right));
+  if (fileNames.length === 0) {
+    return new Map();
+  }
+
+  const usageMap = new Map<string, string>();
+  for (const fileName of fileNames) {
+    const filePath = path.join(hoverUsageDir, fileName);
+    const raw = readFileSync(filePath, "utf8");
+    const parsed = parse(raw) as HoverUsageYamlFragment;
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error(`Invalid hover usage yaml fragment: ${fileName}`);
+    }
+    if (parsed.entries !== undefined && !Array.isArray(parsed.entries)) {
+      throw new Error(
+        `Invalid entries in hover usage yaml fragment: ${fileName}`,
+      );
+    }
+    for (const entry of parsed.entries ?? []) {
+      if (
+        !entry ||
+        typeof entry.keyword !== "string" ||
+        typeof entry.usage !== "string"
+      ) {
+        throw new Error(`Invalid usage entry in fragment: ${fileName}`);
+      }
+
+      const keyword = entry.keyword.trim().toLowerCase();
+      if (keyword.length === 0 || entry.usage.trim().length === 0) {
+        continue;
+      }
+
+      // LSP currently resolves hover docs by keyword only. Prefer generic snippets.
+      const hasPathScope =
+        typeof entry.path === "string" ||
+        (Array.isArray(entry.path) && entry.path.length > 0);
+      if (!usageMap.has(keyword) || !hasPathScope) {
+        usageMap.set(keyword, entry.usage);
+      }
+    }
+  }
+
+  return usageMap;
 };
 
 const isDiffType = (value: string): value is HoverDocDiffType =>
@@ -67,6 +197,7 @@ const isVersionTag = (value: string): value is HoverDocVersionTag =>
   value === "v2+" || value === "v3+" || value === "v2" || value === "v2-v3";
 
 const hoverDocSource = loadHoverDocYaml();
+const hoverUsageMap = loadHoverUsageMap();
 
 const VERSION_BASE_URLS = {
   v2: hoverDocSource.baseUrls.v2,
@@ -123,6 +254,7 @@ const toCanonicalEntry = (entry: HoverDocYamlEntry): HoverDocYamlEntry => {
   return {
     ...entry,
     keyword,
+    usage: entry.usage ?? hoverUsageMap.get(keyword),
     anchor,
     anchors,
   };
@@ -200,6 +332,9 @@ const buildNotesSection = (entry: HoverDocYamlEntry): string => {
 };
 
 const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
+  const usageSection = entry.usage
+    ? `\n\nUsage:\n\`\`\`bird\n${entry.usage}\n\`\`\``
+    : "";
   return (
     [
       `### ${entry.description}`,
@@ -210,7 +345,9 @@ const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
       `Version: \`${entry.version}\``,
       "Docs:",
       buildDocsSection(entry),
-    ].join("\n") + buildNotesSection(entry)
+    ].join("\n") +
+    usageSection +
+    buildNotesSection(entry)
   );
 };
 

@@ -53,7 +53,11 @@ export {
 export { createBirdFormattingProvider } from "./formatter/index.js";
 export {
   registerBirdKeywordHoverProvider,
+  resolveHoverContextPath,
+  loadBirdHoverDocs,
   resolveBirdHoverTopic,
+  type HoverDocsCollection,
+  type HoverResolutionOptions,
   type ResolvedHoverTopic,
 } from "./hover/index.js";
 export {
