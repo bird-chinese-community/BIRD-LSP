@@ -76,6 +76,8 @@ export const startLspServer = (): void => {
   const parsedByUri = new Map<string, ParsedCacheEntry>();
   const graphByUri = new Map<string, GraphCacheEntry>();
   const publishedUrisByEntry = new Map<string, Set<string>>();
+  /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
+  const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
   let hasShutdownBeenRequested = false;
 
   void warmupParserRuntime();
@@ -182,10 +184,22 @@ export const startLspServer = (): void => {
       return cached;
     }
 
-    const analyzed = await analyzeDocument(document, {
+    // Dedup concurrent requests: reuse in-flight promise for the same URI.
+    const pending = pendingGraphByUri.get(document.uri);
+    if (pending) {
+      return pending;
+    }
+
+    const promise = analyzeDocument(document, {
       publishRelatedDiagnostics: false,
-    });
-    return analyzed.graph;
+    }).then((analyzed) => analyzed.graph);
+
+    pendingGraphByUri.set(document.uri, promise);
+    try {
+      return await promise;
+    } finally {
+      pendingGraphByUri.delete(document.uri);
+    }
   };
 
   connection.onInitialize(

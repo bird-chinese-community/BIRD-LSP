@@ -1,6 +1,7 @@
 import type { SymbolDefinition, SymbolReference } from "@birdcc/core";
 import type { Location, Position } from "vscode-languageserver/node.js";
 import {
+  getLineText,
   isPositionInRange,
   toLspRange,
   type SourceRangeLike,
@@ -45,7 +46,7 @@ export const extractWordAtPosition = (
   text: string,
   position: Position,
 ): string => {
-  const lineText = text.split(/\r?\n/)[position.line] ?? "";
+  const lineText = getLineText(text, position.line);
   if (position.character < 0 || position.character > lineText.length) {
     return "";
   }
