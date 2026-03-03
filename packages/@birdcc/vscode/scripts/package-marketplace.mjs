@@ -40,6 +40,7 @@ const runVscePackage = async () => {
       "--out",
       temporaryVsixPath,
       "--no-dependencies",
+      "--pre-release",
       "--baseContentUrl",
       "https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/vscode",
     ],
