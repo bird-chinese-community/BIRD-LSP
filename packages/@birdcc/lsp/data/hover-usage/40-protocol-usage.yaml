@@ -1,4 +1,5 @@
 entries:
+  # ── Common protocol options ──────────────────────────────────────
   - keyword: description
     usage: description "core upstream session";
   - keyword: disabled
@@ -7,6 +8,7 @@ entries:
     usage: restart time limit 60;
   - keyword: vrf
     usage: vrf "blue";
+  # ── Protocol declarations ───────────────────────────────────────
   - keyword: babel
     usage: protocol babel edge_babel {}
   - keyword: bfd
@@ -43,6 +45,7 @@ entries:
     usage: protocol radv ra1 { interface "eth*" { max ra interval 30; }; };
   - keyword: rpki
     usage: protocol rpki rpki1 { remote "192.0.2.50" port 3323; };
+  # ── Static route types ──────────────────────────────────────────
   - keyword: route
     usage: route 203.0.113.0/24 via 192.0.2.1;
   - keyword: next hop
@@ -51,5 +54,205 @@ entries:
     usage: route 203.0.113.0/24 blackhole;
   - keyword: unreachable
     usage: route 203.0.113.0/24 unreachable;
+  - keyword: prohibit
+    usage: route 203.0.113.0/24 prohibit;
+    path: protocol.static
   - keyword: password
     usage: password "secret";
+  # ── Kernel sub-options ──────────────────────────────────────────
+  - keyword: persist
+    usage: persist;
+    path: protocol.kernel
+  - keyword: learn
+    usage: learn;
+    path: protocol.kernel
+  - keyword: kernel table
+    usage: kernel table 200;
+    path: protocol.kernel
+  - keyword: merge paths
+    usage: merge paths on;
+    path: protocol.kernel
+  - keyword: scan time
+    usage: scan time 10;
+    path: protocol.device
+  - keyword: check link
+    usage: check link yes;
+    path: protocol.direct
+  - keyword: peer table
+    usage: peer table backup4;
+    path: protocol.pipe
+  # ── Static sub-options ──────────────────────────────────────────
+  - keyword: igp table
+    usage: igp table master4;
+    path: protocol.static
+  - keyword: recursive
+    usage: route 203.0.113.0/24 recursive 192.0.2.1;
+    path: protocol.static
+  # ── BFD sub-options ─────────────────────────────────────────────
+  - keyword: interval
+    usage: interval 100 ms;
+    path: protocol.bfd.interface
+  - keyword: min rx interval
+    usage: min rx interval 50 ms;
+    path: protocol.bfd.interface
+  - keyword: min tx interval
+    usage: min tx interval 50 ms;
+    path: protocol.bfd.interface
+  - keyword: idle tx interval
+    usage: idle tx interval 500 ms;
+    path: protocol.bfd.interface
+  - keyword: multiplier
+    usage: multiplier 5;
+    path: protocol.bfd.interface
+  # ── Babel sub-options ───────────────────────────────────────────
+  - keyword: randomize router id
+    usage: randomize router id yes;
+    path: protocol.babel
+  - keyword: rxcost
+    usage: rxcost 256;
+    path: protocol.babel.interface
+  - keyword: hello interval
+    usage: hello interval 4;
+    path: protocol.babel.interface
+  - keyword: update interval
+    usage: update interval 16;
+    path: protocol.babel.interface
+  - keyword: rtt cost
+    usage: rtt cost 100;
+    path: protocol.babel.interface
+  - keyword: rtt min
+    usage: rtt min 10 ms;
+    path: protocol.babel.interface
+  - keyword: rtt max
+    usage: rtt max 120 ms;
+    path: protocol.babel.interface
+  # ── RIP sub-options ─────────────────────────────────────────────
+  - keyword: infinity
+    usage: infinity 16;
+    path: protocol.rip
+  - keyword: update time
+    usage: update time 30;
+    path: protocol.rip.interface
+  - keyword: timeout time
+    usage: timeout time 180;
+    path: protocol.rip.interface
+  - keyword: garbage time
+    usage: garbage time 120;
+    path: protocol.rip.interface
+  - keyword: split horizon
+    usage: split horizon yes;
+    path: protocol.rip.interface
+  - keyword: poison reverse
+    usage: poison reverse yes;
+    path: protocol.rip.interface
+  - keyword: version
+    usage: version 2;
+    path: protocol.rip.interface
+  # ── RAdv sub-options ────────────────────────────────────────────
+  - keyword: trigger
+    usage: trigger "eth0";
+    path: protocol.radv
+  - keyword: propagate routes
+    usage: propagate routes yes;
+    path: protocol.radv
+  - keyword: max ra interval
+    usage: max ra interval 600;
+    path: protocol.radv.interface
+  - keyword: min ra interval
+    usage: min ra interval 200;
+    path: protocol.radv.interface
+  - keyword: managed
+    usage: managed yes;
+    path: protocol.radv.interface
+  - keyword: other config
+    usage: other config yes;
+    path: protocol.radv.interface
+  - keyword: link mtu
+    usage: link mtu 1500;
+    path: protocol.radv.interface
+  - keyword: default lifetime
+    usage: default lifetime 1800;
+    path: protocol.radv.interface
+  - keyword: default preference
+    usage: default preference high;
+    path: protocol.radv.interface
+  - keyword: rdnss
+    usage: rdnss 2001:db8::1;
+    path: protocol.radv
+  - keyword: dnssl
+    usage: dnssl "example.com";
+    path: protocol.radv
+  # ── RPKI sub-options ────────────────────────────────────────────
+  - keyword: remote
+    usage: remote "192.0.2.50" port 3323;
+    path: protocol.rpki
+  - keyword: port
+    usage: port 3323;
+    path: protocol.rpki
+  - keyword: refresh
+    usage: refresh 3600;
+    path: protocol.rpki
+  - keyword: retry
+    usage: retry 600;
+    path: protocol.rpki
+  - keyword: expire
+    usage: expire 7200;
+    path: protocol.rpki
+  - keyword: ignore max length
+    usage: ignore max length;
+    path: protocol.rpki
+  - keyword: transport tcp
+    usage: transport tcp;
+    path: protocol.rpki
+  - keyword: transport ssh
+    usage: 'transport ssh { bird private key "/etc/bird/ssh_key"; };'
+    path: protocol.rpki
+  - keyword: bird private key
+    usage: bird private key "/etc/bird/ssh_key";
+    path: protocol.rpki
+  - keyword: remote public key
+    usage: remote public key "/etc/bird/rpki_pub.pem";
+    path: protocol.rpki
+  # ── Extended protocol sub-options ───────────────────────────────
+  - keyword: aggregate on
+    usage: aggregate on net;
+    path: protocol.aggregator
+  - keyword: merge by
+    usage: merge by bgp_path;
+    path: protocol.aggregator
+  - keyword: station address
+    usage: station address 192.0.2.200;
+    path: protocol.bmp
+  - keyword: station port
+    usage: station port 1790;
+    path: protocol.bmp
+  - keyword: monitoring rib
+    usage: monitoring rib in pre_policy;
+    path: protocol.bmp
+  - keyword: route distinguisher
+    usage: route distinguisher 65000:100;
+    path: protocol.l3vpn
+  - keyword: route target
+    usage: route target 65000:100;
+    path: protocol.l3vpn
+  - keyword: import target
+    usage: import target 65000:100;
+    path: protocol.l3vpn
+  - keyword: export target
+    usage: export target 65000:100;
+    path: protocol.l3vpn
+  - keyword: filename
+    usage: filename "/var/log/bird.mrt";
+    path: protocol.mrt
+  - keyword: period
+    usage: period 3600;
+    path: protocol.mrt
+  - keyword: always add path
+    usage: always add path yes;
+    path: protocol.mrt
+  - keyword: mode
+    usage: mode import;
+    path: protocol.perf
+  - keyword: repeat
+    usage: repeat 1000;
+    path: protocol.perf
