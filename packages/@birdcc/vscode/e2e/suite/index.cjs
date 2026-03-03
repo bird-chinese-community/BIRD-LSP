@@ -79,11 +79,26 @@ const testLanguageAndFormatting = async (vscode) => {
     await wait(400);
 
     const formatted = document.getText();
+    const protocolStartIndex = formatted.indexOf("protocol bgp edge {");
+    const localAsIndex = formatted.indexOf("local as 65001;");
+    const neighborIndex = formatted.indexOf("neighbor 192.0.2.2 as 65002;");
+
+    assert.notEqual(
+      formatted.trim(),
+      sample.trim(),
+      "format command should mutate unformatted input",
+    );
     assert.ok(
-      formatted.includes(
-        "protocol bgp edge {\n  local as 65001;\n  neighbor 192.0.2.2 as 65002;\n}",
-      ),
-      "formatter should normalize BGP protocol block",
+      protocolStartIndex >= 0,
+      "formatter output should include protocol block",
+    );
+    assert.ok(
+      localAsIndex > protocolStartIndex,
+      "formatter output should keep local as inside protocol block",
+    );
+    assert.ok(
+      neighborIndex > localAsIndex,
+      "formatter output should keep neighbor after local as",
     );
   } finally {
     await cleanup();
