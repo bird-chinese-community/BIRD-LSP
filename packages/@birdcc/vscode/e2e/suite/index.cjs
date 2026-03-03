@@ -62,7 +62,10 @@ const testCommandRegistration = async (vscode) => {
 const testLanguageAndFormatting = async (vscode) => {
   const sample = [
     "router id 192.0.2.1;",
-    "protocol bgp edge { local as 65001; neighbor 192.0.2.2 as 65002; }",
+    "protocol bgp edge {",
+    "local as 65001;",
+    "neighbor 192.0.2.2 as 65002;",
+    "}",
     "",
   ].join("\n");
 
