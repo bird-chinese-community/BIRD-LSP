@@ -39,4 +39,27 @@ describe("type hints inference", () => {
     expect(hints[0]?.inferredReturnType).toBe("unknown");
     expect(hints[0]?.returnDetails).toHaveLength(2);
   });
+
+  it("infers bool for return expressions using comparison operators", async () => {
+    const source = `
+      function less_than() -> bool {
+        return 1 < 2;
+      }
+
+      function greater_than() -> bool {
+        return 4 > 2;
+      }
+
+      function pattern_match() -> bool {
+        return net ~ [ 10.0.0.0/8+ ];
+      }
+    `;
+
+    const hints = await collectFunctionReturnHints(source);
+    const byName = new Map(hints.map((hint) => [hint.declaration.name, hint]));
+
+    expect(byName.get("less_than")?.inferredReturnType).toBe("bool");
+    expect(byName.get("greater_than")?.inferredReturnType).toBe("bool");
+    expect(byName.get("pattern_match")?.inferredReturnType).toBe("bool");
+  });
 });

@@ -15,6 +15,7 @@ import {
 import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
 import { toSanitizedErrorDetails } from "../security/index.js";
+import { showGuidedErrorMessage } from "../support/faq.js";
 import type { ExtensionConfiguration } from "../types.js";
 import {
   collectFunctionReturnHints,
@@ -78,21 +79,42 @@ export const registerBirdTypeHintProviders = ({
     maxEntries: TYPE_HINT_CACHE_MAX_ENTRIES,
     ttlMs: TYPE_HINT_CACHE_TTL_MS,
   });
+  const inFlightLoads = new Map<
+    string,
+    Promise<readonly FunctionReturnHint[]>
+  >();
   const warningCache = new Set<string>();
+  const errorCache = new Set<string>();
 
   const loadHints = async (
     document: TextDocument,
   ): Promise<readonly FunctionReturnHint[]> => {
-    const key = document.uri.toString();
-    const cachedHints = cache.get(key, document.version);
+    const uri = document.uri.toString();
+    const version = document.version;
+    const cacheKey = `${uri}@${version}`;
+    const cachedHints = cache.get(uri, version);
     if (cachedHints) {
       return cachedHints;
     }
 
-    const hints = await collectFunctionReturnHints(document.getText());
-    const snapshot: CachedHintSnapshot = { version: document.version, hints };
-    cache.set(key, snapshot.version, snapshot.hints);
-    return hints;
+    const inFlight = inFlightLoads.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const task = (async (): Promise<readonly FunctionReturnHint[]> => {
+      const hints = await collectFunctionReturnHints(document.getText());
+      const snapshot: CachedHintSnapshot = { version, hints };
+      cache.set(uri, snapshot.version, snapshot.hints);
+      return hints;
+    })();
+
+    inFlightLoads.set(cacheKey, task);
+    try {
+      return await task;
+    } finally {
+      inFlightLoads.delete(cacheKey);
+    }
   };
 
   const hoverProvider = languages.registerHoverProvider(
@@ -157,9 +179,18 @@ export const registerBirdTypeHintProviders = ({
             ),
           );
         } catch (error) {
-          outputChannel.appendLine(
-            `[bird2-lsp] type hints hover failed: ${toSanitizedErrorDetails(error)}`,
-          );
+          const dedupeKey = `hover:${document.uri.toString()}:${document.version}`;
+          if (!errorCache.has(dedupeKey)) {
+            errorCache.add(dedupeKey);
+            outputChannel.appendLine(
+              `[bird2-lsp] type hints hover failed: ${toSanitizedErrorDetails(error)}`,
+            );
+            void showGuidedErrorMessage({
+              message:
+                "BIRD2 type hints hover failed. Open FAQ for quick fixes or report this issue.",
+              faqId: "type-hints-runtime-failed",
+            });
+          }
           return null;
         }
       },
@@ -227,9 +258,18 @@ export const registerBirdTypeHintProviders = ({
               return inlayHint;
             });
         } catch (error) {
-          outputChannel.appendLine(
-            `[bird2-lsp] type hints inlay failed: ${toSanitizedErrorDetails(error)}`,
-          );
+          const dedupeKey = `inlay:${document.uri.toString()}:${document.version}`;
+          if (!errorCache.has(dedupeKey)) {
+            errorCache.add(dedupeKey);
+            outputChannel.appendLine(
+              `[bird2-lsp] type hints inlay failed: ${toSanitizedErrorDetails(error)}`,
+            );
+            void showGuidedErrorMessage({
+              message:
+                "BIRD2 type hints inlay failed. Open FAQ for quick fixes or report this issue.",
+              faqId: "type-hints-runtime-failed",
+            });
+          }
           return [];
         }
       },
@@ -237,7 +277,18 @@ export const registerBirdTypeHintProviders = ({
   );
 
   const closeSubscription = workspace.onDidCloseTextDocument((document) => {
-    cache.delete(document.uri.toString());
+    const uri = document.uri.toString();
+    cache.delete(uri);
+    for (const key of inFlightLoads.keys()) {
+      if (key.startsWith(`${uri}@`)) {
+        inFlightLoads.delete(key);
+      }
+    }
+    for (const key of errorCache) {
+      if (key.includes(uri)) {
+        errorCache.delete(key);
+      }
+    }
   });
 
   return [hoverProvider, inlayProvider, closeSubscription];

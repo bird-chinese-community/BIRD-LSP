@@ -6,6 +6,7 @@ import {
 } from "vscode";
 
 import { CONFIG_SECTION } from "../constants.js";
+import { showGuidedErrorMessage } from "../support/faq.js";
 import type { ExtensionConfiguration } from "../types.js";
 
 const ONE_KIB = 1024;
@@ -51,6 +52,8 @@ export interface LargeFileGuardResult {
   readonly maxBytes: number;
 }
 
+const largeFileAlertCache = new Set<string>();
+
 const createWarningMessage = (
   featureName: string,
   bytes: number,
@@ -86,6 +89,12 @@ export const enforceLargeFileGuard = async ({
     const message = createWarningMessage(featureName, bytes, maxBytes);
     outputChannel.appendLine(`[bird2-lsp] ${message}`);
     void window.setStatusBarMessage(message, 8_000);
+    void showGuidedErrorMessage({
+      message,
+      faqId: "file-too-large",
+      dedupeKey: `${document.uri.toString()}:${maxBytes}`,
+      dedupeCache: largeFileAlertCache,
+    });
   }
 
   return {

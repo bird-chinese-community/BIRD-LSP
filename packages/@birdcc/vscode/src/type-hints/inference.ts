@@ -82,10 +82,13 @@ const sliceSourceRange = (
   return source.slice(start, end);
 };
 
+const escapeRegexToken = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
 const containsBooleanOperator = (value: string): boolean => {
   for (const operator of BOOLEAN_OPERATORS) {
     if (operator === "<" || operator === ">" || operator === "~") {
-      const pattern = new RegExp(`\\s\\${operator}\\s`, "u");
+      const pattern = new RegExp(`\\s${escapeRegexToken(operator)}\\s`, "u");
       if (pattern.test(value)) {
         return true;
       }
