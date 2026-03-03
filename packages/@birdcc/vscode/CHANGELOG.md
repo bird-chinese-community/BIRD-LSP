@@ -2,6 +2,20 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.2]
+
+### Added
+
+- Register `DocumentRangeFormattingEditProvider` so **Format Selection** is available for BIRD2 files.
+- Add editor context-menu entries for `BIRD2: Validate Active Document` and `BIRD2: Format Active Document`.
+- Add keyword hover documentation provider backed by YAML data.
+- Add fallback validation trigger on `onDidChangeTextDocument` for real-time diagnostics in fallback mode.
+
+### Changed
+
+- Harden status-bar lifecycle initialization to avoid unsafe early access patterns.
+- Switch hover docs to shared YAML synchronization workflow via `sync:hover-docs`.
+
 ## [0.1.1]
 
 ### Changed
