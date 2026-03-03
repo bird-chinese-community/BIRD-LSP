@@ -1,6 +1,11 @@
 {
   "bird-dir-router-id": {
-    "prefix": ["bird-dir-router-id", "bird-global-router-id", "router-id", "router id"],
+    "prefix": [
+      "bird-dir-router-id",
+      "bird-global-router-id",
+      "router-id",
+      "router id"
+    ],
     "description": "[Dir] Set router identifier (Basic)",
     "body": ["router id ${1:192.168.1.1};", "$0"]
   },
@@ -23,7 +28,12 @@
     ]
   },
   "bird-dir-timebase": {
-    "prefix": ["bird-dir-timebase", "bird-global-timebase", "timebase", "time base"],
+    "prefix": [
+      "bird-dir-timebase",
+      "bird-global-timebase",
+      "timebase",
+      "time base"
+    ],
     "description": "[Dir] Set timebase for protocol timing (Basic)",
     "body": ["timebase real ${1|enabled,disabled|};", "$0"]
   },

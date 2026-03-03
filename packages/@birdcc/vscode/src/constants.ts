@@ -9,6 +9,7 @@ export const EXTENSION_NAME = "BIRD2 LSP";
 export const CONFIG_SECTION = "bird2-lsp";
 export const LANGUAGE_ID = "bird2";
 export const LANGUAGE_SCOPE = "source.bird2";
+export const BIRD_DOCUMENT_SELECTOR = [{ language: LANGUAGE_ID }] as const;
 
 export const DEFAULT_LSP_ENABLED =
   extensionConfigurationFields.enabled.defaultValue;

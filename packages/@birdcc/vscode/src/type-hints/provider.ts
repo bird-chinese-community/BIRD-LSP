@@ -12,7 +12,7 @@ import {
   type TextDocument,
 } from "vscode";
 
-import { LANGUAGE_ID } from "../constants.js";
+import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
 import { toSanitizedErrorDetails } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
@@ -46,8 +46,8 @@ const toRange = (
     new Position(endLine - 1, Math.max(endColumn - 1, 0)),
   );
 
-const isBirdFileDocument = (document: TextDocument): boolean =>
-  document.languageId === LANGUAGE_ID && document.uri.scheme === "file";
+const isBirdDocument = (document: TextDocument): boolean =>
+  document.languageId === LANGUAGE_ID;
 
 const appendReturnDetails = (
   markdown: MarkdownString,
@@ -96,14 +96,14 @@ export const registerBirdTypeHintProviders = ({
   };
 
   const hoverProvider = languages.registerHoverProvider(
-    { language: LANGUAGE_ID, scheme: "file" },
+    [...BIRD_DOCUMENT_SELECTOR],
     {
       provideHover: async (document, position): Promise<Hover | null> => {
         const configuration = getConfiguration();
         if (
           !configuration.typeHintsEnabled ||
           !configuration.typeHintsHoverEnabled ||
-          !isBirdFileDocument(document)
+          !isBirdDocument(document)
         ) {
           return null;
         }
@@ -167,14 +167,14 @@ export const registerBirdTypeHintProviders = ({
   );
 
   const inlayProvider = languages.registerInlayHintsProvider(
-    { language: LANGUAGE_ID, scheme: "file" },
+    [...BIRD_DOCUMENT_SELECTOR],
     {
       provideInlayHints: async (document, range): Promise<InlayHint[]> => {
         const configuration = getConfiguration();
         if (
           !configuration.typeHintsEnabled ||
           !configuration.typeHintsInlayEnabled ||
-          !isBirdFileDocument(document)
+          !isBirdDocument(document)
         ) {
           return [];
         }

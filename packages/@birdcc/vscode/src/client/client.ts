@@ -8,10 +8,10 @@ import {
 } from "vscode-languageclient/node.js";
 
 import {
+  BIRD_DOCUMENT_SELECTOR,
   CONFIG_SECTION,
   EXTENSION_ID,
   EXTENSION_NAME,
-  LANGUAGE_ID,
 } from "../constants.js";
 import { resolveServerCommand } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
@@ -42,7 +42,7 @@ export const createLanguageClient = (
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ language: LANGUAGE_ID, scheme: "file" }],
+    documentSelector: [...BIRD_DOCUMENT_SELECTOR],
     outputChannel,
     revealOutputChannelOn: RevealOutputChannelOn.Never,
     synchronize: {

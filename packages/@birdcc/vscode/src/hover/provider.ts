@@ -7,12 +7,8 @@ import {
   type Disposable,
 } from "vscode";
 
-import { LANGUAGE_ID } from "../constants.js";
-import {
-  loadBirdHoverDocs,
-  resolveBirdHoverTopic,
-  type ResolvedHoverTopic,
-} from "./docs.js";
+import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
+import type { ResolvedHoverTopic } from "./docs.js";
 
 const toRange = (
   line: number,
@@ -40,37 +36,36 @@ const renderHoverMarkdown = (topic: ResolvedHoverTopic): MarkdownString => {
   return markdown;
 };
 
+let hoverDocsModulePromise: Promise<typeof import("./docs.js")> | undefined;
+
+const getHoverDocsModule = (): Promise<typeof import("./docs.js")> => {
+  hoverDocsModulePromise ??= import("./docs.js");
+  return hoverDocsModulePromise;
+};
+
 export const registerBirdKeywordHoverProvider = (): Disposable =>
-  languages.registerHoverProvider(
-    { language: LANGUAGE_ID, scheme: "file" },
-    {
-      provideHover: async (document, position) => {
-        if (
-          document.languageId !== LANGUAGE_ID ||
-          document.uri.scheme !== "file"
-        ) {
+  languages.registerHoverProvider([...BIRD_DOCUMENT_SELECTOR], {
+    provideHover: async (document, position) => {
+      if (document.languageId !== LANGUAGE_ID) {
+        return null;
+      }
+
+      try {
+        const { loadBirdHoverDocs, resolveBirdHoverTopic } =
+          await getHoverDocsModule();
+        const docs = await loadBirdHoverDocs();
+        const lineText = document.lineAt(position.line).text;
+        const topic = resolveBirdHoverTopic(lineText, position.character, docs);
+        if (!topic) {
           return null;
         }
 
-        try {
-          const docs = await loadBirdHoverDocs();
-          const lineText = document.lineAt(position.line).text;
-          const topic = resolveBirdHoverTopic(
-            lineText,
-            position.character,
-            docs,
-          );
-          if (!topic) {
-            return null;
-          }
-
-          return new Hover(
-            renderHoverMarkdown(topic),
-            toRange(position.line, topic.startCharacter, topic.endCharacter),
-          );
-        } catch {
-          return null;
-        }
-      },
+        return new Hover(
+          renderHoverMarkdown(topic),
+          toRange(position.line, topic.startCharacter, topic.endCharacter),
+        );
+      } catch {
+        return null;
+      }
     },
-  );
+  });

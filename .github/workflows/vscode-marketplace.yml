@@ -35,7 +35,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bird2-lsp-vsix
-          path: packages/@birdcc/vscode/dist/bird2-lsp.vsix
+          path: packages/@birdcc/vscode/release/bird2-lsp.vsix
           if-no-files-found: error
 
   publish-vscode-marketplace:
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: bird2-lsp-vsix
-          path: packages/@birdcc/vscode/dist
+          path: packages/@birdcc/vscode/release
       - run: pnpm --filter @birdcc/vscode marketplace:publish:vsce
         env:
           VSCE_PAT: ${{ secrets.VS_PUBLISH_TOKEN }}
@@ -77,7 +77,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: bird2-lsp-vsix
-          path: packages/@birdcc/vscode/dist
+          path: packages/@birdcc/vscode/release
       - run: pnpm --filter @birdcc/vscode marketplace:publish:ovsx
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}

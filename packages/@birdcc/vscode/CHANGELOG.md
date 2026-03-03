@@ -2,11 +2,24 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.4] - 2026-03-03
+
+### 🐛 Fixed
+
+- 🧩 **Activation Reliability** — Added explicit `onCommand:*` activation events so command invocations always trigger extension activation.
+- 🖱️ **Context Menu Visibility** — Fixed `menus.when` expressions by quoting `'bird2'`, restoring expected right-click menu visibility logic.
+- 🌐 **Remote Workspace Compatibility** — Relaxed editor feature selectors to support non-`file` BIRD2 documents (for example remote workspaces), restoring hover/format/type-hint registration in these scenarios.
+- 📝 **Runtime Logging** — Switched to log output channel mode and added lifecycle log lines to make startup/teardown diagnosis visible from output logs.
+- 🧷 **Hover Fault Isolation** — Made hover docs module loading lazy so hover dependency failures no longer block full extension activation.
+- 🚚 **Marketplace Workflow Paths** — Updated CI artifact upload/download paths to use `release/bird2-lsp.vsix`, matching the new packaging layout.
+
+---
+
 ## [0.1.3] - 2026-03-03
 
 ### 🐛 Fixed
 
-- 📦 **Runtime Dependencies in VSIX** — Fix extension activation failure (`ERR_MODULE_NOT_FOUND`, e.g. `zod`) by packaging runtime dependencies into the VSIX artifact.
+- 📦 **Runtime Dependencies in VSIX** — Fix extension activation failure (`ERR_MODULE_NOT_FOUND`) by packaging runtime dependencies into the VSIX artifact.
 - 🧭 **Release Artifact Location** — Move packaged VSIX output from `dist/` to `release/` to avoid mixing distribution files with TypeScript build output.
 - 🗂️ **Packaging Completeness** — Ensure runtime data files and dependency tree are included for offline VSIX installs.
 
@@ -61,6 +74,7 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 ---
 
 [0.1.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.1...vscode-v0.1.2
+[0.1.4]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.3...vscode-v0.1.4
 [0.1.3]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.2...vscode-v0.1.3
 [0.1.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.0...vscode-v0.1.1
 [0.1.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.0.1-alpha.0...vscode-v0.1.0

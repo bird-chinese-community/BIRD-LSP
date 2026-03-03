@@ -35,16 +35,16 @@
 
 ## Features
 
-| Feature | Description | Status |
-| ------- | ----------- | ------ |
-| 🎨 **Syntax Highlighting** | Tree-sitter based parsing for BIRD files | ✅ |
-| 🔍 **Real-time Diagnostics** | 32+ lint rules + `bird -p` validation | ✅ |
-| 📝 **Code Formatting** | Dual-engine with dprint and builtin | ✅ |
-| 💡 **IntelliSense** | Auto-completion for keywords and symbols | ✅ |
-| 🔎 **Hover Information** | Type info and documentation on hover | ✅ |
-| 🏗️ **Symbol Navigation** | Go to Definition and Find References | ✅ |
-| 📑 **Document Outline** | Document Symbol structure browsing | ✅ |
-| ⌨️ **Code Snippets** | 22 reusable code templates | ✅ |
+| Feature                      | Description                              | Status |
+| ---------------------------- | ---------------------------------------- | ------ |
+| 🎨 **Syntax Highlighting**   | Tree-sitter based parsing for BIRD files | ✅     |
+| 🔍 **Real-time Diagnostics** | 32+ lint rules + `bird -p` validation    | ✅     |
+| 📝 **Code Formatting**       | Dual-engine with dprint and builtin      | ✅     |
+| 💡 **IntelliSense**          | Auto-completion for keywords and symbols | ✅     |
+| 🔎 **Hover Information**     | Type info and documentation on hover     | ✅     |
+| 🏗️ **Symbol Navigation**     | Go to Definition and Find References     | ✅     |
+| 📑 **Document Outline**      | Document Symbol structure browsing       | ✅     |
+| ⌨️ **Code Snippets**         | 22 reusable code templates               | ✅     |
 
 ### Supported Language IDs
 
@@ -125,28 +125,28 @@ Open the Command Palette (Ctrl+Shift+P) and type:
 
 ### Core Configuration
 
-| Configuration Key | Type | Default | Description |
-| ----------------- | ---- | ------- | ----------- |
-| `bird2-lsp.enabled` | `boolean` | `true` | Enable Language Server |
-| `bird2-lsp.serverPath` | `string[]` | `["birdcc","lsp","--stdio"]` | LSP server launch command |
-| `bird2-lsp.formatter.engine` | `"dprint"` \| `"builtin"` | `"dprint"` | Preferred formatting engine |
-| `bird2-lsp.validation.command` | `string` | `"bird -p -c {file}"` | BIRD validation command |
+| Configuration Key              | Type                      | Default                      | Description                 |
+| ------------------------------ | ------------------------- | ---------------------------- | --------------------------- |
+| `bird2-lsp.enabled`            | `boolean`                 | `true`                       | Enable Language Server      |
+| `bird2-lsp.serverPath`         | `string[]`                | `["birdcc","lsp","--stdio"]` | LSP server launch command   |
+| `bird2-lsp.formatter.engine`   | `"dprint"` \| `"builtin"` | `"dprint"`                   | Preferred formatting engine |
+| `bird2-lsp.validation.command` | `string`                  | `"bird -p -c {file}"`        | BIRD validation command     |
 
 ### Full Configuration Reference
 
-| Configuration Key | Type | Default | Description |
-| ----------------- | ---- | ------- | ----------- |
-| `bird2-lsp.enabled` | `boolean` | `true` | Enable Language Server |
-| `bird2-lsp.serverPath` | `string \| string[]` | `["birdcc","lsp","--stdio"]` | LSP server path |
-| `bird2-lsp.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | `"off"` | Trace level |
-| `bird2-lsp.validation.enabled` | `boolean` | `true` | Enable `bird -p` validation |
-| `bird2-lsp.validation.command` | `string` | `"bird -p -c {file}"` | Validation command |
-| `bird2-lsp.validation.onSave` | `boolean` | `true` | Validate on save |
-| `bird2-lsp.validation.timeout` | `number` | `30000` | Validation timeout (ms) |
-| `bird2-lsp.formatter.engine` | `"dprint"` \| `"builtin"` | `"dprint"` | Formatting engine |
-| `bird2-lsp.formatter.safeMode` | `boolean` | `true` | Enable safe mode |
-| `bird2-lsp.typeHints.enabled` | `boolean` | `true` | Enable type hints |
-| `bird2-lsp.performance.maxFileSizeBytes` | `number` | `2097152` | Large file threshold (2MB) |
+| Configuration Key                        | Type                                   | Default                      | Description                 |
+| ---------------------------------------- | -------------------------------------- | ---------------------------- | --------------------------- |
+| `bird2-lsp.enabled`                      | `boolean`                              | `true`                       | Enable Language Server      |
+| `bird2-lsp.serverPath`                   | `string \| string[]`                   | `["birdcc","lsp","--stdio"]` | LSP server path             |
+| `bird2-lsp.trace.server`                 | `"off"` \| `"messages"` \| `"verbose"` | `"off"`                      | Trace level                 |
+| `bird2-lsp.validation.enabled`           | `boolean`                              | `true`                       | Enable `bird -p` validation |
+| `bird2-lsp.validation.command`           | `string`                               | `"bird -p -c {file}"`        | Validation command          |
+| `bird2-lsp.validation.onSave`            | `boolean`                              | `true`                       | Validate on save            |
+| `bird2-lsp.validation.timeout`           | `number`                               | `30000`                      | Validation timeout (ms)     |
+| `bird2-lsp.formatter.engine`             | `"dprint"` \| `"builtin"`              | `"dprint"`                   | Formatting engine           |
+| `bird2-lsp.formatter.safeMode`           | `boolean`                              | `true`                       | Enable safe mode            |
+| `bird2-lsp.typeHints.enabled`            | `boolean`                              | `true`                       | Enable type hints           |
+| `bird2-lsp.performance.maxFileSizeBytes` | `number`                               | `2097152`                    | Large file threshold (2MB)  |
 
 ---
 
@@ -154,17 +154,17 @@ Open the Command Palette (Ctrl+Shift+P) and type:
 
 Open the Command Palette (Ctrl+Shift+P) and search for `BIRD2`:
 
-| Command | Title | Description |
-| ------- | ----- | ----------- |
-| `bird2-lsp.restartLanguageServer` | **BIRD2: Restart Language Server** | Restart the LSP server |
-| `bird2-lsp.enableLanguageServer` | **BIRD2: Enable Language Server** | Enable the LSP server |
-| `bird2-lsp.disableLanguageServer` | **BIRD2: Disable Language Server** | Disable the LSP server |
+| Command                            | Title                               | Description               |
+| ---------------------------------- | ----------------------------------- | ------------------------- |
+| `bird2-lsp.restartLanguageServer`  | **BIRD2: Restart Language Server**  | Restart the LSP server    |
+| `bird2-lsp.enableLanguageServer`   | **BIRD2: Enable Language Server**   | Enable the LSP server     |
+| `bird2-lsp.disableLanguageServer`  | **BIRD2: Disable Language Server**  | Disable the LSP server    |
 | `bird2-lsp.validateActiveDocument` | **BIRD2: Validate Active Document** | Validate current document |
-| `bird2-lsp.formatActiveDocument` | **BIRD2: Format Active Document** | Format current document |
-| `bird2-lsp.openSettings` | **BIRD2: Open Extension Settings** | Open settings page |
-| `bird2-lsp.showOutputChannel` | **BIRD2: Show Output Channel** | Show output for debugging |
-| `bird2-lsp.showDocumentation` | **BIRD2: Open Documentation** | Open documentation |
-| `bird2-lsp.reloadConfiguration` | **BIRD2: Reload Configuration** | Reload configuration |
+| `bird2-lsp.formatActiveDocument`   | **BIRD2: Format Active Document**   | Format current document   |
+| `bird2-lsp.openSettings`           | **BIRD2: Open Extension Settings**  | Open settings page        |
+| `bird2-lsp.showOutputChannel`      | **BIRD2: Show Output Channel**      | Show output for debugging |
+| `bird2-lsp.showDocumentation`      | **BIRD2: Open Documentation**       | Open documentation        |
+| `bird2-lsp.reloadConfiguration`    | **BIRD2: Reload Configuration**     | Reload configuration      |
 
 ---
 
@@ -174,63 +174,63 @@ The extension includes 22 built-in code snippets:
 
 ### Directives
 
-| Prefix | Description |
-| ------ | ----------- |
-| `bird-dir-router-id` | Set Router ID |
-| `bird-dir-include` | Include external file |
-| `bird-var-define` | Define a constant |
-| `bird-dir-log` | Configure log output |
+| Prefix                      | Description                |
+| --------------------------- | -------------------------- |
+| `bird-dir-router-id`        | Set Router ID              |
+| `bird-dir-include`          | Include external file      |
+| `bird-var-define`           | Define a constant          |
+| `bird-dir-log`              | Configure log output       |
 | `bird-dir-graceful-restart` | Configure graceful restart |
 
 ### Protocols
 
-| Prefix | Description |
-| ------ | ----------- |
-| `bird-proto-tmpl` | Protocol template definition |
-| `bird-proto-bgp-basic` | Basic BGP configuration |
-| `bird-proto-bgp-full` | Full BGP configuration |
-| `bird-proto-bgp-rr-client` | BGP route reflector client |
-| `bird-proto-ospf` | OSPF protocol configuration |
-| `bird-proto-static` | Static route configuration |
-| `bird-proto-kernel` | Kernel routing table sync |
+| Prefix                     | Description                  |
+| -------------------------- | ---------------------------- |
+| `bird-proto-tmpl`          | Protocol template definition |
+| `bird-proto-bgp-basic`     | Basic BGP configuration      |
+| `bird-proto-bgp-full`      | Full BGP configuration       |
+| `bird-proto-bgp-rr-client` | BGP route reflector client   |
+| `bird-proto-ospf`          | OSPF protocol configuration  |
+| `bird-proto-static`        | Static route configuration   |
+| `bird-proto-kernel`        | Kernel routing table sync    |
 
 ### Filters
 
-| Prefix | Description |
-| ------ | ----------- |
-| `bird-filter-simple` | Simple filter |
-| `bird-filter-prefix` | Prefix list matching |
+| Prefix                  | Description            |
+| ----------------------- | ---------------------- |
+| `bird-filter-simple`    | Simple filter          |
+| `bird-filter-prefix`    | Prefix list matching   |
 | `bird-filter-community` | BGP Community matching |
-| `bird-filter-as-path` | AS Path matching |
-| `bird-filter-rpki` | RPKI validation check |
+| `bird-filter-as-path`   | AS Path matching       |
+| `bird-filter-rpki`      | RPKI validation check  |
 
 ### Functions
 
-| Prefix | Description |
-| ------ | ----------- |
-| `bird-func-basic` | Basic function definition |
-| `bird-func-prepend` | AS Path Prepend |
-| `bird-func-net-match` | Network prefix matching |
+| Prefix                | Description               |
+| --------------------- | ------------------------- |
+| `bird-func-basic`     | Basic function definition |
+| `bird-func-prepend`   | AS Path Prepend           |
+| `bird-func-net-match` | Network prefix matching   |
 
 ### Control Flow
 
-| Prefix | Description |
-| ------ | ----------- |
-| `bird-flow-if` | If statement |
+| Prefix           | Description    |
+| ---------------- | -------------- |
+| `bird-flow-if`   | If statement   |
 | `bird-flow-case` | Case statement |
-| `bird-flow-for` | For loop |
+| `bird-flow-for`  | For loop       |
 
 ---
 
 ## Related Packages
 
-| Package | Description | Link |
-| ------- | ----------- | ---- |
-| `@birdcc/parser` | Tree-sitter grammar parser | [npm](https://www.npmjs.com/package/@birdcc/parser) |
-| `@birdcc/core` | AST / Symbol Table / Type Checker | [npm](https://www.npmjs.com/package/@birdcc/core) |
-| `@birdcc/linter` | 32+ lint rule engine | [npm](https://www.npmjs.com/package/@birdcc/linter) |
-| `@birdcc/formatter` | Code formatting engine | [npm](https://www.npmjs.com/package/@birdcc/formatter) |
-| `@birdcc/cli` | Command line tool | [npm](https://www.npmjs.com/package/@birdcc/cli) |
+| Package             | Description                       | Link                                                   |
+| ------------------- | --------------------------------- | ------------------------------------------------------ |
+| `@birdcc/parser`    | Tree-sitter grammar parser        | [npm](https://www.npmjs.com/package/@birdcc/parser)    |
+| `@birdcc/core`      | AST / Symbol Table / Type Checker | [npm](https://www.npmjs.com/package/@birdcc/core)      |
+| `@birdcc/linter`    | 32+ lint rule engine              | [npm](https://www.npmjs.com/package/@birdcc/linter)    |
+| `@birdcc/formatter` | Code formatting engine            | [npm](https://www.npmjs.com/package/@birdcc/formatter) |
+| `@birdcc/cli`       | Command line tool                 | [npm](https://www.npmjs.com/package/@birdcc/cli)       |
 
 ---
 

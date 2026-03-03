@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/vscode",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -39,6 +39,10 @@
     "Linters",
     "Formatters"
   ],
+  "extensionKind": [
+    "workspace",
+    "ui"
+  ],
   "icon": "assets/favicon-256.png",
   "files": [
     "dist/**",
@@ -64,6 +68,15 @@
   },
   "activationEvents": [
     "onLanguage:bird2",
+    "onCommand:bird2-lsp.restartLanguageServer",
+    "onCommand:bird2-lsp.enableLanguageServer",
+    "onCommand:bird2-lsp.disableLanguageServer",
+    "onCommand:bird2-lsp.validateActiveDocument",
+    "onCommand:bird2-lsp.formatActiveDocument",
+    "onCommand:bird2-lsp.openSettings",
+    "onCommand:bird2-lsp.showOutputChannel",
+    "onCommand:bird2-lsp.showDocumentation",
+    "onCommand:bird2-lsp.reloadConfiguration",
     "workspaceContains:**/bird.conf",
     "workspaceContains:**/bird2.conf",
     "workspaceContains:**/bird3.conf",
@@ -157,24 +170,24 @@
     "menus": {
       "editor/context": [
         {
-          "when": "!inOutput && resourceLangId == bird2",
+          "when": "!inOutput && resourceLangId == 'bird2'",
           "command": "bird2-lsp.validateActiveDocument",
           "group": "1_bird2@1"
         },
         {
-          "when": "!inOutput && resourceLangId == bird2",
+          "when": "!inOutput && resourceLangId == 'bird2'",
           "command": "bird2-lsp.formatActiveDocument",
           "group": "1_bird2@2"
         }
       ],
       "commandPalette": [
         {
-          "when": "resourceLangId != bird2",
+          "when": "resourceLangId != 'bird2'",
           "command": "bird2-lsp.validateActiveDocument",
           "visible": false
         },
         {
-          "when": "resourceLangId != bird2",
+          "when": "resourceLangId != 'bird2'",
           "command": "bird2-lsp.formatActiveDocument",
           "visible": false
         }

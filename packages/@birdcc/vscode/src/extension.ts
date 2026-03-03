@@ -15,7 +15,7 @@ import { registerBirdKeywordHoverProvider } from "./hover/index.js";
 import { createBirdStatusBarManager } from "./status/index.js";
 import { registerBirdTypeHintProviders } from "./type-hints/index.js";
 import { createDefaultRuntimeState } from "./types.js";
-import { LANGUAGE_ID } from "./constants.js";
+import { BIRD_DOCUMENT_SELECTOR } from "./constants.js";
 import { toSanitizedErrorDetails } from "./security/index.js";
 
 export const runtimeState = createDefaultRuntimeState();
@@ -77,7 +77,12 @@ const runConfigurationLifecycle = async (
 
 export const activate = async (context: ExtensionContext): Promise<void> => {
   runtimeState.activated = true;
-  const outputChannel = window.createOutputChannel(EXTENSION_NAME);
+  const outputChannel = window.createOutputChannel(EXTENSION_NAME, {
+    log: true,
+  });
+  outputChannel.appendLine(
+    `[bird2-lsp] activating extension v${String(context.extension.packageJSON.version ?? "unknown")}`,
+  );
   const configurationManager = createConfigurationManager();
   const statusBarManager = createBirdStatusBarManager();
   let lifecycleState: ClientLifecycleState = "idle";
@@ -96,6 +101,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   });
   lifecycleState = lifecycle.state;
   refreshStatus();
+  outputChannel.appendLine("[bird2-lsp] status bar initialized");
   const formattingProvider = createBirdFormattingProvider(
     () => runtimeState.configuration,
     outputChannel,
@@ -207,13 +213,13 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
   context.subscriptions.push(
     languages.registerDocumentFormattingEditProvider(
-      { language: LANGUAGE_ID, scheme: "file" },
+      [...BIRD_DOCUMENT_SELECTOR],
       formattingProvider,
     ),
   );
   context.subscriptions.push(
     languages.registerDocumentRangeFormattingEditProvider(
-      { language: LANGUAGE_ID, scheme: "file" },
+      [...BIRD_DOCUMENT_SELECTOR],
       formattingProvider,
     ),
   );
@@ -236,6 +242,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
 
   context.subscriptions.push({
     dispose: () => {
+      outputChannel.appendLine("[bird2-lsp] disposing extension");
       statusBarManager.dispose();
       configurationManager.dispose();
       disposeFallbackValidator();

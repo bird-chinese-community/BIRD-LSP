@@ -6,7 +6,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, "..");
 
-const sourcePath = path.resolve(packageRoot, "..", "lsp", "src", "hover-docs.yaml");
+const sourcePath = path.resolve(
+  packageRoot,
+  "..",
+  "lsp",
+  "src",
+  "hover-docs.yaml",
+);
 const targetDir = path.join(packageRoot, "data");
 const targetPath = path.join(targetDir, "hover-docs.yaml");
 

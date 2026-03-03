@@ -112,7 +112,9 @@ const runCommand = async (command, args, cwd) => {
 };
 
 const injectNodeModulesIntoVsix = async (deployDir, vsixPath) => {
-  const patchDir = await mkdtemp(path.join(os.tmpdir(), "bird2-lsp-vsix-patch-"));
+  const patchDir = await mkdtemp(
+    path.join(os.tmpdir(), "bird2-lsp-vsix-patch-"),
+  );
 
   try {
     await runCommand("unzip", ["-q", vsixPath, "-d", patchDir], patchDir);

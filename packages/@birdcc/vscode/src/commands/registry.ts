@@ -50,10 +50,7 @@ const isBirdEditorActive = (): boolean => {
     return false;
   }
 
-  return (
-    activeDocument.languageId === LANGUAGE_ID &&
-    activeDocument.uri.scheme === "file"
-  );
+  return activeDocument.languageId === LANGUAGE_ID;
 };
 
 const updateLanguageServerEnabled = async (enabled: boolean): Promise<void> => {
