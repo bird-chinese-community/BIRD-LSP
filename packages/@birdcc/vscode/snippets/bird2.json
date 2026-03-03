@@ -1,7 +1,132 @@
 {
-  "BIRD: BGP Protocol (Basic)": {
-    "prefix": ["bgp", "protocol bgp"],
-    "description": "Basic BGP protocol configuration",
+  "bird-dir-router-id": {
+    "prefix": ["bird-dir-router-id", "bird-global-router-id", "router-id", "router id"],
+    "description": "[Dir] Set router identifier (Basic)",
+    "body": ["router id ${1:192.168.1.1};", "$0"]
+  },
+  "bird-dir-include": {
+    "prefix": ["bird-dir-include", "bird-global-include", "include"],
+    "description": "[Dir] Include external configuration file (Basic)",
+    "body": ["include \"${1:path/to/file.conf}\";", "$0"]
+  },
+  "bird-var-define": {
+    "prefix": ["bird-var-define", "bird-global-define", "define", "constant"],
+    "description": "[Var] Define constant value (Basic)",
+    "body": ["define ${1:CONST_NAME} = ${2:value};", "$0"]
+  },
+  "bird-dir-log": {
+    "prefix": ["bird-dir-log", "bird-global-log", "log", "logging"],
+    "description": "[Dir] Configure logging output (Basic)",
+    "body": [
+      "log ${1|syslog,stderr,stdout,\"/var/log/bird.log\"|} ${2|all,debug,trace,info,warning,error,fatal|};",
+      "$0"
+    ]
+  },
+  "bird-dir-timebase": {
+    "prefix": ["bird-dir-timebase", "bird-global-timebase", "timebase", "time base"],
+    "description": "[Dir] Set timebase for protocol timing (Basic)",
+    "body": ["timebase real ${1|enabled,disabled|};", "$0"]
+  },
+  "bird-dir-graceful-restart": {
+    "prefix": [
+      "bird-dir-graceful-restart",
+      "bird-global-graceful-restart",
+      "graceful",
+      "graceful restart"
+    ],
+    "description": "[Dir] Configure graceful restart capability (Full)",
+    "body": [
+      "graceful restart ${1|yes,no|};",
+      "graceful restart wait ${2:5};",
+      "$0"
+    ]
+  },
+  "bird-dir-watchdog": {
+    "prefix": ["bird-dir-watchdog", "bird-global-watchdog", "watchdog"],
+    "description": "[Dir] Configure watchdog timeout warnings (Basic)",
+    "body": ["watchdog warning ${1:5};", "$0"]
+  },
+  "bird-proto-tmpl": {
+    "prefix": ["bird-proto-tmpl", "template", "protocol template"],
+    "description": "[Protocol] Protocol template definition (Basic)",
+    "body": [
+      "template ${1:bgp} ${2:tmpl_name} {",
+      "  ${3:local as 65001;}",
+      "  ${4:neighbor 192.168.1.1 as 65002;}",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-from-tmpl": {
+    "prefix": ["bird-proto-from-tmpl", "from-template", "protocol from"],
+    "description": "[Protocol] Protocol from template (Basic)",
+    "body": [
+      "protocol ${1:bgp} ${2:peer_name} from ${3:tmpl_name} {",
+      "  neighbor ${4:192.168.1.2} as ${5:65002};",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-device": {
+    "prefix": ["bird-proto-device", "device", "protocol device"],
+    "description": "[Protocol] Device scan protocol (Basic)",
+    "body": ["protocol device {", "  scan time ${1:10};", "  $0", "}"]
+  },
+  "bird-proto-kernel": {
+    "prefix": ["bird-proto-kernel", "kernel", "protocol kernel"],
+    "description": "[Protocol] Kernel routing table synchronization (Basic)",
+    "body": [
+      "protocol kernel {",
+      "  ipv${1|4,6|} {",
+      "    import ${2|all,none,filter|};",
+      "    export ${3|all,none,filter|};",
+      "  };",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-static": {
+    "prefix": ["bird-proto-static", "static", "protocol static"],
+    "description": "[Protocol] Static routes configuration (Basic)",
+    "body": [
+      "protocol static {",
+      "  ipv${1|4,6|};",
+      "  ",
+      "  route ${2:10.0.0.0/8} via ${3:192.168.1.1};",
+      "  route ${4:192.168.0.0/16} blackhole;",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-direct": {
+    "prefix": ["bird-proto-direct", "direct", "protocol direct"],
+    "description": "[Protocol] Direct routes protocol (Basic)",
+    "body": [
+      "protocol direct {",
+      "  ipv${1|4,6|};",
+      "  ",
+      "  interface \"${2:*}\";",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-pipe": {
+    "prefix": ["bird-proto-pipe", "pipe", "protocol pipe"],
+    "description": "[Protocol] Pipe protocol between routing tables (Basic)",
+    "body": [
+      "protocol pipe ${1:pipe_name} {",
+      "  table ${2:master};",
+      "  peer table ${3:master2};",
+      "  ",
+      "  import ${4|all,none,filter|};",
+      "  export ${5|all,none,filter|};",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-bgp-basic": {
+    "prefix": ["bird-proto-bgp", "bgp", "bgp basic"],
+    "description": "[Protocol] BGP protocol configuration (Basic)",
     "body": [
       "protocol bgp ${1:peer_name} {",
       "  local as ${2:65001};",
@@ -15,243 +140,356 @@
       "}"
     ]
   },
-  "BIRD: BGP Protocol (Full)": {
-    "prefix": ["bgp-full", "protocol bgp full"],
-    "description": "Full-featured BGP with multihop, timers, and communities",
+  "bird-proto-bgp-full": {
+    "prefix": ["bird-proto-bgp-full", "bgp-full"],
+    "description": "[Protocol] BGP protocol configuration (Full)",
     "body": [
       "protocol bgp ${1:peer_name} {",
-      "  local as ${2:65001};",
-      "  neighbor ${3:192.168.1.1} as ${4:65002};",
-      "  multihop ${5:2};",
+      "  description \"${2:Peer description}\";",
+      "  local as ${3:65001};",
+      "  neighbor ${4:192.168.1.1} as ${5:65002};",
       "  ",
-      "  hold time ${6:90};",
-      "  keepalive time ${7:30};",
-      "  connect retry time ${8:30};",
-      "  ",
-      "  default bgp_local_pref ${9:100};",
-      "  default bgp_med ${10:0};",
+      "  multihop ${6:2};",
+      "  hold time ${7:90};",
       "  ",
       "  ipv4 {",
-      "    import filter ${11:import_filter};",
-      "    export filter ${12:export_filter};",
+      "    import filter ${8:import_filter};",
+      "    export filter ${9:export_filter};",
+      "    next hop self ${10|yes,no|};",
       "  };",
       "  $0",
       "}"
     ]
   },
-  "BIRD: OSPF Protocol": {
-    "prefix": ["ospf", "protocol ospf"],
-    "description": "OSPF routing protocol configuration",
+  "bird-proto-bgp-rr-client": {
+    "prefix": ["bird-proto-bgp-rr-client", "bgp-rr", "route-reflector"],
+    "description": "[Protocol] BGP route reflector client configuration (Full)",
+    "body": [
+      "protocol bgp ${1:rr_client} {",
+      "  local as ${2:65001};",
+      "  neighbor ${3:192.168.1.1} as ${4:65001};",
+      "  ",
+      "  rr client;",
+      "  rr cluster id ${5:192.168.1.254};",
+      "  ",
+      "  ipv4 {",
+      "    import ${6:all};",
+      "    export ${7:all};",
+      "  };",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-bgp-confed": {
+    "prefix": ["bird-proto-bgp-confed", "bgp-confederation", "confed"],
+    "description": "[Protocol] BGP confederation configuration (Full)",
+    "body": [
+      "protocol bgp ${1:peer_name} {",
+      "  local as ${2:65001};",
+      "  neighbor ${3:192.168.1.1} as ${4:65002};",
+      "  ",
+      "  confederation ${5:64512};",
+      "  confederation member ${6|yes,no|};",
+      "  ",
+      "  ipv4 {",
+      "    import ${7:all};",
+      "    export ${8:all};",
+      "  };",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-proto-ospf": {
+    "prefix": ["bird-proto-ospf", "ospf", "protocol ospf"],
+    "description": "[Protocol] OSPF routing protocol (Basic)",
     "body": [
       "protocol ospf ${1:v2} {",
       "  area ${2:0.0.0.0} {",
-      "    ${3:stub};",
-      "    interface \"${4:eth0}\" {",
-      "      cost ${5:10};",
-      "      hello ${6:10};",
-      "      retransmit ${7:5};",
+      "    interface \"${3:*}\" {",
+      "      cost ${4:10};",
       "    };",
       "  };",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Static Protocol": {
-    "prefix": ["static", "protocol static"],
-    "description": "Static routes configuration",
+  "bird-proto-ospf-area": {
+    "prefix": ["bird-proto-ospf-area", "ospf-area", "area config"],
+    "description": "[Protocol] OSPF area detailed configuration (Full)",
     "body": [
-      "protocol static {",
-      "  ${1|ipv4,ipv6|} {",
-      "    export ${2:all};",
+      "protocol ospf ${1:v2} {",
+      "  area ${2:0.0.0.1} {",
+      "    stub ${3|yes,no|};",
+      "    ",
+      "    interface \"${4:eth0}\" {",
+      "      cost ${5:10};",
+      "      hello ${6:10};",
+      "      type ${7|broadcast,pointopoint,nbma|};",
+      "    };",
       "  };",
-      "  ",
-      "  route ${3:10.0.0.0/8} via ${4:192.168.1.1};",
-      "  route ${5:192.168.0.0/16} ${6|blackhole,unreachable,prohibit|};",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Kernel Protocol": {
-    "prefix": ["kernel", "protocol kernel"],
-    "description": "Kernel routing table synchronization",
+  "bird-proto-rip": {
+    "prefix": ["bird-proto-rip", "rip", "protocol rip"],
+    "description": "[Protocol] RIP protocol configuration (Basic)",
     "body": [
-      "protocol kernel {",
-      "  ${1|ipv4,ipv6|} {",
-      "    export ${2:all};",
+      "protocol rip ${1:rip_name} {",
+      "  ipv${2|4,6|} {",
       "    import ${3:all};",
+      "    export ${4:all};",
       "  };",
       "  ",
-      "  learn;",
-      "  scan time ${4:10};",
+      "  interface \"${5:*}\";",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Device Protocol": {
-    "prefix": ["device", "protocol device"],
-    "description": "Network device scanning",
-    "body": ["protocol device {", "  scan time ${1:10};", "  $0", "}"]
-  },
-  "BIRD: Filter Block": {
-    "prefix": ["filter"],
-    "description": "Route filter definition",
-    "body": [
-      "filter ${1:filter_name} {",
-      "  if (${2:net} ~ [ ${3:10.0.0.0/8+} ]) then {",
-      "    ${4:bgp_community.add((65530,1))};",
-      "    accept;",
-      "  }",
-      "  ",
-      "  reject;",
-      "  $0",
-      "}"
-    ]
-  },
-  "BIRD: Filter with Case": {
-    "prefix": ["filter-case"],
-    "description": "Filter using case statement for route matching",
-    "body": [
-      "filter ${1:filter_name} {",
-      "  case ${2:bgp_path.first} {",
-      "    ${3:65001}: bgp_local_pref = ${4:200};",
-      "    ${5:65002}: bgp_local_pref = ${6:150};",
-      "    else: bgp_local_pref = ${7:100};",
-      "  }",
-      "  accept;",
-      "  $0",
-      "}"
-    ]
-  },
-  "BIRD: Simple Filter": {
-    "prefix": ["filter-simple"],
-    "description": "Simple filter accepting or rejecting routes",
+  "bird-filter-simple": {
+    "prefix": ["bird-filter-simple", "filter-simple", "filter"],
+    "description": "[Filter] Simple accept/reject filter (Simple)",
     "body": ["filter ${1:filter_name} {", "  ${2|accept,reject|};", "  $0", "}"]
   },
-  "BIRD: Prefix List Filter": {
-    "prefix": ["filter-prefix"],
-    "description": "Filter based on prefix lists",
+  "bird-filter-block": {
+    "prefix": ["bird-filter-block", "filter", "filter-block"],
+    "description": "[Filter] Filter with condition block (Basic)",
     "body": [
       "filter ${1:filter_name} {",
-      "  if (${2:net} ~ [ ${3:10.0.0.0/8+}, ${4:192.168.0.0/16{16,24}} ]) then {",
-      "    accept;",
+      "  if (${2:net ~ 10.0.0.0/8}) then {",
+      "    ${3|accept,reject|};",
       "  }",
+      "  ",
       "  reject;",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Function": {
-    "prefix": ["function"],
-    "description": "Filter function definition",
+  "bird-filter-prefix": {
+    "prefix": ["bird-filter-prefix", "filter-prefix", "prefix-match"],
+    "description": "[Filter] Prefix list matching filter (Basic)",
     "body": [
-      "function ${1:function_name}(${2:int} ${3:a}) -> ${4|int,bool,prefix,ip,string|}",
+      "filter ${1:filter_name} {",
+      "  if (net ~ ${2:prefix_set}) then {",
+      "    ${3|accept,reject|};",
+      "  }",
+      "  ",
+      "  reject;",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-filter-case": {
+    "prefix": ["bird-filter-case", "filter-case", "case-filter"],
+    "description": "[Filter] Filter with case statement (Full)",
+    "body": [
+      "filter ${1:filter_name} {",
+      "  case ${2:bgp_community} {",
+      "    (${3:65001,100}): ${4|accept,reject|};",
+      "    (${5:65001,200}): ${6|accept,reject|};",
+      "    else: ${7|accept,reject|};",
+      "  }",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-filter-community": {
+    "prefix": ["bird-filter-community", "filter-comm", "community-match"],
+    "description": "[Filter] BGP community matching filter (Basic)",
+    "body": [
+      "filter ${1:filter_name} {",
+      "  if (${2:bgp_community} ~ [(${3:65001,100})]) then {",
+      "    ${4|accept,reject|};",
+      "  }",
+      "  ",
+      "  reject;",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-filter-as-path": {
+    "prefix": ["bird-filter-as-path", "filter-aspath", "aspath-match"],
+    "description": "[Filter] AS Path regex matching filter (Full)",
+    "body": [
+      "filter ${1:filter_name} {",
+      "  if (${2:bgp_path} ~ [${3:65001, 65002}]) then {",
+      "    ${4|accept,reject|};",
+      "  }",
+      "  ",
+      "  if (bgp_path ~ =${5:65001}=) then {",
+      "    ${6|accept,reject|};",
+      "  }",
+      "  ",
+      "  reject;",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-filter-rpki": {
+    "prefix": ["bird-filter-rpki", "filter-rpki", "rpki-check"],
+    "description": "[Filter] RPKI validation status filter (Full)",
+    "body": [
+      "filter ${1:rpki_filter} {",
+      "  if (roa_check(${2:roa_table}, net, bgp_path.last)) = ROA_VALID then {",
+      "    ${3|accept,reject|};",
+      "  }",
+      "  ",
+      "  if (roa_check(roa_table, net, bgp_path.last)) = ROA_INVALID then {",
+      "    ${4|reject,accept|};",
+      "  }",
+      "  ",
+      "  ${5|accept,reject|};",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-filter-large-community": {
+    "prefix": [
+      "bird-filter-large-community",
+      "filter-large-comm",
+      "large-comm-match"
+    ],
+    "description": "[Filter] BGP Large Community matching filter (Basic)",
+    "body": [
+      "filter ${1:filter_name} {",
+      "  if (${2:bgp_large_community} ~ [(${3:65001,100,200})]) then {",
+      "    ${4|accept,reject|};",
+      "  }",
+      "  ",
+      "  reject;",
+      "  $0",
+      "}"
+    ]
+  },
+  "bird-func-basic": {
+    "prefix": ["bird-func", "function", "func-def"],
+    "description": "[Func] Basic function definition (Basic)",
+    "body": [
+      "function ${1:func_name}(${2:param}) -> ${3|int,ip,bgp_path,bool|}",
       "{",
-      "  return $3;",
+      "  ${4:return param;}",
       "  $0",
       "}"
     ]
   },
-  "BIRD: BGP Prepend Function": {
-    "prefix": ["function-prepend"],
-    "description": "Function to prepend AS path for traffic engineering",
+  "bird-func-prepend": {
+    "prefix": ["bird-func-prepend", "prepend", "aspath-prepend"],
+    "description": "[Func] AS path prepend helper (Simple)",
     "body": [
-      "function ${1:prepend_once}() -> bgppath",
+      "function ${1:prepend_once}(bgp_path p) -> bgp_path",
       "{",
-      "  return ${2:bgp_path}.prepend(${3:bgp_as});",
+      "  return ${2:65001}, p;",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Community Tag Function": {
-    "prefix": ["function-community"],
-    "description": "Function to tag routes with BGP communities",
+  "bird-func-community": {
+    "prefix": ["bird-func-community", "comm-tag", "community-set"],
+    "description": "[Func] Community tagging helper (Simple)",
     "body": [
-      "function ${1:tag_route}(${2:pair} ${3:community}) -> bool",
+      "function ${1:set_community}() -> bgp_community",
       "{",
-      "  bgp_community.add($3);",
-      "  return true;",
+      "  bgp_community = bgp_community | [(${2:65001,100})];",
+      "  return bgp_community;",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Protocol Template": {
-    "prefix": ["template"],
-    "description": "Protocol template for reuse",
+  "bird-func-net-match": {
+    "prefix": ["bird-func-net-match", "net-match", "network-match"],
+    "description": "[Func] Network prefix matching helper (Basic)",
     "body": [
-      "template bgp ${1:tmpl_ibgp} {",
-      "  local as ${2:bgp_as};",
-      "  multihop ${3:2};",
-      "  ipv4 {",
-      "    import ${4:all};",
-      "    export ${5:all};",
-      "  };",
+      "function ${1:match_prefix}(ip p) -> bool",
+      "{",
+      "  return net ~ [${2:10.0.0.0/8}+, ${3:192.168.0.0/16}+];",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Protocol from Template": {
-    "prefix": ["from-template"],
-    "description": "Protocol inheriting from template",
+  "bird-func-metric": {
+    "prefix": ["bird-func-metric", "metric-calc", "calculate-metric"],
+    "description": "[Func] Dynamic metric calculation (Basic)",
     "body": [
-      "protocol bgp ${1:peer_name} from ${2:tmpl_ibgp} {",
-      "  neighbor ${3:192.168.1.1} as ${4:bgp_as};",
+      "function ${1:calculate_metric}() -> int",
+      "{",
+      "  return ${2:bgp_med} + ${3:10};",
       "  $0",
       "}"
     ]
   },
-  "BIRD: Define Constant": {
-    "prefix": ["define"],
-    "description": "Define a constant value",
-    "body": ["define ${1:MY_AS} = ${2:65001};"]
-  },
-  "BIRD: Include Directive": {
-    "prefix": ["include"],
-    "description": "Include external configuration file",
-    "body": ["include \"${1:/etc/bird/conf.d/*.conf}\";"]
-  },
-  "BIRD: Router ID": {
-    "prefix": ["router-id"],
-    "description": "Set router identifier",
-    "body": ["router id ${1:192.168.1.1};"]
-  },
-  "BIRD: For Loop": {
-    "prefix": ["for"],
-    "description": "Iterate over set or path",
+  "bird-set-prefix": {
+    "prefix": ["bird-set-prefix", "bird-set", "prefix-set", "define-prefixes"],
+    "description": "[Set] Prefix set definition (Basic)",
     "body": [
-      "for ${1|int,pair|} ${2:i} in ${3:bgp_path} do {",
-      "  ${4:accept};",
-      "}"
-    ]
-  },
-  "BIRD: Case Statement": {
-    "prefix": ["case"],
-    "description": "Case statement for pattern matching",
-    "body": [
-      "case ${1:bgp_path.first} {",
-      "  ${2:65001}: ${3:accept};",
-      "  else: ${4:reject};",
-      "}"
-    ]
-  },
-  "BIRD: If Statement": {
-    "prefix": ["if"],
-    "description": "Conditional statement",
-    "body": [
-      "if (${1:net} ~ [ ${2:10.0.0.0/8+} ]) then {",
-      "  ${3:accept};",
-      "} else {",
-      "  ${4:reject};",
-      "}"
-    ]
-  },
-  "BIRD: Prefix Set": {
-    "prefix": ["prefix-set"],
-    "description": "Define a prefix set constant",
-    "body": [
-      "define ${1:MY_PREFIXES} = [",
+      "define ${1:prefix_set_name} = [",
       "  ${2:10.0.0.0/8+},",
-      "  ${3:192.168.0.0/16{16,24}}",
-      "];"
+      "  ${3:172.16.0.0/12+},",
+      "  ${4:192.168.0.0/16+}",
+      "];",
+      "$0"
+    ]
+  },
+  "bird-set-community": {
+    "prefix": [
+      "bird-set-community",
+      "bird-set",
+      "community-set",
+      "define-communities"
+    ],
+    "description": "[Set] BGP community set definition (Basic)",
+    "body": [
+      "define ${1:community_set_name} = [",
+      "  (${2:65001,100}),",
+      "  (${3:65001,200}),",
+      "  (${4:65002,300})",
+      "];",
+      "$0"
+    ]
+  },
+  "bird-set-aspath": {
+    "prefix": ["bird-set-aspath", "bird-set", "aspath-set", "define-aspath"],
+    "description": "[Set] AS path set definition (Basic)",
+    "body": [
+      "define ${1:aspath_set_name} = [",
+      "  ${2:65001},",
+      "  ${3:65002},",
+      "  ${4:65003}",
+      "];",
+      "$0"
+    ]
+  },
+  "bird-flow-if": {
+    "prefix": ["bird-flow-if", "bird-flow", "if"],
+    "description": "[Control Flow] If statement template (Basic)",
+    "body": [
+      "if (${1:condition}) then {",
+      "  ${2:action};",
+      "} else {",
+      "  ${3:else_action};",
+      "}",
+      "$0"
+    ]
+  },
+  "bird-flow-case": {
+    "prefix": ["bird-flow-case", "bird-flow", "case"],
+    "description": "[Control Flow] Case statement template (Basic)",
+    "body": [
+      "case ${1:match_var} {",
+      "  ${2:value1}: ${3:action1};",
+      "  ${4:value2}: ${5:action2};",
+      "  else: ${6:default_action};",
+      "}",
+      "$0"
+    ]
+  },
+  "bird-flow-for": {
+    "prefix": ["bird-flow-for", "bird-flow", "for", "loop"],
+    "description": "[Control Flow] For loop template (Basic)",
+    "body": [
+      "for ${1:ip} ${2:prefix} in ${3:prefix_set} do {",
+      "  ${4:action};",
+      "}",
+      "$0"
     ]
   }
 }

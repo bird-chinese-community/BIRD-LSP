@@ -268,7 +268,7 @@ git submodule update --recursive --remote
 
 ```json
 {
-  "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
   "formatter": {
     "engine": "dprint",
     "indentSize": 2,
