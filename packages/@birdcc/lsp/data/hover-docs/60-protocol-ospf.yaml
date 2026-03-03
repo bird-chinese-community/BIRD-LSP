@@ -141,3 +141,387 @@ entries:
     related:
       - interface
       - external
+  - keyword: rfc1583compat
+    description: RFC 1583 compatible routing
+    detail: Enable RFC 1583 compatible route table calculation for backward compatibility with older OSPF implementations.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - ospf
+    parameters:
+      - name: switch
+        description: Enable or disable RFC 1583 compatibility (default no).
+  - keyword: stub router
+    description: OSPF stub router mode
+    detail: Configure the router as an OSPF stub router (RFC 6987), making transit traffic avoid this node.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - ospf
+    parameters:
+      - name: switch
+        description: Enable stub router mode.
+  - keyword: tick
+    description: OSPF routing table recalculation timer
+    detail: Set the interval for periodic SPF recalculation and LSA database cleanup.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - ospf
+    parameters:
+      - name: seconds
+        description: Timer interval in seconds (default 1).
+  - keyword: ecmp
+    description: OSPF equal-cost multipath
+    detail: Enable ECMP routing to distribute traffic across multiple equal-cost paths.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - ecmp weight
+      - ospf
+    parameters:
+      - name: switch
+        description: Enable or disable ECMP.
+      - name: limit
+        description: Maximum number of ECMP next hops (default 16).
+  - keyword: merge external
+    description: Merge external OSPF routes
+    detail: Merge equal-cost external routes from different ASBR routers for ECMP.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - ecmp
+      - ospf
+    parameters:
+      - name: switch
+        description: Enable merging of external routes (default no).
+  - keyword: instance id
+    description: OSPFv3 instance ID
+    detail: Set the OSPF instance identifier for running multiple OSPFv3 instances on the same link.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - rfc5838
+      - ospf
+    parameters:
+      - name: number
+        description: Instance ID number (default 0).
+  - keyword: graceful restart
+    description: OSPF graceful restart
+    detail: Enable graceful restart capability for seamless OSPF recovery after failure.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - graceful restart time
+      - ospf
+    parameters:
+      - name: mode
+        description: "Disable, enable, or set to aware mode (default aware)."
+  - keyword: graceful restart time
+    description: OSPF graceful restart timer
+    detail: Set the restart time advertised in Grace-LSA for OSPF graceful restart.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    related:
+      - graceful restart
+    parameters:
+      - name: seconds
+        description: Restart time in seconds (default 120).
+  - keyword: stub
+    description: OSPF stub area
+    detail: Configure an OSPF area as a stub area, which does not receive external LSAs.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - area
+      - nssa
+      - summary
+      - default cost
+    parameters:
+      - name: switch
+        description: Enable stub area mode.
+  - keyword: nssa
+    description: OSPF not-so-stubby area
+    detail: Configure an OSPF area as NSSA, allowing limited external route injection via type-7 LSAs.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - area
+      - stub
+      - default nssa
+      - translator
+      - external
+    parameters:
+      - name: switch
+        description: Enable NSSA mode.
+  - keyword: summary
+    description: OSPF summary LSA control
+    detail: Control propagation of inter-area summary LSAs into stub or NSSA areas.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - stub
+      - nssa
+      - area
+    parameters:
+      - name: switch
+        description: Enable or disable summary LSA injection (default no).
+  - keyword: default cost
+    description: OSPF stub/NSSA default route cost
+    detail: Set the cost of the default route injected into a stub or NSSA area.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - stub
+      - nssa
+      - area
+    parameters:
+      - name: number
+        description: Default route cost metric (default 1000).
+  - keyword: default nssa
+    description: NSSA default route injection
+    detail: Enable injection of a default route into an NSSA area via a type-7 NSSA-LSA.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - nssa
+      - default cost
+      - area
+    parameters:
+      - name: switch
+        description: Enable default NSSA route generation (default no).
+  - keyword: translator
+    description: NSSA translator mode
+    detail: Unconditionally translate type-7 NSSA-LSAs into type-5 external LSAs at the ABR.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - nssa
+      - area
+    parameters:
+      - name: switch
+        description: Force NSSA translation (default no).
+  - keyword: networks
+    description: OSPF area network ranges
+    detail: Define IP ranges belonging to this OSPF area for summary LSA generation and aggregation.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - area
+      - stubnet
+      - ospf
+    parameters:
+      - name: prefix
+        description: IP prefix ranges with optional hidden flag.
+  - keyword: stubnet
+    description: OSPF stub network
+    detail: Advertise a stub network into the OSPF domain without running OSPF on that interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - networks
+      - area
+    parameters:
+      - name: prefix
+        description: Stub network IP prefix.
+      - name: cost
+        description: Metric for the stub network.
+  - keyword: virtual link
+    description: OSPF virtual link
+    detail: Create a virtual link through a transit area to connect a non-backbone area to area 0.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    related:
+      - area
+      - ospf
+    parameters:
+      - name: router-id
+        description: Router ID of the remote ABR endpoint.
+        required: true
+  - keyword: priority
+    description: OSPF DR/BDR election priority
+    detail: Set the router priority for Designated Router and Backup DR election on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - interface
+      - type
+    parameters:
+      - name: number
+        description: Priority value (0 means not eligible, default 1).
+  - keyword: retransmit
+    description: OSPF retransmit interval
+    detail: Set the interval for retransmitting unacknowledged LSA updates.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - transmit delay
+      - interface
+    parameters:
+      - name: seconds
+        description: Retransmit interval in seconds (default 5).
+  - keyword: transmit delay
+    description: OSPF transmit delay
+    detail: Estimated time to transmit a link state update packet on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - retransmit
+      - interface
+    parameters:
+      - name: seconds
+        description: Transmit delay in seconds (default 1).
+  - keyword: wait
+    description: OSPF wait timer
+    detail: Time to wait after interface activation before electing a Designated Router.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - hello
+      - dead
+      - interface
+    parameters:
+      - name: seconds
+        description: Wait time in seconds (default 4 times hello interval).
+  - keyword: dead count
+    description: OSPF dead count multiplier
+    detail: Set neighbor dead interval as a multiple of the hello interval.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - dead
+      - hello
+      - interface
+    parameters:
+      - name: number
+        description: Dead count multiplier (default 4).
+  - keyword: poll
+    description: OSPF NBMA poll interval
+    detail: Hello interval for inactive NBMA neighbors, longer than the regular hello interval.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - hello
+      - type
+      - interface
+    parameters:
+      - name: seconds
+        description: Poll interval in seconds (default 20).
+  - keyword: bfd
+    description: Enable BFD for OSPF interface
+    detail: Use Bidirectional Forwarding Detection for fast neighbor failure detection on this OSPF interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - hello
+      - dead
+      - interface
+    parameters:
+      - name: switch
+        description: Enable BFD.
+  - keyword: authentication
+    description: OSPF interface authentication
+    detail: Configure authentication method for OSPF packets on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - password
+      - interface
+    parameters:
+      - name: method
+        description: "Authentication method: none, simple, or cryptographic."
+  - keyword: ecmp weight
+    description: OSPF ECMP weight
+    detail: Set the relative ECMP weight for this interface, controlling load distribution.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - ecmp
+      - interface
+    parameters:
+      - name: number
+        description: ECMP weight value (1-256, default 1).
+  - keyword: ttl security
+    description: OSPF TTL security
+    detail: Enable GTSM-like TTL protection for OSPF packets on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    related:
+      - interface
+    parameters:
+      - name: mode
+        description: "Enable TTL security: on, off, or tx only."

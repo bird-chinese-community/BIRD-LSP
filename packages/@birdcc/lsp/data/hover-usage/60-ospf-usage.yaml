@@ -1,28 +1,340 @@
 entries:
+  # ── Protocol-level ────────────────────────────────────────────────
   - keyword: ospf
     usage: |
       protocol ospf v2 core {
+        rfc1583compat no;
+        ecmp on;
         area 0 {
-          interface "eth*" { cost 10; hello 10; dead 40; type broadcast; };
+          interface "eth*" {
+            cost 10;
+            hello 10;
+            dead 40;
+            type broadcast;
+          };
         };
       }
+  - keyword: rfc1583compat
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        rfc1583compat <switch>;
+      }
+  - keyword: stub router
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        stub router on;
+      }
+  - keyword: tick
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        tick <seconds>;
+      }
+  - keyword: ecmp
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        ecmp on limit 16;
+      }
+  - keyword: merge external
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        merge external on;
+      }
+  - keyword: instance id
+    path: protocol.ospf
+    usage: |
+      protocol ospf v3 <name> {
+        instance id <number>;
+      }
+  - keyword: graceful restart
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        graceful restart on;
+        graceful restart time 120;
+      }
+  - keyword: graceful restart time
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        graceful restart time 120;
+      }
+  # ── Area-level ────────────────────────────────────────────────────
   - keyword: area
-    usage: area 0 { interface "eth*" { cost 10; hello 10; dead 40; }; };
+    path: protocol.ospf
+    usage: |
+      protocol ospf v2 <name> {
+        area <id> {
+          interface "eth*" {
+            cost 10;
+          };
+        };
+      }
+  - keyword: stub
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          stub;
+          default cost 1000;
+        };
+      }
+  - keyword: nssa
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          nssa;
+          default nssa on;
+        };
+      }
+  - keyword: summary
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          stub;
+          summary no;
+        };
+      }
+  - keyword: default cost
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          stub;
+          default cost 1000;
+        };
+      }
+  - keyword: default nssa
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          nssa;
+          default nssa on;
+        };
+      }
+  - keyword: translator
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          nssa;
+          translator on;
+        };
+      }
+  - keyword: networks
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          networks {
+            10.0.0.0/16;
+            192.168.0.0/24 hidden;
+          };
+        };
+      }
+  - keyword: stubnet
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          stubnet 10.0.0.0/24 {
+            cost 100;
+          };
+        };
+      }
   - keyword: external
-    usage: external { type 1; };
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          nssa;
+          external {
+            192.168.0.0/16;
+            10.0.0.0/8 hidden;
+            172.16.0.0/12 tag 42;
+          };
+        };
+      }
+  - keyword: virtual link
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 1 {
+          virtual link 10.0.0.1;
+        };
+      }
+  # ── Interface-level ───────────────────────────────────────────────
   - keyword: interface
-    usage: interface "eth*" { cost 10; hello 10; dead 40; type broadcast; };
+    path: protocol.ospf.area
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface "eth*" {
+            cost 10;
+            hello 10;
+            dead 40;
+            type broadcast;
+          };
+        };
+      }
   - keyword: cost
-    usage: cost 10;
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            cost <number>;
+          };
+        };
+      }
   - keyword: hello
-    usage: hello 10;
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            hello <seconds>;
+          };
+        };
+      }
   - keyword: dead
-    usage: dead 40;
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            dead <seconds>;
+          };
+        };
+      }
+  - keyword: dead count
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            dead count <number>;
+          };
+        };
+      }
   - keyword: type
-    usage: type broadcast;
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            type broadcast;
+          };
+        };
+      }
+  - keyword: priority
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            priority <number>;
+          };
+        };
+      }
+  - keyword: retransmit
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            retransmit <seconds>;
+          };
+        };
+      }
+  - keyword: transmit delay
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            transmit delay <seconds>;
+          };
+        };
+      }
+  - keyword: wait
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            wait <seconds>;
+          };
+        };
+      }
+  - keyword: poll
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            poll <seconds>;
+          };
+        };
+      }
+  - keyword: bfd
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            bfd on;
+          };
+        };
+      }
+  - keyword: authentication
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            authentication cryptographic;
+            password "secret";
+          };
+        };
+      }
   - keyword: password
     path:
       - protocol.ospf.authentication
       - protocol.ospf.area
       - protocol.ospf
-    usage: password "ospf-secret";
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            password "ospf-secret";
+          };
+        };
+      }
+  - keyword: ecmp weight
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            ecmp weight <number>;
+          };
+        };
+      }
+  - keyword: ttl security
+    path: protocol.ospf.area.interface
+    usage: |
+      protocol ospf v2 <name> {
+        area 0 {
+          interface <pattern> {
+            ttl security on;
+          };
+        };
+      }
