@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TextDocument } from "vscode";
+import type { Range, TextDocument, TextDocumentChangeEvent } from "vscode";
 
 import { createFallbackValidator } from "../src/fallback/validator.js";
 import { defaultExtensionConfiguration } from "../src/types.js";
@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
     | undefined,
   onDidSaveTextDocument: undefined as
     | ((document: TextDocument) => void)
+    | undefined,
+  onDidChangeTextDocument: undefined as
+    | ((event: TextDocumentChangeEvent) => void)
     | undefined,
   onDidCloseTextDocument: undefined as
     | ((document: TextDocument) => void)
@@ -101,6 +104,12 @@ vi.mock("vscode", () => ({
         return { dispose: vi.fn() };
       },
     ),
+    onDidChangeTextDocument: vi.fn(
+      (listener: (event: TextDocumentChangeEvent) => void) => {
+        mocks.onDidChangeTextDocument = listener;
+        return { dispose: vi.fn() };
+      },
+    ),
     onDidCloseTextDocument: vi.fn(
       (listener: (document: TextDocument) => void) => {
         mocks.onDidCloseTextDocument = listener;
@@ -125,6 +134,22 @@ const createDocument = (path = "/tmp/bird.conf"): TextDocument =>
     validateRange: (range: unknown) => range,
   }) as unknown as TextDocument;
 
+const createChangeEvent = (
+  document: TextDocument,
+  text: string,
+): TextDocumentChangeEvent => ({
+  document,
+  contentChanges: [
+    {
+      text,
+      range: {} as Range,
+      rangeOffset: 0,
+      rangeLength: 0,
+    },
+  ],
+  reason: undefined,
+});
+
 const getConfiguration = () => defaultExtensionConfiguration;
 
 describe("fallback validator scheduling", () => {
@@ -141,6 +166,7 @@ describe("fallback validator scheduling", () => {
     mocks.diagnosticDispose.mockReset();
     mocks.onDidOpenTextDocument = undefined;
     mocks.onDidSaveTextDocument = undefined;
+    mocks.onDidChangeTextDocument = undefined;
     mocks.onDidCloseTextDocument = undefined;
     mocks.onDidGrantWorkspaceTrust = undefined;
     mocks.workspaceState.isTrusted = true;
@@ -166,7 +192,7 @@ describe("fallback validator scheduling", () => {
     vi.useRealTimers();
   });
 
-  it("debounces burst open/save events into a single validation run", async () => {
+  it("debounces burst open/change/save events into a single validation run", async () => {
     vi.useFakeTimers();
     const validator = createFallbackValidator(getConfiguration, {
       appendLine: vi.fn(),
@@ -177,6 +203,9 @@ describe("fallback validator scheduling", () => {
     const document = createDocument();
 
     mocks.onDidOpenTextDocument?.(document);
+    mocks.onDidChangeTextDocument?.(
+      createChangeEvent(document, "router id 1.1.1.1;"),
+    );
     mocks.onDidSaveTextDocument?.(document);
     mocks.onDidSaveTextDocument?.(document);
 

@@ -420,6 +420,16 @@ export const createFallbackValidator = (
     );
 
     disposables.push(
+      workspace.onDidChangeTextDocument((event) => {
+        if (event.contentChanges.length === 0) {
+          return;
+        }
+
+        scheduleValidation(event.document);
+      }),
+    );
+
+    disposables.push(
       workspace.onDidCloseTextDocument((document) => {
         const uri = document.uri.toString();
         clearPendingValidationTimer(uri);
