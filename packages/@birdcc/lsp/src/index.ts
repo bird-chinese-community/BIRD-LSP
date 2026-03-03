@@ -15,3 +15,11 @@ export {
 } from "./hover-context.js";
 export { createReferenceLocations } from "./references.js";
 export { startLspServer } from "./lsp-server.js";
+export {
+  toCanonicalKey,
+  toLspRange,
+  isPositionInRange,
+  getLineText,
+  type SourceRangeLike,
+  type GetLineTextDocument,
+} from "./utils.js";

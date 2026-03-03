@@ -6,6 +6,16 @@ import {
 } from "vscode-languageserver/node.js";
 import type { BirdDeclaration, SourceRange } from "@birdcc/parser";
 import { HOVER_KEYWORD_DOCS } from "./hover-docs.js";
+import {
+  toLspRange as toLspRangeUtil,
+  isPositionInRange as isPositionInRangeUtil,
+} from "./utils.js";
+
+export {
+  toCanonicalKey,
+  getLineText,
+  type GetLineTextDocument,
+} from "./utils.js";
 
 const BASE_KEYWORD_DOCS: Record<string, string> = {
   protocol: "Define a protocol instance. Example: `protocol bgp edge { ... }`.",
@@ -40,38 +50,12 @@ export interface LspDeclarationMetadata {
   completionDetail?: string;
 }
 
-export const toLspRange = (range: SourceRange): Range => ({
-  start: {
-    line: Math.max(range.line - 1, 0),
-    character: Math.max(range.column - 1, 0),
-  },
-  end: {
-    line: Math.max(range.endLine - 1, 0),
-    character: Math.max(range.endColumn - 1, 0),
-  },
-});
+export const toLspRange = (range: SourceRange): Range => toLspRangeUtil(range);
 
 export const isPositionInRange = (
   position: Position,
   range: SourceRange,
-): boolean => {
-  const line = position.line + 1;
-  const character = position.character + 1;
-
-  if (line < range.line || line > range.endLine) {
-    return false;
-  }
-
-  if (line === range.line && character < range.column) {
-    return false;
-  }
-
-  if (line === range.endLine && character > range.endColumn) {
-    return false;
-  }
-
-  return true;
-};
+): boolean => isPositionInRangeUtil(position, range);
 
 export const declarationMetadata = (
   declaration: BirdDeclaration,

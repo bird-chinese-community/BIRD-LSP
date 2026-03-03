@@ -1,3 +1,5 @@
+import { getLineText } from "./utils.js";
+
 interface BlockFrame {
   readonly segments: readonly string[];
 }
@@ -29,30 +31,10 @@ interface CachedContextIndex {
   readonly lineFrames: readonly (readonly BlockFrame[])[];
 }
 
-const WORD_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/g;
 const CONTEXT_CACHE_LIMIT = 16;
 const contextIndexCache = new Map<string, CachedContextIndex>();
 
-const getLineText = (
-  document: HoverContextDocumentLike,
-  line: number,
-): string => {
-  if ("lineAt" in document && typeof document.lineAt === "function") {
-    return document.lineAt(line).text;
-  }
-
-  if ("getText" in document && typeof document.getText === "function") {
-    const start = { line, character: 0 };
-    const end =
-      line + 1 < document.lineCount
-        ? { line: line + 1, character: 0 }
-        : { line, character: Number.MAX_SAFE_INTEGER };
-
-    return document.getText({ start, end }).replace(/\r?\n$/, "");
-  }
-
-  return "";
-};
+const CONTEXT_WORD_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/g;
 
 const stripLineComment = (line: string): string => {
   const commentIndex = line.indexOf("#");
@@ -64,7 +46,9 @@ const stripLineComment = (line: string): string => {
 };
 
 const extractWords = (text: string): readonly string[] =>
-  Array.from(text.matchAll(WORD_PATTERN), (match) => match[0].toLowerCase());
+  Array.from(text.matchAll(CONTEXT_WORD_PATTERN), (match) =>
+    match[0].toLowerCase(),
+  );
 
 const parseBlockSegments = (header: string): readonly string[] => {
   const words = extractWords(header);

@@ -1,5 +1,10 @@
 import type { SymbolDefinition, SymbolReference } from "@birdcc/core";
 import type { Location, Position } from "vscode-languageserver/node.js";
+import {
+  isPositionInRange,
+  toLspRange,
+  type SourceRangeLike,
+} from "./utils.js";
 
 export interface SymbolLookupIndex {
   definitionsByName: Map<string, SymbolDefinition[]>;
@@ -20,42 +25,20 @@ const addToMapList = <T>(
   map.set(key, [value]);
 };
 
+/**
+ * Check whether a 0-based LSP Position falls inside a 1-based source range.
+ * @deprecated Use {@link isPositionInRange} from `./utils.js` directly.
+ */
 export const containsPosition = (
-  range: { line: number; column: number; endLine: number; endColumn: number },
+  range: SourceRangeLike,
   position: Position,
-): boolean => {
-  const line = position.line + 1;
-  const column = position.character + 1;
-
-  if (line < range.line || line > range.endLine) {
-    return false;
-  }
-
-  if (line === range.line && column < range.column) {
-    return false;
-  }
-
-  if (line === range.endLine && column > range.endColumn) {
-    return false;
-  }
-
-  return true;
-};
+): boolean => isPositionInRange(position, range);
 
 export const toLocation = (
   symbol: SymbolDefinition | SymbolReference,
 ): Location => ({
   uri: symbol.uri,
-  range: {
-    start: {
-      line: Math.max(0, symbol.line - 1),
-      character: Math.max(0, symbol.column - 1),
-    },
-    end: {
-      line: Math.max(0, symbol.endLine - 1),
-      character: Math.max(0, symbol.endColumn - 1),
-    },
-  },
+  range: toLspRange(symbol),
 });
 
 export const extractWordAtPosition = (

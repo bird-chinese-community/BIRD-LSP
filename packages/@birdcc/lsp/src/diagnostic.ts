@@ -3,6 +3,7 @@ import {
   type Diagnostic,
 } from "vscode-languageserver/node.js";
 import type { BirdDiagnostic } from "@birdcc/core";
+import { toLspRange } from "./utils.js";
 
 const toLspSeverity = (
   severity: BirdDiagnostic["severity"],
@@ -24,16 +25,7 @@ export const toLspDiagnostic = (diagnostic: BirdDiagnostic): Diagnostic => ({
   message: diagnostic.message,
   severity: toLspSeverity(diagnostic.severity),
   source: diagnostic.source,
-  range: {
-    start: {
-      line: Math.max(diagnostic.range.line - 1, 0),
-      character: Math.max(diagnostic.range.column - 1, 0),
-    },
-    end: {
-      line: Math.max(diagnostic.range.endLine - 1, 0),
-      character: Math.max(diagnostic.range.endColumn - 1, 0),
-    },
-  },
+  range: toLspRange(diagnostic.range),
 });
 
 export const toInternalErrorDiagnostic = (error: unknown): Diagnostic => ({
