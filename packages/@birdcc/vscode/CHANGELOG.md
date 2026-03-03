@@ -2,6 +2,16 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.5] - 2026-03-03
+
+### 🐛 Fixed
+
+- 🚀 **Built-in LSP Startup** — Default startup now launches the bundled `@birdcc/lsp` server via Node.js, removing the runtime requirement for a global `birdcc` binary.
+- 📉 **ENOENT Startup Failure** — Fixed `spawn birdcc ENOENT` on fresh VSIX installs where `birdcc` is not present in `PATH`.
+- 🧭 **Startup Logging Clarity** — Added clear log output indicating whether bundled server startup or custom `serverPath` startup is being used.
+
+---
+
 ## [0.1.4] - 2026-03-03
 
 ### 🐛 Fixed
@@ -74,6 +84,7 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 ---
 
 [0.1.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.1...vscode-v0.1.2
+[0.1.5]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.4...vscode-v0.1.5
 [0.1.4]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.3...vscode-v0.1.4
 [0.1.3]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.2...vscode-v0.1.3
 [0.1.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.0...vscode-v0.1.1

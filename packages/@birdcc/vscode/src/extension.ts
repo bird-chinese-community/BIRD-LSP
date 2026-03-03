@@ -94,6 +94,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     });
   };
   const lifecycle = createBirdClientLifecycle(outputChannel, {
+    extensionPath: context.extensionPath,
     onStateChange: (state) => {
       lifecycleState = state;
       refreshStatus();

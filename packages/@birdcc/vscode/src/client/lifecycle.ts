@@ -22,6 +22,7 @@ export interface BirdClientLifecycle {
 
 export interface BirdClientLifecycleOptions {
   readonly onStateChange?: (state: ClientLifecycleState) => void;
+  readonly extensionPath?: string;
 }
 
 class StartupTimeoutError extends Error {
@@ -130,7 +131,11 @@ export const createBirdClientLifecycle = (
       outputChannel.appendLine("[bird2-lsp] starting language client");
 
       try {
-        activeClient = createLanguageClient(configuration, outputChannel);
+        activeClient = createLanguageClient(
+          configuration,
+          outputChannel,
+          options.extensionPath,
+        );
         await startClientWithTimeout(
           activeClient,
           configuration.lspStartupTimeoutMs,
@@ -191,7 +196,11 @@ export const createBirdClientLifecycle = (
 
       try {
         setState("starting");
-        activeClient = createLanguageClient(configuration, outputChannel);
+        activeClient = createLanguageClient(
+          configuration,
+          outputChannel,
+          options.extensionPath,
+        );
         await startClientWithTimeout(
           activeClient,
           configuration.lspStartupTimeoutMs,

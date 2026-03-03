@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/vscode",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -208,7 +208,7 @@
           "scope": "resource"
         },
         "bird2-lsp.serverPath": {
-          "markdownDescription": "Path to the birdcc language server executable.",
+          "markdownDescription": "Custom language server command override. Default behavior starts the bundled `@birdcc/lsp` server automatically.",
           "oneOf": [
             {
               "type": "string"
@@ -330,6 +330,7 @@
     }
   },
   "dependencies": {
+    "@birdcc/lsp": "workspace:*",
     "@birdcc/parser": "workspace:*",
     "@birdcc/formatter": "workspace:*",
     "vscode-languageclient": "^9.0.1",
