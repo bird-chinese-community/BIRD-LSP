@@ -1,25 +1,254 @@
 entries:
+  # ── Protocol-level ────────────────────────────────────────────────
   - keyword: bgp
     usage: |
       protocol bgp upstream {
         local as 65001;
         neighbor 192.0.2.1 as 64496;
-        ipv4 { import all; export filter only_bgp; };
+        hold time 90;
+        keepalive time 30;
+        graceful restart on;
+        ipv4 {
+          import all;
+          export filter only_bgp;
+          next hop self;
+        };
       }
   - keyword: local as
-    usage: local as 65001;
-  - keyword: multihop
-    usage: multihop 2;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        local as <asn>;
+      }
   - keyword: neighbor
-    usage: neighbor 192.0.2.1 as 64496;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        neighbor 192.0.2.1 as 64496;
+      }
+  - keyword: multihop
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        multihop <hops>;
+      }
   - keyword: hold time
-    usage: hold time 90;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        hold time <seconds>;
+      }
   - keyword: keepalive time
-    usage: keepalive time 30;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        keepalive time <seconds>;
+      }
   - keyword: source address
-    usage: source address 192.0.2.10;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        source address <ip>;
+      }
   - keyword: ttl security
-    usage: ttl security 1;
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        ttl security <switch>;
+      }
   - keyword: password
     path: protocol.bgp
-    usage: password "bgp-secret";
+    usage: |
+      protocol bgp <name> {
+        password "bgp-secret";
+      }
+  - keyword: passive
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        passive <switch>;
+      }
+  - keyword: rr client
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        rr client;
+      }
+  - keyword: rr cluster id
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        rr cluster id <id>;
+      }
+  - keyword: rs client
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        rs client;
+      }
+  - keyword: graceful restart
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        graceful restart on;
+        graceful restart time 120;
+      }
+  - keyword: graceful restart time
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        graceful restart time 120;
+      }
+  - keyword: allow local as
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        allow local as <number>;
+      }
+  - keyword: bfd
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        bfd on;
+      }
+  - keyword: local role
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        local role peer;
+      }
+  - keyword: authentication
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        authentication md5;
+        password "secret";
+      }
+  - keyword: confederation
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        confederation <number>;
+        confederation member;
+      }
+  - keyword: confederation member
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        confederation member;
+      }
+  - keyword: direct
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        direct;
+      }
+  - keyword: path metric
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        path metric on;
+      }
+  - keyword: med metric
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        med metric on;
+      }
+  - keyword: deterministic med
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        deterministic med on;
+      }
+  - keyword: igp metric
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        igp metric on;
+      }
+  - keyword: interpret communities
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        interpret communities on;
+      }
+  - keyword: default bgp_local_pref
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        default bgp_local_pref 100;
+      }
+  - keyword: enable extended messages
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        enable extended messages on;
+      }
+  - keyword: connect retry time
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        connect retry time 120;
+      }
+  - keyword: error wait time
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        error wait time 60, 300;
+      }
+  - keyword: disable after error
+    path: protocol.bgp
+    usage: |
+      protocol bgp <name> {
+        disable after error on;
+      }
+  # ── Channel-level ─────────────────────────────────────────────────
+  - keyword: next hop self
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          next hop self;
+        };
+      }
+  - keyword: next hop keep
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          next hop keep on;
+        };
+      }
+  - keyword: add paths
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          add paths tx;
+        };
+      }
+  - keyword: gateway
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          gateway recursive;
+        };
+      }
+  - keyword: extended next hop
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          extended next hop on;
+        };
+      }
+  - keyword: aigp
+    path: protocol.bgp.channel
+    usage: |
+      protocol bgp <name> {
+        ipv4 {
+          aigp on;
+        };
+      }

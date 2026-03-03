@@ -108,3 +108,375 @@ entries:
     parameters:
       - name: hops
         description: Optional expected hop distance for TTL checks.
+  - keyword: passive
+    description: BGP passive mode
+    detail: Do not actively initiate a BGP connection; wait for the remote peer to connect.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - neighbor
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable or disable passive mode.
+  - keyword: rr client
+    description: Route reflector client
+    detail: Treat this neighbor as a route reflector client. The local router becomes a route reflector.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - rr cluster id
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable route reflector client role.
+  - keyword: rr cluster id
+    description: Route reflector cluster ID
+    detail: Set the cluster ID for route reflector. Required when multiple RRs exist in the same cluster.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - rr client
+      - bgp
+    parameters:
+      - name: id
+        description: Cluster ID as a number or IPv4-like value.
+  - keyword: rs client
+    description: Route server client
+    detail: Treat this neighbor as a route server client. Useful in IXP environments.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - bgp
+      - neighbor
+    parameters:
+      - name: switch
+        description: Enable route server client role.
+  - keyword: graceful restart
+    description: BGP graceful restart
+    detail: Configure RFC 4724 Graceful Restart for seamless protocol recovery.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - graceful restart time
+      - long lived graceful restart
+      - bgp
+    parameters:
+      - name: mode
+        description: Disable, enable, or set to aware mode.
+  - keyword: graceful restart time
+    description: BGP graceful restart timer
+    detail: Set the time to wait for session re-establishment during graceful restart.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - graceful restart
+    parameters:
+      - name: seconds
+        description: Graceful restart wait time (default 120).
+  - keyword: allow local as
+    description: Allow local AS in path
+    detail: Accept routes containing the local AS number in the AS path up to the specified count.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - local as
+      - bgp
+    parameters:
+      - name: count
+        description: Maximum occurrences of local AS in path.
+  - keyword: bfd
+    description: Enable BFD for BGP session
+    detail: Use Bidirectional Forwarding Detection for fast failure detection of the BGP neighbor.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - neighbor
+      - bgp
+    parameters:
+      - name: mode
+        description: Enable BFD, or enable with graceful restart awareness.
+  - keyword: local role
+    description: BGP session role (RFC 9234)
+    detail: Define the local BGP role for route leak prevention per RFC 9234 (OTC attribute).
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - require roles
+      - neighbor
+      - bgp
+    parameters:
+      - name: role
+        description: "Role: provider, rs_server, rs_client, customer, or peer."
+        required: true
+  - keyword: authentication
+    description: BGP session authentication
+    detail: Configure TCP-level authentication for the BGP session using MD5 or TCP-AO.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - password
+      - bgp
+    parameters:
+      - name: method
+        description: "Authentication method: none, md5, or ao."
+  - keyword: confederation
+    description: BGP confederation
+    detail: Enable BGP confederation and specify the confederation identifier.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - confederation member
+      - local as
+      - bgp
+    parameters:
+      - name: number
+        description: Confederation identifier (AS number).
+  - keyword: confederation member
+    description: BGP confederation member
+    detail: Indicate that the neighbor belongs to the same BGP confederation.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - confederation
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable confederation membership.
+  - keyword: path metric
+    description: Enable AS path length comparison
+    detail: Use AS path length as a tiebreaker in BGP best path selection.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - med metric
+      - deterministic med
+      - igp metric
+    parameters:
+      - name: switch
+        description: Enable AS path metric comparison.
+  - keyword: med metric
+    description: Enable cross-AS MED comparison
+    detail: Compare MED attribute across routes from different AS neighbors.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - path metric
+      - deterministic med
+      - default bgp_med
+    parameters:
+      - name: switch
+        description: Enable cross-AS MED comparison.
+  - keyword: deterministic med
+    description: Deterministic MED selection
+    detail: Enable deterministic MED comparison by grouping routes from the same AS.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - med metric
+      - path metric
+    parameters:
+      - name: switch
+        description: Enable deterministic MED algorithm.
+  - keyword: igp metric
+    description: Enable IGP metric comparison
+    detail: Compare interior distance to the BGP next hop during best path selection.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - path metric
+      - med metric
+    parameters:
+      - name: switch
+        description: Enable IGP metric comparison.
+  - keyword: interpret communities
+    description: Interpret well-known communities
+    detail: Process well-known BGP communities such as no-export, no-advertise, and no-peer.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable community interpretation.
+  - keyword: default bgp_local_pref
+    description: Default LOCAL_PREF value
+    detail: Set the default value of the BGP LOCAL_PREF attribute for received routes.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - allow bgp_local_pref
+      - bgp
+    parameters:
+      - name: number
+        description: Default Local Preference value (default 100).
+  - keyword: enable extended messages
+    description: Enable BGP extended messages
+    detail: Allow BGP messages larger than 4096 bytes as defined in RFC 8654.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - enable as4
+      - enable route refresh
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable extended message support.
+  - keyword: connect retry time
+    description: BGP connection retry timer
+    detail: Set the interval between connection retry attempts to the BGP neighbor.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - connect delay time
+      - error wait time
+    parameters:
+      - name: seconds
+        description: Retry interval (default 120).
+  - keyword: error wait time
+    description: BGP error recovery timer
+    detail: Set the minimum and maximum wait times before restarting after a protocol error.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - connect retry time
+      - error forget time
+    parameters:
+      - name: min
+        description: Minimum error wait time in seconds (default 60).
+      - name: max
+        description: Maximum error wait time in seconds (default 300).
+  - keyword: disable after error
+    description: Disable BGP after error
+    detail: Automatically disable the BGP instance after encountering a protocol error.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - error wait time
+      - bgp
+    parameters:
+      - name: switch
+        description: Enable automatic disable on error.
+  - keyword: next hop self
+    description: Advertise self as next hop
+    detail: Always set the BGP next hop attribute to the local address when advertising routes.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - next hop keep
+      - next hop address
+      - gateway
+    parameters:
+      - name: mode
+        description: "Enable globally, or selectively for ibgp/ebgp sessions."
+  - keyword: next hop keep
+    description: Preserve original next hop
+    detail: Do not modify the BGP next hop attribute when re-advertising routes.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - next hop self
+      - next hop address
+    parameters:
+      - name: mode
+        description: "Keep next hop globally, or selectively for ibgp/ebgp."
+  - keyword: add paths
+    description: BGP ADD-PATH extension
+    detail: Enable RFC 7911 ADD-PATH for advertising/receiving multiple paths per prefix.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - secondary
+      - bgp
+    parameters:
+      - name: mode
+        description: "Enable ADD-PATH: on, rx (receive only), or tx (send only)."
+  - keyword: gateway
+    description: BGP gateway resolution mode
+    detail: Select how the next hop gateway is resolved for received BGP routes.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - next hop self
+      - igp table
+    parameters:
+      - name: mode
+        description: "Resolution mode: direct or recursive."
+  - keyword: extended next hop
+    description: Cross-AF next hop (RFC 8950)
+    detail: Enable encoding of IPv4 routes with IPv6 next hops or vice versa.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - next hop self
+      - next hop keep
+    parameters:
+      - name: switch
+        description: Enable extended next hop negotiation.
+  - keyword: aigp
+    description: Accumulated IGP metric (RFC 7311)
+    detail: Propagate accumulated IGP distance through BGP for more accurate path selection.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp.channel
+    related:
+      - igp metric
+      - bgp
+    parameters:
+      - name: mode
+        description: "Enable AIGP: on or originate."
