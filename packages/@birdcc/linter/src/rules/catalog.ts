@@ -54,12 +54,13 @@ export type RuleCode =
 const ruleSeverityEntries: ReadonlyArray<
   readonly [RuleCode, BirdDiagnosticSeverity]
 > = [
-  ...RULE_CODES.sym.map((code) => [code, "error"] as const),
-  ...RULE_CODES.cfg.map((code) => [code, "error"] as const),
-  ...RULE_CODES.net.map((code) => [code, "error"] as const),
-  ...RULE_CODES.type.map((code) => [code, "error"] as const),
-  ...RULE_CODES.bgp.map((code) => [code, "warning"] as const),
-  ...RULE_CODES.ospf.map((code) => [code, "warning"] as const),
+  // Beta period: all severities downgraded by one level (error→warning, warning→info).
+  ...RULE_CODES.sym.map((code) => [code, "warning"] as const),
+  ...RULE_CODES.cfg.map((code) => [code, "warning"] as const),
+  ...RULE_CODES.net.map((code) => [code, "warning"] as const),
+  ...RULE_CODES.type.map((code) => [code, "warning"] as const),
+  ...RULE_CODES.bgp.map((code) => [code, "info"] as const),
+  ...RULE_CODES.ospf.map((code) => [code, "info"] as const),
 ];
 
 export const RULE_SEVERITY: Record<RuleCode, BirdDiagnosticSeverity> =

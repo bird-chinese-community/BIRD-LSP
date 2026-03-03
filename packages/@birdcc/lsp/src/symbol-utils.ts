@@ -1,7 +1,6 @@
 import type { SymbolDefinition, SymbolReference } from "@birdcc/core";
 import type { Location, Position } from "vscode-languageserver/node.js";
 import {
-  getLineText,
   isPositionInRange,
   toLspRange,
   type SourceRangeLike,
@@ -42,11 +41,31 @@ export const toLocation = (
   range: toLspRange(symbol),
 });
 
+/** Extract a single line from raw text by scanning for newlines (avoids O(n) split). */
+const extractLine = (text: string, lineIndex: number): string => {
+  let current = 0;
+  let start = 0;
+
+  while (current < lineIndex) {
+    const newlinePos = text.indexOf("\n", start);
+    if (newlinePos === -1) {
+      return "";
+    }
+
+    start = newlinePos + 1;
+    current += 1;
+  }
+
+  const end = text.indexOf("\n", start);
+  const line = end === -1 ? text.slice(start) : text.slice(start, end);
+  return line.endsWith("\r") ? line.slice(0, -1) : line;
+};
+
 export const extractWordAtPosition = (
   text: string,
   position: Position,
 ): string => {
-  const lineText = getLineText(text, position.line);
+  const lineText = extractLine(text, position.line);
   if (position.character < 0 || position.character > lineText.length) {
     return "";
   }
