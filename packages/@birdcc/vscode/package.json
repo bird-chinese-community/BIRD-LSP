@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/vscode",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -9,7 +9,7 @@
     "email": "npm-dev@birdcc.link",
     "url": "https://github.com/bird-chinese-community/"
   },
-  "displayName": "BIRD2 LSP",
+  "displayName": "BIRD2 LSP (Beta)",
   "description": "Language Server Protocol support for BIRD2 configuration files",
   "publisher": "BIRDCC",
   "repository": {
@@ -199,7 +199,7 @@
       }
     },
     "configuration": {
-      "title": "BIRD2 LSP",
+      "title": "BIRD2 LSP (Beta)",
       "properties": {
         "bird2-lsp.enabled": {
           "type": "boolean",
@@ -351,7 +351,7 @@
     "format": "oxfmt .",
     "coverage": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "marketplace:package": "pnpm --filter @birdcc/vscode... build && node scripts/package-marketplace.mjs",
-    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-lsp.vsix --pat \"$VSCE_PAT\" --pre-release",
+    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-lsp.vsix --pat \"$VSCE_PAT\"",
     "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./release/bird2-lsp.vsix -p \"$OVSX_PAT\""
   }
 }
