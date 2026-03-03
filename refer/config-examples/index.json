@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-03-03T16:17:59.576Z",
+  "ranked": false,
+  "sources": [
+    {
+      "id": "bird2-ix-bird-rs-generator",
+      "birdMajor": 2,
+      "path": "BIRD2-IX-BIRD-RS-Generator",
+      "repo": "PoemaIX/IX-BIRD-RS-Generator",
+      "repoGit": "https://github.com/PoemaIX/IX-BIRD-RS-Generator.git",
+      "ghUsername": "PoemaIX",
+      "licenseSpdx": "NOASSERTION",
+      "defaultBranch": "master",
+      "commit": "05190fd2eb972f362c929df3af3a3277823eaa26",
+      "confFiles": 2,
+      "confBytes": 49884646,
+      "syncedAt": "2026-03-03T16:17:51.760Z"
+    },
+    {
+      "id": "bird2-jknet-bird",
+      "birdMajor": 2,
+      "path": "BIRD2-JKNET-BIRD",
+      "repo": "HuJK-Data/JKNET-BIRD",
+      "repoGit": "https://github.com/HuJK-Data/JKNET-BIRD.git",
+      "ghUsername": "HuJK-Data",
+      "licenseSpdx": "GPL-3.0",
+      "defaultBranch": "main",
+      "commit": "75c1c735ad0c64c5928f62356481205e1feb5a4b",
+      "confFiles": 48,
+      "confBytes": 85272,
+      "syncedAt": "2026-03-03T16:17:54.867Z"
+    },
+    {
+      "id": "bird2-net186-config",
+      "birdMajor": 2,
+      "path": "BIRD2-net186-config",
+      "repo": "186526/net186-config",
+      "repoGit": "https://github.com/186526/net186-config.git",
+      "ghUsername": "186526",
+      "licenseSpdx": "NOASSERTION",
+      "defaultBranch": "main",
+      "commit": "9b02a517159531f77ef87caea814095c184247e0",
+      "confFiles": 17,
+      "confBytes": 17053,
+      "syncedAt": "2026-03-03T16:17:56.666Z"
+    },
+    {
+      "id": "bird3-bird-configs-output",
+      "birdMajor": 3,
+      "path": "BIRD3-bird-configs-output",
+      "repo": "tianshome/bird-configs-output",
+      "repoGit": "https://github.com/tianshome/bird-configs-output.git",
+      "ghUsername": "tianshome",
+      "licenseSpdx": "NOASSERTION",
+      "defaultBranch": "main",
+      "commit": "013acfa1bbb66e1541c634ed6706c5a6d69aea14",
+      "confFiles": 16,
+      "confBytes": 135860,
+      "syncedAt": "2026-03-03T16:17:58.429Z"
+    }
+  ]
+}
