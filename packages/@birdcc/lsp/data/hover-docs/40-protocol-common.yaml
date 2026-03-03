@@ -5,6 +5,10 @@ entries:
     diff: same
     version: v2+
     anchor: proto-description
+    path: protocol
+    parameters:
+      - name: text
+        description: Human-readable protocol description.
   - keyword: device
     description: Device scan protocol
     detail: Scan network interfaces for link state changes and generate routes for directly connected
@@ -24,12 +28,22 @@ entries:
     diff: same
     version: v2+
     anchor: proto-disabled
+    path: protocol
+    parameters:
+      - name: switch
+        description: Enable or disable protocol startup state.
   - keyword: restart time limit
     description: Automatic restart time limit (v3 only)
     detail: Configure automatic restart of the protocol after failure within specified time limit.
     diff: added
     version: v3+
     anchor: proto-restart-time-limit
+    path: protocol
+    related:
+      - disabled
+    parameters:
+      - name: seconds
+        description: Restart deadline before giving up recovery.
     notes:
       v3: "v3 only: Automatic protocol restart on failure."
   - keyword: vrf
@@ -38,3 +52,7 @@ entries:
     diff: same
     version: v2+
     anchor: proto-vrf
+    path: protocol
+    parameters:
+      - name: vrf-name
+        description: Target VRF instance name.

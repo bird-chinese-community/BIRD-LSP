@@ -78,4 +78,34 @@ protocol ospf v2 test {
     const path = resolveHoverContextPath(document, 3, 8);
     expect(path).toEqual(["protocol", "ospf", "area", "external"]);
   });
+
+  it("resolves channel context inside protocol family blocks", () => {
+    const document = createMockDocument(
+      `
+protocol bgp edge {
+  ipv4 {
+    import all;
+  };
+};
+`.trim(),
+    ) as never;
+
+    const path = resolveHoverContextPath(document, 2, 6);
+    expect(path).toEqual(["protocol", "bgp", "channel", "ipv4"]);
+  });
+
+  it("resolves template protocol context for family blocks", () => {
+    const document = createMockDocument(
+      `
+template bgp EDGE_BASE {
+  ipv4 {
+    export all;
+  };
+};
+`.trim(),
+    ) as never;
+
+    const path = resolveHoverContextPath(document, 2, 6);
+    expect(path).toEqual(["protocol", "bgp", "channel", "ipv4"]);
+  });
 });

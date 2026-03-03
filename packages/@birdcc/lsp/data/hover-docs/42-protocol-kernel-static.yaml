@@ -6,27 +6,56 @@ entries:
     diff: same
     version: v2+
     anchor: proto-device
+    path: protocol
+    related:
+      - direct
   - keyword: direct
     description: Direct routes protocol
     detail: Generate routes for directly connected networks based on interface addresses.
     diff: same
     version: v2+
     anchor: proto-direct
+    path: protocol
+    related:
+      - device
+      - interface
+    parameters:
+      - name: interface-pattern
+        description: Interface name/pattern selection.
   - keyword: kernel
     description: Kernel synchronization protocol
     detail: Synchronize routes between BIRD and the operating system kernel routing table.
     diff: same
     version: v2+
     anchor: proto-kernel
+    path: protocol
+    related:
+      - table
+      - export
+      - import
   - keyword: static
     description: Static routes protocol
     detail: Define static routes that are not learned from any routing protocol.
     diff: same
     version: v2+
     anchor: proto-static
+    path: protocol
+    related:
+      - route
+      - preference
   - keyword: pipe
     description: Protocol pipe
     detail: Connect two routing tables, forwarding routes between them with optional filtering.
     diff: same
     version: v2+
     anchor: proto-pipe
+    path: protocol
+    related:
+      - table
+      - export
+      - import
+    parameters:
+      - name: table-name
+        description: Primary table to bridge.
+      - name: peer-table-name
+        description: Peer table to bridge with.

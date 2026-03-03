@@ -21,7 +21,11 @@ describe("hover docs catalog", () => {
 
     expect(yamlFiles.length).toBeGreaterThanOrEqual(3);
 
-    const allEntries: unknown[] = [];
+    const allEntries: Array<{
+      path?: unknown;
+      related?: unknown;
+      parameters?: unknown;
+    }> = [];
     let v2BaseUrl = "";
     let v3BaseUrl = "";
     for (const fileName of yamlFiles) {
@@ -48,6 +52,27 @@ describe("hover docs catalog", () => {
     expect(v2BaseUrl).toMatch(/^https:\/\/bird\.nic\.cz\/doc\//);
     expect(v3BaseUrl).toMatch(/^https:\/\/bird\.nic\.cz\/doc\//);
     expect(allEntries.length).toBeGreaterThanOrEqual(80);
+
+    const structuredStats = allEntries.reduce(
+      (acc, entry) => {
+        if (entry.path !== undefined) {
+          acc.withPath += 1;
+        }
+        if (Array.isArray(entry.related) && entry.related.length > 0) {
+          acc.withRelated += 1;
+        }
+        if (Array.isArray(entry.parameters) && entry.parameters.length > 0) {
+          acc.withParameters += 1;
+        }
+
+        return acc;
+      },
+      { withPath: 0, withRelated: 0, withParameters: 0 },
+    );
+
+    expect(structuredStats.withPath).toBeGreaterThanOrEqual(90);
+    expect(structuredStats.withRelated).toBeGreaterThanOrEqual(70);
+    expect(structuredStats.withParameters).toBeGreaterThanOrEqual(70);
   });
 
   it("keeps usage yaml fragments valid and loadable", () => {

@@ -5,21 +5,106 @@ entries:
     diff: same
     version: v2+
     anchor: proto-bgp
+    path: protocol
+    related:
+      - neighbor
+      - local as
+      - multihop
+      - hold time
+      - keepalive time
   - keyword: local as
     description: Set local AS number (BGP)
     detail: Configure the local Autonomous System number for BGP sessions.
     diff: same
     version: v2+
     anchor: proto-bgp
-  - keyword: multihop
-    description: Enable BGP multihop
-    detail: Allow BGP sessions to non-directly connected peers with optional TTL specification.
-    diff: same
-    version: v2+
-    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - neighbor
+      - bgp
+    parameters:
+      - name: asn
+        description: Local autonomous system number.
+        required: true
   - keyword: neighbor
     description: Set BGP neighbor
     detail: Configure the IP address and AS number of the BGP peer.
     diff: same
     version: v2+
     anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - local as
+      - multihop
+      - source address
+      - ttl security
+    parameters:
+      - name: address
+        description: Neighbor IPv4 or IPv6 address.
+        required: true
+      - name: asn
+        description: Remote autonomous system number.
+        required: true
+  - keyword: multihop
+    description: Enable BGP multihop
+    detail: Allow BGP sessions to non-directly connected peers with optional TTL specification.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - neighbor
+      - ttl security
+    parameters:
+      - name: hops
+        description: Optional maximum hop count for TCP session establishment.
+  - keyword: hold time
+    description: BGP hold timer
+    detail: Set hold timer in seconds; peer is considered down if keepalives are not received in time.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - keepalive time
+    parameters:
+      - name: seconds
+        description: Hold-time interval.
+  - keyword: keepalive time
+    description: BGP keepalive timer
+    detail: Set keepalive interval in seconds for session liveness.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - hold time
+    parameters:
+      - name: seconds
+        description: Keepalive interval.
+  - keyword: source address
+    description: BGP source address
+    detail: Set source IP address used for outgoing BGP TCP sessions.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - neighbor
+      - multihop
+    parameters:
+      - name: ip
+        description: Local source IP address.
+  - keyword: ttl security
+    description: BGP TTL security
+    detail: Enable GTSM-like TTL protection for BGP sessions.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+    path: protocol.bgp
+    related:
+      - multihop
+      - neighbor
+    parameters:
+      - name: hops
+        description: Optional expected hop distance for TTL checks.

@@ -12,3 +12,11 @@ entries:
     usage: multihop 2;
   - keyword: neighbor
     usage: neighbor 192.0.2.1 as 64496;
+  - keyword: hold time
+    usage: hold time 90;
+  - keyword: keepalive time
+    usage: keepalive time 30;
+  - keyword: source address
+    usage: source address 192.0.2.10;
+  - keyword: ttl security
+    usage: ttl security 1;

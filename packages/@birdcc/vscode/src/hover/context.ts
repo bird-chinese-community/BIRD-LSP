@@ -34,11 +34,20 @@ const parseBlockSegments = (header: string): readonly string[] => {
   if (words[0] === "protocol" && words[1]) {
     return ["protocol", words[1]];
   }
+  if (words[0] === "template" && words[1]) {
+    return ["protocol", words[1]];
+  }
   if (words[0] === "area") {
     return ["area"];
   }
   if (words[0] === "interface") {
     return ["interface"];
+  }
+  if (words[0] === "ipv4" || words[0] === "ipv6") {
+    return ["channel", words[0]];
+  }
+  if (words[0] === "channel") {
+    return ["channel"];
   }
   if (words[0] === "external") {
     return ["external"];

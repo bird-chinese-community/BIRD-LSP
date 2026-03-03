@@ -5,15 +5,29 @@ entries:
     diff: same
     version: v2+
     anchor: proto-babel
+    path: protocol
+    related:
+      - interface
+      - ipv4
+      - ipv6
   - keyword: rip
     description: RIP protocol
     detail: Routing Information Protocol - a distance-vector interior gateway protocol.
     diff: same
     version: v2+
     anchor: proto-rip
+    path: protocol
+    related:
+      - interface
+      - import
+      - export
   - keyword: bfd
     description: Bidirectional Forwarding Detection
     detail: Fast failure detection protocol that can be used by other protocols like BGP and OSPF.
     diff: same
     version: v2+
     anchor: proto-bfd
+    path: protocol
+    related:
+      - ospf
+      - bgp

@@ -5,105 +5,205 @@ entries:
     diff: same
     version: v2+
     anchor: filter-pair
+    path: filter
+    related:
+      - .data
+    parameters:
+      - name: pair
+        description: Pair value exposing ASN component.
   - keyword: .data
     description: Extract data from pair
     detail: Get the data component from an AS path pair.
     diff: same
     version: v2+
     anchor: filter-pair
+    path: filter
+    related:
+      - .asn
+    parameters:
+      - name: pair
+        description: Pair value exposing data component.
   - keyword: .ip
     description: Extract IP from prefix
     detail: Get the network address part of a prefix.
     diff: same
     version: v2+
     anchor: filter-prefix
+    path: filter
+    related:
+      - .len
+      - .mask
+    parameters:
+      - name: prefix
+        description: Prefix value exposing network IP.
   - keyword: .len
     description: Prefix length operator
     detail: Get the prefix length of a prefix value.
     diff: same
     version: v2+
     anchor: filter-prefix
+    path: filter
+    related:
+      - .ip
+      - .mask
+    parameters:
+      - name: prefix
+        description: Prefix value exposing mask length.
   - keyword: .mask
     description: IP mask operator
     detail: Get the subnet mask as an IP address.
     diff: same
     version: v2+
     anchor: filter-ip
+    path: filter
+    related:
+      - .ip
+      - .len
+    parameters:
+      - name: ip-or-prefix
+        description: Address value exposing netmask.
   - keyword: accept
     description: Accept route
     detail: Accept the current route and stop processing the filter.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - reject
+      - return
   - keyword: case
     description: Case statement
     detail: Multi-way branch based on expression value.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - if
+      - else
+    parameters:
+      - name: expression
+        description: Expression used for case dispatch.
+        required: true
   - keyword: defined
     description: Check if symbol is defined
     detail: Test whether a symbol (attribute, route property) is defined.
     diff: same
     version: v2+
     anchor: filter-operators
+    path: filter
+    related:
+      - if
+    parameters:
+      - name: symbol
+        description: Route attribute or symbol name.
+        required: true
   - keyword: else
     description: Else clause
     detail: Marks the beginning of statements to execute when condition is false.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - if
+      - then
+    parameters:
+      - name: statement
+        description: Statement block for false branch.
   - keyword: if
     description: Conditional statement
     detail: Execute statements conditionally based on a boolean expression.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - then
+      - else
+      - case
+    parameters:
+      - name: condition
+        description: Boolean expression for branch entry.
+        required: true
   - keyword: int
     description: Integer data type
     detail: A signed 32-bit integer.
     diff: same
     version: v2+
     anchor: filter-data-types
+    path: filter
+    parameters:
+      - name: value
+        description: Signed 32-bit integer value.
   - keyword: ip
     description: IP address data type
     detail: An IPv4 or IPv6 address.
     diff: same
     version: v2+
     anchor: filter-data-types
+    path: filter
+    parameters:
+      - name: value
+        description: IPv4 or IPv6 address value.
   - keyword: prefix
     description: Prefix data type
     detail: An IP address prefix consisting of an IP address and a prefix length.
     diff: same
     version: v2+
     anchor: filter-data-types
+    path: filter
+    parameters:
+      - name: value
+        description: Prefix value (address/length).
   - keyword: print
     description: Print debug output
     detail: Output debug information during filter execution.
     diff: same
     version: v2+
     anchor: filter-functions
+    path: filter
+    parameters:
+      - name: values
+        description: One or more values to print.
   - keyword: reject
     description: Reject route
     detail: Reject the current route and stop processing the filter.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - accept
+      - return
   - keyword: return
     description: Return from function
     detail: Return a value from a filter function.
     diff: same
     version: v2+
     anchor: filter-functions
+    path: filter
+    related:
+      - accept
+      - reject
   - keyword: string
     description: String data type
     detail: A sequence of characters.
     diff: same
     version: v2+
     anchor: filter-data-types
+    path: filter
   - keyword: then
     description: Then clause
     detail: Marks the beginning of statements to execute when condition is true.
     diff: same
     version: v2+
     anchor: filter-control
+    path: filter
+    related:
+      - if
+      - else
+    parameters:
+      - name: statement
+        description: Statement block for true branch.

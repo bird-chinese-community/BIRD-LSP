@@ -5,6 +5,20 @@ entries:
     diff: modified
     version: v2-v3
     anchor: channel-export
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - import
+      - export limit
+    parameters:
+      - name: policy
+        description: Export policy such as all, none, or a named filter.
     notes:
       v3: "v3 Enhanced: Supports 'export in prefix' syntax for selective export."
   - keyword: export block
@@ -13,6 +27,20 @@ entries:
     diff: added
     version: v3+
     anchor: channel-export-block
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - export
+      - export limit
+    parameters:
+      - name: number
+        description: Block size for batched export processing.
     notes:
       v3: "v3 only: Bulk export optimization."
   - keyword: export limit
@@ -21,54 +49,176 @@ entries:
     diff: same
     version: v2+
     anchor: channel-export-limit
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - export
+      - receive limit
+    parameters:
+      - name: number
+        description: Maximum exported route count.
+      - name: action
+        description: Action when limit is reached, such as warn or disable.
   - keyword: import
     description: Import filter for channel
     detail: Specify filter for routes imported from the protocol to the routing table.
     diff: same
     version: v2+
     anchor: channel-import
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - export
+      - import limit
+    parameters:
+      - name: policy
+        description: Import policy such as all, none, or a named filter.
   - keyword: import keep filtered
     description: Keep filtered routes
     detail: Store routes that were filtered out during import, allowing them to be examined.
     diff: same
     version: v2+
     anchor: channel-import-keep-filtered
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - import
+    parameters:
+      - name: switch
+        description: Enable or disable preservation of filtered routes.
   - keyword: import limit
     description: Import route limit
     detail: Set maximum number of routes that can be imported from this channel.
     diff: same
     version: v2+
     anchor: channel-import-limit
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - import
+      - receive limit
+    parameters:
+      - name: number
+        description: Maximum imported route count.
+      - name: action
+        description: Action when limit is reached, such as warn or block.
   - keyword: ipv4
     description: IPv4 channel
     detail: Define an IPv4 address family channel for route exchange.
     diff: same
     version: v2+
     anchor: channel-opts
+    path:
+      - protocol.bgp
+      - protocol.babel
+      - protocol.rip
+      - protocol.kernel
+      - protocol.static
+      - protocol.pipe
+      - protocol.ospf
+    related:
+      - ipv6
+      - import
+      - export
   - keyword: ipv6
     description: IPv6 channel
     detail: Define an IPv6 address family channel for route exchange.
     diff: same
     version: v2+
     anchor: channel-opts
+    path:
+      - protocol.bgp
+      - protocol.babel
+      - protocol.rip
+      - protocol.kernel
+      - protocol.static
+      - protocol.pipe
+      - protocol.ospf
+    related:
+      - ipv4
+      - import
+      - export
   - keyword: preference
     description: Route preference value
     detail: Set the preference value for routes from this channel. Higher values are preferred.
     diff: same
     version: v2+
     anchor: channel-preference
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - table
+      - import
+      - export
+    parameters:
+      - name: number
+        description: Channel preference value.
   - keyword: receive limit
     description: Receive route limit
     detail: Set maximum number of routes that can be received from the peer.
     diff: same
     version: v2+
     anchor: channel-receive-limit
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - import limit
+      - export limit
+    parameters:
+      - name: number
+        description: Maximum received route count.
+      - name: action
+        description: Action when limit is reached.
   - keyword: rpki reload
     description: RPKI reload behavior
     detail: Configure how routes are reloaded when RPKI validation state changes.
     diff: modified
     version: v2-v3
     anchor: channel-rpki-reload
+    path:
+      - protocol.bgp.channel
+    related:
+      - import
+      - export
+    parameters:
+      - name: switch
+        description: Enable or disable route reload on RPKI state changes.
     notes:
       v3: "v3 Enhanced: Supports both ROA and ASPA validation reload."
   - keyword: table
@@ -77,3 +227,18 @@ entries:
     diff: same
     version: v2+
     anchor: channel-table
+    path:
+      - protocol.bgp.channel
+      - protocol.babel.channel
+      - protocol.rip.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
+      - protocol.ospf.channel
+    related:
+      - preference
+      - import
+      - export
+    parameters:
+      - name: table-name
+        description: Target routing table for this channel.

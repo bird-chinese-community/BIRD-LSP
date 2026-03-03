@@ -5,6 +5,12 @@ entries:
     diff: same
     version: v2+
     anchor: opt-attribute
+    path: global
+    parameters:
+      - name: type
+        description: Custom attribute value type.
+      - name: name
+        description: Attribute identifier.
   - keyword: cork threshold
     description: Cork threshold (v3 only)
     detail: Memory pressure control threshold for batching updates.
@@ -13,6 +19,10 @@ entries:
     anchor: rtable-cork-threshold
     notes:
       v3: "v3 only: Memory pressure control."
+    path: global
+    parameters:
+      - name: number
+        description: Memory pressure threshold for corking updates.
   - keyword: debug
     description: Table debug options
     detail: Enable debugging for routing table operations. v3 has simplified option set.
@@ -23,6 +33,13 @@ entries:
       v3: rtable-debug
     notes:
       v3: "v3 Breaking Change: Options simplified to {states|routes|events}"
+    path: global
+    related:
+      - debug latency
+      - debug tables
+    parameters:
+      - name: options
+        description: Debug categories to enable.
   - keyword: debug latency
     description: Enable latency debugging
     detail: Enable debugging of scheduling latency. v3 extends this to support granular event type
@@ -33,24 +50,46 @@ entries:
     notes:
       v3: "v3 Breaking Change: Extended to {ping|wakeup|scheduling|sockets|events|timers} for granular
         control."
+    path: global
+    related:
+      - debug
+    parameters:
+      - name: switch-or-categories
+        description: Enable latency debug globally or by category.
   - keyword: debug tables
     description: Enable routing table debugging
     detail: Log detailed information about routing table operations and state changes.
     diff: same
     version: v2+
     anchor: opt-debug-tables
+    path: global
+    related:
+      - debug
+    parameters:
+      - name: switch
+        description: Enable routing table debug logs.
   - keyword: define
     description: Define a constant value
     detail: Create a named constant that can be referenced throughout the configuration.
     diff: same
     version: v2+
     anchor: opt-define
+    path: global
+    parameters:
+      - name: name
+        description: Constant identifier.
+      - name: value
+        description: Literal or expression value.
   - keyword: eval
     description: Evaluate expression at config load time
     detail: Execute a filter expression during configuration parsing. Useful for dynamic configuration.
     diff: same
     version: v2+
     anchor: opt-eval
+    path: global
+    parameters:
+      - name: expression
+        description: Expression executed at config load time.
   - keyword: export settle time
     description: Export settle time (v3 only)
     detail: Time to wait before exporting route changes to protocols.
@@ -59,6 +98,14 @@ entries:
     anchor: rtable-export-settle-time
     notes:
       v3: "v3 only: Replaces min/max settle time from v2."
+    path: global
+    related:
+      - min settle time
+      - max settle time
+      - table
+    parameters:
+      - name: time
+        description: Export settle duration.
   - keyword: filter
     description: Define a routing filter
     detail: Create a named filter that can be used to accept, reject, or modify routes during
@@ -66,6 +113,15 @@ entries:
     diff: same
     version: v2+
     anchor: opt-filter
+    path: global
+    related:
+      - function
+      - protocol
+      - import
+      - export
+    parameters:
+      - name: name
+        description: Filter function name.
   - keyword: function
     description: Define a reusable filter function
     detail: Create a named function that can be called from filters. Supports typed parameters and
@@ -73,30 +129,59 @@ entries:
     diff: same
     version: v2+
     anchor: opt-function
+    path: global
+    related:
+      - filter
+      - define
+    parameters:
+      - name: signature
+        description: Function signature and return type.
   - keyword: gc period
     description: Garbage collection period
     detail: Set the interval between garbage collection runs.
     diff: same
     version: v2+
     anchor: rtable-gc-period
+    path: global
+    related:
+      - gc threshold
+      - table
+    parameters:
+      - name: seconds
+        description: Interval between GC runs.
   - keyword: gc threshold
     description: Garbage collection threshold
     detail: Configure the garbage collection threshold for the routing table.
     diff: same
     version: v2+
     anchor: rtable-gc-threshold
+    path: global
+    related:
+      - gc period
+      - table
+    parameters:
+      - name: number
+        description: Threshold before GC is triggered.
   - keyword: graceful restart wait
     description: Set graceful restart timeout
     detail: Configure how long to wait for protocols to recover after a graceful restart.
     diff: same
     version: v2+
     anchor: opt-graceful-restart-wait
+    path: global
+    parameters:
+      - name: seconds
+        description: Maximum graceful-restart wait.
   - keyword: hostname
     description: Set router hostname
     detail: Override the system hostname used in protocol announcements and logging.
     diff: same
     version: v2+
     anchor: opt-hostname
+    path: global
+    parameters:
+      - name: name
+        description: Hostname string.
   - keyword: include
     description: Include another configuration file
     detail: Include and parse another configuration file at this point. Supports glob patterns for
@@ -104,6 +189,14 @@ entries:
     diff: same
     version: v2+
     anchor: opt-include
+    path: global
+    related:
+      - define
+      - template
+      - protocol
+    parameters:
+      - name: path-or-glob
+        description: Path or glob to include.
   - keyword: log
     description: Configure logging destination and format
     detail: Set log output to stderr, syslog, or a file. BIRD 3 adds 'fixed' option for ring buffer
@@ -113,6 +206,16 @@ entries:
     anchor: opt-log
     notes:
       v3: v3 adds 'fixed' ring buffer option for memory-constrained environments.
+    path: global
+    related:
+      - timeformat
+      - debug
+      - debug latency
+    parameters:
+      - name: target
+        description: Logging target like syslog/file/stderr.
+      - name: classes
+        description: Enabled log classes.
   - keyword: max settle time
     description: Maximum settle time (v2 only)
     detail: Maximum time to wait before announcing route changes. Removed in v3.
@@ -121,6 +224,13 @@ entries:
     anchor: rtable-max-settle-time
     notes:
       v3: "v3: Removed - use export settle time instead"
+    path: global
+    related:
+      - min settle time
+      - export settle time
+    parameters:
+      - name: time
+        description: Legacy max settle time (v2).
   - keyword: min settle time
     description: Minimum settle time (v2 only)
     detail: Minimum time to wait before announcing route changes. Removed in v3.
@@ -129,18 +239,40 @@ entries:
     anchor: rtable-min-settle-time
     notes:
       v3: "v3: Removed - use export settle time instead"
+    path: global
+    related:
+      - max settle time
+      - export settle time
+    parameters:
+      - name: time
+        description: Legacy min settle time (v2).
   - keyword: mrtdump
     description: Configure MRT dump output
     detail: Set up MRT format dump for BGP updates and routing table dumps for analysis.
     diff: same
     version: v2+
     anchor: opt-mrtdump
+    path: global
+    parameters:
+      - name: path
+        description: MRT dump file path.
   - keyword: protocol
     description: Define a routing protocol instance
     detail: Create a named instance of a routing protocol (BGP, OSPF, etc.) with its configuration.
     diff: same
     version: v2+
     anchor: opt-protocol
+    path: global
+    related:
+      - template
+      - filter
+      - function
+      - router id
+    parameters:
+      - name: type
+        description: Protocol type (bgp/ospf/etc).
+      - name: name
+        description: Protocol instance name.
   - keyword: router id
     description: Set BIRD's router ID
     detail: "Router ID is a 4-byte integer that should be unique within an AS. It is used to identify
@@ -148,18 +280,37 @@ entries:
     diff: same
     version: v2+
     anchor: opt-router-id
+    path: global
+    related:
+      - router id from
+      - protocol
+    parameters:
+      - name: router-id
+        description: Router ID in IPv4 format.
+        required: true
   - keyword: router id from
     description: Derive router ID from interface
     detail: Automatically determine the router ID from the lowest IP address of the specified interface.
     diff: same
     version: v2+
     anchor: opt-router-id-from
+    path: global
+    related:
+      - router id
+    parameters:
+      - name: interface-pattern
+        description: Interface selection pattern.
+        required: true
   - keyword: sorted
     description: Enable sorted table mode
     detail: Keep routes sorted for faster route lookups.
     diff: same
     version: v2+
     anchor: rtable-sorted
+    path: global
+    parameters:
+      - name: switch
+        description: Enable sorted table mode.
   - keyword: table
     description: Define a routing table
     detail: Create a named routing table to store routes. Tables can be associated with channels for
@@ -167,12 +318,32 @@ entries:
     diff: same
     version: v2+
     anchor: rtable-opts
+    path: global
+    related:
+      - sorted
+      - trie
+      - gc period
+      - gc threshold
+      - export settle time
+    parameters:
+      - name: name
+        description: Routing table name.
   - keyword: template
     description: Define a protocol template
     detail: Create a reusable protocol configuration template that can be inherited by other protocols.
     diff: same
     version: v2+
     anchor: opt-template
+    path: global
+    related:
+      - protocol
+      - function
+      - filter
+    parameters:
+      - name: protocol-type
+        description: Template protocol type.
+      - name: name
+        description: Template name.
   - keyword: max latency
     description: Set maximum latency for thread group (v3 only)
     detail: Configure the maximum allowed latency for threads in a thread group before warnings.
@@ -181,6 +352,10 @@ entries:
     anchor: thread-setup
     notes:
       v3: "v3 only: Thread group performance tuning option."
+    path: global
+    parameters:
+      - name: time
+        description: Maximum thread-group latency.
   - keyword: thread group
     description: Configure thread groups for multi-threading (v3 only)
     detail: Define a thread group for running protocol and channel tasks in parallel. BIRD 3.0+ supports
@@ -190,6 +365,13 @@ entries:
     anchor: thread-setup
     notes:
       v3: "v3.2.0+: BIRD runs in several threads with configurable thread groups for different workloads."
+    path: global
+    related: &a1
+      - threads
+      - max latency
+    parameters: &a2
+      - name: name
+        description: Thread group name.
   - keyword: thread group
     description: Assign protocol to thread group (v3 only)
     detail: Specify which thread group should handle this protocol's tasks.
@@ -198,6 +380,9 @@ entries:
     anchor: proto-thread-group
     notes:
       v3: "v3 only: Multi-threading support for protocol tasks."
+    path: protocol
+    related: *a1
+    parameters: *a2
   - keyword: threads
     description: Set number of threads (deprecated in v3)
     detail: Configure the number of worker threads. In v3, use 'thread group' instead for more granular
@@ -209,21 +394,39 @@ entries:
       v3: thread-setup
     notes:
       v3: "v3: Deprecated in favor of 'thread group' configuration blocks."
+    path: global
+    related:
+      - thread group
+    parameters:
+      - name: number
+        description: Legacy worker thread count.
   - keyword: timeformat
     description: Set time format for logging
     detail: Configure the format string used for timestamps in log messages.
     diff: same
     version: v2+
     anchor: opt-timeformat
+    path: global
+    parameters:
+      - name: format
+        description: Time format string.
   - keyword: trie
     description: Use trie data structure
     detail: Store routes in a trie data structure for optimized longest-prefix matching.
     diff: same
     version: v2+
     anchor: rtable-trie
+    path: global
+    parameters:
+      - name: switch
+        description: Enable trie table mode.
   - keyword: watchdog warning
     description: Set watchdog warning threshold
     detail: Configure the time threshold after which a warning is logged if the scheduler doesn't respond.
     diff: same
     version: v2+
     anchor: opt-watchdog-warning
+    path: global
+    parameters:
+      - name: time
+        description: Scheduler warning threshold.

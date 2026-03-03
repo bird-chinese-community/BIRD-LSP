@@ -86,9 +86,11 @@ describe("bird keyword hover resolver", () => {
     const docs = await loadBirdHoverDocs();
     const routerIdDoc = docs.docs.get("router id");
     const neighborDoc = docs.docs.get("neighbor");
+    const holdTimeDoc = docs.docs.get("hold time");
 
     expect(routerIdDoc?.usage).toContain("router id 10.0.0.1;");
     expect(neighborDoc?.usage).toContain("neighbor 192.0.2.1 as 64496;");
+    expect(holdTimeDoc?.usage).toContain("hold time 90;");
   });
 
   it("loads path-specific parameters for ospf interface docs", async () => {
@@ -100,6 +102,32 @@ describe("bird keyword hover resolver", () => {
 
     expect(ospfInterfaceDoc).toBeDefined();
     expect(ospfInterfaceDoc?.parameters?.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("exposes structured metadata for bgp keyword docs", async () => {
+    const docs = await loadBirdHoverDocs();
+    const neighborDoc = docs.docs.get("neighbor");
+
+    expect(neighborDoc?.path).toBe("protocol.bgp");
+    expect(neighborDoc?.related).toContain("multihop");
+    expect(neighborDoc?.parameters?.some((item) => item.name === "asn")).toBe(
+      true,
+    );
+  });
+
+  it("exposes structured metadata for global and filter keywords", async () => {
+    const docs = await loadBirdHoverDocs();
+    const routerIdDoc = docs.docs.get("router id");
+    const ifDoc = docs.docs.get("if");
+
+    expect(routerIdDoc?.path).toBe("global");
+    expect(routerIdDoc?.related).toContain("router id from");
+    expect(
+      routerIdDoc?.parameters?.some((item) => item.name === "router-id"),
+    ).toBe(true);
+
+    expect(ifDoc?.path).toBe("filter");
+    expect(ifDoc?.related).toContain("then");
   });
 
   it("prefers path-specific docs for ospf interface context", async () => {
@@ -115,6 +143,16 @@ describe("bird keyword hover resolver", () => {
     );
 
     expect(topic?.doc.title).toBe("OSPF interface block");
+  });
+
+  it("prefers channel table docs in channel context", async () => {
+    const docs = await loadBirdHoverDocs();
+    const line = "table master4;";
+    const topic = resolveBirdHoverTopic(line, line.indexOf("table") + 1, docs, {
+      contextPath: ["protocol", "bgp", "channel", "ipv4"],
+    });
+
+    expect(topic?.doc.title).toBe("Associate channel with routing table");
   });
 
   it("supports underscore variant smart matching", async () => {

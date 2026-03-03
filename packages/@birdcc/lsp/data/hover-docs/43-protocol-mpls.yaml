@@ -5,15 +5,36 @@ entries:
     diff: same
     version: v2+
     anchor: mpls-opts
+    path: protocol
+    related:
+      - label policy
+      - label range
+    parameters:
+      - name: domain-name
+        description: MPLS domain identifier.
   - keyword: label policy
     description: MPLS label policy
     detail: Configure how MPLS labels are assigned and distributed.
     diff: same
     version: v2+
     anchor: mpls-label-policy
+    path: protocol
+    related:
+      - mpls domain
+      - label range
+    parameters:
+      - name: mode
+        description: Label allocation behavior.
   - keyword: label range
     description: MPLS label range
     detail: Define the range of MPLS labels to use.
     diff: same
     version: v2+
     anchor: mpls-label-range
+    path: protocol
+    related:
+      - mpls domain
+      - label policy
+    parameters:
+      - name: range-name
+        description: Named MPLS label range.
