@@ -242,7 +242,7 @@
     ]
   },
   "bird-filter-simple": {
-    "prefix": ["bird-filter-simple", "filter-simple"],
+    "prefix": ["bird-filter-simple", "filter-simple", "filter"],
     "description": "[Filter] Simple accept/reject filter (Simple)",
     "body": ["filter ${1:filter_name} {", "  ${2|accept,reject|};", "  $0", "}"]
   },
@@ -358,7 +358,7 @@
   },
   "bird-func-basic": {
     "prefix": ["bird-func", "function", "func-def"],
-    "description": "[Function] Basic function definition (Basic)",
+    "description": "[Func] Basic function definition (Basic)",
     "body": [
       "function ${1:func_name}(${2:param}) -> ${3|int,ip,bgp_path,bool|}",
       "{",
@@ -369,7 +369,7 @@
   },
   "bird-func-prepend": {
     "prefix": ["bird-func-prepend", "prepend", "aspath-prepend"],
-    "description": "[Function] AS path prepend helper (Simple)",
+    "description": "[Func] AS path prepend helper (Simple)",
     "body": [
       "function ${1:prepend_once}(bgp_path p) -> bgp_path",
       "{",
@@ -380,7 +380,7 @@
   },
   "bird-func-community": {
     "prefix": ["bird-func-community", "comm-tag", "community-set"],
-    "description": "[Function] Community tagging helper (Simple)",
+    "description": "[Func] Community tagging helper (Simple)",
     "body": [
       "function ${1:set_community}() -> bgp_community",
       "{",
@@ -392,7 +392,7 @@
   },
   "bird-func-net-match": {
     "prefix": ["bird-func-net-match", "net-match", "network-match"],
-    "description": "[Function] Network prefix matching helper (Basic)",
+    "description": "[Func] Network prefix matching helper (Basic)",
     "body": [
       "function ${1:match_prefix}(ip p) -> bool",
       "{",
@@ -403,7 +403,7 @@
   },
   "bird-func-metric": {
     "prefix": ["bird-func-metric", "metric-calc", "calculate-metric"],
-    "description": "[Function] Dynamic metric calculation (Basic)",
+    "description": "[Func] Dynamic metric calculation (Basic)",
     "body": [
       "function ${1:calculate_metric}() -> int",
       "{",
@@ -413,7 +413,7 @@
     ]
   },
   "bird-set-prefix": {
-    "prefix": ["bird-set-prefix", "prefix-set", "define-prefixes"],
+    "prefix": ["bird-set-prefix", "bird-set", "prefix-set", "define-prefixes"],
     "description": "[Set] Prefix set definition (Basic)",
     "body": [
       "define ${1:prefix_set_name} = [",
@@ -425,7 +425,12 @@
     ]
   },
   "bird-set-community": {
-    "prefix": ["bird-set-community", "community-set", "define-communities"],
+    "prefix": [
+      "bird-set-community",
+      "bird-set",
+      "community-set",
+      "define-communities"
+    ],
     "description": "[Set] BGP community set definition (Basic)",
     "body": [
       "define ${1:community_set_name} = [",
@@ -437,7 +442,7 @@
     ]
   },
   "bird-set-aspath": {
-    "prefix": ["bird-set-aspath", "aspath-set", "define-aspath"],
+    "prefix": ["bird-set-aspath", "bird-set", "aspath-set", "define-aspath"],
     "description": "[Set] AS path set definition (Basic)",
     "body": [
       "define ${1:aspath_set_name} = [",
@@ -449,7 +454,7 @@
     ]
   },
   "bird-flow-if": {
-    "prefix": ["bird-flow-if", "if"],
+    "prefix": ["bird-flow-if", "bird-flow", "if"],
     "description": "[Control Flow] If statement template (Basic)",
     "body": [
       "if (${1:condition}) then {",
@@ -461,7 +466,7 @@
     ]
   },
   "bird-flow-case": {
-    "prefix": ["bird-flow-case", "case"],
+    "prefix": ["bird-flow-case", "bird-flow", "case"],
     "description": "[Control Flow] Case statement template (Basic)",
     "body": [
       "case ${1:match_var} {",
@@ -473,7 +478,7 @@
     ]
   },
   "bird-flow-for": {
-    "prefix": ["bird-flow-for", "for", "loop"],
+    "prefix": ["bird-flow-for", "bird-flow", "for", "loop"],
     "description": "[Control Flow] For loop template (Basic)",
     "body": [
       "for ${1:ip} ${2:prefix} in ${3:prefix_set} do {",
