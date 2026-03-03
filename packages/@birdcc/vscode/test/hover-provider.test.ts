@@ -130,6 +130,23 @@ describe("bird keyword hover resolver", () => {
     expect(ifDoc?.related).toContain("then");
   });
 
+  it("loads structured docs for extended protocols", async () => {
+    const docs = await loadBirdHoverDocs();
+    const rpkiDoc = docs.docs.get("rpki");
+    const routeDoc = docs.docs.get("route");
+
+    expect(rpkiDoc?.path).toBe("protocol");
+    expect(rpkiDoc?.related).toContain("rpki reload");
+    expect(
+      rpkiDoc?.parameters?.some((item) => item.name === "cache-address"),
+    ).toBe(true);
+    expect(rpkiDoc?.usage).toContain("protocol rpki");
+
+    expect(routeDoc?.path).toBe("protocol.static");
+    expect(routeDoc?.related).toContain("next hop");
+    expect(routeDoc?.usage).toContain("203.0.113.0/24");
+  });
+
   it("prefers path-specific docs for ospf interface context", async () => {
     const docs = await loadBirdHoverDocs();
     const line = 'interface "eth0" { cost 10; };';

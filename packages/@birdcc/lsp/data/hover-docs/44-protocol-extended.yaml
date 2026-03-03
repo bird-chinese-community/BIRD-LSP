@@ -1,0 +1,145 @@
+entries:
+  - keyword: aggregator
+    description: Aggregator protocol
+    detail: Aggregate multiple more specific routes into summarized prefixes.
+    diff: same
+    version: v2+
+    anchor: proto-aggregator
+    path: protocol
+    related:
+      - route
+      - static
+    parameters:
+      - name: summarize-prefix
+        description: Target aggregate prefix.
+  - keyword: bmp
+    description: BMP protocol
+    detail: BGP Monitoring Protocol exporter for route monitoring and telemetry.
+    diff: same
+    version: v2+
+    anchor: proto-bmp
+    path: protocol
+    related:
+      - bgp
+      - neighbor
+    parameters:
+      - name: station-address
+        description: BMP collector address.
+      - name: station-port
+        description: BMP collector TCP port.
+  - keyword: l3vpn
+    description: L3VPN protocol
+    detail: Interconnect VRF routing tables with MPLS label signaling for VPN services.
+    diff: same
+    version: v2+
+    anchor: proto-l3vpn
+    path: protocol
+    related:
+      - vrf
+      - mpls domain
+      - label policy
+    parameters:
+      - name: vrf-name
+        description: VRF bound to this L3VPN instance.
+  - keyword: mrt
+    description: MRT protocol
+    detail: Export routing updates in MRT format for offline analysis.
+    diff: same
+    version: v2+
+    anchor: proto-mrt
+    path: protocol
+    related:
+      - mrtdump
+      - bgp
+    parameters:
+      - name: file-path
+        description: MRT output file path.
+  - keyword: perf
+    description: Perf protocol
+    detail: Benchmark-oriented protocol for performance testing and diagnostics.
+    diff: same
+    version: v2+
+    anchor: proto-perf
+    path: protocol
+    related:
+      - debug
+      - debug latency
+  - keyword: radv
+    description: Router Advertisement protocol
+    detail: Advertise IPv6 prefixes and router settings using ICMPv6 Router Advertisements.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol
+    related:
+      - ipv6
+      - interface
+    parameters:
+      - name: interface-pattern
+        description: Interfaces where RA packets are advertised.
+  - keyword: rpki
+    description: RPKI protocol
+    detail: Fetch and maintain ROA/ASPA validation data from RPKI cache servers.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol
+    related:
+      - rpki reload
+      - import
+      - export
+    parameters:
+      - name: cache-address
+        description: RTR cache server address.
+      - name: cache-port
+        description: RTR cache server port.
+  - keyword: route
+    description: Static route statement
+    detail: Define a static route destination and forwarding behavior.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static
+    related:
+      - next hop
+      - blackhole
+      - unreachable
+    parameters:
+      - name: prefix
+        description: Destination prefix for the static route.
+        required: true
+  - keyword: next hop
+    description: Static route next hop
+    detail: Specify forwarding next-hop address for a static route.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static.route
+    related:
+      - route
+      - blackhole
+      - unreachable
+    parameters:
+      - name: address
+        description: Next-hop IP address.
+        required: true
+  - keyword: blackhole
+    description: Static route blackhole action
+    detail: Drop traffic for matched static route prefixes.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static.route
+    related:
+      - route
+      - unreachable
+  - keyword: unreachable
+    description: Static route unreachable action
+    detail: Mark destination as unreachable and return ICMP unreachable.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static.route
+    related:
+      - route
+      - blackhole
