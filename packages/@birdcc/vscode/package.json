@@ -11,16 +11,26 @@
   },
   "displayName": "BIRD2 LSP",
   "description": "Language Server Protocol support for BIRD2 configuration files",
-  "publisher": "birdcc",
+  "publisher": "BIRDCC",
   "repository": {
     "type": "git",
     "url": "https://github.com/bird-chinese-community/BIRD-LSP.git",
     "directory": "packages/@birdcc/vscode"
   },
-  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/vscode",
+  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/%40birdcc/vscode/README.md",
   "bugs": {
     "url": "https://github.com/bird-chinese-community/BIRD-LSP/issues"
   },
+  "keywords": [
+    "bird2",
+    "routing",
+    "network",
+    "configuration",
+    "language-server",
+    "lsp",
+    "vscode",
+    "extension"
+  ],
   "engines": {
     "vscode": "^1.80.0"
   },
