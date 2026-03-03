@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { parse } from "yaml";
 
+import { toCanonicalKey } from "./utils.js";
+
 export type HoverDocDiffType = "same" | "added" | "modified" | "removed";
 export type HoverDocVersionTag = "v2+" | "v3+" | "v2" | "v2-v3";
 
@@ -85,9 +87,6 @@ export interface HoverDocResolutionOptions {
 
 const HOVER_MARKDOWN_CACHE_LIMIT = 2048;
 const hoverMarkdownCache = new Map<string, string>();
-
-const toCanonicalKey = (value: string): string =>
-  value.trim().toLowerCase().replace(/\s+/g, " ");
 
 const normalizeAnchor = (value: string | undefined): string | undefined => {
   if (typeof value !== "string") {
@@ -489,28 +488,30 @@ const buildDocUrl = (
 };
 
 const buildDocsSection = (entry: CanonicalHoverDocEntry): string => {
-  const lines: string[] = [];
-
   if (entry.version === "v2+") {
-    lines.push(`- [BIRD v2.18 / v3.2.0](${buildDocUrl("v2", entry.anchor)})`);
-  } else if (entry.version === "v3+") {
-    lines.push(`- [BIRD v3.2.0](${buildDocUrl("v3", entry.anchor)})`);
-  } else if (entry.version === "v2") {
-    lines.push(`- [BIRD v2.18](${buildDocUrl("v2", entry.anchor)})`);
-  } else {
-    const v2Anchor = entry.anchors?.v2 ?? entry.anchor;
-    const v3Anchor = entry.anchors?.v3 ?? entry.anchor;
-
-    if (v2Anchor) {
-      lines.push(`- [BIRD v2.18](${buildDocUrl("v2", v2Anchor)})`);
-    }
-
-    if (v3Anchor) {
-      lines.push(`- [BIRD v3.2.0](${buildDocUrl("v3", v3Anchor)})`);
-    }
+    return `Reference: [BIRD User's Guide](${buildDocUrl("v2", entry.anchor)})`;
   }
 
-  return lines.join("\n");
+  if (entry.version === "v3+") {
+    return `Reference: [BIRD v3 User's Guide](${buildDocUrl("v3", entry.anchor)})`;
+  }
+
+  if (entry.version === "v2") {
+    return `Reference: [BIRD v2 User's Guide](${buildDocUrl("v2", entry.anchor)})`;
+  }
+
+  // v2-v3: separate anchors
+  const v2Anchor = entry.anchors?.v2 ?? entry.anchor;
+  const v3Anchor = entry.anchors?.v3 ?? entry.anchor;
+  const links: string[] = [];
+  if (v2Anchor) {
+    links.push(`[BIRD v2 User's Guide](${buildDocUrl("v2", v2Anchor)})`);
+  }
+  if (v3Anchor) {
+    links.push(`[BIRD v3 User's Guide](${buildDocUrl("v3", v3Anchor)})`);
+  }
+
+  return links.length > 0 ? `Reference: ${links.join(" | ")}` : "";
 };
 
 const buildNotesSection = (entry: CanonicalHoverDocEntry): string => {
@@ -518,20 +519,15 @@ const buildNotesSection = (entry: CanonicalHoverDocEntry): string => {
     return "";
   }
 
-  const lines: string[] = [];
+  const parts: string[] = [];
   if (entry.notes.v2) {
-    lines.push(`- v2: ${entry.notes.v2}`);
+    parts.push(`v2: ${entry.notes.v2}`);
   }
-
   if (entry.notes.v3) {
-    lines.push(`- v3: ${entry.notes.v3}`);
+    parts.push(`v3: ${entry.notes.v3}`);
   }
 
-  if (lines.length === 0) {
-    return "";
-  }
-
-  return `\n\nNotes:\n${lines.join("\n")}`;
+  return parts.length > 0 ? `\n\n> **Note:** ${parts.join(" \u00b7 ")}` : "";
 };
 
 const buildContextSection = (entry: CanonicalHoverDocEntry): string => {
@@ -544,7 +540,7 @@ const buildContextSection = (entry: CanonicalHoverDocEntry): string => {
     return "";
   }
 
-  return `\n\nContext:\n${paths.map((item) => `- \`${item}\``).join("\n")}`;
+  return `**Context:** ${paths.map((item) => `\`${item}\``).join(", ")}`;
 };
 
 const buildRelatedSection = (entry: CanonicalHoverDocEntry): string => {
@@ -552,7 +548,7 @@ const buildRelatedSection = (entry: CanonicalHoverDocEntry): string => {
     return "";
   }
 
-  return `\n\nRelated:\n${entry.related.map((item) => `- \`${item}\``).join("\n")}`;
+  return `**Related:** ${entry.related.map((item) => `\`${item}\``).join(", ")}`;
 };
 
 const buildParametersSection = (entry: CanonicalHoverDocEntry): string => {
@@ -560,35 +556,86 @@ const buildParametersSection = (entry: CanonicalHoverDocEntry): string => {
     return "";
   }
 
-  const lines = entry.parameters.map((parameter) => {
-    const requiredLabel = parameter.required ? " (required)" : "";
-    return `- \`${parameter.name}\`${requiredLabel}: ${parameter.description}`;
+  const header = "\n| Parameter | | Description |\n|:---|:---|:---|";
+  const rows = entry.parameters.map((parameter) => {
+    const requiredLabel = parameter.required ? "required" : "optional";
+    return `| \`${parameter.name}\` | *${requiredLabel}* | ${parameter.description} |`;
   });
-  return `\n\nParameters:\n${lines.join("\n")}`;
+  return `${header}\n${rows.join("\n")}`;
 };
 
+const DIFF_LABELS: Readonly<Record<HoverDocDiffType, string>> = {
+  same: "Behaves identically to BIRD2",
+  added: "Introduced in BIRD3",
+  modified: "Behavior revised from BIRD2",
+  removed: "Deprecated since BIRD3",
+};
+
+const DIFF_ICONS: Readonly<Record<HoverDocDiffType, string>> = {
+  same: "\uD83D\uDFE2 \u2714", // 🟢 ✔
+  added: "\uD83D\uDD35 \u2795", // 🔵 ➕
+  modified: "\uD83D\uDFE0 \u270E", // 🟠 ✎
+  removed: "\uD83D\uDD34 \u2716", // 🔴 ✖
+};
+
+/**
+ * Build a complete, self-contained hover markdown document for a keyword entry.
+ * The output intentionally includes the keyword heading so callers can render
+ * the result directly without prepending extra titles.
+ */
 const toHoverMarkdown = (
   entry: CanonicalHoverDocEntry,
   usage: string | undefined,
 ): string => {
-  const usageSection = usage ? `\n\nUsage:\n\`\`\`bird\n${usage}\n\`\`\`` : "";
-  return (
-    [
-      `### ${entry.description}`,
-      "",
-      entry.detail,
-      "",
-      `Diff: \`${entry.diff}\``,
-      `Version: \`${entry.version}\``,
-      "Docs:",
-      buildDocsSection(entry),
-    ].join("\n") +
-    usageSection +
-    buildContextSection(entry) +
-    buildParametersSection(entry) +
-    buildRelatedSection(entry) +
-    buildNotesSection(entry)
+  const sections: string[] = [];
+
+  // ── Title ──────────────────────────────────────────────────────────────
+  sections.push(`## \`${entry.keyword}\`\n`);
+  sections.push(`> ${entry.description}\n`);
+  sections.push(entry.detail);
+
+  // ── Separator ──────────────────────────────────────────────────────────
+  sections.push("\n---\n");
+
+  // ── Metadata ───────────────────────────────────────────────────────────
+  const diffIcon = DIFF_ICONS[entry.diff];
+  const diffLabel = DIFF_LABELS[entry.diff];
+  sections.push(
+    `${diffIcon} *${diffLabel}*\u2002\u00b7\u2002Version \`${entry.version}\`\n`,
   );
+  sections.push(buildDocsSection(entry));
+
+  // ── Usage ──────────────────────────────────────────────────────────────
+  if (usage) {
+    sections.push(`\n\`\`\`bird\n${usage}\n\`\`\``);
+  }
+
+  // ── Parameters (table for wider hover) ─────────────────────────────────
+  const parametersSection = buildParametersSection(entry);
+  if (parametersSection) {
+    sections.push(parametersSection);
+  }
+
+  // ── Footer: context, related, notes ────────────────────────────────────
+  const footerParts: string[] = [];
+  const contextSection = buildContextSection(entry);
+  if (contextSection) {
+    footerParts.push(contextSection);
+  }
+  const relatedSection = buildRelatedSection(entry);
+  if (relatedSection) {
+    footerParts.push(relatedSection);
+  }
+  if (footerParts.length > 0) {
+    sections.push(`\n${footerParts.join("\u2002\u00b7\u2002")}`);
+  }
+
+  const notesSection = buildNotesSection(entry);
+  if (notesSection) {
+    sections.push(notesSection);
+  }
+
+  return sections.join("\n");
 };
 
 const toContextCacheKey = (

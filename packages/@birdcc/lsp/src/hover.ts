@@ -5,14 +5,15 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ParsedBirdDocument } from "@birdcc/parser";
-import {
-  declarationMetadata,
-  isPositionInRange,
-  KEYWORD_DOCS,
-  toLspRange,
-} from "./shared.js";
+import { declarationMetadata, KEYWORD_DOCS } from "./shared.js";
 import { resolveHoverKeywordDoc } from "./hover-docs.js";
 import { resolveHoverContextPath } from "./hover-context.js";
+import {
+  toCanonicalKey,
+  isPositionInRange,
+  toLspRange,
+  getLineText,
+} from "./utils.js";
 
 interface LineWord {
   readonly value: string;
@@ -43,10 +44,8 @@ export interface ResolvedKeywordHover {
   readonly endCharacter: number;
 }
 
-const WORD_PATTERN = /(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)/g;
-
-const toCanonicalKey = (keyword: string): string =>
-  keyword.trim().toLowerCase().replace(/\s+/g, " ");
+const HOVER_WORD_PATTERN =
+  /(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)/g;
 
 const toKeyAliases = (keyword: string): readonly string[] => {
   const canonicalKey = toCanonicalKey(keyword);
@@ -104,19 +103,14 @@ for (const [keyword, doc] of Object.entries(KEYWORD_DOCS)) {
   }
 }
 
-const getLineText = (document: TextDocument, line: number): string => {
-  const start = { line, character: 0 };
-  const end =
-    line + 1 < document.lineCount
-      ? { line: line + 1, character: 0 }
-      : { line, character: Number.MAX_SAFE_INTEGER };
-
-  return document.getText({ start, end }).replace(/\r?\n$/, "");
-};
+const getLineTextFromDocument = (
+  document: TextDocument,
+  line: number,
+): string => getLineText(document, line);
 
 const collectLineWords = (lineText: string): readonly LineWord[] => {
   const words: LineWord[] = [];
-  for (const match of lineText.matchAll(WORD_PATTERN)) {
+  for (const match of lineText.matchAll(HOVER_WORD_PATTERN)) {
     const value = match[0];
     const start = match.index ?? 0;
     words.push({
@@ -222,14 +216,17 @@ export const resolveKeywordHoverOnLine = (
     return null;
   }
 
-  const resolvedDoc =
-    resolveHoverKeywordDoc(keyword.word, {
-      contextPath: options?.contextPath,
-    }) ?? keyword.doc;
+  // Prefer context-aware docs from hover-docs.ts (already self-contained
+  // with a keyword heading). Fall back to the static KEYWORD_DOCS value
+  // and wrap it with a heading to keep the format consistent.
+  const resolvedDoc = resolveHoverKeywordDoc(keyword.word, {
+    contextPath: options?.contextPath,
+  });
+  const markdown = resolvedDoc ?? `## \`${keyword.word}\`\n\n${keyword.doc}`;
 
   return {
     key: keyword.word,
-    markdown: `**${keyword.word}**\n\n${resolvedDoc}`,
+    markdown,
     startCharacter: keyword.startCharacter,
     endCharacter: keyword.endCharacter,
   };
@@ -259,7 +256,7 @@ export const createHoverFromParsed = (
     return null;
   }
 
-  const lineText = getLineText(document, position.line);
+  const lineText = getLineTextFromDocument(document, position.line);
   const contextPath = resolveHoverContextPath(
     document,
     position.line,

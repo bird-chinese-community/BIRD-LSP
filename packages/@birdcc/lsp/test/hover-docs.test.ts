@@ -127,20 +127,21 @@ describe("hover docs catalog", () => {
 
   it("loads generated hover docs map with stable keyword coverage", () => {
     expect(HOVER_KEYWORDS.length).toBeGreaterThanOrEqual(100);
-    expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Diff: `added`");
-    expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Version: `v3+`");
-    expect(HOVER_KEYWORD_DOCS["router id"]).toContain("Usage:");
+    expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Introduced in BIRD3");
+    expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Version `v3+`");
+    expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("## `thread group`");
+    expect(HOVER_KEYWORD_DOCS["router id"]).toContain("```bird");
     expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain(
       "neighbor 192.0.2.1 as 64496;",
     );
-    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Parameters:");
-    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Context:");
-    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Related:");
-    expect(HOVER_KEYWORD_DOCS["rpki"]).toContain("Usage:");
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("| Parameter");
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("**Context:**");
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("**Related:**");
+    expect(HOVER_KEYWORD_DOCS["rpki"]).toContain("```bird");
     expect(HOVER_KEYWORD_DOCS["route"]).toContain("proto-static-route");
 
     const usageRichCount = Object.values(HOVER_KEYWORD_DOCS).filter(
-      (markdown) => markdown.includes("\n\nUsage:\n```bird\n"),
+      (markdown) => markdown.includes("```bird\n"),
     ).length;
     expect(usageRichCount).toBeGreaterThanOrEqual(100);
   });
@@ -166,8 +167,8 @@ describe("hover docs catalog", () => {
   });
 
   it("exposes merged keyword docs through shared keyword map", () => {
-    expect(KEYWORD_DOCS["router id"]).toContain("Version: `v2+`");
-    expect(KEYWORD_DOCS["router id"]).toContain("BIRD v2.18 / v3.2.0");
+    expect(KEYWORD_DOCS["router id"]).toContain("Version `v2+`");
+    expect(KEYWORD_DOCS["router id"]).toContain("BIRD User's Guide");
     expect(KEYWORD_DOCS["router id"]).toContain("bird-2.18.html");
   });
 });
