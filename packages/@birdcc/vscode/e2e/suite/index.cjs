@@ -23,6 +23,23 @@ const COMMAND_IDS = [
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const waitForValue = async (
+  readValue,
+  expected,
+  errorMessage,
+  attempts = 20,
+  intervalMs = 100,
+) => {
+  for (let index = 0; index < attempts; index += 1) {
+    if (readValue() === expected) {
+      return;
+    }
+    await wait(intervalMs);
+  }
+
+  assert.equal(readValue(), expected, errorMessage);
+};
+
 const resolveConfigurationTarget = (vscode) =>
   vscode.workspace.workspaceFolders &&
   vscode.workspace.workspaceFolders.length > 0
@@ -43,6 +60,41 @@ const openTempBirdDocument = async (vscode, content) => {
     document,
     editor,
     cleanup: async () => {
+      await rm(tempDir, { recursive: true, force: true });
+    },
+  };
+};
+
+const ensureWorkspaceFolder = async (vscode) => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "bird2-lsp-workspace-"));
+  const insertionIndex = vscode.workspace.workspaceFolders
+    ? vscode.workspace.workspaceFolders.length
+    : 0;
+  const added = vscode.workspace.updateWorkspaceFolders(insertionIndex, 0, {
+    uri: vscode.Uri.file(tempDir),
+    name: "bird2-lsp-e2e-workspace",
+  });
+
+  assert.equal(
+    added,
+    true,
+    "workspace folder should be added for configuration tests",
+  );
+  await wait(200);
+
+  return {
+    uri: vscode.Uri.file(tempDir),
+    cleanup: async () => {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      const removeIndex = folders.findIndex(
+        (folder) => folder.uri.fsPath === tempDir,
+      );
+
+      if (removeIndex >= 0) {
+        vscode.workspace.updateWorkspaceFolders(removeIndex, 1);
+        await wait(100);
+      }
+
       await rm(tempDir, { recursive: true, force: true });
     },
   };
@@ -137,15 +189,19 @@ const testLanguageAndFormatting = async (vscode) => {
 };
 
 const testConfigurationCommands = async (vscode) => {
+  const workspaceFolder = await ensureWorkspaceFolder(vscode);
   const config = vscode.workspace.getConfiguration("bird2-lsp");
+  const scopedConfig = vscode.workspace.getConfiguration(
+    "bird2-lsp",
+    workspaceFolder.uri,
+  );
   const target = resolveConfigurationTarget(vscode);
-  const originalEnabled = config.get("enabled");
+  const originalEnabled = scopedConfig.get("enabled");
 
   try {
     await vscode.commands.executeCommand("bird2-lsp.disableLanguageServer");
-    await wait(200);
-    assert.equal(
-      config.get("enabled"),
+    await waitForValue(
+      () => scopedConfig.get("enabled"),
       false,
       "disable command should set enabled=false",
     );
@@ -154,15 +210,15 @@ const testConfigurationCommands = async (vscode) => {
     await wait(200);
 
     await vscode.commands.executeCommand("bird2-lsp.enableLanguageServer");
-    await wait(200);
-    assert.equal(
-      config.get("enabled"),
+    await waitForValue(
+      () => scopedConfig.get("enabled"),
       true,
       "enable command should set enabled=true",
     );
   } finally {
     await config.update("enabled", originalEnabled, target);
     await vscode.commands.executeCommand("bird2-lsp.reloadConfiguration");
+    await workspaceFolder.cleanup();
   }
 };
 
