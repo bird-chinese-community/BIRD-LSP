@@ -11,6 +11,11 @@ import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
 import { resolveHoverContextPath } from "./context.js";
 import type { ResolvedHoverTopic } from "./docs.js";
 
+export interface HoverProviderOptions {
+  /** Return `true` when the LSP client is handling hover requests. */
+  readonly isLspActive?: () => boolean;
+}
+
 const toRange = (
   line: number,
   startCharacter: number,
@@ -59,10 +64,19 @@ const getHoverDocsModule = (): Promise<typeof import("./docs.js")> => {
   return hoverDocsModulePromise;
 };
 
-export const registerBirdKeywordHoverProvider = (): Disposable =>
+export const registerBirdKeywordHoverProvider = (
+  options?: HoverProviderOptions,
+): Disposable =>
   languages.registerHoverProvider([...BIRD_DOCUMENT_SELECTOR], {
     provideHover: async (document, position) => {
       if (document.languageId !== LANGUAGE_ID) {
+        return null;
+      }
+
+      // When the LSP server is running, it already provides keyword hover
+      // through textDocument/hover. Returning null here avoids duplicate
+      // hover tooltips that would otherwise be merged by VS Code.
+      if (options?.isLspActive?.()) {
         return null;
       }
 

@@ -224,7 +224,11 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       formattingProvider,
     ),
   );
-  context.subscriptions.push(registerBirdKeywordHoverProvider());
+  context.subscriptions.push(
+    registerBirdKeywordHoverProvider({
+      isLspActive: () => lifecycleState === "running",
+    }),
+  );
   context.subscriptions.push(
     ...registerBirdTypeHintProviders({
       getConfiguration: () => runtimeState.configuration,

@@ -57,6 +57,7 @@ export {
   loadBirdHoverDocs,
   resolveBirdHoverTopic,
   type HoverDocsCollection,
+  type HoverProviderOptions,
   type HoverResolutionOptions,
   type ResolvedHoverTopic,
 } from "./hover/index.js";

@@ -1,4 +1,7 @@
-export { registerBirdKeywordHoverProvider } from "./provider.js";
+export {
+  registerBirdKeywordHoverProvider,
+  type HoverProviderOptions,
+} from "./provider.js";
 export { resolveHoverContextPath } from "./context.js";
 export {
   loadBirdHoverDocs,
