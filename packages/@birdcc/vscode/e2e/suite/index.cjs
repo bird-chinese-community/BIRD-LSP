@@ -70,8 +70,15 @@ const testLanguageAndFormatting = async (vscode) => {
   ].join("\n");
 
   const { document, cleanup } = await openTempBirdDocument(vscode, sample);
+  const config = vscode.workspace.getConfiguration("bird2-lsp");
+  const target = resolveConfigurationTarget(vscode);
+  const originalFormatterEngine = config.get("formatter.engine");
 
   try {
+    await config.update("formatter.engine", "builtin", target);
+    await vscode.commands.executeCommand("bird2-lsp.reloadConfiguration");
+    await wait(200);
+
     assert.equal(
       document.languageId,
       "bird2",
@@ -123,6 +130,8 @@ const testLanguageAndFormatting = async (vscode) => {
       "formatter output should keep neighbor after local as",
     );
   } finally {
+    await config.update("formatter.engine", originalFormatterEngine, target);
+    await vscode.commands.executeCommand("bird2-lsp.reloadConfiguration");
     await cleanup();
   }
 };
