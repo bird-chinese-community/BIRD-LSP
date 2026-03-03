@@ -1,7 +1,8 @@
 entries:
+  # ── Babel protocol ───────────────────────────────────────────────
   - keyword: babel
     description: Babel routing protocol
-    detail: A loop-avoiding distance-vector routing protocol that is robust and efficient.
+    detail: A loop-avoiding distance-vector routing protocol that is robust and efficient for both wired and wireless networks.
     diff: same
     version: v2+
     anchor: proto-babel
@@ -10,6 +11,101 @@ entries:
       - interface
       - ipv4
       - ipv6
+      - randomize router id
+  - keyword: randomize router id
+    description: Babel random router ID
+    detail: Randomize the upper 32 bits of the Babel router ID on each startup for privacy.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel
+    related:
+      - babel
+      - router id
+    parameters:
+      - name: switch
+        description: Enable router ID randomization (default no).
+  - keyword: rxcost
+    description: Babel interface receive cost
+    detail: Set the nominal RX cost for this Babel interface, used in metric computation.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - babel
+      - interface
+      - type
+    parameters:
+      - name: number
+        description: Interface RX cost value.
+  - keyword: hello interval
+    description: Babel hello interval
+    detail: Set the interval between Babel Hello messages on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - babel
+      - update interval
+    parameters:
+      - name: seconds
+        description: Hello interval in seconds.
+  - keyword: update interval
+    description: Babel update interval
+    detail: Set the interval between full routing table updates on this Babel interface.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - babel
+      - hello interval
+    parameters:
+      - name: seconds
+        description: Update interval in seconds.
+  - keyword: rtt cost
+    description: Babel RTT-based cost
+    detail: Add extra routing cost based on measured round-trip time to Babel neighbors.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - babel
+      - rtt min
+      - rtt max
+    parameters:
+      - name: number
+        description: Maximum additional cost applied at rtt_max.
+  - keyword: rtt min
+    description: Babel minimum RTT threshold
+    detail: RTT below this threshold adds no extra cost to routes via this Babel interface.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - rtt cost
+      - rtt max
+    parameters:
+      - name: milliseconds
+        description: Minimum RTT threshold.
+  - keyword: rtt max
+    description: Babel maximum RTT threshold
+    detail: RTT at or above this threshold applies the full rtt_cost penalty.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+    path: protocol.babel.interface
+    related:
+      - rtt cost
+      - rtt min
+    parameters:
+      - name: milliseconds
+        description: Maximum RTT threshold.
+  # ── RIP protocol ─────────────────────────────────────────────────
   - keyword: rip
     description: RIP protocol
     detail: Routing Information Protocol - a distance-vector interior gateway protocol.
@@ -21,6 +117,101 @@ entries:
       - interface
       - import
       - export
+      - infinity
+      - ecmp
+  - keyword: infinity
+    description: RIP infinity metric
+    detail: Set the infinity (unreachable) metric value for RIP. Routes with this metric are considered dead.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip
+    related:
+      - rip
+    parameters:
+      - name: number
+        description: Infinity metric value (default 16).
+  - keyword: update time
+    description: RIP periodic update interval
+    detail: Set the interval between full routing table broadcasts to RIP neighbors.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+      - timeout time
+      - garbage time
+    parameters:
+      - name: seconds
+        description: Update interval in seconds (default 30).
+  - keyword: timeout time
+    description: RIP route timeout
+    detail: Set the time after which a route is considered expired if no updates are received.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+      - update time
+      - garbage time
+    parameters:
+      - name: seconds
+        description: Timeout interval in seconds (default 180).
+  - keyword: garbage time
+    description: RIP garbage collection timer
+    detail: Time to keep an expired route as unreachable before removing it completely.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+      - update time
+      - timeout time
+    parameters:
+      - name: seconds
+        description: Garbage collection interval in seconds (default 120).
+  - keyword: split horizon
+    description: RIP split horizon
+    detail: Enable split horizon to prevent routing loops by not advertising routes back to their source.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+      - poison reverse
+    parameters:
+      - name: switch
+        description: Enable split horizon (default yes).
+  - keyword: poison reverse
+    description: RIP poison reverse
+    detail: Advertise routes learned from a neighbor back with infinity metric to speed up convergence.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+      - split horizon
+    parameters:
+      - name: switch
+        description: Enable poison reverse (default yes).
+  - keyword: version
+    description: RIP protocol version
+    detail: Set the RIP protocol version used on this interface (RIPv1 or RIPv2).
+    diff: same
+    version: v2+
+    anchor: proto-rip
+    path: protocol.rip.interface
+    related:
+      - rip
+    parameters:
+      - name: number
+        description: "RIP version: 1 or 2."
+  # ── BFD protocol ─────────────────────────────────────────────────
   - keyword: bfd
     description: Bidirectional Forwarding Detection
     detail: Fast failure detection protocol that can be used by other protocols like BGP and OSPF.
@@ -31,3 +222,84 @@ entries:
     related:
       - ospf
       - bgp
+      - interval
+      - multiplier
+  - keyword: interval
+    description: BFD detection interval
+    detail: Set both the minimum transmit and receive intervals for BFD sessions simultaneously.
+    diff: same
+    version: v2+
+    anchor: proto-bfd
+    path:
+      - protocol.bfd.interface
+      - protocol.bfd.multihop
+    related:
+      - bfd
+      - min rx interval
+      - min tx interval
+      - multiplier
+    parameters:
+      - name: milliseconds
+        description: Combined min TX and RX interval.
+  - keyword: min rx interval
+    description: BFD minimum receive interval
+    detail: Set the minimum interval between received BFD control packets.
+    diff: same
+    version: v2+
+    anchor: proto-bfd
+    path:
+      - protocol.bfd.interface
+      - protocol.bfd.multihop
+    related:
+      - bfd
+      - min tx interval
+      - interval
+    parameters:
+      - name: milliseconds
+        description: Minimum receive interval.
+  - keyword: min tx interval
+    description: BFD minimum transmit interval
+    detail: Set the desired minimum interval between transmitted BFD control packets.
+    diff: same
+    version: v2+
+    anchor: proto-bfd
+    path:
+      - protocol.bfd.interface
+      - protocol.bfd.multihop
+    related:
+      - bfd
+      - min rx interval
+      - interval
+    parameters:
+      - name: milliseconds
+        description: Minimum transmit interval.
+  - keyword: idle tx interval
+    description: BFD idle transmit interval
+    detail: Transmit interval used when the BFD session is not yet established.
+    diff: same
+    version: v2+
+    anchor: proto-bfd
+    path:
+      - protocol.bfd.interface
+      - protocol.bfd.multihop
+    related:
+      - bfd
+      - min tx interval
+    parameters:
+      - name: milliseconds
+        description: Idle transmit interval.
+  - keyword: multiplier
+    description: BFD detection multiplier
+    detail: Number of missed BFD packets before declaring the session down.
+    diff: same
+    version: v2+
+    anchor: proto-bfd
+    path:
+      - protocol.bfd.interface
+      - protocol.bfd.multihop
+    related:
+      - bfd
+      - interval
+    parameters:
+      - name: number
+        description: Failure detection multiplier (default 5).
