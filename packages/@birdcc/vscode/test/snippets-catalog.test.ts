@@ -27,6 +27,18 @@ describe("snippets catalog", () => {
     expect(entries).toHaveLength(40);
     for (const [name] of entries) {
       expect(name.startsWith("bird-")).toBe(true);
+      expect(name.startsWith("bird-global-")).toBe(false);
+    }
+
+    for (const [, value] of entries) {
+      const candidate = value as { description?: unknown };
+      expect(typeof candidate.description).toBe("string");
+      expect((candidate.description as string).includes("[Global]")).toBe(
+        false,
+      );
+      expect((candidate.description as string).includes("[Function]")).toBe(
+        false,
+      );
     }
   });
 });

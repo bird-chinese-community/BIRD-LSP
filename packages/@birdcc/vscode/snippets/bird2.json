@@ -1,44 +1,49 @@
 {
-  "bird-global-router-id": {
-    "prefix": ["bird-global-router-id", "router-id", "router id"],
-    "description": "[Global] Set router identifier (Basic)",
+  "bird-dir-router-id": {
+    "prefix": ["bird-dir-router-id", "bird-global-router-id", "router-id", "router id"],
+    "description": "[Dir] Set router identifier (Basic)",
     "body": ["router id ${1:192.168.1.1};", "$0"]
   },
-  "bird-global-include": {
-    "prefix": ["bird-global-include", "include"],
-    "description": "[Global] Include external configuration file (Basic)",
+  "bird-dir-include": {
+    "prefix": ["bird-dir-include", "bird-global-include", "include"],
+    "description": "[Dir] Include external configuration file (Basic)",
     "body": ["include \"${1:path/to/file.conf}\";", "$0"]
   },
-  "bird-global-define": {
-    "prefix": ["bird-global-define", "define", "constant"],
-    "description": "[Global] Define constant value (Basic)",
+  "bird-var-define": {
+    "prefix": ["bird-var-define", "bird-global-define", "define", "constant"],
+    "description": "[Var] Define constant value (Basic)",
     "body": ["define ${1:CONST_NAME} = ${2:value};", "$0"]
   },
-  "bird-global-log": {
-    "prefix": ["bird-global-log", "log", "logging"],
-    "description": "[Global] Configure logging output (Basic)",
+  "bird-dir-log": {
+    "prefix": ["bird-dir-log", "bird-global-log", "log", "logging"],
+    "description": "[Dir] Configure logging output (Basic)",
     "body": [
       "log ${1|syslog,stderr,stdout,\"/var/log/bird.log\"|} ${2|all,debug,trace,info,warning,error,fatal|};",
       "$0"
     ]
   },
-  "bird-global-timebase": {
-    "prefix": ["bird-global-timebase", "timebase", "time base"],
-    "description": "[Global] Set timebase for protocol timing (Basic)",
+  "bird-dir-timebase": {
+    "prefix": ["bird-dir-timebase", "bird-global-timebase", "timebase", "time base"],
+    "description": "[Dir] Set timebase for protocol timing (Basic)",
     "body": ["timebase real ${1|enabled,disabled|};", "$0"]
   },
-  "bird-global-graceful-restart": {
-    "prefix": ["bird-global-graceful-restart", "graceful", "graceful restart"],
-    "description": "[Global] Configure graceful restart capability (Full)",
+  "bird-dir-graceful-restart": {
+    "prefix": [
+      "bird-dir-graceful-restart",
+      "bird-global-graceful-restart",
+      "graceful",
+      "graceful restart"
+    ],
+    "description": "[Dir] Configure graceful restart capability (Full)",
     "body": [
       "graceful restart ${1|yes,no|};",
       "graceful restart wait ${2:5};",
       "$0"
     ]
   },
-  "bird-global-watchdog": {
-    "prefix": ["bird-global-watchdog", "watchdog"],
-    "description": "[Global] Configure watchdog timeout warnings (Basic)",
+  "bird-dir-watchdog": {
+    "prefix": ["bird-dir-watchdog", "bird-global-watchdog", "watchdog"],
+    "description": "[Dir] Configure watchdog timeout warnings (Basic)",
     "body": ["watchdog warning ${1:5};", "$0"]
   },
   "bird-proto-tmpl": {
