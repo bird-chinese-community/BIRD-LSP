@@ -221,6 +221,8 @@ pnpm test
 - [BIRD Official Documentation](https://bird.network.cz/)
 - [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
 - [Extension Configuration Guide](./docs/configuration.md)
+- [Project Config Spec (`bird.config.json`)](./docs/spec.md)
+- [FAQ / Troubleshooting](./docs/faq.md)
 - [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
 
 ---
