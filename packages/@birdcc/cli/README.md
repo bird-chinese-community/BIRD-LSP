@@ -1,204 +1,290 @@
-# 🛠️ @birdcc/cli
-
 <div align="center">
 
-**BIRD2 配置文件的命令行工具集**
-
-<p>
-  <img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="version">
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license">
-  <img src="https://img.shields.io/badge/TypeScript-5.9+-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="typescript">
-  <img src="https://img.shields.io/badge/BIRD-2.0+-FF6B6B?style=flat-square" alt="bird">
-</p>
-
-<p>
-  <a href="#-功能特性">功能特性</a> •
-  <a href="#-安装">安装</a> •
-  <a href="#-使用指南">使用指南</a> •
-  <a href="#-配置">配置</a>
-</p>
+# 🛠️ BIRD Config CLI (@birdcc/cli)
 
 </div>
 
+[![npm version](https://img.shields.io/badge/version-0.1.0--alpha-blue)](https://www.npmjs.com/package/@birdcc/cli) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?logo=typescript)](https://www.typescriptlang.org/)
+
+> [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Commands](#commands) · [Usage](#usage) · [Configuration](#configuration) · [API Reference](#api-reference)
+
+## Overview
+
+**@birdcc/cli** is the command-line interface for the BIRD-LSP toolchain, providing lint, format, and LSP commands for BIRD2 configuration files.
+
+| Package | Version | Description |
+| ------- | ------- | ----------- |
+| `@birdcc/cli` | 0.1.0 | Command-line interface with lint/fmt/lsp commands |
+
 ---
 
-## ✨ 功能特性
+## Features
 
-- 🔍 **Lint 检查** — 静态分析与语义检查，支持 JSON 输出便于 CI 集成
-- 📝 **代码格式化** — 自动格式化 BIRD 配置文件
-- 🖥️ **LSP 服务器** — 启动 Language Server Protocol 服务器
-- 🔗 **BIRD 集成** — 支持 `bird -p` 语法与运行时校验
-- ⚡ **高性能** — 基于 Tree-sitter 的快速解析
+- 🔍 **Lint Analysis** — Static analysis combined with BIRD runtime validation
+- 🎨 **Code Formatting** — Trim trailing whitespace and collapse excessive blank lines
+- 🖥️ **LSP Mode** — Launch the language server in stdio transport mode
+- 🔗 **BIRD Integration** — Parse `bird -p` output with multiple error format support
+- 📊 **Multiple Output Formats** — Text and JSON output for CI integration
 
 ---
 
-## 📦 安装
-
-### 全局安装（推荐）
+## Installation
 
 ```bash
-# 使用 pnpm
-pnpm add -g @birdcc/cli
-
-# 使用 npm
+# Global installation
 npm install -g @birdcc/cli
 
-# 使用 yarn
-yarn global add @birdcc/cli
+# Or use npx (no installation required)
+npx @birdcc/cli --help
 ```
 
-### 本地开发安装
+### Via Package Manager
 
 ```bash
-# 在 BIRD-LSP 仓库中构建后使用
-pnpm build
-node packages/@birdcc/cli/dist/cli.js --help
+# Using pnpm
+pnpm add -D @birdcc/cli
+
+# Using npm
+npm install -D @birdcc/cli
+
+# Using yarn
+yarn add -D @birdcc/cli
 ```
 
 ---
 
-## 📖 使用指南
+## Commands
 
-### 🔍 `birdcc lint` — 配置检查
+### `birdcc lint <file>` — Code Linting
 
-检查 BIRD 配置文件的语法和语义问题。
+Check syntax and semantic issues in BIRD2 configuration files.
 
 ```bash
-# 基本用法
+birdcc lint <file> [options]
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `--format` | `json` \| `text` | `text` | Output format |
+| `--bird` | boolean | `false` | Enable BIRD runtime validation |
+| `--validate-command` | string | `bird -p -c {file}` | Custom validation command |
+
+**Examples:**
+
+```bash
+# Text format output
 birdcc lint bird.conf
 
-# JSON 输出（适合 CI）
+# JSON format output for CI
 birdcc lint bird.conf --format json
 
-# 默认启用 include 跨文件解析（可显式关闭）
-birdcc lint bird.conf --no-cross-file
-
-# 调整 include 递归限制
-birdcc lint bird.conf --include-max-depth 24 --include-max-files 512
-
-# 结合 BIRD 运行时验证
-birdcc lint bird.conf --bird
+# Combined with BIRD validation
+birdcc lint bird.conf --bird --validate-command "sudo bird -p -c {file}"
 ```
 
-**选项说明：**
+### `birdcc fmt <file>` — Code Formatting
 
-| 选项                       | 简写 | 说明                                                             |
-| -------------------------- | ---- | ---------------------------------------------------------------- |
-| `--format <type>`          | `-f` | 输出格式：`text` (默认) 或 `json`                                |
-| `--bird`                   | `-b` | 同时运行 BIRD `bird -p` 运行时验证                               |
-| `--cross-file`             | -    | 启用 include 跨文件分析（默认开启，可用 `--no-cross-file` 关闭） |
-| `--include-max-depth <n>`  | -    | include 递归最大深度（默认 `16`）                                |
-| `--include-max-files <n>`  | -    | include 递归最大文件数（默认 `256`）                             |
-| `--validate-command <cmd>` | -    | 自定义 `bird -p` 验证命令模板（使用 `{file}` 占位）              |
-| `--help`                   | `-h` | 显示帮助信息                                                     |
-
----
-
-### 📝 `birdcc fmt` — 代码格式化
-
-格式化 BIRD 配置文件。
+Format BIRD2 configuration files.
 
 ```bash
-# 检查格式（不写入）
+birdcc fmt <file> [options]
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `--check` | boolean | `false` | Check format only without modifying file |
+| `--write` | boolean | `false` | Write formatted content to file |
+
+**Examples:**
+
+```bash
+# Check formatting
 birdcc fmt bird.conf --check
 
-# 格式化并写入文件
+# Format and write
 birdcc fmt bird.conf --write
-
-# 指定格式化引擎（dprint | builtin）
-birdcc fmt bird.conf --check --engine dprint
 ```
 
-**选项说明：**
+### `birdcc lsp` — Language Server
 
-| 选项       | 简写 | 说明                                     |
-| ---------- | ---- | ---------------------------------------- |
-| `--check`  | `-c` | 检查格式，不写入文件                     |
-| `--write`  | `-w` | 格式化并写入文件                         |
-| `--engine` | -    | 格式化引擎：`dprint`（默认）或 `builtin` |
-| `--help`   | `-h` | 显示帮助信息                             |
-
----
-
-### 🖥️ `birdcc lsp` — 启动 LSP 服务器
-
-启动 Language Server Protocol 服务器，供编辑器集成使用。
+Start the LSP server process.
 
 ```bash
-# 标准输入输出模式（stdio）
+birdcc lsp [options]
+```
+
+**Options:**
+
+| Option | Type | Required | Description |
+| ------ | ---- | -------- | ----------- |
+| `--stdio` | boolean | ✓ | Use stdio transport |
+
+**Example:**
+
+```bash
 birdcc lsp --stdio
 ```
 
-**选项说明：**
+---
 
-| 选项      | 说明                       |
-| --------- | -------------------------- |
-| `--stdio` | 使用标准输入输出作为传输层 |
+## Usage
+
+### Quick Start
+
+```bash
+# Lint check (text output)
+npx birdcc lint bird.conf
+
+# Lint check (JSON output for CI integration)
+npx birdcc lint bird.conf --format json
+
+# Combined with BIRD runtime validation
+npx birdcc lint bird.conf --bird
+
+# Format check
+npx birdcc fmt bird.conf --check
+
+# Format and write to file
+npx birdcc fmt bird.conf --write
+
+# Start LSP server
+npx birdcc lsp --stdio
+```
 
 ---
 
-## ⚙️ 配置
+## Configuration
 
-在项目根目录创建 `birdcc.config.json` 文件：
+### birdcc.config.json
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
+  "bird": {
+    "validateCommand": "sudo bird -p -c {file}"
+  },
   "formatter": {
     "engine": "dprint",
-    "safeMode": true
+    "indentSize": 2,
+    "lineWidth": 100
   },
   "linter": {
     "rules": {
-      "security/*": "error",
-      "performance/*": "info"
+      "sym/*": "error",
+      "bgp/*": "warning"
     }
-  },
-  "bird": {
-    "validateCommand": "bird -p -c {file}"
   }
 }
 ```
 
-**配置项说明：**
+### Supported Error Formats
 
-| 配置项                 | 类型      | 说明                                           |
-| ---------------------- | --------- | ---------------------------------------------- |
-| `formatter.engine`     | `string`  | 格式化引擎：`dprint`                           |
-| `formatter.safeMode`   | `boolean` | 安全模式（不修改有错误的文件）                 |
-| `linter.rules`         | `object`  | 规则级别映射                                   |
-| `bird.validateCommand` | `string`  | BIRD 验证命令模板，`{file}` 会被替换为文件路径 |
+`@birdcc/cli` supports parsing the following BIRD error output formats:
+
+| Format | Example |
+| ------ | ------- |
+| Standard | `bird.conf:15:8 syntax error, unexpected 'protocol'` |
+| Parse Error | `Parse error bird.conf, line 15: syntax error` |
+| Legacy | `bird.conf, line 15:8 syntax error` |
 
 ---
 
-## 🏗️ 架构位置
+## API Reference
 
+### Exports
+
+```typescript
+import {
+  runLint,
+  runFmt,
+  runLspStdio,
+  runBirdValidation,
+  formatBirdConfigText,
+  parseBirdStderr,
+} from "@birdcc/cli";
 ```
-┌─────────────────────────────────────┐
-│           @birdcc/cli               │  ← 命令行入口（本包）
-│    lint / fmt / lsp --stdio         │
-└─────────────┬───────────────────────┘
-              │
-    ┌─────────┼─────────┐
-    ↓         ↓         ↓
-┌───────┐ ┌───────┐ ┌─────────┐
-│ core  │ │linter │ │  lsp    │
-└───────┘ └───────┘ └─────────┘
+
+### Functions
+
+| Function | Description |
+| -------- | ----------- |
+| `runLint(filePath, options?)` | Run lint analysis |
+| `runFmt(filePath, options?)` | Run formatter |
+| `runLspStdio()` | Start LSP server (stdio mode) |
+| `runBirdValidation(filePath, command?)` | Run BIRD validation |
+| `formatBirdConfigText(text)` | Format text (pure function) |
+| `parseBirdStderr(stderr)` | Parse BIRD stderr output |
+
+### Type Definitions
+
+```typescript
+interface LintOptions {
+  withBird?: boolean;
+  validateCommand?: string;
+  format?: "text" | "json";
+}
+
+interface FmtOptions {
+  write?: boolean;
+  check?: boolean;
+}
+
+interface BirdccLintOutput {
+  diagnostics: BirdDiagnostic[];
+}
+
+interface FmtResult {
+  changed: boolean;
+  formattedText: string;
+}
+
+interface BirdValidateResult {
+  command: string;
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+  diagnostics: BirdDiagnostic[];
+}
 ```
 
 ---
 
-## 🔗 相关包
+## Related Packages
 
-| 包名             | 描述               | 链接                          |
-| ---------------- | ------------------ | ----------------------------- |
-| `@birdcc/parser` | 词法分析与语法解析 | [README](../parser/README.md) |
-| `@birdcc/core`   | 语义分析与符号表   | [README](../core/README.md)   |
-| `@birdcc/linter` | 规则引擎           | [README](../core/README.md)   |
-| `@birdcc/lsp`    | LSP 服务器实现     | [README](../lsp/README.md)    |
+| Package | Description |
+| ------- | ----------- |
+| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
+| [@birdcc/core](../core/) | Semantic analysis engine |
+| [@birdcc/linter](../linter/) | 32+ lint rules |
+| [@birdcc/formatter](../formatter/) | Code formatting engine |
+| [@birdcc/lsp](../lsp/) | LSP server implementation |
 
 ---
 
-## 📄 许可证
+### 📖 Documentation
 
-[MIT](../../../LICENSE)
+- [BIRD Official Documentation](https://bird.network.cz/)
+- [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
+- [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
+
+---
+
+## 📝 License
+
+This project is licensed under the [GPL-3.0 License](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE).
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
+  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
+</p>
