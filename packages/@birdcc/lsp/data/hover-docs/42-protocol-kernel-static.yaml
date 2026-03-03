@@ -1,4 +1,5 @@
 entries:
+  # ── Device protocol ───────────────────────────────────────────────
   - keyword: device
     description: Device scan protocol
     detail:
@@ -10,6 +11,20 @@ entries:
     path: protocol
     related:
       - direct
+      - scan time
+  - keyword: scan time
+    description: Device interface scan interval
+    detail: Set how often BIRD scans host interfaces for changes. Default is operating system event-driven.
+    diff: same
+    version: v2+
+    anchor: proto-device
+    path: protocol.device
+    related:
+      - device
+    parameters:
+      - name: seconds
+        description: Scan interval in seconds.
+  # ── Direct protocol ──────────────────────────────────────────────
   - keyword: direct
     description: Direct routes protocol
     detail: Generate routes for directly connected networks based on interface addresses.
@@ -20,9 +35,26 @@ entries:
     related:
       - device
       - interface
+      - check link
     parameters:
       - name: interface-pattern
         description: Interface name/pattern selection.
+  - keyword: check link
+    description: Hardware link state detection
+    detail: Use hardware link state to immediately detect interface up/down events.
+    diff: same
+    version: v2+
+    anchor: proto-direct
+    path:
+      - protocol.direct
+      - protocol.static
+    related:
+      - direct
+      - interface
+    parameters:
+      - name: switch
+        description: Enable or disable link state awareness.
+  # ── Kernel protocol ──────────────────────────────────────────────
   - keyword: kernel
     description: Kernel synchronization protocol
     detail: Synchronize routes between BIRD and the operating system kernel routing table.
@@ -34,6 +66,73 @@ entries:
       - table
       - export
       - import
+      - persist
+      - learn
+      - scan time
+  - keyword: persist
+    description: Persist kernel routes on shutdown
+    detail: Keep routes installed by BIRD in the kernel routing table when BIRD exits.
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+    path: protocol.kernel
+    related:
+      - kernel
+      - graceful restart
+    parameters:
+      - name: switch
+        description: Enable route persistence (default no).
+  - keyword: learn
+    description: Learn non-BIRD kernel routes
+    detail: Import routes added to the kernel routing table by other routing software or manual configuration.
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+    path: protocol.kernel
+    related:
+      - kernel
+      - scan time
+    parameters:
+      - name: switch
+        description: Enable learning of alien routes (default no).
+  - keyword: kernel table
+    description: Select kernel routing table
+    detail: Choose which kernel routing table to synchronize with. Linux supports multiple tables (0-4 billion).
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+    path: protocol.kernel
+    related:
+      - kernel
+    parameters:
+      - name: number
+        description: Kernel routing table number.
+  - keyword: metric
+    description: Kernel route metric/priority
+    detail: Set the routing metric (priority on Linux) for routes installed into the kernel.
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+    path: protocol.kernel
+    related:
+      - kernel
+    parameters:
+      - name: number
+        description: Route metric value (default 32).
+  - keyword: merge paths
+    description: Merge equal-cost paths in kernel
+    detail: Merge multiple equal-cost routes into a single kernel multipath (ECMP) route.
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+    path: protocol.kernel
+    related:
+      - kernel
+      - ecmp
+    parameters:
+      - name: switch
+        description: Enable ECMP merging (default no).
+  # ── Static protocol ──────────────────────────────────────────────
   - keyword: static
     description: Static routes protocol
     detail: Define static routes that are not learned from any routing protocol.
@@ -44,6 +143,50 @@ entries:
     related:
       - route
       - preference
+      - igp table
+  - keyword: igp table
+    description: IGP route lookup table
+    detail: Specify the routing table used for recursive next-hop resolution in static routes.
+    diff: same
+    version: v2+
+    anchor: proto-static
+    path:
+      - protocol.static
+      - protocol.bgp.channel
+    related:
+      - route
+      - recursive
+      - gateway
+    parameters:
+      - name: name
+        description: Routing table name for recursive lookups.
+  - keyword: recursive
+    description: Recursive static route
+    detail: Define a static route with a recursive next hop that is resolved through another routing table.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static.route
+    related:
+      - route
+      - igp table
+      - next hop
+    parameters:
+      - name: address
+        description: Recursive next-hop IP address.
+        required: true
+  - keyword: prohibit
+    description: Static route prohibit action
+    detail: Send ICMP administratively prohibited for traffic matching this static route.
+    diff: same
+    version: v2+
+    anchor: proto-static-route
+    path: protocol.static.route
+    related:
+      - route
+      - blackhole
+      - unreachable
+  # ── Pipe protocol ────────────────────────────────────────────────
   - keyword: pipe
     description: Protocol pipe
     detail: Connect two routing tables, forwarding routes between them with optional filtering.
@@ -53,6 +196,7 @@ entries:
     path: protocol
     related:
       - table
+      - peer table
       - export
       - import
     parameters:
@@ -60,3 +204,17 @@ entries:
         description: Primary table to bridge.
       - name: peer-table-name
         description: Peer table to bridge with.
+  - keyword: peer table
+    description: Pipe peer routing table
+    detail: Specify the secondary routing table that the pipe protocol connects to.
+    diff: same
+    version: v2+
+    anchor: proto-pipe
+    path: protocol.pipe
+    related:
+      - pipe
+      - table
+    parameters:
+      - name: name
+        description: Peer routing table name.
+        required: true
