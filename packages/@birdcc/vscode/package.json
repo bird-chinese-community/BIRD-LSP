@@ -346,7 +346,7 @@
     "build": "pnpm --filter @birdcc/vscode^... build && pnpm run sync:hover-docs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
-    "test": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run",
+    "test": "pnpm run sync:hover-docs && pnpm --filter @birdcc/lsp build && pnpm --filter @birdcc/parser build && vitest run",
     "test:e2e": "pnpm --filter @birdcc/vscode... build && node e2e/run.mjs",
     "format": "oxfmt .",
     "coverage": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",

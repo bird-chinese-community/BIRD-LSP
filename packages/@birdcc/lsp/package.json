@@ -33,10 +33,12 @@
     "@birdcc/parser": "workspace:*"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/copy-hover-yaml.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/copy-hover-yaml.mjs && pnpm run hover:coverage:check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
+    "hover:coverage": "node scripts/report-hover-coverage.mjs",
+    "hover:coverage:check": "node scripts/report-hover-coverage.mjs --check",
     "format": "oxfmt .",
     "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
   },
