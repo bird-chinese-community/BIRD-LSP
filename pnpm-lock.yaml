@@ -132,6 +132,9 @@ importers:
       '@birdcc/formatter':
         specifier: workspace:*
         version: link:../formatter
+      '@birdcc/lsp':
+        specifier: workspace:*
+        version: link:../lsp
       '@birdcc/parser':
         specifier: workspace:*
         version: link:../parser
