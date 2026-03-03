@@ -9,7 +9,7 @@ export const createDocumentSymbolsFromParsed = (
 
   for (const declaration of parsed.program.declarations) {
     const metadata = declarationMetadata(declaration);
-    if (!metadata) {
+    if (!metadata || !metadata.symbolName) {
       continue;
     }
 
