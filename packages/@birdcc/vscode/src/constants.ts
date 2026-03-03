@@ -4,7 +4,7 @@ import {
 } from "./config/schema.js";
 
 export const EXTENSION_ID = "birdcc.bird2-lsp";
-export const EXTENSION_NAME = "BIRD2 LSP";
+export const EXTENSION_NAME = "BIRD2 LSP (Beta)";
 
 export const CONFIG_SECTION = "bird2-lsp";
 export const LANGUAGE_ID = "bird2";

@@ -7,6 +7,7 @@ import {
 
 import type { ClientLifecycleState } from "../client/index.js";
 import { BIRD_COMMAND_IDS } from "../commands/index.js";
+import { EXTENSION_NAME } from "../constants.js";
 import type { ExtensionConfiguration } from "../types.js";
 
 export interface BirdStatusSnapshot {
@@ -49,13 +50,12 @@ export const createBirdStatusBarManager = (): BirdStatusBarManager => {
     StatusBarAlignment.Right,
     100,
   );
-  statusBarItem.name = "BIRD2 LSP Status";
+  statusBarItem.name = `${EXTENSION_NAME} Status`;
 
   const render = (snapshot: BirdStatusSnapshot): void => {
     if (!snapshot.isWorkspaceTrusted) {
       statusBarItem.text = "$(shield) BIRD2: Untrusted";
-      statusBarItem.tooltip =
-        "Workspace is untrusted. BIRD2 LSP and fallback validation are disabled.";
+      statusBarItem.tooltip = `Workspace is untrusted. ${EXTENSION_NAME} and fallback validation are disabled.`;
       statusBarItem.command = "workbench.trust.manage";
       statusBarItem.backgroundColor = new ThemeColor(
         "statusBarItem.warningBackground",
