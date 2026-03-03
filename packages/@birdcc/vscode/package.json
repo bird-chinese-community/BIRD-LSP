@@ -294,7 +294,7 @@
     "@vscode/test-electron": "^2.5.2"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm --filter @birdcc/vscode^... build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "pnpm --filter @birdcc/parser build && vitest run",
