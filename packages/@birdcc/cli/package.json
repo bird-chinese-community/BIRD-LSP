@@ -35,5 +35,14 @@
     "test": "vitest run",
     "format": "oxfmt .",
     "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP",
+    "directory": "packages/@birdcc/cli"
+  },
+  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/%40birdcc/cli/README.md",
+  "bugs": {
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP/issues"
   }
 }

@@ -33,5 +33,14 @@
   },
   "dependencies": {
     "web-tree-sitter": "^0.26.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP",
+    "directory": "packages/@birdcc/parser"
+  },
+  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/%40birdcc/parser/README.md",
+  "bugs": {
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP/issues"
   }
 }
