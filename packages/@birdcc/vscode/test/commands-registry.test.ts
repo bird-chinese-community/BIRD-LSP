@@ -8,7 +8,7 @@ import {
 import { defaultExtensionConfiguration } from "../src/types.js";
 
 const mocks = vi.hoisted(() => ({
-  commandHandlers: new Map<string, () => void>(),
+  commandHandlers: new Map<string, () => Promise<void>>(),
   showWarningMessage: vi.fn(),
   showInformationMessage: vi.fn(),
   showErrorMessage: vi.fn(),
@@ -93,8 +93,7 @@ describe("commands registry", () => {
     );
 
     expect(handler).toBeDefined();
-    handler?.();
-    await vi.waitUntil(() => mocks.showWarningMessage.mock.calls.length > 0);
+    await handler?.();
 
     expect(mocks.showWarningMessage).toHaveBeenCalledTimes(1);
     expect(context.lifecycle.restart).not.toHaveBeenCalled();
@@ -109,10 +108,7 @@ describe("commands registry", () => {
     );
 
     expect(handler).toBeDefined();
-    handler?.();
-    await vi.waitUntil(
-      () => mocks.showInformationMessage.mock.calls.length > 0,
-    );
+    await handler?.();
 
     expect(context.reloadConfiguration).toHaveBeenCalledTimes(1);
     expect(mocks.showInformationMessage).toHaveBeenCalledWith(

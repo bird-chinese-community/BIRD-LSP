@@ -191,17 +191,15 @@ const testLanguageAndFormatting = async (vscode) => {
 const testConfigurationCommands = async (vscode) => {
   const workspaceFolder = await ensureWorkspaceFolder(vscode);
   const config = vscode.workspace.getConfiguration("bird2-lsp");
-  const scopedConfig = vscode.workspace.getConfiguration(
-    "bird2-lsp",
-    workspaceFolder.uri,
-  );
   const target = resolveConfigurationTarget(vscode);
-  const originalEnabled = scopedConfig.get("enabled");
+  const readEnabled = () =>
+    vscode.workspace.getConfiguration("bird2-lsp").get("enabled");
+  const originalEnabled = readEnabled();
 
   try {
     await vscode.commands.executeCommand("bird2-lsp.disableLanguageServer");
     await waitForValue(
-      () => scopedConfig.get("enabled"),
+      readEnabled,
       false,
       "disable command should set enabled=false",
     );
@@ -211,7 +209,7 @@ const testConfigurationCommands = async (vscode) => {
 
     await vscode.commands.executeCommand("bird2-lsp.enableLanguageServer");
     await waitForValue(
-      () => scopedConfig.get("enabled"),
+      readEnabled,
       true,
       "enable command should set enabled=true",
     );

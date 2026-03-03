@@ -66,8 +66,8 @@ const registerCommand = (
   commandId: BirdCommandId,
   handler: () => Promise<void>,
 ): Disposable =>
-  commands.registerCommand(commandId, () => {
-    void handler();
+  commands.registerCommand(commandId, async () => {
+    await handler();
   });
 
 export const registerBirdCommands = (
