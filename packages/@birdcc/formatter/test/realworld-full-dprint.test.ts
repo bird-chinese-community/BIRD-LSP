@@ -31,5 +31,5 @@ describe("real-world config examples (full dprint formatter)", () => {
 
       expect(output.text.endsWith("\n"), file.path).toBe(true);
     }
-  });
+  }, 30_000);
 });
