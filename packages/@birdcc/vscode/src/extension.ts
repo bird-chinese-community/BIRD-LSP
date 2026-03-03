@@ -5,11 +5,13 @@ import { createBirdClientLifecycle } from "./client/index.js";
 import { registerBirdCommands } from "./commands/index.js";
 import { createConfigurationManager } from "./config/index.js";
 import { EXTENSION_NAME } from "./constants.js";
+import type { ClientLifecycleState } from "./client/index.js";
 import {
   createFallbackValidator,
   type FallbackValidator,
 } from "./fallback/index.js";
 import { createBirdFormattingProvider } from "./formatter/index.js";
+import { registerBirdKeywordHoverProvider } from "./hover/index.js";
 import { createBirdStatusBarManager } from "./status/index.js";
 import { registerBirdTypeHintProviders } from "./type-hints/index.js";
 import { createDefaultRuntimeState } from "./types.js";
@@ -78,17 +80,22 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const outputChannel = window.createOutputChannel(EXTENSION_NAME);
   const configurationManager = createConfigurationManager();
   const statusBarManager = createBirdStatusBarManager();
-  let lifecycle!: ReturnType<typeof createBirdClientLifecycle>;
+  let lifecycleState: ClientLifecycleState = "idle";
   const refreshStatus = (): void => {
     statusBarManager.render({
       isWorkspaceTrusted: workspace.isTrusted,
-      lifecycleState: lifecycle.state,
+      lifecycleState,
       configuration: runtimeState.configuration,
     });
   };
-  lifecycle = createBirdClientLifecycle(outputChannel, {
-    onStateChange: refreshStatus,
+  const lifecycle = createBirdClientLifecycle(outputChannel, {
+    onStateChange: (state) => {
+      lifecycleState = state;
+      refreshStatus();
+    },
   });
+  lifecycleState = lifecycle.state;
+  refreshStatus();
   const formattingProvider = createBirdFormattingProvider(
     () => runtimeState.configuration,
     outputChannel,
@@ -204,6 +211,13 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       formattingProvider,
     ),
   );
+  context.subscriptions.push(
+    languages.registerDocumentRangeFormattingEditProvider(
+      { language: LANGUAGE_ID, scheme: "file" },
+      formattingProvider,
+    ),
+  );
+  context.subscriptions.push(registerBirdKeywordHoverProvider());
   context.subscriptions.push(
     ...registerBirdTypeHintProviders({
       getConfiguration: () => runtimeState.configuration,

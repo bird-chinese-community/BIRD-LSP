@@ -52,6 +52,11 @@ export {
 } from "./fallback/index.js";
 export { createBirdFormattingProvider } from "./formatter/index.js";
 export {
+  registerBirdKeywordHoverProvider,
+  resolveBirdHoverTopic,
+  type ResolvedHoverTopic,
+} from "./hover/index.js";
+export {
   BIRD_COMMAND_IDS,
   registerBirdCommands,
   type BirdCommandId,

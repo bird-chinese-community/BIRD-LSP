@@ -42,6 +42,7 @@
   "icon": "assets/favicon-256.png",
   "files": [
     "dist/**",
+    "data/**",
     "language-configuration.json",
     "snippets/**",
     "assets/**",
@@ -153,6 +154,32 @@
         "category": "BIRD2"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "!inOutput && resourceLangId == bird2",
+          "command": "bird2-lsp.validateActiveDocument",
+          "group": "1_bird2@1"
+        },
+        {
+          "when": "!inOutput && resourceLangId == bird2",
+          "command": "bird2-lsp.formatActiveDocument",
+          "group": "1_bird2@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "when": "resourceLangId != bird2",
+          "command": "bird2-lsp.validateActiveDocument",
+          "visible": false
+        },
+        {
+          "when": "resourceLangId != bird2",
+          "command": "bird2-lsp.formatActiveDocument",
+          "visible": false
+        }
+      ]
+    },
     "configurationDefaults": {
       "[bird2]": {
         "editor.defaultFormatter": "birdcc.bird2-lsp"
@@ -293,6 +320,7 @@
     "@birdcc/parser": "workspace:*",
     "@birdcc/formatter": "workspace:*",
     "vscode-languageclient": "^9.0.1",
+    "yaml": "^2.8.2",
     "zod": "^4.1.11"
   },
   "devDependencies": {
@@ -300,13 +328,14 @@
     "@vscode/test-electron": "^2.5.2"
   },
   "scripts": {
-    "build": "pnpm --filter @birdcc/vscode^... build && tsc -p tsconfig.json",
+    "sync:hover-docs": "node scripts/sync-hover-docs.mjs",
+    "build": "pnpm --filter @birdcc/vscode^... build && pnpm run sync:hover-docs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
-    "test": "pnpm --filter @birdcc/parser build && vitest run",
+    "test": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run",
     "test:e2e": "pnpm --filter @birdcc/vscode... build && node e2e/run.mjs",
     "format": "oxfmt .",
-    "coverage": "pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
+    "coverage": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "marketplace:package": "pnpm --filter @birdcc/vscode... build && node scripts/package-marketplace.mjs",
     "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./dist/bird2-lsp.vsix --pat \"$VSCE_PAT\" --pre-release",
     "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./dist/bird2-lsp.vsix -p \"$OVSX_PAT\""
