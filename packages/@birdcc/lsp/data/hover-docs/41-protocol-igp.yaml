@@ -1,0 +1,19 @@
+entries:
+  - keyword: babel
+    description: Babel routing protocol
+    detail: A loop-avoiding distance-vector routing protocol that is robust and efficient.
+    diff: same
+    version: v2+
+    anchor: proto-babel
+  - keyword: rip
+    description: RIP protocol
+    detail: Routing Information Protocol - a distance-vector interior gateway protocol.
+    diff: same
+    version: v2+
+    anchor: proto-rip
+  - keyword: bfd
+    description: Bidirectional Forwarding Detection
+    detail: Fast failure detection protocol that can be used by other protocols like BGP and OSPF.
+    diff: same
+    version: v2+
+    anchor: proto-bfd

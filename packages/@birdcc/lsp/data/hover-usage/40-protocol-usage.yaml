@@ -1,0 +1,31 @@
+entries:
+  - keyword: description
+    usage: description "core upstream session";
+  - keyword: disabled
+    usage: disabled on;
+  - keyword: restart time limit
+    usage: restart time limit 60;
+  - keyword: vrf
+    usage: vrf "blue";
+  - keyword: babel
+    usage: protocol babel edge_babel {}
+  - keyword: bfd
+    usage: protocol bfd {}
+  - keyword: rip
+    usage: protocol rip edge_rip {}
+  - keyword: device
+    usage: protocol device {}
+  - keyword: direct
+    usage: protocol direct { interface "eth*"; };
+  - keyword: kernel
+    usage: protocol kernel { ipv4 { export all; }; };
+  - keyword: static
+    usage: protocol static { route 203.0.113.0/24 via 192.0.2.1; };
+  - keyword: pipe
+    usage: protocol pipe { table master4; peer table backup4; };
+  - keyword: mpls domain
+    usage: mpls domain core_mpls;
+  - keyword: label policy
+    usage: label policy aggregate;
+  - keyword: label range
+    usage: label range dynamic;

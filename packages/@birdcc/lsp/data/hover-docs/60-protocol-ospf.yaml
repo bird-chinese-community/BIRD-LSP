@@ -1,0 +1,121 @@
+entries:
+  - keyword: area
+    description: OSPF area block
+    detail: Define an OSPF area and nested interface or area-scoped options.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf
+    usage: area 0 { interface "eth*" { cost 10; hello 10; dead 40; }; };
+    related:
+      - ospf
+      - interface
+  - keyword: external
+    description: OSPF external LSAs block
+    detail: Configure generation and handling of external LSAs for OSPF.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    usage: external { type 1; };
+    related:
+      - ospf
+      - area
+  - keyword: cost
+    description: OSPF interface cost
+    detail: Set the OSPF metric for an interface within an area block.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    usage: cost 10;
+    related:
+      - interface
+      - area
+  - keyword: dead
+    description: OSPF dead interval
+    detail: Set dead interval in seconds before considering a neighbor down.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    usage: dead 40;
+    related:
+      - hello
+      - interface
+  - keyword: interface
+    description: Configure protocol interfaces
+    detail: Define which interfaces this protocol operates on and their specific settings.
+    diff: same
+    version: v2+
+    anchor: proto-iface
+  - keyword: interface
+    description: OSPF interface block
+    detail: Define per-interface OSPF behavior inside an OSPF area.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path: protocol.ospf.area
+    usage: interface "eth*" { cost 10; hello 10; dead 40; type broadcast; };
+    related:
+      - ospf
+      - area
+    parameters:
+      - name: cost
+        description: Interface metric used by SPF calculation.
+      - name: hello
+        description: Hello interval in seconds.
+      - name: dead
+        description: Dead interval in seconds.
+      - name: type
+        description: Network type such as broadcast or ptp.
+  - keyword: hello
+    description: OSPF hello interval
+    detail: Configure hello packet interval in seconds for OSPF neighbors.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+    usage: hello 10;
+    related:
+      - dead
+      - interface
+  - keyword: ospf
+    description: OSPF protocol
+    detail: Open Shortest Path First - a link-state interior gateway protocol.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    usage: protocol ospf v2 <name> { area 0 { interface "eth*" { cost 10; }; }; };
+    related:
+      - area
+      - interface
+  - keyword: password
+    description: Configure protocol authentication
+    detail: Set authentication password for protocols that support it (BGP, OSPF).
+    diff: same
+    version: v2+
+    anchor: proto-password
+    path:
+      - protocol.ospf.authentication
+      - protocol.bgp
+  - keyword: type
+    description: OSPF interface network type
+    detail: Define OSPF interface type such as broadcast, ptp, or nbma.
+    diff: same
+    version: v2+
+    anchor: proto-ospf
+    path:
+      - protocol.ospf.area.interface
+      - protocol.ospf.interface
+      - protocol.ospf.area.external
+    usage: type broadcast;
+    related:
+      - interface
+      - external

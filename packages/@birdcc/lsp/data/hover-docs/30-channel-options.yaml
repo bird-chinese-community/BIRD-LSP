@@ -1,0 +1,79 @@
+entries:
+  - keyword: export
+    description: Export filter for channel
+    detail: Specify filter for routes exported from the routing table to the protocol.
+    diff: modified
+    version: v2-v3
+    anchor: channel-export
+    notes:
+      v3: "v3 Enhanced: Supports 'export in prefix' syntax for selective export."
+  - keyword: export block
+    description: Export block size (v3 only)
+    detail: Configure bulk export block size for improved performance.
+    diff: added
+    version: v3+
+    anchor: channel-export-block
+    notes:
+      v3: "v3 only: Bulk export optimization."
+  - keyword: export limit
+    description: Export route limit
+    detail: Set maximum number of routes that can be exported to the peer.
+    diff: same
+    version: v2+
+    anchor: channel-export-limit
+  - keyword: import
+    description: Import filter for channel
+    detail: Specify filter for routes imported from the protocol to the routing table.
+    diff: same
+    version: v2+
+    anchor: channel-import
+  - keyword: import keep filtered
+    description: Keep filtered routes
+    detail: Store routes that were filtered out during import, allowing them to be examined.
+    diff: same
+    version: v2+
+    anchor: channel-import-keep-filtered
+  - keyword: import limit
+    description: Import route limit
+    detail: Set maximum number of routes that can be imported from this channel.
+    diff: same
+    version: v2+
+    anchor: channel-import-limit
+  - keyword: ipv4
+    description: IPv4 channel
+    detail: Define an IPv4 address family channel for route exchange.
+    diff: same
+    version: v2+
+    anchor: channel-opts
+  - keyword: ipv6
+    description: IPv6 channel
+    detail: Define an IPv6 address family channel for route exchange.
+    diff: same
+    version: v2+
+    anchor: channel-opts
+  - keyword: preference
+    description: Route preference value
+    detail: Set the preference value for routes from this channel. Higher values are preferred.
+    diff: same
+    version: v2+
+    anchor: channel-preference
+  - keyword: receive limit
+    description: Receive route limit
+    detail: Set maximum number of routes that can be received from the peer.
+    diff: same
+    version: v2+
+    anchor: channel-receive-limit
+  - keyword: rpki reload
+    description: RPKI reload behavior
+    detail: Configure how routes are reloaded when RPKI validation state changes.
+    diff: modified
+    version: v2-v3
+    anchor: channel-rpki-reload
+    notes:
+      v3: "v3 Enhanced: Supports both ROA and ASPA validation reload."
+  - keyword: table
+    description: Associate channel with routing table
+    detail: Specify which routing table this channel imports to and exports from.
+    diff: same
+    version: v2+
+    anchor: channel-table

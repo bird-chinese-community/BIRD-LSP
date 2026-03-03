@@ -1,0 +1,22 @@
+entries:
+  - keyword: ospf
+    usage: |
+      protocol ospf v2 core {
+        area 0 {
+          interface "eth*" { cost 10; hello 10; dead 40; type broadcast; };
+        };
+      }
+  - keyword: area
+    usage: area 0 { interface "eth*" { cost 10; hello 10; dead 40; }; };
+  - keyword: external
+    usage: external { type 1; };
+  - keyword: interface
+    usage: interface "eth*" { cost 10; hello 10; dead 40; type broadcast; };
+  - keyword: cost
+    usage: cost 10;
+  - keyword: hello
+    usage: hello 10;
+  - keyword: dead
+    usage: dead 40;
+  - keyword: type
+    usage: type broadcast;

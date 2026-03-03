@@ -1,0 +1,32 @@
+entries:
+  - keyword: device
+    description: Device scan protocol
+    detail: Scan network interfaces for link state changes and generate routes for directly connected
+      networks.
+    diff: same
+    version: v2+
+    anchor: proto-device
+  - keyword: direct
+    description: Direct routes protocol
+    detail: Generate routes for directly connected networks based on interface addresses.
+    diff: same
+    version: v2+
+    anchor: proto-direct
+  - keyword: kernel
+    description: Kernel synchronization protocol
+    detail: Synchronize routes between BIRD and the operating system kernel routing table.
+    diff: same
+    version: v2+
+    anchor: proto-kernel
+  - keyword: static
+    description: Static routes protocol
+    detail: Define static routes that are not learned from any routing protocol.
+    diff: same
+    version: v2+
+    anchor: proto-static
+  - keyword: pipe
+    description: Protocol pipe
+    detail: Connect two routing tables, forwarding routes between them with optional filtering.
+    diff: same
+    version: v2+
+    anchor: proto-pipe

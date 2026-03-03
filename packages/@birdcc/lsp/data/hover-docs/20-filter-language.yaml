@@ -1,0 +1,109 @@
+entries:
+  - keyword: .asn
+    description: Extract AS number from pair
+    detail: Get the AS number component from an AS path pair.
+    diff: same
+    version: v2+
+    anchor: filter-pair
+  - keyword: .data
+    description: Extract data from pair
+    detail: Get the data component from an AS path pair.
+    diff: same
+    version: v2+
+    anchor: filter-pair
+  - keyword: .ip
+    description: Extract IP from prefix
+    detail: Get the network address part of a prefix.
+    diff: same
+    version: v2+
+    anchor: filter-prefix
+  - keyword: .len
+    description: Prefix length operator
+    detail: Get the prefix length of a prefix value.
+    diff: same
+    version: v2+
+    anchor: filter-prefix
+  - keyword: .mask
+    description: IP mask operator
+    detail: Get the subnet mask as an IP address.
+    diff: same
+    version: v2+
+    anchor: filter-ip
+  - keyword: accept
+    description: Accept route
+    detail: Accept the current route and stop processing the filter.
+    diff: same
+    version: v2+
+    anchor: filter-control
+  - keyword: case
+    description: Case statement
+    detail: Multi-way branch based on expression value.
+    diff: same
+    version: v2+
+    anchor: filter-control
+  - keyword: defined
+    description: Check if symbol is defined
+    detail: Test whether a symbol (attribute, route property) is defined.
+    diff: same
+    version: v2+
+    anchor: filter-operators
+  - keyword: else
+    description: Else clause
+    detail: Marks the beginning of statements to execute when condition is false.
+    diff: same
+    version: v2+
+    anchor: filter-control
+  - keyword: if
+    description: Conditional statement
+    detail: Execute statements conditionally based on a boolean expression.
+    diff: same
+    version: v2+
+    anchor: filter-control
+  - keyword: int
+    description: Integer data type
+    detail: A signed 32-bit integer.
+    diff: same
+    version: v2+
+    anchor: filter-data-types
+  - keyword: ip
+    description: IP address data type
+    detail: An IPv4 or IPv6 address.
+    diff: same
+    version: v2+
+    anchor: filter-data-types
+  - keyword: prefix
+    description: Prefix data type
+    detail: An IP address prefix consisting of an IP address and a prefix length.
+    diff: same
+    version: v2+
+    anchor: filter-data-types
+  - keyword: print
+    description: Print debug output
+    detail: Output debug information during filter execution.
+    diff: same
+    version: v2+
+    anchor: filter-functions
+  - keyword: reject
+    description: Reject route
+    detail: Reject the current route and stop processing the filter.
+    diff: same
+    version: v2+
+    anchor: filter-control
+  - keyword: return
+    description: Return from function
+    detail: Return a value from a filter function.
+    diff: same
+    version: v2+
+    anchor: filter-functions
+  - keyword: string
+    description: String data type
+    detail: A sequence of characters.
+    diff: same
+    version: v2+
+    anchor: filter-data-types
+  - keyword: then
+    description: Then clause
+    detail: Marks the beginning of statements to execute when condition is true.
+    diff: same
+    version: v2+
+    anchor: filter-control

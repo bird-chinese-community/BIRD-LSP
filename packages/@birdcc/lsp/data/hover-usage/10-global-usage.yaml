@@ -1,0 +1,53 @@
+entries:
+  - keyword: attribute
+    usage: attribute int my_tag;
+  - keyword: define
+    usage: define LOCAL_AS = 65001;
+  - keyword: eval
+    usage: eval 1 + 1;
+  - keyword: filter
+    usage: |
+      filter only_bgp {
+        if source = RTS_BGP then accept;
+        reject;
+      }
+  - keyword: function
+    usage: |
+      function set_pref(int base) -> int {
+        return base + 100;
+      }
+  - keyword: include
+    usage: include "/etc/bird/conf.d/*.conf";
+  - keyword: log
+    usage: log syslog all;
+  - keyword: mrtdump
+    usage: mrtdump "/var/log/bird.mrt";
+  - keyword: protocol
+    usage: protocol device {}
+  - keyword: router id
+    usage: router id 10.0.0.1;
+  - keyword: router id from
+    usage: router id from "lo";
+  - keyword: sorted
+    usage: table master4 sorted;
+  - keyword: table
+    usage: table master4;
+  - keyword: template
+    usage: |
+      template bgp IBGP_BASE {
+        local as 65001;
+      }
+  - keyword: thread group
+    usage: thread group worker { threads 4; max latency 200 ms; };
+  - keyword: max latency
+    usage: max latency 200 ms;
+  - keyword: max settle time
+    usage: max settle time 30;
+  - keyword: min settle time
+    usage: min settle time 1;
+  - keyword: gc period
+    usage: gc period 60;
+  - keyword: gc threshold
+    usage: gc threshold 1000;
+  - keyword: export settle time
+    usage: export settle time 100 ms;

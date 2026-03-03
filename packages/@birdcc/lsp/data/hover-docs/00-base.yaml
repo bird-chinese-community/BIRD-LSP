@@ -1,0 +1,5 @@
+version: 1
+baseUrls:
+  v2: https://bird.nic.cz/doc/bird-2.18.html
+  v3: https://bird.nic.cz/doc/bird-3.2.0.html
+entries: []

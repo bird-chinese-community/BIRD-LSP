@@ -1,0 +1,39 @@
+entries:
+  - keyword: .asn
+    usage: if bgp_path.last.asn = 65001 then accept;
+  - keyword: .data
+    usage: if pair_value.data = 100 then accept;
+  - keyword: .ip
+    usage: if net.ip = 192.0.2.0 then accept;
+  - keyword: .len
+    usage: if net.len = 24 then accept;
+  - keyword: .mask
+    usage: if net.mask = 255.255.255.0 then accept;
+  - keyword: accept
+    usage: accept;
+  - keyword: reject
+    usage: reject;
+  - keyword: return
+    usage: return true;
+  - keyword: if
+    usage: if net ~ [10.0.0.0/8+] then accept;
+  - keyword: then
+    usage: if roa_check(roa4, net, bgp_path.last) = ROA_VALID then accept;
+  - keyword: else
+    usage: if source = RTS_STATIC then accept; else reject;
+  - keyword: case
+    usage: |
+      case source {
+        RTS_BGP: accept;
+        else: reject;
+      }
+  - keyword: defined
+    usage: if defined(bgp_next_hop) then accept;
+  - keyword: print
+    usage: print "reject route ", net;
+  - keyword: int
+    usage: int med;
+  - keyword: ip
+    usage: ip next_hop;
+  - keyword: prefix
+    usage: prefix allowed_net;

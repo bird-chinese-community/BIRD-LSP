@@ -1,0 +1,34 @@
+entries:
+  - keyword: export
+    usage: export filter only_bgp;
+  - keyword: export block
+    usage: export block 16384;
+  - keyword: export limit
+    usage: export limit 100000 action warn;
+  - keyword: import
+    usage: import all;
+  - keyword: import keep filtered
+    usage: import keep filtered on;
+  - keyword: import limit
+    usage: import limit 100000 action block;
+  - keyword: ipv4
+    usage: |
+      ipv4 {
+        import all;
+        export none;
+      };
+  - keyword: ipv6
+    usage: |
+      ipv6 {
+        import all;
+        export filter only_v6;
+      };
+  - keyword: preference
+    usage: preference 100;
+  - keyword: receive limit
+    usage: receive limit 200000 action disable;
+  - keyword: rpki reload
+    usage: rpki reload on;
+  - keyword: table
+    path: channel
+    usage: table master4;

@@ -1,0 +1,40 @@
+entries:
+  - keyword: description
+    description: Protocol description
+    detail: Add a human-readable description to the protocol for administrative purposes.
+    diff: same
+    version: v2+
+    anchor: proto-description
+  - keyword: device
+    description: Device scan protocol
+    detail: Scan network interfaces for link state changes and generate routes for directly connected
+      networks.
+    diff: same
+    version: v2+
+    anchor: proto-device
+  - keyword: direct
+    description: Direct routes protocol
+    detail: Generate routes for directly connected networks based on interface addresses.
+    diff: same
+    version: v2+
+    anchor: proto-direct
+  - keyword: disabled
+    description: Disable protocol on startup
+    detail: Start the protocol in disabled state. Can be enabled later via CLI.
+    diff: same
+    version: v2+
+    anchor: proto-disabled
+  - keyword: restart time limit
+    description: Automatic restart time limit (v3 only)
+    detail: Configure automatic restart of the protocol after failure within specified time limit.
+    diff: added
+    version: v3+
+    anchor: proto-restart-time-limit
+    notes:
+      v3: "v3 only: Automatic protocol restart on failure."
+  - keyword: vrf
+    description: Bind protocol to VRF
+    detail: Associate this protocol with a specific Virtual Routing and Forwarding instance.
+    diff: same
+    version: v2+
+    anchor: proto-vrf

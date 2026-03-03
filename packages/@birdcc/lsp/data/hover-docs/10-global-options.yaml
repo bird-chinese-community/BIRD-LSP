@@ -1,0 +1,229 @@
+entries:
+  - keyword: attribute
+    description: Define custom route attribute
+    detail: Create a custom route attribute that can be attached to routes and used in filters.
+    diff: same
+    version: v2+
+    anchor: opt-attribute
+  - keyword: cork threshold
+    description: Cork threshold (v3 only)
+    detail: Memory pressure control threshold for batching updates.
+    diff: added
+    version: v3+
+    anchor: rtable-cork-threshold
+    notes:
+      v3: "v3 only: Memory pressure control."
+  - keyword: debug
+    description: Table debug options
+    detail: Enable debugging for routing table operations. v3 has simplified option set.
+    diff: modified
+    version: v2-v3
+    anchors:
+      v2: table-debug
+      v3: rtable-debug
+    notes:
+      v3: "v3 Breaking Change: Options simplified to {states|routes|events}"
+  - keyword: debug latency
+    description: Enable latency debugging
+    detail: Enable debugging of scheduling latency. v3 extends this to support granular event type
+      filtering.
+    diff: modified
+    version: v2-v3
+    anchor: opt-debug-latency
+    notes:
+      v3: "v3 Breaking Change: Extended to {ping|wakeup|scheduling|sockets|events|timers} for granular
+        control."
+  - keyword: debug tables
+    description: Enable routing table debugging
+    detail: Log detailed information about routing table operations and state changes.
+    diff: same
+    version: v2+
+    anchor: opt-debug-tables
+  - keyword: define
+    description: Define a constant value
+    detail: Create a named constant that can be referenced throughout the configuration.
+    diff: same
+    version: v2+
+    anchor: opt-define
+  - keyword: eval
+    description: Evaluate expression at config load time
+    detail: Execute a filter expression during configuration parsing. Useful for dynamic configuration.
+    diff: same
+    version: v2+
+    anchor: opt-eval
+  - keyword: export settle time
+    description: Export settle time (v3 only)
+    detail: Time to wait before exporting route changes to protocols.
+    diff: added
+    version: v3+
+    anchor: rtable-export-settle-time
+    notes:
+      v3: "v3 only: Replaces min/max settle time from v2."
+  - keyword: filter
+    description: Define a routing filter
+    detail: Create a named filter that can be used to accept, reject, or modify routes during
+      import/export.
+    diff: same
+    version: v2+
+    anchor: opt-filter
+  - keyword: function
+    description: Define a reusable filter function
+    detail: Create a named function that can be called from filters. Supports typed parameters and
+      return values.
+    diff: same
+    version: v2+
+    anchor: opt-function
+  - keyword: gc period
+    description: Garbage collection period
+    detail: Set the interval between garbage collection runs.
+    diff: same
+    version: v2+
+    anchor: rtable-gc-period
+  - keyword: gc threshold
+    description: Garbage collection threshold
+    detail: Configure the garbage collection threshold for the routing table.
+    diff: same
+    version: v2+
+    anchor: rtable-gc-threshold
+  - keyword: graceful restart wait
+    description: Set graceful restart timeout
+    detail: Configure how long to wait for protocols to recover after a graceful restart.
+    diff: same
+    version: v2+
+    anchor: opt-graceful-restart-wait
+  - keyword: hostname
+    description: Set router hostname
+    detail: Override the system hostname used in protocol announcements and logging.
+    diff: same
+    version: v2+
+    anchor: opt-hostname
+  - keyword: include
+    description: Include another configuration file
+    detail: Include and parse another configuration file at this point. Supports glob patterns for
+      including multiple files.
+    diff: same
+    version: v2+
+    anchor: opt-include
+  - keyword: log
+    description: Configure logging destination and format
+    detail: Set log output to stderr, syslog, or a file. BIRD 3 adds 'fixed' option for ring buffer
+      logging.
+    diff: modified
+    version: v2-v3
+    anchor: opt-log
+    notes:
+      v3: v3 adds 'fixed' ring buffer option for memory-constrained environments.
+  - keyword: max settle time
+    description: Maximum settle time (v2 only)
+    detail: Maximum time to wait before announcing route changes. Removed in v3.
+    diff: removed
+    version: v2
+    anchor: rtable-max-settle-time
+    notes:
+      v3: "v3: Removed - use export settle time instead"
+  - keyword: min settle time
+    description: Minimum settle time (v2 only)
+    detail: Minimum time to wait before announcing route changes. Removed in v3.
+    diff: removed
+    version: v2
+    anchor: rtable-min-settle-time
+    notes:
+      v3: "v3: Removed - use export settle time instead"
+  - keyword: mrtdump
+    description: Configure MRT dump output
+    detail: Set up MRT format dump for BGP updates and routing table dumps for analysis.
+    diff: same
+    version: v2+
+    anchor: opt-mrtdump
+  - keyword: protocol
+    description: Define a routing protocol instance
+    detail: Create a named instance of a routing protocol (BGP, OSPF, etc.) with its configuration.
+    diff: same
+    version: v2+
+    anchor: opt-protocol
+  - keyword: router id
+    description: Set BIRD's router ID
+    detail: "Router ID is a 4-byte integer that should be unique within an AS. It is used to identify
+      the router in routing protocols. Default: the lowest IPv4 address of the router."
+    diff: same
+    version: v2+
+    anchor: opt-router-id
+  - keyword: router id from
+    description: Derive router ID from interface
+    detail: Automatically determine the router ID from the lowest IP address of the specified interface.
+    diff: same
+    version: v2+
+    anchor: opt-router-id-from
+  - keyword: sorted
+    description: Enable sorted table mode
+    detail: Keep routes sorted for faster route lookups.
+    diff: same
+    version: v2+
+    anchor: rtable-sorted
+  - keyword: table
+    description: Define a routing table
+    detail: Create a named routing table to store routes. Tables can be associated with channels for
+      import/export.
+    diff: same
+    version: v2+
+    anchor: rtable-opts
+  - keyword: template
+    description: Define a protocol template
+    detail: Create a reusable protocol configuration template that can be inherited by other protocols.
+    diff: same
+    version: v2+
+    anchor: opt-template
+  - keyword: max latency
+    description: Set maximum latency for thread group (v3 only)
+    detail: Configure the maximum allowed latency for threads in a thread group before warnings.
+    diff: added
+    version: v3+
+    anchor: thread-setup
+    notes:
+      v3: "v3 only: Thread group performance tuning option."
+  - keyword: thread group
+    description: Configure thread groups for multi-threading (v3 only)
+    detail: Define a thread group for running protocol and channel tasks in parallel. BIRD 3.0+ supports
+      multi-threading with configurable thread groups.
+    diff: added
+    version: v3+
+    anchor: thread-setup
+    notes:
+      v3: "v3.2.0+: BIRD runs in several threads with configurable thread groups for different workloads."
+  - keyword: thread group
+    description: Assign protocol to thread group (v3 only)
+    detail: Specify which thread group should handle this protocol's tasks.
+    diff: added
+    version: v3+
+    anchor: proto-thread-group
+    notes:
+      v3: "v3 only: Multi-threading support for protocol tasks."
+  - keyword: threads
+    description: Set number of threads (deprecated in v3)
+    detail: Configure the number of worker threads. In v3, use 'thread group' instead for more granular
+      control.
+    diff: modified
+    version: v2-v3
+    anchors:
+      v2: opt-threads
+      v3: thread-setup
+    notes:
+      v3: "v3: Deprecated in favor of 'thread group' configuration blocks."
+  - keyword: timeformat
+    description: Set time format for logging
+    detail: Configure the format string used for timestamps in log messages.
+    diff: same
+    version: v2+
+    anchor: opt-timeformat
+  - keyword: trie
+    description: Use trie data structure
+    detail: Store routes in a trie data structure for optimized longest-prefix matching.
+    diff: same
+    version: v2+
+    anchor: rtable-trie
+  - keyword: watchdog warning
+    description: Set watchdog warning threshold
+    detail: Configure the time threshold after which a warning is logged if the scheduler doesn't respond.
+    diff: same
+    version: v2+
+    anchor: opt-watchdog-warning

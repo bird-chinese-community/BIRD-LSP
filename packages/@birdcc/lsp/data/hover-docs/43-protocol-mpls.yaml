@@ -1,0 +1,19 @@
+entries:
+  - keyword: mpls domain
+    description: Define an MPLS domain
+    detail: Create a named MPLS domain for label distribution and MPLS forwarding.
+    diff: same
+    version: v2+
+    anchor: mpls-opts
+  - keyword: label policy
+    description: MPLS label policy
+    detail: Configure how MPLS labels are assigned and distributed.
+    diff: same
+    version: v2+
+    anchor: mpls-label-policy
+  - keyword: label range
+    description: MPLS label range
+    detail: Define the range of MPLS labels to use.
+    diff: same
+    version: v2+
+    anchor: mpls-label-range

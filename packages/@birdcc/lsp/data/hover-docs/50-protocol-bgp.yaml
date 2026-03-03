@@ -1,0 +1,25 @@
+entries:
+  - keyword: bgp
+    description: BGP protocol
+    detail: Border Gateway Protocol - the de facto standard for inter-domain routing on the Internet.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+  - keyword: local as
+    description: Set local AS number (BGP)
+    detail: Configure the local Autonomous System number for BGP sessions.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+  - keyword: multihop
+    description: Enable BGP multihop
+    detail: Allow BGP sessions to non-directly connected peers with optional TTL specification.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
+  - keyword: neighbor
+    description: Set BGP neighbor
+    detail: Configure the IP address and AS number of the BGP peer.
+    diff: same
+    version: v2+
+    anchor: proto-bgp
