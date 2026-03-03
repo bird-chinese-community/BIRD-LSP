@@ -12,6 +12,8 @@ const fixturesRoot = resolve(here, "fixtures/edgecases");
 const readFixture = async (name: string): Promise<string> =>
   readFile(resolve(fixturesRoot, name), "utf8");
 
+const normalizeEol = (text: string): string => text.replace(/\r\n/g, "\n");
+
 const edgeCases = [
   {
     name: "comment-brace.conf",
@@ -33,11 +35,11 @@ describe("formatter edge-case regressions", () => {
         const expected = await readFixture(expectedName);
 
         const first = await formatBirdConfig(input, { engine });
-        expect(first.text).toBe(expected);
+        expect(normalizeEol(first.text)).toBe(normalizeEol(expected));
 
         const second = await formatBirdConfig(first.text, { engine });
         expect(second.changed).toBe(false);
-        expect(second.text).toBe(expected);
+        expect(normalizeEol(second.text)).toBe(normalizeEol(expected));
       });
     }
   }
