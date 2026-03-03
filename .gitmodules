@@ -28,3 +28,6 @@
 [submodule "refer/config-examples/poema-ix"]
 	path = refer/config-examples/poema-ix
 	url = https://github.com/PoemaIX/IX-BIRD-RS-Generator.git
+[submodule "refer/oxc"]
+	path = refer/oxc
+	url = https://github.com/oxc-project/oxc.git
