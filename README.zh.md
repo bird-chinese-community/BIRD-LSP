@@ -47,7 +47,7 @@
 
 ## 概述
 
-**BIRD-LSP** 是一个专为 [BIRD2](https://bird.network.cz/) 配置文件打造的现代化工具链项目，提供 Language Server Protocol (LSP) 支持、代码格式化 (Formatter) 与静态分析 (Linter) 能力。
+**BIRD-LSP** 是一个专为 [BIRD2](https://bird.network.cz/) (当然同时也兼容 BIRD3) 配置文件打造的现代化工具链项目，提供试验性的 Language Server Protocol (LSP) 支持、代码格式化 (Formatter & Parser) 与静态分析 (Linter) 能力。
 
 ---
 

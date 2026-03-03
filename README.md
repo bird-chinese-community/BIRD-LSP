@@ -47,7 +47,7 @@ English Version | [中文文档](./README.zh.md)
 
 ## Overview
 
-**BIRD-LSP** is a modern toolchain for [BIRD2](https://bird.network.cz/) configuration files, providing Language Server Protocol (LSP) support, code formatting, and static analysis.
+**BIRD-LSP** is a modern toolchain for [BIRD2](https://bird.network.cz/) (and BIRD3) configuration files, providing Language Server Protocol (LSP) support, code formatting (Formatter & Parser), and static analysis (Linter).
 
 ---
 
