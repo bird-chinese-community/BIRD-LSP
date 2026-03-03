@@ -1,0 +1,58 @@
+name: NPM Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Comma-separated package names (example: @birdcc/parser,@birdcc/core)"
+        required: true
+        default: "@birdcc/parser"
+        type: string
+      npm_tag:
+        description: "npm dist-tag to publish under"
+        required: true
+        default: "next"
+        type: string
+      dry_run:
+        description: "Run publish in dry-run mode"
+        required: true
+        default: true
+        type: boolean
+      allow_private_override:
+        description: "Temporarily patch private=true to private=false during this run"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  npm-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Publish selected packages
+        run: >
+          node tools/publish-npm-packages.mjs
+          --packages "${{ inputs.packages }}"
+          --tag "${{ inputs.npm_tag }}"
+          --dry-run "${{ inputs.dry_run }}"
+          --allow-private-override "${{ inputs.allow_private_override }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-summary
+          path: .tmp/npm-release-summary.json
+          if-no-files-found: error

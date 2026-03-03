@@ -10,7 +10,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "format": "turbo run format",
-    "coverage": "turbo run coverage"
+    "coverage": "turbo run coverage",
+    "release:npm": "node tools/publish-npm-packages.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
