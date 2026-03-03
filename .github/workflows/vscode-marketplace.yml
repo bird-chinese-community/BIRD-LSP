@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       publish_marketplace:
-        description: "Publish to VS Code Marketplace (requires VSCE_PAT)"
+        description: "Publish to VS Code Marketplace (requires VS_PUBLISH_TOKEN)"
         required: true
         default: false
         type: boolean
       publish_openvsx:
-        description: "Publish to OpenVSX (requires OVSX_PAT)"
+        description: "Publish to OpenVSX (requires OPEN_VSX_PUBLISH_TOKEN)"
         required: true
         default: false
         type: boolean
@@ -40,7 +40,7 @@ jobs:
 
   publish-vscode-marketplace:
     needs: package-vsix
-    if: ${{ github.event.inputs.publish_marketplace == 'true' && secrets.VSCE_PAT != '' }}
+    if: ${{ github.event.inputs.publish_marketplace == 'true' && secrets.VS_PUBLISH_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,13 +56,13 @@ jobs:
         with:
           name: bird2-lsp-vsix
           path: packages/@birdcc/vscode/dist
-      - run: pnpm --filter @birdcc/vscode marketplace:publish:vsce
+      - run: pnpm --filter @birdcc/vscode marketplace:publish:vsce -- --pre-release
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSCE_PAT: ${{ secrets.VS_PUBLISH_TOKEN }}
 
   publish-openvsx:
     needs: package-vsix
-    if: ${{ github.event.inputs.publish_openvsx == 'true' && secrets.OVSX_PAT != '' }}
+    if: ${{ github.event.inputs.publish_openvsx == 'true' && secrets.OPEN_VSX_PUBLISH_TOKEN != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,4 +80,4 @@ jobs:
           path: packages/@birdcc/vscode/dist
       - run: pnpm --filter @birdcc/vscode marketplace:publish:ovsx
         env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}

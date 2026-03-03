@@ -2,6 +2,14 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.0]
+
+### Changed
+
+- First marketplace track release from the monorepo package.
+- Align versioning with VS Code Marketplace requirements for pre-release publishing.
+- Publish this version to both OpenVSX and VS Code Marketplace with pre-release channel enabled.
+
 ## [0.0.1-alpha.0]
 
 ### Added
