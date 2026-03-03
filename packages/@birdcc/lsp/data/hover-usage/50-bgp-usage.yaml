@@ -20,3 +20,6 @@ entries:
     usage: source address 192.0.2.10;
   - keyword: ttl security
     usage: ttl security 1;
+  - keyword: password
+    path: protocol.bgp
+    usage: password "bgp-secret";

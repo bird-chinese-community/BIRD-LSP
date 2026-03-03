@@ -20,3 +20,6 @@ entries:
     usage: dead 40;
   - keyword: type
     usage: type broadcast;
+  - keyword: password
+    path: protocol.ospf.authentication
+    usage: password "ospf-secret";

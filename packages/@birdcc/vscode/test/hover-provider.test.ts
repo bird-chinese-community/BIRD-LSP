@@ -195,6 +195,31 @@ describe("bird keyword hover resolver", () => {
     expect(topic?.doc.title).toBe("Associate channel with routing table");
   });
 
+  it("resolves usage snippets by context for shared keywords", async () => {
+    const docs = await loadBirdHoverDocs();
+    const line = 'password "secret";';
+
+    const bgpTopic = resolveBirdHoverTopic(
+      line,
+      line.indexOf("password") + 1,
+      docs,
+      {
+        contextPath: ["protocol", "bgp"],
+      },
+    );
+    const ospfTopic = resolveBirdHoverTopic(
+      line,
+      line.indexOf("password") + 1,
+      docs,
+      {
+        contextPath: ["protocol", "ospf", "authentication"],
+      },
+    );
+
+    expect(bgpTopic?.doc.usage).toContain("bgp-secret");
+    expect(ospfTopic?.doc.usage).toContain("ospf-secret");
+  });
+
   it("supports underscore variant smart matching", async () => {
     const docs = await loadBirdHoverDocs();
     const line = "debug_latency on;";

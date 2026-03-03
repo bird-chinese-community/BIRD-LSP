@@ -61,6 +61,7 @@ interface HoverDocEntry {
   readonly related?: readonly string[];
   readonly parameters?: readonly z.infer<typeof hoverDocParameterSchema>[];
   readonly links?: readonly HoverDocLink[];
+  readonly usageCandidates?: readonly UsageEntry[];
 }
 
 export interface HoverDocsCollection {
@@ -203,55 +204,71 @@ interface UsageEntry {
   readonly normalizedPaths: readonly (readonly string[])[];
 }
 
-const scoreUsageForDoc = (
+const resolveDefaultUsage = (
+  entries: readonly UsageEntry[] | undefined,
+): string | undefined => {
+  if (!entries || entries.length === 0) {
+    return undefined;
+  }
+
+  const genericEntry = entries.find(
+    (entry) => entry.normalizedPaths.length === 0,
+  );
+  if (genericEntry) {
+    return genericEntry.usage;
+  }
+
+  return entries[0]?.usage;
+};
+
+const scoreUsageForContext = (
   usageEntry: UsageEntry,
-  docNormalizedPaths: readonly (readonly string[])[],
+  contextPath: readonly string[] | undefined,
 ): number => {
+  if (!contextPath || contextPath.length === 0) {
+    return usageEntry.normalizedPaths.length > 0 ? -1 : 0;
+  }
+
+  const normalizedContext = contextPath.map((segment) => segment.toLowerCase());
   if (usageEntry.normalizedPaths.length === 0) {
     return 0;
   }
-  if (docNormalizedPaths.length === 0) {
-    return -1;
-  }
 
   let bestScore = -1;
-  for (const docPath of docNormalizedPaths) {
-    for (const usagePath of usageEntry.normalizedPaths) {
-      if (usagePath.length > docPath.length) {
-        continue;
-      }
+  for (const usagePath of usageEntry.normalizedPaths) {
+    if (usagePath.length > normalizedContext.length) {
+      continue;
+    }
 
-      let matches = true;
-      for (let index = 0; index < usagePath.length; index += 1) {
-        if (usagePath[index] !== docPath[index]) {
-          matches = false;
-          break;
-        }
+    let matches = true;
+    for (let index = 0; index < usagePath.length; index += 1) {
+      if (usagePath[index] !== normalizedContext[index]) {
+        matches = false;
+        break;
       }
+    }
 
-      if (matches) {
-        bestScore = Math.max(bestScore, usagePath.length);
-      }
+    if (matches) {
+      bestScore = Math.max(bestScore, usagePath.length);
     }
   }
 
   return bestScore;
 };
 
-const resolveUsage = (
-  usageMap: ReadonlyMap<string, readonly UsageEntry[]>,
-  keyword: string,
-  docNormalizedPaths: readonly (readonly string[])[],
+const resolveUsageForContext = (
+  doc: HoverDocEntry,
+  contextPath: readonly string[] | undefined,
 ): string | undefined => {
-  const entries = usageMap.get(keyword);
+  const entries = doc.usageCandidates ?? [];
   if (!entries || entries.length === 0) {
-    return undefined;
+    return doc.usage;
   }
 
-  let selectedUsage: string | undefined;
-  let selectedScore = Number.NEGATIVE_INFINITY;
+  let selectedUsage: string | undefined = doc.usage;
+  let selectedScore = doc.usage ? 0 : Number.NEGATIVE_INFINITY;
   for (const usageEntry of entries) {
-    const score = scoreUsageForDoc(usageEntry, docNormalizedPaths);
+    const score = scoreUsageForContext(usageEntry, contextPath);
     if (score > selectedScore) {
       selectedUsage = usageEntry.usage;
       selectedScore = score;
@@ -291,6 +308,7 @@ const toHoverDocsCollection = (
   const entries = source.entries.map((entry) => {
     const keyword = toCanonicalKey(entry.keyword);
     const normalizedPaths = toNormalizedPaths(entry.path);
+    const usageCandidates = usageMap.get(keyword) ?? [];
     const docEntry: HoverDocEntry = {
       keyword,
       title: entry.description,
@@ -299,12 +317,13 @@ const toHoverDocsCollection = (
       version: entry.version,
       diff: entry.diff,
       notes: entry.notes,
-      usage: entry.usage ?? resolveUsage(usageMap, keyword, normalizedPaths),
+      usage: entry.usage ?? resolveDefaultUsage(usageCandidates),
       path: entry.path,
       normalizedPaths,
       related: entry.related,
       parameters: entry.parameters,
       links: toLinks(entry, baseUrls),
+      usageCandidates,
     };
 
     return [keyword, docEntry] as const;
@@ -618,10 +637,18 @@ export const resolveBirdHoverTopic = (
       if (!doc) {
         continue;
       }
+      const resolvedUsage = resolveUsageForContext(doc, options?.contextPath);
+      const resolvedDoc =
+        resolvedUsage && resolvedUsage !== doc.usage
+          ? {
+              ...doc,
+              usage: resolvedUsage,
+            }
+          : doc;
 
       return {
         ...candidate,
-        doc,
+        doc: resolvedDoc,
       };
     }
   }
