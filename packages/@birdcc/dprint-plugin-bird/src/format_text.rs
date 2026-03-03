@@ -116,9 +116,14 @@ fn normalize_text_with_builtin(text: &str, config: &Configuration) -> String {
 
         blank_streak = 0;
 
-        let open_count = count_token(line, '{');
-        let close_count = count_token(line, '}');
-        let leading_close = count_leading_close_braces(line).min(indent_level);
+        let structural_line = line
+            .split_once('#')
+            .map(|(before_comment, _)| before_comment.trim_end())
+            .unwrap_or(line);
+
+        let open_count = count_token(structural_line, '{');
+        let close_count = count_token(structural_line, '}');
+        let leading_close = count_leading_close_braces(structural_line).min(indent_level);
         indent_level = indent_level.saturating_sub(leading_close);
 
         let high_risk_line = is_high_risk_expression_line(line);
@@ -220,5 +225,32 @@ mod tests {
         let output =
             format_text(Path::new("bird.conf"), input, &config()).expect("format should succeed");
         assert!(output.is_none());
+    }
+
+    #[test]
+    fn ignores_braces_in_comment_only_lines_for_indentation() {
+        let input =
+            "protocol bgp edge {\n# close brace in comment }\nneighbor 192.0.2.2 as 65002;\n}\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .expect("format should succeed")
+            .expect("format should change text");
+
+        assert_eq!(
+            output,
+            "protocol bgp edge {\n  # close brace in comment }\n  neighbor 192.0.2.2 as 65002;\n}\n"
+        );
+    }
+
+    #[test]
+    fn ignores_braces_in_inline_comments_for_indentation() {
+        let input = "protocol bgp edge {\nneighbor 192.0.2.2 as 65002; # open brace in comment {\nrouter id 192.0.2.1;\n}\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .expect("format should succeed")
+            .expect("format should change text");
+
+        assert_eq!(
+            output,
+            "protocol bgp edge {\n  neighbor 192.0.2.2 as 65002; # open brace in comment {\n  router id 192.0.2.1;\n}\n"
+        );
     }
 }
