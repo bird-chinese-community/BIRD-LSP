@@ -264,11 +264,12 @@ git submodule update --recursive --remote
 
 ## Configuration
 
-项目配置位于 `birdcc.config.json`:
+项目配置位于 `bird.config.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json",
+  "main": "bird.conf",
   "formatter": {
     "engine": "dprint",
     "indentSize": 2,

@@ -83,6 +83,7 @@ export interface CrossFileResolveOptions {
   documents?: CrossFileDocumentInput[];
   maxDepth?: number;
   maxFiles?: number;
+  includeSearchPaths?: string[];
   loadFromFileSystem?: boolean;
   workspaceRootUri?: string;
   allowIncludeOutsideWorkspace?: boolean;

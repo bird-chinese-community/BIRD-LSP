@@ -374,6 +374,39 @@ describe("@birdcc/core boundaries", () => {
     ).toBe(false);
   });
 
+  it("resolves includes from explicit include search paths", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "file:///workspace/main.conf",
+      includeSearchPaths: ["file:///workspace/shared"],
+      documents: [
+        {
+          uri: "file:///workspace/main.conf",
+          text: `
+            include "common.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "file:///workspace/shared/common.conf",
+          text: `
+            template bgp edge_tpl {
+            }
+          `,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain(
+      "file:///workspace/shared/common.conf",
+    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(false);
+  });
+
   it("emits include warning when max depth is reached", async () => {
     const result = await resolveCrossFileReferences({
       entryUri: "/workspace/main.conf",

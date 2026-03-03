@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
-  loadBirdccConfigForFile,
+  loadBirdProjectConfigForFile,
   resolveSeverityOverride,
 } from "../src/config.js";
 
@@ -15,7 +15,7 @@ describe("@birdcc/cli config", () => {
 
     await mkdir(nestedDir, { recursive: true });
     await writeFile(
-      join(workspaceDir, "birdcc.config.json"),
+      join(workspaceDir, "bird.config.json"),
       JSON.stringify(
         {
           formatter: {
@@ -39,9 +39,9 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    const loaded = await loadBirdccConfigForFile(targetFile);
+    const loaded = await loadBirdProjectConfigForFile(targetFile);
 
-    expect(loaded.path).toBe(join(workspaceDir, "birdcc.config.json"));
+    expect(loaded.path).toBe(join(workspaceDir, "bird.config.json"));
     expect(loaded.config.formatter?.engine).toBe("builtin");
     expect(loaded.config.formatter?.indentSize).toBe(4);
     expect(loaded.config.bird?.validateCommand).toContain("{file}");
@@ -52,7 +52,7 @@ describe("@birdcc/cli config", () => {
     const targetFile = join(workspaceDir, "bird.conf");
     await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
 
-    const loaded = await loadBirdccConfigForFile(targetFile);
+    const loaded = await loadBirdProjectConfigForFile(targetFile);
     expect(loaded.path).toBeUndefined();
     expect(loaded.config).toEqual({});
   });
@@ -73,8 +73,8 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
-      "Invalid birdcc config",
+    await expect(loadBirdProjectConfigForFile(targetFile)).rejects.toThrow(
+      "Invalid BIRD project config",
     );
   });
 
@@ -88,7 +88,7 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
+    await expect(loadBirdProjectConfigForFile(targetFile)).rejects.toThrow(
       "JSON parse failed",
     );
   });
@@ -110,9 +110,41 @@ describe("@birdcc/cli config", () => {
       "utf8",
     );
 
-    await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow(
-      "Invalid birdcc config",
+    await expect(loadBirdProjectConfigForFile(targetFile)).rejects.toThrow(
+      "Invalid BIRD project config",
     );
+  });
+
+  it("prefers bird.config.json when both config file names exist", async () => {
+    const workspaceDir = await mkdtemp(join(tmpdir(), "birdcc-config-both-"));
+    const targetFile = join(workspaceDir, "bird.conf");
+    await writeFile(targetFile, "router id 192.0.2.1;\n", "utf8");
+    await writeFile(
+      join(workspaceDir, "birdcc.config.json"),
+      JSON.stringify(
+        {
+          formatter: { indentSize: 2 },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await writeFile(
+      join(workspaceDir, "bird.config.json"),
+      JSON.stringify(
+        {
+          formatter: { indentSize: 6 },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const loaded = await loadBirdProjectConfigForFile(targetFile);
+    expect(loaded.path).toBe(join(workspaceDir, "bird.config.json"));
+    expect(loaded.config.formatter?.indentSize).toBe(6);
   });
 
   it("resolves exact and wildcard severity overrides", () => {
@@ -128,6 +160,14 @@ describe("@birdcc/cli config", () => {
     expect(
       resolveSeverityOverride("bgp/missing-neighbor", rules),
     ).toBeUndefined();
+  });
+
+  it("supports disabling rules with 'off' severity", () => {
+    const rules = {
+      "cfg/no-protocol": "off",
+    } as const;
+
+    expect(resolveSeverityOverride("cfg/no-protocol", rules)).toBe("off");
   });
 
   it("prefers the longest wildcard prefix when multiple patterns match", () => {
@@ -154,7 +194,7 @@ describe("@birdcc/cli config", () => {
 
     try {
       const targetFile = join(blockedDir, "bird.conf");
-      await expect(loadBirdccConfigForFile(targetFile)).rejects.toThrow();
+      await expect(loadBirdProjectConfigForFile(targetFile)).rejects.toThrow();
     } finally {
       await chmod(blockedDir, 0o700);
     }

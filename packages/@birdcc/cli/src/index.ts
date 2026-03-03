@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   resolveCrossFileReferences,
@@ -385,12 +385,15 @@ export const runBirdValidation = (
 };
 
 export interface LintOptions {
+  linterEnabled?: boolean;
   withBird?: boolean;
   crossFile?: boolean;
   includeMaxDepth?: number;
   includeMaxFiles?: number;
+  includePaths?: string[];
+  allowIncludeOutsideWorkspace?: boolean;
   validateCommand?: string;
-  severityOverrides?: Record<string, BirdDiagnosticSeverity>;
+  severityOverrides?: Record<string, BirdDiagnosticSeverity | "off">;
 }
 
 export interface BirdccLintOutput {
@@ -430,26 +433,34 @@ const dedupeDiagnostics = (diagnostics: BirdDiagnostic[]): BirdDiagnostic[] => {
 
 const applySeverityOverrides = (
   diagnostics: BirdDiagnostic[],
-  severityOverrides?: Record<string, BirdDiagnosticSeverity>,
+  severityOverrides?: Record<string, BirdDiagnosticSeverity | "off">,
 ): BirdDiagnostic[] => {
   if (!severityOverrides) {
     return diagnostics;
   }
 
-  return diagnostics.map((diagnostic) => {
+  const output: BirdDiagnostic[] = [];
+  for (const diagnostic of diagnostics) {
     const severity = resolveSeverityOverride(
       diagnostic.code,
       severityOverrides,
     );
-    if (!severity || severity === diagnostic.severity) {
-      return diagnostic;
+    if (severity === "off") {
+      continue;
     }
 
-    return {
+    if (!severity || severity === diagnostic.severity) {
+      output.push(diagnostic);
+      continue;
+    }
+
+    output.push({
       ...diagnostic,
       severity,
-    };
-  });
+    });
+  }
+
+  return output;
 };
 
 const runCrossFileLint = async (
@@ -458,11 +469,17 @@ const runCrossFileLint = async (
 ): Promise<BirdccLintOutput> => {
   const entryText = await readUtf8File(filePath);
   const entryUri = toFileUri(filePath);
+  const includeSearchPaths = (options.includePaths ?? []).map((path) =>
+    toFileUri(path),
+  );
   const crossFile = await resolveCrossFileReferences({
     entryUri,
     documents: [{ uri: entryUri, text: entryText }],
     maxDepth: options.includeMaxDepth,
     maxFiles: options.includeMaxFiles,
+    workspaceRootUri: toFileUri(dirname(resolve(filePath))),
+    allowIncludeOutsideWorkspace: options.allowIncludeOutsideWorkspace,
+    includeSearchPaths,
     loadFromFileSystem: true,
   });
 
@@ -475,6 +492,10 @@ export const runLint = async (
   filePath: string,
   options: LintOptions = {},
 ): Promise<BirdccLintOutput> => {
+  if (options.linterEnabled === false && !options.withBird) {
+    return { diagnostics: [] };
+  }
+
   const crossFile = options.crossFile !== false;
   const lintOutput = crossFile
     ? await runCrossFileLint(filePath, options)

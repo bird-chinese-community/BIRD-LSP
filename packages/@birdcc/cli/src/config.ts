@@ -3,13 +3,25 @@ import { dirname, join, resolve } from "node:path";
 import type { BirdDiagnosticSeverity } from "@birdcc/core";
 import { z } from "zod";
 
-const CONFIG_FILE_NAME = "birdcc.config.json";
+const CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"] as const;
 
-const severitySchema = z.enum(["error", "warning", "info"]);
+const severitySchema = z.enum(["error", "warning", "info", "off"]);
 
-const birdccConfigSchema = z
+const birdProjectConfigSchema = z
   .object({
     $schema: z.string().optional(),
+    main: z.string().optional(),
+    workspaces: z.array(z.string()).optional(),
+    includePaths: z.array(z.string()).optional(),
+    crossFile: z
+      .object({
+        enabled: z.boolean().optional(),
+        maxDepth: z.number().int().min(1).max(64).optional(),
+        maxFiles: z.number().int().min(1).max(1024).optional(),
+        externalIncludes: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     formatter: z
       .object({
         engine: z.enum(["dprint", "builtin"]).optional(),
@@ -17,28 +29,35 @@ const birdccConfigSchema = z
         lineWidth: z.number().int().min(20).max(1000).optional(),
         safeMode: z.boolean().optional(),
       })
-      .passthrough()
+      .strict()
       .optional(),
     linter: z
       .object({
+        enabled: z.boolean().optional(),
+        withBird: z.boolean().optional(),
+        extends: z.array(z.string()).optional(),
         rules: z.record(z.string(), severitySchema).optional(),
       })
-      .passthrough()
+      .strict()
       .optional(),
     bird: z
       .object({
+        version: z.string().optional(),
+        binaryPath: z.string().optional(),
         validateCommand: z.string().min(1).optional(),
+        socketPath: z.string().optional(),
       })
-      .passthrough()
+      .strict()
       .optional(),
   })
   .passthrough();
 
-export type BirdccConfig = z.infer<typeof birdccConfigSchema>;
+export type LintRuleSeverity = z.infer<typeof severitySchema>;
+export type BirdProjectConfig = z.infer<typeof birdProjectConfigSchema>;
 
-export interface LoadedBirdccConfig {
+export interface LoadedBirdProjectConfig {
   path?: string;
-  config: BirdccConfig;
+  config: BirdProjectConfig;
 }
 
 const fileExists = async (path: string): Promise<boolean> => {
@@ -61,9 +80,11 @@ const findConfigPath = async (
   let current = resolve(dirname(targetFilePath));
 
   while (true) {
-    const candidate = join(current, CONFIG_FILE_NAME);
-    if (await fileExists(candidate)) {
-      return candidate;
+    for (const configFileName of CONFIG_FILE_NAMES) {
+      const candidate = join(current, configFileName);
+      if (await fileExists(candidate)) {
+        return candidate;
+      }
     }
 
     const parent = dirname(current);
@@ -76,11 +97,11 @@ const findConfigPath = async (
 };
 
 const createConfigError = (path: string, reason: string): Error =>
-  new Error(`Invalid birdcc config at ${path}: ${reason}`);
+  new Error(`Invalid BIRD project config at ${path}: ${reason}`);
 
-export const loadBirdccConfigForFile = async (
+export const loadBirdProjectConfigForFile = async (
   targetFilePath: string,
-): Promise<LoadedBirdccConfig> => {
+): Promise<LoadedBirdProjectConfig> => {
   const configPath = await findConfigPath(targetFilePath);
   if (!configPath) {
     return { config: {} };
@@ -98,7 +119,7 @@ export const loadBirdccConfigForFile = async (
     );
   }
 
-  const validation = birdccConfigSchema.safeParse(parsed);
+  const validation = birdProjectConfigSchema.safeParse(parsed);
   if (!validation.success) {
     const issueSummary = validation.error.issues
       .map((issue) => {
@@ -118,17 +139,17 @@ export const loadBirdccConfigForFile = async (
 
 export const resolveSeverityOverride = (
   code: string,
-  rules?: Record<string, BirdDiagnosticSeverity>,
-): BirdDiagnosticSeverity | undefined => {
+  rules?: Record<string, BirdDiagnosticSeverity | "off">,
+): BirdDiagnosticSeverity | "off" | undefined => {
   if (!rules) {
     return undefined;
   }
 
-  if (rules[code]) {
+  if (Object.hasOwn(rules, code)) {
     return rules[code];
   }
 
-  let matched: BirdDiagnosticSeverity | undefined;
+  let matched: BirdDiagnosticSeverity | "off" | undefined;
   let matchedPrefixLength = -1;
 
   for (const [pattern, severity] of Object.entries(rules)) {

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json",
+  "title": "BIRD Project Configuration",
+  "description": "Configuration for BIRD routing daemon projects. Used by @birdcc/cli and LSP tooling.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema URL for IDE support. Can be the official URL, a self-hosted mirror, or a local file path."
+    },
+    "main": {
+      "type": "string",
+      "description": "Entry point file path (relative to config file or absolute). Ignored when 'workspaces' is set - each workspace directory is expected to contain its own entry file (defaulting to 'bird.conf').",
+      "examples": ["bird.conf", "configs/main.conf", "/etc/bird/bird.conf"]
+    },
+    "workspaces": {
+      "type": "array",
+      "description": "Sub-project glob patterns for monorepo. Each matching directory is expected to contain its own entry file.",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["*/"], ["sites/*", "!sites/legacy"], ["pop-*/**"]]
+    },
+    "includePaths": {
+      "type": "array",
+      "description": "Additional include search directories (-I equivalent). Resolved relative to config file location. Defaults to the config file's directory if not specified.",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["./filters", "./peers"], ["../shared/templates"]]
+    },
+    "bird": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "BIRD daemon configuration. For validation command, priority is: validateCommand > binaryPath > BIRD_BIN env var > system PATH",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Target BIRD version constraint for compatibility checks",
+          "examples": [">=2.0", "^3.0", "2.15.x"]
+        },
+        "binaryPath": {
+          "type": "string",
+          "description": "Path to bird binary. Used as fallback when validateCommand is not set",
+          "examples": ["/usr/sbin/bird", "/usr/local/sbin/bird6"]
+        },
+        "validateCommand": {
+          "type": "string",
+          "description": "Full command for syntax validation. The toolchain writes the bundled config to a temp file and substitutes '{file}' with its path before executing. Takes precedence over binaryPath.",
+          "default": "bird -p -c {file}",
+          "examples": [
+            "bird -p -c {file}",
+            "sudo bird6 -p -c {file}",
+            "docker exec bird bird -p -c {file}"
+          ]
+        },
+        "socketPath": {
+          "type": "string",
+          "description": "BIRD control socket path for birdc integration",
+          "examples": ["/run/bird/bird.ctl", "/var/run/bird.ctl"]
+        }
+      }
+    },
+    "crossFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Cross-file include analysis settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable cross-file analysis for include directives",
+          "default": true
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "description": "Maximum include nesting depth",
+          "default": 16
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024,
+          "description": "Maximum number of files to analyze",
+          "default": 256
+        },
+        "externalIncludes": {
+          "type": "boolean",
+          "description": "Allow includes outside workspace root",
+          "default": false
+        }
+      }
+    },
+    "linter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Linter configuration for static analysis",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable static analysis",
+          "default": true
+        },
+        "withBird": {
+          "type": "boolean",
+          "description": "Also run bird validation in addition to static analysis. Uses bird.validateCommand if set, otherwise falls back to bird.binaryPath or BIRD_BIN.",
+          "default": false
+        },
+        "extends": {
+          "type": "array",
+          "description": "Shareable rule presets to inherit",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["bird-recommended"], ["./local-rules.json"]]
+        },
+        "rules": {
+          "type": "object",
+          "description": "Per-rule severity overrides. Supports wildcard patterns like 'sym/*'",
+          "additionalProperties": {
+            "enum": ["error", "warning", "info", "off"]
+          },
+          "examples": [
+            {
+              "sym/*": "error",
+              "cfg/*": "error",
+              "bgp/*": "warning",
+              "ospf/*": "info"
+            }
+          ]
+        }
+      }
+    },
+    "formatter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Code formatting settings",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["dprint", "builtin"],
+          "description": "Formatter engine to use",
+          "default": "dprint"
+        },
+        "indentSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Number of spaces per indentation level",
+          "default": 2
+        },
+        "lineWidth": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 1000,
+          "description": "Maximum line width before wrapping",
+          "default": 80
+        },
+        "safeMode": {
+          "type": "boolean",
+          "description": "Prevent formatting if syntax errors are detected",
+          "default": true
+        }
+      }
+    }
+  }
+}

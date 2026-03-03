@@ -55,12 +55,12 @@ yarn add -D @birdcc/cli
 
 ## Commands
 
-### `birdcc lint <file>` — Code Linting
+### `birdcc lint [file]` — Code Linting
 
 Check syntax and semantic issues in BIRD2 configuration files.
 
 ```bash
-birdcc lint <file> [options]
+birdcc lint [file] [options]
 ```
 
 **Options:**
@@ -77,6 +77,9 @@ birdcc lint <file> [options]
 # Text format output
 birdcc lint bird.conf
 
+# Use `main` from bird.config.json when file is omitted
+birdcc lint
+
 # JSON format output for CI
 birdcc lint bird.conf --format json
 
@@ -84,12 +87,12 @@ birdcc lint bird.conf --format json
 birdcc lint bird.conf --bird --validate-command "sudo bird -p -c {file}"
 ```
 
-### `birdcc fmt <file>` — Code Formatting
+### `birdcc fmt [file]` — Code Formatting
 
 Format BIRD2 configuration files.
 
 ```bash
-birdcc fmt <file> [options]
+birdcc fmt [file] [options]
 ```
 
 **Options:**
@@ -104,6 +107,9 @@ birdcc fmt <file> [options]
 ```bash
 # Check formatting
 birdcc fmt bird.conf --check
+
+# Check formatting for `main` from bird.config.json
+birdcc fmt --check
 
 # Format and write
 birdcc fmt bird.conf --write
@@ -139,6 +145,9 @@ birdcc lsp --stdio
 # Lint check (text output)
 npx birdcc lint bird.conf
 
+# Lint `main` from bird.config.json
+npx birdcc lint
+
 # Lint check (JSON output for CI integration)
 npx birdcc lint bird.conf --format json
 
@@ -147,6 +156,9 @@ npx birdcc lint bird.conf --bird
 
 # Format check
 npx birdcc fmt bird.conf --check
+
+# Format check for `main` from bird.config.json
+npx birdcc fmt --check
 
 # Format and write to file
 npx birdcc fmt bird.conf --write
@@ -159,11 +171,12 @@ npx birdcc lsp --stdio
 
 ## Configuration
 
-### birdcc.config.json
+### bird.config.json
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json",
+  "main": "bird.conf",
   "bird": {
     "validateCommand": "sudo bird -p -c {file}"
   },

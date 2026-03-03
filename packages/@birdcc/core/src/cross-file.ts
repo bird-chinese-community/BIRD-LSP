@@ -113,6 +113,52 @@ const resolveIncludeUri = (baseUri: string, includePath: string): string => {
   return normalize(resolve(dirname(baseUri), includePath));
 };
 
+const normalizeIncludeSearchPathUri = (searchPath: string): string => {
+  if (searchPath.startsWith("file://")) {
+    return pathToFileURL(normalize(fileURLToPath(searchPath))).toString();
+  }
+
+  if (isAbsolute(searchPath)) {
+    return pathToFileURL(normalize(searchPath)).toString();
+  }
+
+  return normalize(searchPath);
+};
+
+const resolveIncludeUriFromSearchPath = (
+  searchPathUri: string,
+  includePath: string,
+): string => {
+  if (isFileUri(searchPathUri)) {
+    const resolvedPath = resolve(fileURLToPath(searchPathUri), includePath);
+    return pathToFileURL(resolvedPath).toString();
+  }
+
+  return normalize(resolve(searchPathUri, includePath));
+};
+
+const resolveIncludeCandidateUris = (
+  baseUri: string,
+  includePath: string,
+  includeSearchPaths: string[],
+): string[] => {
+  const directUri = resolveIncludeUri(baseUri, includePath);
+  if (
+    includePath.startsWith("file://") ||
+    isAbsolute(includePath) ||
+    includeSearchPaths.length === 0
+  ) {
+    return [directUri];
+  }
+
+  const uniqueUris = new Set<string>([directUri]);
+  for (const searchPath of includeSearchPaths) {
+    uniqueUris.add(resolveIncludeUriFromSearchPath(searchPath, includePath));
+  }
+
+  return [...uniqueUris];
+};
+
 const includeDiagnostic = (
   uri: string,
   message: string,
@@ -198,6 +244,9 @@ export const resolveCrossFileReferences = async (
     options.workspaceRootUri ?? toDefaultWorkspaceRootUri(options.entryUri);
   const allowIncludeOutsideWorkspace =
     options.allowIncludeOutsideWorkspace ?? false;
+  const includeSearchPaths = (options.includeSearchPaths ?? []).map(
+    normalizeIncludeSearchPathUri,
+  );
 
   const stats: CrossFileResolutionStats = {
     loadedFromMemory: options.documents?.length ?? 0,
@@ -307,26 +356,14 @@ export const resolveCrossFileReferences = async (
         continue;
       }
 
-      const includeUri = resolveIncludeUri(current.uri, declaration.path);
       const includeRange = declaration.pathRange;
-
-      if (
-        !allowIncludeOutsideWorkspace &&
-        !isWithinWorkspaceRoot(includeUri, workspaceRootUri)
-      ) {
-        diagnostics.push(
-          includeDiagnostic(
-            current.uri,
-            `Include skipped outside workspace root '${workspaceRootUri}': '${declaration.path}'`,
-            includeRange,
-          ),
-        );
-        continue;
-      }
-
-      if (visited.has(includeUri) || queued.has(includeUri)) {
-        continue;
-      }
+      const includeCandidates = resolveIncludeCandidateUris(
+        current.uri,
+        declaration.path,
+        includeSearchPaths,
+      );
+      let queuedInclude = false;
+      let skippedOutsideWorkspace = false;
 
       if (current.depth + 1 > maxDepth) {
         stats.skippedByDepth += 1;
@@ -340,33 +377,68 @@ export const resolveCrossFileReferences = async (
         continue;
       }
 
-      if (visited.size + queue.length >= maxFiles) {
-        stats.skippedByFileLimit += 1;
+      for (const includeUri of includeCandidates) {
+        if (
+          !allowIncludeOutsideWorkspace &&
+          !isWithinWorkspaceRoot(includeUri, workspaceRootUri)
+        ) {
+          skippedOutsideWorkspace = true;
+          continue;
+        }
+
+        if (visited.has(includeUri) || queued.has(includeUri)) {
+          queuedInclude = true;
+          break;
+        }
+
+        if (visited.size + queue.length >= maxFiles) {
+          stats.skippedByFileLimit += 1;
+          diagnostics.push(
+            includeDiagnostic(
+              current.uri,
+              `Include skipped due to max files limit (${maxFiles}): '${declaration.path}'`,
+              includeRange,
+            ),
+          );
+          queuedInclude = true;
+          break;
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const loaded = await ensureDocument(includeUri);
+        if (!loaded) {
+          continue;
+        }
+
+        queue.push({ uri: includeUri, depth: current.depth + 1 });
+        queued.add(includeUri);
+        queuedInclude = true;
+        break;
+      }
+
+      if (queuedInclude) {
+        continue;
+      }
+
+      if (skippedOutsideWorkspace) {
         diagnostics.push(
           includeDiagnostic(
             current.uri,
-            `Include skipped due to max files limit (${maxFiles}): '${declaration.path}'`,
+            `Include skipped outside workspace root '${workspaceRootUri}': '${declaration.path}'`,
             includeRange,
           ),
         );
         continue;
       }
 
-      const loaded = await ensureDocument(includeUri);
-      if (!loaded) {
-        stats.missingIncludes += 1;
-        diagnostics.push(
-          includeDiagnostic(
-            current.uri,
-            `Included file not found in workspace: '${declaration.path}'`,
-            includeRange,
-          ),
-        );
-        continue;
-      }
-
-      queue.push({ uri: includeUri, depth: current.depth + 1 });
-      queued.add(includeUri);
+      stats.missingIncludes += 1;
+      diagnostics.push(
+        includeDiagnostic(
+          current.uri,
+          `Included file not found in workspace: '${declaration.path}'`,
+          includeRange,
+        ),
+      );
     }
   }
 

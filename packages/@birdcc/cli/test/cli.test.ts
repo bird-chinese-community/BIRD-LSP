@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -58,6 +58,25 @@ describe("@birdcc/cli bird parser", () => {
       (item) => item.code === "cfg/no-protocol",
     );
     expect(diagnostic?.severity).toBe("warning");
+  });
+
+  it("supports turning off diagnostics with severity override 'off'", async () => {
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-severity-off-"),
+    );
+    const entryFile = join(workspaceDir, "main.conf");
+
+    await writeFile(entryFile, "router id 192.0.2.1;\n", "utf8");
+
+    const result = await runLint(entryFile, {
+      severityOverrides: {
+        "cfg/no-protocol": "off",
+      },
+    });
+
+    expect(
+      result.diagnostics.some((item) => item.code === "cfg/no-protocol"),
+    ).toBe(false);
   });
 
   it("uses BIRD_BIN environment variable when validate command is omitted", async () => {
@@ -145,6 +164,48 @@ describe("@birdcc/cli bird parser", () => {
     expect(
       result.diagnostics.some((item) => item.message.includes("max depth")),
     ).toBe(true);
+  });
+
+  it("resolves includes from configured include paths", async () => {
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-include-paths-"),
+    );
+    const includeDir = join(workspaceDir, "shared");
+    const entryFile = join(workspaceDir, "main.conf");
+    const includeFile = join(includeDir, "common.conf");
+
+    await mkdir(includeDir, { recursive: true });
+    await writeFile(includeFile, "filter shared_in { accept; }\n", "utf8");
+    await writeFile(
+      entryFile,
+      [
+        'include "common.conf";',
+        "protocol bgp edge { import filter shared_in; }",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runLint(entryFile, {
+      includePaths: [includeDir],
+    });
+    expect(
+      result.diagnostics.some((item) => item.code === "sym/filter-required"),
+    ).toBe(false);
+  });
+
+  it("returns no diagnostics when linter is disabled and bird validation is off", async () => {
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-linter-disabled-"),
+    );
+    const entryFile = join(workspaceDir, "main.conf");
+    await writeFile(entryFile, "router id 192.0.2.1;\n", "utf8");
+
+    const result = await runLint(entryFile, {
+      linterEnabled: false,
+      withBird: false,
+    });
+    expect(result.diagnostics).toHaveLength(0);
   });
 
   it("keeps cross-file diagnostics and bird diagnostics when both are enabled", async () => {

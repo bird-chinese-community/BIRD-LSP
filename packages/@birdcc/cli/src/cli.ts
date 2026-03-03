@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { cac } from "cac";
-import { loadBirdccConfigForFile } from "./config.js";
+import { dirname, resolve } from "node:path";
+import { loadBirdProjectConfigForFile } from "./config.js";
 import { runFmt, runLint, runLspStdio } from "./index.js";
 import {
   CLI_MESSAGES,
@@ -27,7 +28,7 @@ interface LspOptions {
 }
 
 type FileAction<TOptions extends object> = (
-  file: string,
+  file: string | undefined,
   options: TOptions,
 ) => Promise<void>;
 type CommandAction<TOptions extends object> = (
@@ -37,7 +38,7 @@ type CommandAction<TOptions extends object> = (
 const withActionErrorHandling = <TOptions extends object>(
   action: FileAction<TOptions>,
 ) => {
-  return async (file: string, options: TOptions): Promise<void> => {
+  return async (file: string | undefined, options: TOptions): Promise<void> => {
     try {
       await action(file, options);
     } catch (error) {
@@ -45,6 +46,32 @@ const withActionErrorHandling = <TOptions extends object>(
       process.exitCode = 1;
     }
   };
+};
+
+const resolveTargetFilePath = async (
+  file: string | undefined,
+): Promise<string> => {
+  if (file) {
+    return resolve(file);
+  }
+
+  const fallbackEntry = resolve(process.cwd(), "bird.conf");
+  const loadedConfig = await loadBirdProjectConfigForFile(fallbackEntry);
+  if (!loadedConfig.path) {
+    throw new Error(
+      "No target file specified and no bird.config.json found. Pass <file> explicitly or create bird.config.json with 'main'.",
+    );
+  }
+
+  if ((loadedConfig.config.workspaces?.length ?? 0) > 0) {
+    throw new Error(
+      "bird.config.json defines 'workspaces'. Please pass a concrete <file> path for lint/fmt.",
+    );
+  }
+
+  const configDir = dirname(loadedConfig.path);
+  const entry = loadedConfig.config.main ?? "bird.conf";
+  return resolve(configDir, entry);
 };
 
 const withCommandErrorHandling = <TOptions extends object>(
@@ -86,7 +113,7 @@ const parseOptionalPositiveInteger = (
 };
 
 cli
-  .command("lint <file>", "Lint BIRD config file")
+  .command("lint [file]", "Lint BIRD config file")
   .option("--format <format>", "Output format: json | text", {
     default: "text",
   })
@@ -101,103 +128,132 @@ cli
   )
   .option("--validate-command <command>", "Validation command template")
   .action(
-    withActionErrorHandling(async (file: string, options: LintOptions) => {
-      const loadedConfig = await loadBirdccConfigForFile(file);
-      const format = options.format === "json" ? "json" : "text";
-      const includeMaxDepth = parseOptionalPositiveInteger(
-        "--include-max-depth",
-        options.includeMaxDepth,
-      );
-      const includeMaxFiles = parseOptionalPositiveInteger(
-        "--include-max-files",
-        options.includeMaxFiles,
-      );
-      const result = await runLint(file, {
-        withBird: Boolean(options.bird),
-        crossFile: options.crossFile !== false,
-        includeMaxDepth,
-        includeMaxFiles,
-        validateCommand:
-          options.validateCommand ?? loadedConfig.config.bird?.validateCommand,
-        severityOverrides: loadedConfig.config.linter?.rules,
-      });
+    withActionErrorHandling(
+      async (file: string | undefined, options: LintOptions) => {
+        const targetFilePath = await resolveTargetFilePath(file);
+        const loadedConfig = await loadBirdProjectConfigForFile(targetFilePath);
+        const configDir = loadedConfig.path
+          ? dirname(loadedConfig.path)
+          : undefined;
+        const format = options.format === "json" ? "json" : "text";
+        const includeMaxDepth = parseOptionalPositiveInteger(
+          "--include-max-depth",
+          options.includeMaxDepth,
+        );
+        const includeMaxFiles = parseOptionalPositiveInteger(
+          "--include-max-files",
+          options.includeMaxFiles,
+        );
+        const resolvedIncludePaths = (
+          loadedConfig.config.includePaths ?? []
+        ).map((pathValue) =>
+          resolve(configDir ?? dirname(resolve(targetFilePath)), pathValue),
+        );
+        const validateCommand =
+          options.validateCommand ??
+          loadedConfig.config.bird?.validateCommand ??
+          (loadedConfig.config.bird?.binaryPath
+            ? `${loadedConfig.config.bird.binaryPath} -p -c {file}`
+            : undefined);
+        const result = await runLint(targetFilePath, {
+          withBird: Boolean(
+            options.bird || loadedConfig.config.linter?.withBird,
+          ),
+          crossFile:
+            options.crossFile !== false &&
+            loadedConfig.config.crossFile?.enabled !== false,
+          includeMaxDepth:
+            includeMaxDepth ?? loadedConfig.config.crossFile?.maxDepth,
+          includeMaxFiles:
+            includeMaxFiles ?? loadedConfig.config.crossFile?.maxFiles,
+          includePaths: resolvedIncludePaths,
+          allowIncludeOutsideWorkspace:
+            loadedConfig.config.crossFile?.externalIncludes,
+          linterEnabled: loadedConfig.config.linter?.enabled,
+          validateCommand,
+          severityOverrides: loadedConfig.config.linter?.rules,
+        });
 
-      if (format === "json") {
-        console.log(JSON.stringify(result, null, 2));
-      } else {
-        if (result.diagnostics.length === 0) {
-          console.log(CLI_MESSAGES.lintNoDiagnostics);
+        if (format === "json") {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          if (result.diagnostics.length === 0) {
+            console.log(CLI_MESSAGES.lintNoDiagnostics);
+          }
+
+          for (const diagnostic of result.diagnostics) {
+            const uriPrefix = diagnostic.uri ? `[${diagnostic.uri}] ` : "";
+            console.log(
+              `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
+            );
+          }
         }
 
-        for (const diagnostic of result.diagnostics) {
-          const uriPrefix = diagnostic.uri ? `[${diagnostic.uri}] ` : "";
-          console.log(
-            `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
-          );
+        const hasError = result.diagnostics.some(
+          (item) => item.severity === "error",
+        );
+        if (hasError) {
+          process.exitCode = 1;
         }
-      }
-
-      const hasError = result.diagnostics.some(
-        (item) => item.severity === "error",
-      );
-      if (hasError) {
-        process.exitCode = 1;
-      }
-    }),
+      },
+    ),
   );
 
 cli
-  .command("fmt <file>", "Format BIRD config file")
+  .command("fmt [file]", "Format BIRD config file")
   .option("--check", "Only check formatting")
   .option("--write", "Write formatted output to file")
   .option("--engine <engine>", "Formatter engine: dprint | builtin")
   .action(
-    withActionErrorHandling(async (file: string, options: FmtOptions) => {
-      const loadedConfig = await loadBirdccConfigForFile(file);
-      if (options.check && options.write) {
-        console.error(CLI_MESSAGES.fmtCheckWriteConflict);
-        process.exitCode = 1;
-        return;
-      }
-
-      const configuredEngine = loadedConfig.config.formatter?.engine;
-      let engine: CliFormatterEngine | undefined = configuredEngine;
-      if (options.engine) {
-        const normalizedEngine = options.engine.toLowerCase();
-        if (!isCliFormatterEngine(normalizedEngine)) {
-          console.error(CLI_MESSAGES.fmtInvalidEngine(normalizedEngine));
+    withActionErrorHandling(
+      async (file: string | undefined, options: FmtOptions) => {
+        const targetFilePath = await resolveTargetFilePath(file);
+        const loadedConfig = await loadBirdProjectConfigForFile(targetFilePath);
+        if (options.check && options.write) {
+          console.error(CLI_MESSAGES.fmtCheckWriteConflict);
           process.exitCode = 1;
           return;
         }
-        engine = normalizedEngine;
-      }
 
-      const writeMode = Boolean(options.write);
-      const result = await runFmt(file, {
-        write: writeMode,
-        engine,
-        indentSize: loadedConfig.config.formatter?.indentSize,
-        lineWidth: loadedConfig.config.formatter?.lineWidth,
-        safeMode: loadedConfig.config.formatter?.safeMode,
-      });
+        const configuredEngine = loadedConfig.config.formatter?.engine;
+        let engine: CliFormatterEngine | undefined = configuredEngine;
+        if (options.engine) {
+          const normalizedEngine = options.engine.toLowerCase();
+          if (!isCliFormatterEngine(normalizedEngine)) {
+            console.error(CLI_MESSAGES.fmtInvalidEngine(normalizedEngine));
+            process.exitCode = 1;
+            return;
+          }
+          engine = normalizedEngine;
+        }
 
-      if (writeMode) {
-        console.log(
-          result.changed
-            ? CLI_MESSAGES.fmtWritten
-            : CLI_MESSAGES.fmtAlreadyFormatted,
-        );
-        return;
-      }
+        const writeMode = Boolean(options.write);
+        const result = await runFmt(targetFilePath, {
+          write: writeMode,
+          engine,
+          indentSize: loadedConfig.config.formatter?.indentSize,
+          lineWidth: loadedConfig.config.formatter?.lineWidth,
+          safeMode: loadedConfig.config.formatter?.safeMode,
+        });
 
-      if (result.changed) {
-        console.error(CLI_MESSAGES.fmtCheckFailed);
-        process.exitCode = 1;
-        return;
-      }
+        if (writeMode) {
+          console.log(
+            result.changed
+              ? CLI_MESSAGES.fmtWritten
+              : CLI_MESSAGES.fmtAlreadyFormatted,
+          );
+          return;
+        }
 
-      console.log(CLI_MESSAGES.fmtCheckPassed);
-    }),
+        if (result.changed) {
+          console.error(CLI_MESSAGES.fmtCheckFailed);
+          process.exitCode = 1;
+          return;
+        }
+
+        console.log(CLI_MESSAGES.fmtCheckPassed);
+      },
+    ),
   );
 
 cli

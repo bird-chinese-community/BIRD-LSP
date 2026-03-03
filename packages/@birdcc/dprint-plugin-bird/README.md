@@ -83,7 +83,7 @@ When configured with `engine: "dprint"`, this plugin is automatically used:
 
 ```json
 {
-  "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json",
   "formatter": {
     "engine": "dprint",
     "indentSize": 2,
