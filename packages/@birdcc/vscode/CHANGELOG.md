@@ -2,6 +2,16 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.3] - 2026-03-03
+
+### 🐛 Fixed
+
+- 📦 **Runtime Dependencies in VSIX** — Fix extension activation failure (`ERR_MODULE_NOT_FOUND`, e.g. `zod`) by packaging runtime dependencies into the VSIX artifact.
+- 🧭 **Release Artifact Location** — Move packaged VSIX output from `dist/` to `release/` to avoid mixing distribution files with TypeScript build output.
+- 🗂️ **Packaging Completeness** — Ensure runtime data files and dependency tree are included for offline VSIX installs.
+
+---
+
 ## [0.1.2] - 2025-03-03
 
 ### ✨ Added
@@ -51,6 +61,7 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 ---
 
 [0.1.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.1...vscode-v0.1.2
+[0.1.3]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.2...vscode-v0.1.3
 [0.1.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.0...vscode-v0.1.1
 [0.1.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.0.1-alpha.0...vscode-v0.1.0
 [0.0.1-alpha.0]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/vscode-v0.0.1-alpha.0
