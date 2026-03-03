@@ -78,8 +78,27 @@ const testLanguageAndFormatting = async (vscode) => {
       "document language should be bird2",
     );
 
-    await vscode.commands.executeCommand("bird2-lsp.formatActiveDocument");
-    await wait(400);
+    const edits = await vscode.commands.executeCommand(
+      "vscode.executeFormatDocumentProvider",
+      document.uri,
+      {
+        insertSpaces: true,
+        tabSize: 2,
+      },
+    );
+    assert.ok(
+      Array.isArray(edits),
+      "format provider should return an edit list",
+    );
+    assert.ok(
+      edits.length > 0,
+      "format provider should return at least one edit",
+    );
+
+    const workspaceEdit = new vscode.WorkspaceEdit();
+    workspaceEdit.set(document.uri, edits);
+    await vscode.workspace.applyEdit(workspaceEdit);
+    await wait(200);
 
     const formatted = document.getText();
     const protocolStartIndex = formatted.indexOf("protocol bgp edge {");
