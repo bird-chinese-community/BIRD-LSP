@@ -2,80 +2,31 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
-## [0.1.6] - 2026-03-03
-
-### 🐛 Fixed
-
-- 🔌 **Bundled LSP stdio Transport** — Start bundled server with `--stdio` so `vscode-languageserver` can establish the connection stream correctly.
-- ♻️ **Crash Loop Prevention** — Fixed immediate server crash/restart loop caused by missing transport mode in bundled startup path.
-
----
-
-## [0.1.5] - 2026-03-03
-
-### 🐛 Fixed
-
-- 🚀 **Built-in LSP Startup** — Default startup now launches the bundled `@birdcc/lsp` server via Node.js, removing the runtime requirement for a global `birdcc` binary.
-- 📉 **ENOENT Startup Failure** — Fixed `spawn birdcc ENOENT` on fresh VSIX installs where `birdcc` is not present in `PATH`.
-- 🧭 **Startup Logging Clarity** — Added clear log output indicating whether bundled server startup or custom `serverPath` startup is being used.
-
----
-
-## [0.1.4] - 2026-03-03
-
-### 🐛 Fixed
-
-- 🧩 **Activation Reliability** — Added explicit `onCommand:*` activation events so command invocations always trigger extension activation.
-- 🖱️ **Context Menu Visibility** — Fixed `menus.when` expressions by quoting `'bird2'`, restoring expected right-click menu visibility logic.
-- 🌐 **Remote Workspace Compatibility** — Relaxed editor feature selectors to support non-`file` BIRD2 documents (for example remote workspaces), restoring hover/format/type-hint registration in these scenarios.
-- 📝 **Runtime Logging** — Switched to log output channel mode and added lifecycle log lines to make startup/teardown diagnosis visible from output logs.
-- 🧷 **Hover Fault Isolation** — Made hover docs module loading lazy so hover dependency failures no longer block full extension activation.
-- 🚚 **Marketplace Workflow Paths** — Updated CI artifact upload/download paths to use `release/bird2-lsp.vsix`, matching the new packaging layout.
-
----
-
-## [0.1.3] - 2026-03-03
-
-### 🐛 Fixed
-
-- 📦 **Runtime Dependencies in VSIX** — Fix extension activation failure (`ERR_MODULE_NOT_FOUND`) by packaging runtime dependencies into the VSIX artifact.
-- 🧭 **Release Artifact Location** — Move packaged VSIX output from `dist/` to `release/` to avoid mixing distribution files with TypeScript build output.
-- 🗂️ **Packaging Completeness** — Ensure runtime data files and dependency tree are included for offline VSIX installs.
-
----
-
-## [0.1.2] - 2025-03-03
+## [0.2.0] - 2026-03-03
 
 ### ✨ Added
 
-- 🎯 **Format Selection** — Register `DocumentRangeFormattingEditProvider` so you can now format selected code blocks, not just the entire document.
-- 🖱️ **Editor Context Menu** — Right-click in the editor to access `BIRD2: Validate Active Document` and `BIRD2: Format Active Document` instantly.
-- 📖 **Hover Documentation** — Keyword hover provider is here! Hover over BIRD2 keywords to see helpful documentation powered by YAML data.
-- ⚡ **Real-time Fallback Validation** — Added `onDidChangeTextDocument` trigger for real-time diagnostics when running in fallback mode (no LSP server needed).
+- 🎯 **Format Selection** — Registered `DocumentRangeFormattingEditProvider` so selected blocks can be formatted directly.
+- 🖱️ **Editor Context Menu Commands** — Added right-click actions for `BIRD2: Validate Active Document` and `BIRD2: Format Active Document`.
+- 📖 **Keyword Hover Documentation** — Added YAML-driven hover docs for BIRD2 keywords.
+- ⚡ **Real-time Fallback Validation** — Added `onDidChangeTextDocument` validation in fallback mode.
+
+### 🐛 Fixed
+
+- 📦 **VSIX Runtime Completeness** — Packaged runtime dependencies and required data assets to avoid activation/runtime missing module errors.
+- 🚀 **Bundled LSP Startup** — Default startup now uses bundled `@birdcc/lsp`, removing hard dependency on globally installed `birdcc`.
+- 🔌 **LSP stdio Transport** — Bundled server startup now passes `--stdio`, fixing connection stream initialization and crash loops.
+- 🧩 **Activation Reliability** — Added explicit `onCommand:*` activation events to ensure command-triggered activation is reliable.
+- 🖱️ **Context Menu Visibility** — Corrected `menus.when` expressions for `bird2` language context.
+- 🌐 **Remote Workspace Support** — Relaxed provider registration selectors to work in non-`file` documents (remote workspaces).
 
 ### 🔧 Improved
 
-- 🛡️ **Status Bar Stability** — Hardened status-bar lifecycle initialization to eliminate unsafe early access patterns.
-- 🔄 **Docs Sync Workflow** — Hover docs now use a shared YAML synchronization workflow via `sync:hover-docs` for easier maintenance.
-
----
-
-## [0.1.1] - 2025-03-02
-
-### 🔧 Improved
-
-- 🎨 **Marketplace Icon** — Added `icon` metadata so the extension icon now displays beautifully in VS Code Marketplace and Open VSX.
-- 🧹 **Cleaner Packaging** — Prevent nested VSIX artifacts by cleaning stale `dist/bird2-lsp.vsix` before packaging.
-
----
-
-## [0.1.0] - 2025-03-01
-
-### 🚀 Release
-
-- 🏪 **First Marketplace Release** — Initial marketplace track release from the monorepo package.
-- 🏷️ **Version Alignment** — Aligned versioning with VS Code Marketplace requirements for pre-release publishing.
-- 🌐 **Dual Publishing** — Published to both Open VSX and VS Code Marketplace with pre-release channel enabled.
+- 🛡️ **Status Bar Stability** — Hardened status/lifecycle initialization and improved status display consistency.
+- 📝 **Runtime Logging** — Improved output channel logging for startup mode and lifecycle diagnostics.
+- 🚚 **Packaging Workflow** — Standardized VSIX artifact output to `release/bird2-lsp.vsix` and cleaned legacy output to avoid nested/stale artifacts.
+- 🧭 **Docs Sync Workflow** — Standardized hover docs synchronization flow for maintainability.
+- 🎨 **Marketplace Metadata** — Added extension icon and refined packaging metadata for cleaner marketplace display.
 
 ---
 
@@ -92,11 +43,5 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 
 ---
 
-[0.1.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.1...vscode-v0.1.2
-[0.1.6]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.5...vscode-v0.1.6
-[0.1.5]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.4...vscode-v0.1.5
-[0.1.4]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.3...vscode-v0.1.4
-[0.1.3]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.2...vscode-v0.1.3
-[0.1.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.0...vscode-v0.1.1
-[0.1.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.0.1-alpha.0...vscode-v0.1.0
+[0.2.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.6...vscode-v0.2.0
 [0.0.1-alpha.0]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/vscode-v0.0.1-alpha.0

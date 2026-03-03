@@ -62,7 +62,6 @@ const runVscePackage = async (cwd) => {
       "--out",
       temporaryVsixPath,
       "--no-dependencies",
-      "--pre-release",
       "--baseContentUrl",
       marketplaceBaseContentUrl,
     ],
