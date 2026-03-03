@@ -9,17 +9,29 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/releases">
-    <img src="https://img.shields.io/badge/version-0.1.0--alpha-blue.svg?style=flat-square" alt="Version" />
+  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/birdcc.bird2-lsp?style=flat-square&label=VS%20Marketplace&color=007ACC" alt="VS Marketplace Version" />
   </a>
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-GPL%203.0-green.svg?style=flat-square" alt="License" />
+  <a href="https://open-vsx.org/extension/birdcc/bird2-lsp">
+    <img src="https://img.shields.io/open-vsx/v/birdcc/bird2-lsp?style=flat-square&label=Open%20VSX&color=C160EF" alt="Open VSX Version" />
   </a>
   <a href="https://www.typescriptlang.org/">
     <img src="https://img.shields.io/badge/typescript-5.9+-3178c6.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
   </a>
   <a href="https://www.npmjs.com/package/@birdcc/cli">
     <img src="https://img.shields.io/npm/v/@birdcc/cli?style=flat-square&logo=npm&color=cb3837" alt="npm" />
+  </a>
+</p>
+
+<p align="center">
+    <a href="https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-GPL%203.0-green.svg?style=flat-square" alt="License" />
+  </a>
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/cross-platform-compat.yml">
+    <img src="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/cross-platform-compat.yml/badge.svg" alt="License" />
+  </a>
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/sync-config-examples.yml">
+    <img src="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/sync-config-examples.yml/badge.svg" alt="License" />
   </a>
 </p>
 
