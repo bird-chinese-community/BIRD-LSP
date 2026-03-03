@@ -155,6 +155,8 @@ importers:
         specifier: ^2.5.2
         version: 2.5.2
 
+  packages/@birdcc/vscode-pack: {}
+
 packages:
 
   '@ampproject/remapping@2.3.0':
