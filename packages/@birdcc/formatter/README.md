@@ -16,13 +16,13 @@
 
 ## Features
 
-| Feature | Description |
-| ------- | ----------- |
-| ⚡ **dprint Engine** | Rust/WASM-based for lightning-fast formatting |
-| 🛡️ **Builtin Fallback** | Automatic fallback when dprint is unavailable |
-| 🔒 **Safe Mode** | AST semantic verification before/after formatting |
-| 🔄 **Async API** | Promise-based interface for modern architectures |
-| 🧩 **Zero Dependencies** | Builtin engine requires no external deps |
+| Feature                  | Description                                       |
+| ------------------------ | ------------------------------------------------- |
+| ⚡ **dprint Engine**     | Rust/WASM-based for lightning-fast formatting     |
+| 🛡️ **Builtin Fallback**  | Automatic fallback when dprint is unavailable     |
+| 🔒 **Safe Mode**         | AST semantic verification before/after formatting |
+| 🔄 **Async API**         | Promise-based interface for modern architectures  |
+| 🧩 **Zero Dependencies** | Builtin engine requires no external deps          |
 
 ---
 
@@ -95,12 +95,12 @@ const formatted = await formatBirdConfig(source, {
 
 ### Options
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `engine` | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection |
-| `safeMode` | `boolean` | `true` | Enable semantic equivalence check |
-| `indentSize` | `number` | `2` | Number of spaces for indentation |
-| `lineWidth` | `number` | `80` | Maximum line width |
+| Option       | Type                      | Default    | Description                       |
+| ------------ | ------------------------- | ---------- | --------------------------------- |
+| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection        |
+| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check |
+| `indentSize` | `number`                  | `2`        | Number of spaces for indentation  |
+| `lineWidth`  | `number`                  | `80`       | Maximum line width                |
 
 ### Configuration Details
 
@@ -304,14 +304,14 @@ flowchart TD
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/) | Semantic analysis engine |
-| [@birdcc/dprint-plugin-bird](../dprint-plugin-bird/) | dprint plugin (Rust/WASM) |
-| [@birdcc/linter](../linter/) | Lint rules and diagnostics |
-| [@birdcc/cli](../cli/) | CLI tool (`birdcc fmt` command) |
-| [@birdcc/lsp](../lsp/) | LSP server implementation |
+| Package                                              | Description                     |
+| ---------------------------------------------------- | ------------------------------- |
+| [@birdcc/parser](../parser/)                         | Tree-sitter grammar and parser  |
+| [@birdcc/core](../core/)                             | Semantic analysis engine        |
+| [@birdcc/dprint-plugin-bird](../dprint-plugin-bird/) | dprint plugin (Rust/WASM)       |
+| [@birdcc/linter](../linter/)                         | Lint rules and diagnostics      |
+| [@birdcc/cli](../cli/)                               | CLI tool (`birdcc fmt` command) |
+| [@birdcc/lsp](../lsp/)                               | LSP server implementation       |
 
 ---
 

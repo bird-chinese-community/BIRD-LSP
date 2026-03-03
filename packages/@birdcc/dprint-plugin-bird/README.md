@@ -18,14 +18,14 @@ This plugin is part of the [BIRD-LSP](https://github.com/bird-chinese-community/
 
 ## Features
 
-| Feature | Description |
-| ------- | ----------- |
-| 🚀 **Rust Performance** | Core engine written in Rust for maximum speed |
+| Feature                    | Description                                       |
+| -------------------------- | ------------------------------------------------- |
+| 🚀 **Rust Performance**    | Core engine written in Rust for maximum speed     |
 | 🌍 **Cross-Platform WASM** | Compiled to wasm32-wasip1 for consistent behavior |
-| 🔌 **dprint Compatible** | Seamlessly integrates with dprint CLI and editors |
-| 🌳 **Tree-sitter** | Leverages Tree-sitter for syntax-aware formatting |
-| ⚙️ **Configurable** | Supports `lineWidth`, `indentWidth`, `safeMode` |
-| 🦀 **Memory Safe** | Rust's ownership model guarantees safety |
+| 🔌 **dprint Compatible**   | Seamlessly integrates with dprint CLI and editors |
+| 🌳 **Tree-sitter**         | Leverages Tree-sitter for syntax-aware formatting |
+| ⚙️ **Configurable**        | Supports `lineWidth`, `indentWidth`, `safeMode`   |
+| 🦀 **Memory Safe**         | Rust's ownership model guarantees safety          |
 
 ---
 
@@ -111,11 +111,11 @@ const wasmBuffer = getBuffer();
 
 ### Options
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `lineWidth` | `number` | `80` | Maximum line length |
-| `indentWidth` | `number` | `2` | Spaces per indentation level |
-| `safeMode` | `boolean` | `true` | Enable safe mode to prevent errors |
+| Option        | Type      | Default | Description                        |
+| ------------- | --------- | ------- | ---------------------------------- |
+| `lineWidth`   | `number`  | `80`    | Maximum line length                |
+| `indentWidth` | `number`  | `2`     | Spaces per indentation level       |
+| `safeMode`    | `boolean` | `true`  | Enable safe mode to prevent errors |
 
 ---
 
@@ -270,25 +270,25 @@ tsc -p tsconfig.json
 
 ### Project Structure
 
-| Path | Description |
-| ---- | ----------- |
-| `src/lib.rs` | Library entry point |
-| `src/configuration.rs` | Configuration structures |
-| `src/format_text.rs` | Core formatting implementation |
-| `src/wasm_plugin.rs` | WASM bindings |
-| `src/index.ts` | TypeScript bindings |
-| `scripts/build-wasm.mjs` | WASM build script |
-| `dist/` | Build output directory |
+| Path                     | Description                    |
+| ------------------------ | ------------------------------ |
+| `src/lib.rs`             | Library entry point            |
+| `src/configuration.rs`   | Configuration structures       |
+| `src/format_text.rs`     | Core formatting implementation |
+| `src/wasm_plugin.rs`     | WASM bindings                  |
+| `src/index.ts`           | TypeScript bindings            |
+| `scripts/build-wasm.mjs` | WASM build script              |
+| `dist/`                  | Build output directory         |
 
 ### Available Scripts
 
-| Command | Description |
-| ------- | ----------- |
-| `pnpm build` | Build WASM + TypeScript |
-| `pnpm test` | Run Rust unit tests |
+| Command          | Description                  |
+| ---------------- | ---------------------------- |
+| `pnpm build`     | Build WASM + TypeScript      |
+| `pnpm test`      | Run Rust unit tests          |
 | `pnpm typecheck` | Run TypeScript type checking |
-| `pnpm lint` | Run oxlint and cargo clippy |
-| `pnpm format` | Format code using oxfmt |
+| `pnpm lint`      | Run oxlint and cargo clippy  |
+| `pnpm format`    | Format code using oxfmt      |
 
 ### Testing
 
@@ -304,10 +304,10 @@ cargo test -- --nocapture
 
 ## Relationship with @birdcc/formatter
 
-| Package | Role | Description |
-| ------- | ---- | ----------- |
-| `@birdcc/dprint-plugin-bird` | **dprint Plugin** | Official dprint plugin for BIRD2 |
-| `@birdcc/formatter` | **Abstraction Layer** | Unified interface with multiple engines |
+| Package                      | Role                  | Description                             |
+| ---------------------------- | --------------------- | --------------------------------------- |
+| `@birdcc/dprint-plugin-bird` | **dprint Plugin**     | Official dprint plugin for BIRD2        |
+| `@birdcc/formatter`          | **Abstraction Layer** | Unified interface with multiple engines |
 
 `@birdcc/formatter` serves as a higher-level abstraction that can use this dprint plugin as its backend, while also providing a built-in fallback formatter.
 
@@ -315,14 +315,14 @@ cargo test -- --nocapture
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/) | Semantic analysis engine |
-| [@birdcc/formatter](../formatter/) | Unified formatting interface |
-| [@birdcc/linter](../linter/) | Lint rules and diagnostics |
-| [@birdcc/lsp](../lsp/) | LSP server implementation |
-| [@birdcc/cli](../cli/) | Command-line interface |
+| Package                            | Description                    |
+| ---------------------------------- | ------------------------------ |
+| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
+| [@birdcc/core](../core/)           | Semantic analysis engine       |
+| [@birdcc/formatter](../formatter/) | Unified formatting interface   |
+| [@birdcc/linter](../linter/)       | Lint rules and diagnostics     |
+| [@birdcc/lsp](../lsp/)             | LSP server implementation      |
+| [@birdcc/cli](../cli/)             | Command-line interface         |
 
 ---
 

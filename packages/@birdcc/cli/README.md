@@ -12,9 +12,9 @@
 
 **@birdcc/cli** is the command-line interface for the BIRD-LSP toolchain, providing lint, format, and LSP commands for BIRD2 configuration files.
 
-| Package | Version | Description |
-| ------- | ------- | ----------- |
-| `@birdcc/cli` | 0.1.0 | Command-line interface with lint/fmt/lsp commands |
+| Package       | Version | Description                                       |
+| ------------- | ------- | ------------------------------------------------- |
+| `@birdcc/cli` | 0.1.0   | Command-line interface with lint/fmt/lsp commands |
 
 ---
 
@@ -65,11 +65,11 @@ birdcc lint <file> [options]
 
 **Options:**
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `--format` | `json` \| `text` | `text` | Output format |
-| `--bird` | boolean | `false` | Enable BIRD runtime validation |
-| `--validate-command` | string | `bird -p -c {file}` | Custom validation command |
+| Option               | Type             | Default             | Description                    |
+| -------------------- | ---------------- | ------------------- | ------------------------------ |
+| `--format`           | `json` \| `text` | `text`              | Output format                  |
+| `--bird`             | boolean          | `false`             | Enable BIRD runtime validation |
+| `--validate-command` | string           | `bird -p -c {file}` | Custom validation command      |
 
 **Examples:**
 
@@ -94,10 +94,10 @@ birdcc fmt <file> [options]
 
 **Options:**
 
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
+| Option    | Type    | Default | Description                              |
+| --------- | ------- | ------- | ---------------------------------------- |
 | `--check` | boolean | `false` | Check format only without modifying file |
-| `--write` | boolean | `false` | Write formatted content to file |
+| `--write` | boolean | `false` | Write formatted content to file          |
 
 **Examples:**
 
@@ -119,9 +119,9 @@ birdcc lsp [options]
 
 **Options:**
 
-| Option | Type | Required | Description |
-| ------ | ---- | -------- | ----------- |
-| `--stdio` | boolean | ✓ | Use stdio transport |
+| Option    | Type    | Required | Description         |
+| --------- | ------- | -------- | ------------------- |
+| `--stdio` | boolean | ✓        | Use stdio transport |
 
 **Example:**
 
@@ -185,11 +185,11 @@ npx birdcc lsp --stdio
 
 `@birdcc/cli` supports parsing the following BIRD error output formats:
 
-| Format | Example |
-| ------ | ------- |
-| Standard | `bird.conf:15:8 syntax error, unexpected 'protocol'` |
-| Parse Error | `Parse error bird.conf, line 15: syntax error` |
-| Legacy | `bird.conf, line 15:8 syntax error` |
+| Format      | Example                                              |
+| ----------- | ---------------------------------------------------- |
+| Standard    | `bird.conf:15:8 syntax error, unexpected 'protocol'` |
+| Parse Error | `Parse error bird.conf, line 15: syntax error`       |
+| Legacy      | `bird.conf, line 15:8 syntax error`                  |
 
 ---
 
@@ -210,14 +210,14 @@ import {
 
 ### Functions
 
-| Function | Description |
-| -------- | ----------- |
-| `runLint(filePath, options?)` | Run lint analysis |
-| `runFmt(filePath, options?)` | Run formatter |
-| `runLspStdio()` | Start LSP server (stdio mode) |
-| `runBirdValidation(filePath, command?)` | Run BIRD validation |
-| `formatBirdConfigText(text)` | Format text (pure function) |
-| `parseBirdStderr(stderr)` | Parse BIRD stderr output |
+| Function                                | Description                   |
+| --------------------------------------- | ----------------------------- |
+| `runLint(filePath, options?)`           | Run lint analysis             |
+| `runFmt(filePath, options?)`            | Run formatter                 |
+| `runLspStdio()`                         | Start LSP server (stdio mode) |
+| `runBirdValidation(filePath, command?)` | Run BIRD validation           |
+| `formatBirdConfigText(text)`            | Format text (pure function)   |
+| `parseBirdStderr(stderr)`               | Parse BIRD stderr output      |
 
 ### Type Definitions
 
@@ -255,13 +255,13 @@ interface BirdValidateResult {
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/) | Semantic analysis engine |
-| [@birdcc/linter](../linter/) | 32+ lint rules |
-| [@birdcc/formatter](../formatter/) | Code formatting engine |
-| [@birdcc/lsp](../lsp/) | LSP server implementation |
+| Package                            | Description                    |
+| ---------------------------------- | ------------------------------ |
+| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
+| [@birdcc/core](../core/)           | Semantic analysis engine       |
+| [@birdcc/linter](../linter/)       | 32+ lint rules                 |
+| [@birdcc/formatter](../formatter/) | Code formatting engine         |
+| [@birdcc/lsp](../lsp/)             | LSP server implementation      |
 
 ---
 

@@ -42,13 +42,15 @@ entries:
         description: Debug categories to enable.
   - keyword: debug latency
     description: Enable latency debugging
-    detail: Enable debugging of scheduling latency. v3 extends this to support granular event type
+    detail:
+      Enable debugging of scheduling latency. v3 extends this to support granular event type
       filtering.
     diff: modified
     version: v2-v3
     anchor: opt-debug-latency
     notes:
-      v3: "v3 Breaking Change: Extended to {ping|wakeup|scheduling|sockets|events|timers} for granular
+      v3:
+        "v3 Breaking Change: Extended to {ping|wakeup|scheduling|sockets|events|timers} for granular
         control."
     path: global
     related:
@@ -108,7 +110,8 @@ entries:
         description: Export settle duration.
   - keyword: filter
     description: Define a routing filter
-    detail: Create a named filter that can be used to accept, reject, or modify routes during
+    detail:
+      Create a named filter that can be used to accept, reject, or modify routes during
       import/export.
     diff: same
     version: v2+
@@ -124,7 +127,8 @@ entries:
         description: Filter function name.
   - keyword: function
     description: Define a reusable filter function
-    detail: Create a named function that can be called from filters. Supports typed parameters and
+    detail:
+      Create a named function that can be called from filters. Supports typed parameters and
       return values.
     diff: same
     version: v2+
@@ -184,7 +188,8 @@ entries:
         description: Hostname string.
   - keyword: include
     description: Include another configuration file
-    detail: Include and parse another configuration file at this point. Supports glob patterns for
+    detail:
+      Include and parse another configuration file at this point. Supports glob patterns for
       including multiple files.
     diff: same
     version: v2+
@@ -199,7 +204,8 @@ entries:
         description: Path or glob to include.
   - keyword: log
     description: Configure logging destination and format
-    detail: Set log output to stderr, syslog, or a file. BIRD 3 adds 'fixed' option for ring buffer
+    detail:
+      Set log output to stderr, syslog, or a file. BIRD 3 adds 'fixed' option for ring buffer
       logging.
     diff: modified
     version: v2-v3
@@ -275,7 +281,8 @@ entries:
         description: Protocol instance name.
   - keyword: router id
     description: Set BIRD's router ID
-    detail: "Router ID is a 4-byte integer that should be unique within an AS. It is used to identify
+    detail:
+      "Router ID is a 4-byte integer that should be unique within an AS. It is used to identify
       the router in routing protocols. Default: the lowest IPv4 address of the router."
     diff: same
     version: v2+
@@ -313,7 +320,8 @@ entries:
         description: Enable sorted table mode.
   - keyword: table
     description: Define a routing table
-    detail: Create a named routing table to store routes. Tables can be associated with channels for
+    detail:
+      Create a named routing table to store routes. Tables can be associated with channels for
       import/export.
     diff: same
     version: v2+
@@ -358,7 +366,8 @@ entries:
         description: Maximum thread-group latency.
   - keyword: thread group
     description: Configure thread groups for multi-threading (v3 only)
-    detail: Define a thread group for running protocol and channel tasks in parallel. BIRD 3.0+ supports
+    detail:
+      Define a thread group for running protocol and channel tasks in parallel. BIRD 3.0+ supports
       multi-threading with configurable thread groups.
     diff: added
     version: v3+
@@ -385,7 +394,8 @@ entries:
     parameters: *a2
   - keyword: threads
     description: Set number of threads (deprecated in v3)
-    detail: Configure the number of worker threads. In v3, use 'thread group' instead for more granular
+    detail:
+      Configure the number of worker threads. In v3, use 'thread group' instead for more granular
       control.
     diff: modified
     version: v2-v3

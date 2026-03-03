@@ -14,12 +14,12 @@
 
 ### Core Highlights
 
-| Feature | Description |
-| ------- | ----------- |
-| 🔍 Symbol Table | Automatic collection of protocol/template/filter/function definitions |
-| ⚠️ Semantic Checks | Detect duplicate definitions and undefined references |
-| 📋 Diagnostics | Standardized diagnostic format with error/warning/info levels |
-| 🔗 Cross-file | Support for `include` statements and cross-file symbol resolution |
+| Feature            | Description                                                           |
+| ------------------ | --------------------------------------------------------------------- |
+| 🔍 Symbol Table    | Automatic collection of protocol/template/filter/function definitions |
+| ⚠️ Semantic Checks | Detect duplicate definitions and undefined references                 |
+| 📋 Diagnostics     | Standardized diagnostic format with error/warning/info levels         |
+| 🔗 Cross-file      | Support for `include` statements and cross-file symbol resolution     |
 
 ---
 
@@ -212,12 +212,12 @@ interface BirdDiagnostic {
 
 ### Diagnostic Codes
 
-| Code | Description | Level |
-| ---- | ----------- | ----- |
-| `semantic/duplicate-definition` | Duplicate symbol definition | error |
-| `semantic/undefined-reference` | Reference to undefined template | error |
-| `semantic/type-mismatch` | Type compatibility error | error |
-| `semantic/invalid-scope` | Variable scope violation | warning |
+| Code                            | Description                     | Level   |
+| ------------------------------- | ------------------------------- | ------- |
+| `semantic/duplicate-definition` | Duplicate symbol definition     | error   |
+| `semantic/undefined-reference`  | Reference to undefined template | error   |
+| `semantic/type-mismatch`        | Type compatibility error        | error   |
+| `semantic/invalid-scope`        | Variable scope violation        | warning |
 
 ---
 
@@ -308,13 +308,13 @@ sequenceDiagram
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/linter](../linter/) | 32+ lint rules and diagnostics |
-| [@birdcc/formatter](../formatter/) | Code formatting engine |
-| [@birdcc/lsp](../lsp/) | LSP server implementation |
-| [@birdcc/cli](../cli/) | Command-line interface |
+| Package                            | Description                    |
+| ---------------------------------- | ------------------------------ |
+| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
+| [@birdcc/linter](../linter/)       | 32+ lint rules and diagnostics |
+| [@birdcc/formatter](../formatter/) | Code formatting engine         |
+| [@birdcc/lsp](../lsp/)             | LSP server implementation      |
+| [@birdcc/cli](../cli/)             | Command-line interface         |
 
 ---
 

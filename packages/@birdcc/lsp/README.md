@@ -12,9 +12,9 @@
 
 **@birdcc/lsp** is the Language Server Protocol implementation for BIRD2 configuration files, delivering real-time diagnostics, intelligent code completion, hover tooltips, and more for editor integration.
 
-| Package | Version | Description |
-| ------- | ------- | ----------- |
-| `@birdcc/lsp` | 0.1.0 | LSP server implementation with real-time diagnostics |
+| Package       | Version | Description                                          |
+| ------------- | ------- | ---------------------------------------------------- |
+| `@birdcc/lsp` | 0.1.0   | LSP server implementation with real-time diagnostics |
 
 ---
 
@@ -133,11 +133,7 @@ args = ["birdcc", "lsp", "--stdio"]
 ### Exports
 
 ```typescript
-import {
-  startLspServer,
-  toLspDiagnostic,
-  createConnection,
-} from "@birdcc/lsp";
+import { startLspServer, toLspDiagnostic, createConnection } from "@birdcc/lsp";
 ```
 
 ### `startLspServer(): void`
@@ -294,26 +290,26 @@ flowchart LR
 
 ### Server Capabilities
 
-| Capability | Status |
-| ---------- | ------ |
-| `textDocumentSync` | Incremental |
-| `documentSymbolProvider` | ✅ |
-| `hoverProvider` | ✅ |
-| `definitionProvider` | ✅ |
-| `referencesProvider` | ✅ |
-| `completionProvider` | ✅ |
+| Capability               | Status      |
+| ------------------------ | ----------- |
+| `textDocumentSync`       | Incremental |
+| `documentSymbolProvider` | ✅          |
+| `hoverProvider`          | ✅          |
+| `definitionProvider`     | ✅          |
+| `referencesProvider`     | ✅          |
+| `completionProvider`     | ✅          |
 
 ---
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/) | Semantic analysis engine |
-| [@birdcc/linter](../linter/) | 32+ lint rules |
-| [@birdcc/formatter](../formatter/) | Code formatting engine |
-| [@birdcc/cli](../cli/) | Command-line interface |
+| Package                            | Description                    |
+| ---------------------------------- | ------------------------------ |
+| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
+| [@birdcc/core](../core/)           | Semantic analysis engine       |
+| [@birdcc/linter](../linter/)       | 32+ lint rules                 |
+| [@birdcc/formatter](../formatter/) | Code formatting engine         |
+| [@birdcc/cli](../cli/)             | Command-line interface         |
 
 ---
 

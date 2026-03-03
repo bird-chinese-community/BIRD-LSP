@@ -11,7 +11,8 @@ entries:
         description: Human-readable protocol description.
   - keyword: device
     description: Device scan protocol
-    detail: Scan network interfaces for link state changes and generate routes for directly connected
+    detail:
+      Scan network interfaces for link state changes and generate routes for directly connected
       networks.
     diff: same
     version: v2+
