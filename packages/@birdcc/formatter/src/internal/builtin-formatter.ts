@@ -23,6 +23,15 @@ const countLeadingCloseBraces = (text: string): number => {
   return matched?.[0]?.length ?? 0;
 };
 
+const extractStructuralSegment = (line: string): string => {
+  const commentIndex = line.indexOf("#");
+  if (commentIndex === -1) {
+    return line;
+  }
+
+  return line.slice(0, commentIndex).trimEnd();
+};
+
 export const normalizeTextWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
@@ -70,11 +79,12 @@ export const normalizeTextWithBuiltin = async (
 
     blankStreak = 0;
 
-    const openCount = countToken(line, "{");
-    const closeCount = countToken(line, "}");
+    const structuralLine = extractStructuralSegment(line);
+    const openCount = countToken(structuralLine, "{");
+    const closeCount = countToken(structuralLine, "}");
     const leadingCloseCount = Math.min(
       indentLevel,
-      countLeadingCloseBraces(line),
+      countLeadingCloseBraces(structuralLine),
     );
     indentLevel = Math.max(0, indentLevel - leadingCloseCount);
 
