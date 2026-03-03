@@ -60,7 +60,7 @@ const parseArgs = () => {
 
   return {
     packages,
-    npmTag: options.get("tag") ?? "next",
+    npmTag: options.get("tag") ?? "latest",
     dryRun: parseBoolean(options.get("dry-run"), true),
     allowPrivateOverride: parseBoolean(
       options.get("allow-private-override"),

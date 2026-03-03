@@ -11,7 +11,7 @@ on:
       npm_tag:
         description: "npm dist-tag to publish under"
         required: true
-        default: "next"
+        default: "latest"
         type: string
       dry_run:
         description: "Run publish in dry-run mode"
