@@ -111,6 +111,55 @@ describe("@birdcc/lsp", () => {
     expect(hover?.contents).toBeDefined();
   });
 
+  it("creates hover for dot-prefixed keyword member operator", async () => {
+    const text = `if net.len = 24 then accept;`;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: text.indexOf(".len") + 2,
+    });
+
+    expect(hover?.contents).toBeDefined();
+    expect(
+      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
+    ).toContain(".len");
+  });
+
+  it("creates hover for underscore alias keyword", async () => {
+    const text = `debug_latency on;`;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: text.indexOf("debug_latency") + 6,
+    });
+
+    expect(hover?.contents).toBeDefined();
+    expect(
+      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
+    ).toContain("debug latency");
+  });
+
+  it("creates hover when cursor is at word boundary", async () => {
+    const text = `router id 1.1.1.1;`;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+    const idEnd = text.indexOf("id") + "id".length;
+
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 0,
+      character: idEnd,
+    });
+
+    expect(hover?.contents).toBeDefined();
+    expect(
+      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
+    ).toContain("router id");
+  });
+
   it("creates hover for define declaration name", async () => {
     const text = `define ASN = 65001;`;
     const parsed = await parseBirdConfig(text);

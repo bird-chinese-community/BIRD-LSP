@@ -12,74 +12,197 @@ import {
   toLspRange,
 } from "./shared.js";
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+interface LineWord {
+  readonly value: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+interface ResolvedKeywordDoc {
+  readonly keyword: string;
+  readonly doc: string;
+}
+
+const WORD_PATTERN = /(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)/g;
+
+const toCanonicalKey = (keyword: string): string =>
+  keyword.trim().toLowerCase().replace(/\s+/g, " ");
+
+const toKeyAliases = (keyword: string): readonly string[] => {
+  const canonicalKey = toCanonicalKey(keyword);
+  const aliases = new Set<string>();
+
+  const addAlias = (value: string): void => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return;
+    }
+
+    aliases.add(normalized);
+    if (normalized.startsWith(".")) {
+      aliases.add(normalized.slice(1));
+      return;
+    }
+
+    if (!normalized.includes(" ")) {
+      aliases.add(`.${normalized}`);
+    }
+  };
+
+  addAlias(canonicalKey);
+  addAlias(canonicalKey.replace(/[_-]+/g, " "));
+  if (canonicalKey.includes(" ")) {
+    addAlias(canonicalKey.replace(/\s+/g, "_"));
+    addAlias(canonicalKey.replace(/\s+/g, "-"));
+  }
+
+  return [...aliases];
+};
+
+const toKeywordWordCount = (keyword: string): number =>
+  keyword
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
+
+const keywordDocsByAlias = new Map<string, ResolvedKeywordDoc>();
+const keywordWordCounts = [
+  ...new Set(Object.keys(KEYWORD_DOCS).map(toKeywordWordCount)),
+].sort((left, right) => right - left);
+
+for (const [keyword, doc] of Object.entries(KEYWORD_DOCS)) {
+  const canonicalKeyword = toCanonicalKey(keyword);
+  const resolved: ResolvedKeywordDoc = {
+    keyword: canonicalKeyword,
+    doc,
+  };
+
+  for (const alias of toKeyAliases(canonicalKeyword)) {
+    if (!keywordDocsByAlias.has(alias)) {
+      keywordDocsByAlias.set(alias, resolved);
+    }
+  }
+}
+
+const getLineText = (document: TextDocument, line: number): string => {
+  const start = { line, character: 0 };
+  const end =
+    line + 1 < document.lineCount
+      ? { line: line + 1, character: 0 }
+      : { line, character: Number.MAX_SAFE_INTEGER };
+
+  return document.getText({ start, end }).replace(/\r?\n$/, "");
+};
+
+const collectLineWords = (lineText: string): readonly LineWord[] => {
+  const words: LineWord[] = [];
+  for (const match of lineText.matchAll(WORD_PATTERN)) {
+    const value = match[0];
+    const start = match.index ?? 0;
+    words.push({
+      value: value.toLowerCase(),
+      start,
+      end: start + value.length,
+    });
+  }
+
+  return words;
+};
+
+const resolveFocusedWordIndex = (
+  words: readonly LineWord[],
+  character: number,
+): number => {
+  const exactIndex = words.findIndex(
+    (word) => character >= word.start && character < word.end,
+  );
+  if (exactIndex !== -1) {
+    return exactIndex;
+  }
+
+  const boundaryIndex = words.findIndex((word) => character === word.end);
+  if (boundaryIndex !== -1) {
+    return boundaryIndex;
+  }
+
+  for (let index = words.length - 1; index >= 0; index -= 1) {
+    const word = words[index];
+    if (character > word.end && character - word.end <= 1) {
+      return index;
+    }
+  }
+
+  return -1;
+};
+
+const findResolvedKeywordDoc = (
+  candidateKey: string,
+): ResolvedKeywordDoc | undefined => {
+  for (const alias of toKeyAliases(candidateKey)) {
+    const resolved = keywordDocsByAlias.get(alias);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  return undefined;
+};
 
 const keywordAtPosition = (
   document: TextDocument,
   position: Position,
-): { word: string; range: Range } | null => {
-  const text = document.getText();
-  const positionOffset = document.offsetAt(position);
-
-  if (positionOffset < 0 || positionOffset > text.length) {
+): { word: string; doc: string; range: Range } | null => {
+  if (position.line < 0 || position.line >= document.lineCount) {
     return null;
   }
 
-  const keywords = Object.keys(KEYWORD_DOCS).sort(
-    (left, right) => right.length - left.length,
-  );
-  for (const keyword of keywords) {
-    const keywordPattern = new RegExp(
-      `\\b${escapeRegExp(keyword).replaceAll("\\ ", "\\\\s+")}\\b`,
-      "gi",
-    );
-    let match = keywordPattern.exec(text);
+  const lineText = getLineText(document, position.line);
+  const words = collectLineWords(lineText);
+  if (words.length === 0) {
+    return null;
+  }
 
-    while (match) {
-      const start = match.index;
-      const end = start + match[0].length;
-      if (positionOffset >= start && positionOffset <= end) {
-        return {
-          word: keyword,
-          range: {
-            start: document.positionAt(start),
-            end: document.positionAt(end),
-          },
-        };
+  const focusedWordIndex = resolveFocusedWordIndex(words, position.character);
+  if (focusedWordIndex === -1) {
+    return null;
+  }
+
+  for (const phraseLength of keywordWordCounts) {
+    if (phraseLength < 1 || phraseLength > words.length) {
+      continue;
+    }
+
+    const minStart = Math.max(0, focusedWordIndex - phraseLength + 1);
+    const maxStart = Math.min(focusedWordIndex, words.length - phraseLength);
+    for (let startIndex = minStart; startIndex <= maxStart; startIndex += 1) {
+      const endIndex = startIndex + phraseLength - 1;
+      const key = words
+        .slice(startIndex, endIndex + 1)
+        .map((word) => word.value)
+        .join(" ");
+      const resolved = findResolvedKeywordDoc(key);
+      if (!resolved) {
+        continue;
       }
 
-      match = keywordPattern.exec(text);
+      return {
+        word: resolved.keyword,
+        doc: resolved.doc,
+        range: {
+          start: {
+            line: position.line,
+            character: words[startIndex].start,
+          },
+          end: {
+            line: position.line,
+            character: words[endIndex].end,
+          },
+        },
+      };
     }
   }
 
-  const isWordChar = (char: string): boolean => /[A-Za-z_]/.test(char);
-
-  let start = positionOffset;
-  while (start > 0 && isWordChar(text[start - 1] ?? "")) {
-    start -= 1;
-  }
-
-  let end = positionOffset;
-  while (end < text.length && isWordChar(text[end] ?? "")) {
-    end += 1;
-  }
-
-  if (start === end) {
-    return null;
-  }
-
-  const word = text.slice(start, end).toLowerCase();
-  const startPosition = document.positionAt(start);
-  const endPosition = document.positionAt(end);
-
-  return {
-    word,
-    range: {
-      start: startPosition,
-      end: endPosition,
-    },
-  };
+  return null;
 };
 
 export const createHoverFromParsed = (
@@ -107,15 +230,10 @@ export const createHoverFromParsed = (
     return null;
   }
 
-  const keywordDoc = KEYWORD_DOCS[keyword.word];
-  if (!keywordDoc) {
-    return null;
-  }
-
   return {
     contents: {
       kind: "markdown",
-      value: `**${keyword.word}**\n\n${keywordDoc}`,
+      value: `**${keyword.word}**\n\n${keyword.doc}`,
     },
     range: keyword.range,
   };
