@@ -33,6 +33,7 @@
     "dist/**",
     "language-configuration.json",
     "snippets/**",
+    "assets/**",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
@@ -50,16 +51,6 @@
     }
   },
   "activationEvents": [
-    "onLanguage:bird2",
-    "onCommand:bird2-lsp.restartLanguageServer",
-    "onCommand:bird2-lsp.enableLanguageServer",
-    "onCommand:bird2-lsp.disableLanguageServer",
-    "onCommand:bird2-lsp.validateActiveDocument",
-    "onCommand:bird2-lsp.formatActiveDocument",
-    "onCommand:bird2-lsp.openSettings",
-    "onCommand:bird2-lsp.showOutputChannel",
-    "onCommand:bird2-lsp.showDocumentation",
-    "onCommand:bird2-lsp.reloadConfiguration",
     "workspaceContains:**/bird.conf",
     "workspaceContains:**/bird2.conf",
     "workspaceContains:**/bird3.conf",
@@ -90,7 +81,11 @@
           "bird.conf",
           "bird2.conf"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./assets/favicon.svg",
+          "dark": "./assets/favicon.svg"
+        }
       }
     ],
     "snippets": [
