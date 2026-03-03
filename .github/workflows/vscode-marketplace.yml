@@ -29,6 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Initialize required submodules
+        run: |
+          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar refer/config-examples refer/vscode-bird2
+          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar refer/config-examples refer/vscode-bird2
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

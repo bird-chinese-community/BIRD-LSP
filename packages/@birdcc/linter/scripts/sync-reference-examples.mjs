@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,7 +17,26 @@ const sourceDir = path.join(
 );
 const targetDir = path.join(packageRoot, "examples");
 
+const pathExists = async (targetPath) => {
+  try {
+    await stat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 await mkdir(targetDir, { recursive: true });
+
+if (!(await pathExists(sourceDir))) {
+  process.stderr.write(
+    `[sync:examples] source directory not found, skipping sync: ${sourceDir}\n`,
+  );
+  process.stderr.write(
+    "[sync:examples] keeping existing examples in packages/@birdcc/linter/examples.\n",
+  );
+  process.exit(0);
+}
 
 const existingEntries = await readdir(targetDir, { withFileTypes: true });
 for (const entry of existingEntries) {
