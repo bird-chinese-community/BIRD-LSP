@@ -1,4 +1,5 @@
 entries:
+  # ── Aggregator protocol ──────────────────────────────────────────
   - keyword: aggregator
     description: Aggregator protocol
     detail: Aggregate multiple more specific routes into summarized prefixes.
@@ -9,9 +10,39 @@ entries:
     related:
       - route
       - static
+      - aggregate on
+      - merge by
     parameters:
       - name: summarize-prefix
         description: Target aggregate prefix.
+  - keyword: aggregate on
+    description: Aggregator bucketing expression
+    detail: Define the expression list used to group (bucket) routes for aggregation.
+    diff: same
+    version: v2+
+    anchor: proto-aggregator
+    path: protocol.aggregator
+    related:
+      - aggregator
+      - merge by
+    parameters:
+      - name: expression
+        description: Route attribute expressions for bucketing.
+        required: true
+  - keyword: merge by
+    description: Aggregator merge filter
+    detail: Specify a filter expression that merges routes within each aggregation bucket.
+    diff: same
+    version: v2+
+    anchor: proto-aggregator
+    path: protocol.aggregator
+    related:
+      - aggregator
+      - aggregate on
+    parameters:
+      - name: filter
+        description: Merge filter expression.
+  # ── BMP protocol ─────────────────────────────────────────────────
   - keyword: bmp
     description: BMP protocol
     detail: BGP Monitoring Protocol exporter for route monitoring and telemetry.
@@ -21,12 +52,54 @@ entries:
     path: protocol
     related:
       - bgp
-      - neighbor
+      - station address
+      - station port
     parameters:
       - name: station-address
         description: BMP collector address.
       - name: station-port
         description: BMP collector TCP port.
+  - keyword: station address
+    description: BMP station address
+    detail: Set the IP address of the BMP monitoring station (collector).
+    diff: same
+    version: v2+
+    anchor: proto-bmp
+    path: protocol.bmp
+    related:
+      - bmp
+      - station port
+    parameters:
+      - name: ip
+        description: BMP collector IP address.
+        required: true
+  - keyword: station port
+    description: BMP station port
+    detail: Set the TCP port of the BMP monitoring station.
+    diff: same
+    version: v2+
+    anchor: proto-bmp
+    path: protocol.bmp
+    related:
+      - bmp
+      - station address
+    parameters:
+      - name: number
+        description: BMP collector TCP port.
+        required: true
+  - keyword: monitoring rib
+    description: BMP RIB monitoring type
+    detail: Configure which RIB to export for BMP monitoring (pre-policy or post-policy).
+    diff: same
+    version: v2+
+    anchor: proto-bmp
+    path: protocol.bmp
+    related:
+      - bmp
+    parameters:
+      - name: mode
+        description: "Monitoring mode: pre_policy or post_policy."
+  # ── L3VPN protocol ──────────────────────────────────────────────
   - keyword: l3vpn
     description: L3VPN protocol
     detail: Interconnect VRF routing tables with MPLS label signaling for VPN services.
@@ -38,9 +111,71 @@ entries:
       - vrf
       - mpls domain
       - label policy
+      - route distinguisher
     parameters:
       - name: vrf-name
         description: VRF bound to this L3VPN instance.
+  - keyword: route distinguisher
+    description: L3VPN route distinguisher
+    detail: Assign a unique route distinguisher (RD) to differentiate VPN routes across VRFs.
+    diff: same
+    version: v2+
+    anchor: proto-l3vpn
+    path: protocol.l3vpn
+    related:
+      - l3vpn
+      - route target
+    parameters:
+      - name: rd
+        description: Route distinguisher value (e.g., 65001:100).
+        required: true
+  - keyword: route target
+    description: L3VPN route target community
+    detail: Set both import and export route target extended communities simultaneously.
+    diff: same
+    version: v2+
+    anchor: proto-l3vpn
+    path: protocol.l3vpn
+    related:
+      - l3vpn
+      - route distinguisher
+      - import target
+      - export target
+    parameters:
+      - name: rt
+        description: Route target extended community (e.g., 65001:100).
+        required: true
+  - keyword: import target
+    description: L3VPN import route target
+    detail: Set the route target community used to select routes for import into this VRF.
+    diff: same
+    version: v2+
+    anchor: proto-l3vpn
+    path: protocol.l3vpn
+    related:
+      - l3vpn
+      - export target
+      - route target
+    parameters:
+      - name: rt
+        description: Import route target extended community.
+        required: true
+  - keyword: export target
+    description: L3VPN export route target
+    detail: Set the route target community attached to routes exported from this VRF.
+    diff: same
+    version: v2+
+    anchor: proto-l3vpn
+    path: protocol.l3vpn
+    related:
+      - l3vpn
+      - import target
+      - route target
+    parameters:
+      - name: rt
+        description: Export route target extended community.
+        required: true
+  # ── MRT protocol ─────────────────────────────────────────────────
   - keyword: mrt
     description: MRT protocol
     detail: Export routing updates in MRT format for offline analysis.
@@ -51,9 +186,51 @@ entries:
     related:
       - mrtdump
       - bgp
+      - filename
+      - period
     parameters:
       - name: file-path
         description: MRT output file path.
+  - keyword: filename
+    description: MRT output filename
+    detail: Set the output file path for MRT dumps. Supports strftime format specifiers for rotation.
+    diff: same
+    version: v2+
+    anchor: proto-mrt
+    path: protocol.mrt
+    related:
+      - mrt
+      - period
+    parameters:
+      - name: path
+        description: Output file path (supports strftime patterns).
+        required: true
+  - keyword: period
+    description: MRT dump interval
+    detail: Set the interval for periodic MRT table dumps. Without this, only updates are recorded.
+    diff: same
+    version: v2+
+    anchor: proto-mrt
+    path: protocol.mrt
+    related:
+      - mrt
+      - filename
+    parameters:
+      - name: seconds
+        description: Dump interval in seconds.
+  - keyword: always add path
+    description: MRT ADD_PATH format
+    detail: Always use ADD_PATH record format in MRT dumps, even for single-path entries.
+    diff: same
+    version: v2+
+    anchor: proto-mrt
+    path: protocol.mrt
+    related:
+      - mrt
+    parameters:
+      - name: switch
+        description: Enable ADD_PATH format.
+  # ── Perf protocol ────────────────────────────────────────────────
   - keyword: perf
     description: Perf protocol
     detail: Benchmark-oriented protocol for performance testing and diagnostics.
@@ -64,6 +241,35 @@ entries:
     related:
       - debug
       - debug latency
+      - mode
+      - repeat
+  - keyword: mode
+    description: Perf test mode
+    detail: Set the performance testing mode to benchmark import or export path.
+    diff: same
+    version: v2+
+    anchor: proto-perf
+    path: protocol.perf
+    related:
+      - perf
+      - repeat
+    parameters:
+      - name: direction
+        description: "Test mode: import or export."
+  - keyword: repeat
+    description: Perf iteration count
+    detail: Number of iterations to run for each performance measurement step.
+    diff: same
+    version: v2+
+    anchor: proto-perf
+    path: protocol.perf
+    related:
+      - perf
+      - mode
+    parameters:
+      - name: number
+        description: Iterations per step.
+  # ── RAdv protocol ────────────────────────────────────────────────
   - keyword: radv
     description: Router Advertisement protocol
     detail: Advertise IPv6 prefixes and router settings using ICMPv6 Router Advertisements.
@@ -74,12 +280,157 @@ entries:
     related:
       - ipv6
       - interface
+      - trigger
+      - prefix
     parameters:
       - name: interface-pattern
         description: Interfaces where RA packets are advertised.
+  - keyword: trigger
+    description: RAdv route availability trigger
+    detail: Suppress or enable Router Advertisements based on the availability of a specific route.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv
+    related:
+      - radv
+    parameters:
+      - name: prefix
+        description: Route prefix whose presence controls RA emission.
+  - keyword: propagate routes
+    description: RAdv specific route advertisement
+    detail: Enable RFC 4191 route information options to advertise specific routes in RAs.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv
+    related:
+      - radv
+      - route lifetime
+      - route preference
+    parameters:
+      - name: switch
+        description: Enable specific route propagation.
+  - keyword: max ra interval
+    description: RAdv maximum RA interval
+    detail: Maximum interval between unsolicited Router Advertisements on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - min ra interval
+    parameters:
+      - name: seconds
+        description: Maximum RA interval in seconds (default 600).
+  - keyword: min ra interval
+    description: RAdv minimum RA interval
+    detail: Minimum interval between unsolicited Router Advertisements on this interface.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - max ra interval
+    parameters:
+      - name: seconds
+        description: Minimum RA interval in seconds (default 200).
+  - keyword: managed
+    description: RAdv managed address flag
+    detail: Set the M (Managed) flag in RA to indicate hosts should use DHCPv6 for address configuration.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - other config
+    parameters:
+      - name: switch
+        description: Enable managed (M) flag (default no).
+  - keyword: other config
+    description: RAdv other configuration flag
+    detail: Set the O (Other Configuration) flag in RA to indicate hosts should use DHCPv6 for non-address config.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - managed
+    parameters:
+      - name: switch
+        description: Enable other-config (O) flag (default no).
+  - keyword: link mtu
+    description: RAdv advertised link MTU
+    detail: Advertise an MTU value in Router Advertisements for the link.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+    parameters:
+      - name: number
+        description: MTU value (0 means not specified).
+  - keyword: default lifetime
+    description: RAdv router lifetime
+    detail: Set the time (in seconds) this router is valid as a default router. Zero means not a default router.
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - default preference
+    parameters:
+      - name: seconds
+        description: Default router lifetime.
+  - keyword: default preference
+    description: RAdv default router preference
+    detail: Set the default router preference in RAs (RFC 4191).
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - default lifetime
+    parameters:
+      - name: level
+        description: "Preference: low, medium, or high."
+  - keyword: rdnss
+    description: RAdv recursive DNS server
+    detail: Define IPv6 recursive DNS server addresses to advertise in RAs (RFC 8106).
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - dnssl
+    parameters:
+      - name: address
+        description: IPv6 DNS server address.
+  - keyword: dnssl
+    description: RAdv DNS search list
+    detail: Define DNS search domains to advertise in RAs (RFC 8106).
+    diff: same
+    version: v2+
+    anchor: proto-radv
+    path: protocol.radv.interface
+    related:
+      - radv
+      - rdnss
+    parameters:
+      - name: domain
+        description: DNS search domain name.
+  # ── RPKI protocol ────────────────────────────────────────────────
   - keyword: rpki
     description: RPKI protocol
-    detail: Fetch and maintain ROA/ASPA validation data from RPKI cache servers.
+    detail: Fetch and maintain ROA/ASPA validation data from RPKI cache servers via RTR protocol.
     diff: same
     version: v2+
     anchor: proto-rpki
@@ -88,11 +439,146 @@ entries:
       - rpki reload
       - import
       - export
+      - remote
     parameters:
       - name: cache-address
         description: RTR cache server address.
       - name: cache-port
         description: RTR cache server port.
+  - keyword: remote
+    description: RPKI cache server address
+    detail: Set the address (IP or hostname) of the RPKI RTR cache server.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - port
+    parameters:
+      - name: address
+        description: Cache server IP address or hostname.
+        required: true
+  - keyword: port
+    description: RPKI cache server port
+    detail: Set the TCP port of the RPKI RTR cache server (default 323 for TCP, 22 for SSH).
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - remote
+    parameters:
+      - name: number
+        description: RTR cache server port.
+  - keyword: refresh
+    description: RPKI cache refresh interval
+    detail: Set how often to poll the RPKI cache server for updated ROA data.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - retry
+      - expire
+    parameters:
+      - name: seconds
+        description: Refresh interval in seconds (default 3600).
+  - keyword: retry
+    description: RPKI connection retry interval
+    detail: Set the wait time before retrying after a failed RPKI cache connection.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - refresh
+      - expire
+    parameters:
+      - name: seconds
+        description: Retry interval in seconds (default 600).
+  - keyword: expire
+    description: RPKI data expiration time
+    detail: Set how long to keep ROA data valid after losing connection to the RPKI cache.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - refresh
+      - retry
+    parameters:
+      - name: seconds
+        description: Data expiration time in seconds (default 7200).
+  - keyword: ignore max length
+    description: Ignore ROA max prefix length
+    detail: Ignore the max-length field in ROA records, treating any sub-prefix as valid.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+    parameters:
+      - name: switch
+        description: Enable ignoring max length (default no).
+  - keyword: transport tcp
+    description: RPKI TCP transport
+    detail: Use plain TCP as the transport protocol for connecting to the RPKI cache.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - transport ssh
+      - remote
+  - keyword: transport ssh
+    description: RPKI SSH transport
+    detail: Use SSH as the transport protocol for encrypted connection to the RPKI cache.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki
+    related:
+      - rpki
+      - transport tcp
+      - remote
+      - bird private key
+      - remote public key
+  - keyword: bird private key
+    description: RPKI SSH private key path
+    detail: Specify the path to BIRD's SSH private key for authenticated RTR connections.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki.transport
+    related:
+      - transport ssh
+      - remote public key
+    parameters:
+      - name: path
+        description: Path to SSH private key file.
+        required: true
+  - keyword: remote public key
+    description: RPKI SSH remote public key
+    detail: Specify the path to the RPKI cache server's SSH public key for host verification.
+    diff: same
+    version: v2+
+    anchor: proto-rpki
+    path: protocol.rpki.transport
+    related:
+      - transport ssh
+      - bird private key
+    parameters:
+      - name: path
+        description: Path to remote SSH public key file.
+        required: true
+  # ── Static route extras ──────────────────────────────────────────
   - keyword: route
     description: Static route statement
     detail: Define a static route destination and forwarding behavior.
@@ -104,6 +590,8 @@ entries:
       - next hop
       - blackhole
       - unreachable
+      - recursive
+      - prohibit
     parameters:
       - name: prefix
         description: Destination prefix for the static route.
@@ -133,6 +621,7 @@ entries:
     related:
       - route
       - unreachable
+      - prohibit
   - keyword: unreachable
     description: Static route unreachable action
     detail: Mark destination as unreachable and return ICMP unreachable.
@@ -143,3 +632,4 @@ entries:
     related:
       - route
       - blackhole
+      - prohibit
