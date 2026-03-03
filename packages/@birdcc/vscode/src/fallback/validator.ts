@@ -24,7 +24,7 @@ import { showGuidedErrorMessage } from "../support/faq.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
 
-const VALIDATION_DEBOUNCE_MS = 300;
+const VALIDATION_DEBOUNCE_MS = 800;
 
 const execFileAsync = async (
   command: string,
