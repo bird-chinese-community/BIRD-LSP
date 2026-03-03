@@ -2,6 +2,15 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.6] - 2026-03-03
+
+### 🐛 Fixed
+
+- 🔌 **Bundled LSP stdio Transport** — Start bundled server with `--stdio` so `vscode-languageserver` can establish the connection stream correctly.
+- ♻️ **Crash Loop Prevention** — Fixed immediate server crash/restart loop caused by missing transport mode in bundled startup path.
+
+---
+
 ## [0.1.5] - 2026-03-03
 
 ### 🐛 Fixed
@@ -84,6 +93,7 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 ---
 
 [0.1.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.1...vscode-v0.1.2
+[0.1.6]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.5...vscode-v0.1.6
 [0.1.5]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.4...vscode-v0.1.5
 [0.1.4]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.3...vscode-v0.1.4
 [0.1.3]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.2...vscode-v0.1.3

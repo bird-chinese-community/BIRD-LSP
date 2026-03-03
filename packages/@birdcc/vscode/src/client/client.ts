@@ -71,7 +71,7 @@ const resolveLanguageServerCommand = (
       );
       return {
         command: process.execPath,
-        args: [bundledServerEntry],
+        args: [bundledServerEntry, "--stdio"],
       };
     }
 

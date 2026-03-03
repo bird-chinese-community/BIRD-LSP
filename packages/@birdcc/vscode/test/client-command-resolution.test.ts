@@ -75,7 +75,7 @@ describe("language client command resolution", () => {
     expect(mocks.resolveServerCommand).not.toHaveBeenCalled();
     expect(mocks.capturedServerOptions).toEqual({
       command: process.execPath,
-      args: ["/tmp/ext/node_modules/@birdcc/lsp/dist/server.js"],
+      args: ["/tmp/ext/node_modules/@birdcc/lsp/dist/server.js", "--stdio"],
     });
   });
 
