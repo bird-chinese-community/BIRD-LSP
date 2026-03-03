@@ -33,6 +33,8 @@ const mocks = vi.hoisted(() => ({
     | ((document: TextDocument) => void)
     | undefined,
   onDidGrantWorkspaceTrust: undefined as (() => void) | undefined,
+  showErrorMessage: vi.fn(async () => undefined),
+  openExternal: vi.fn(async () => true),
   workspaceState: {
     isTrusted: true,
   },
@@ -60,6 +62,12 @@ vi.mock("../src/fallback/parser.js", () => ({
 }));
 
 vi.mock("vscode", () => ({
+  Uri: {
+    parse: (value: string) => ({ toString: () => value }),
+  },
+  env: {
+    openExternal: mocks.openExternal,
+  },
   DiagnosticSeverity: {
     Error: 0,
   },
@@ -86,6 +94,7 @@ vi.mock("vscode", () => ({
   window: {
     activeTextEditor: undefined,
     showWarningMessage: vi.fn(),
+    showErrorMessage: mocks.showErrorMessage,
   },
   workspace: {
     get isTrusted() {
@@ -170,6 +179,8 @@ describe("fallback validator scheduling", () => {
     mocks.onDidCloseTextDocument = undefined;
     mocks.onDidGrantWorkspaceTrust = undefined;
     mocks.workspaceState.isTrusted = true;
+    mocks.showErrorMessage.mockReset();
+    mocks.openExternal.mockReset();
 
     mocks.stat.mockResolvedValue({ mode: 0o644 });
     mocks.execFile.mockImplementation(
@@ -301,5 +312,23 @@ describe("fallback validator scheduling", () => {
         }),
       ]),
     );
+    expect(mocks.showErrorMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows guided error when validation command template is rejected", async () => {
+    mocks.resolveValidationCommandTemplate.mockReturnValueOnce({
+      ok: false,
+      reason: "validation command template must include the {file} placeholder",
+    });
+
+    const validator = createFallbackValidator(getConfiguration, {
+      appendLine: vi.fn(),
+      dispose: vi.fn(),
+    } as never);
+    const document = createDocument();
+
+    await validator.validateDocument(document);
+
+    expect(mocks.showErrorMessage).toHaveBeenCalledTimes(1);
   });
 });

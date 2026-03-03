@@ -12,6 +12,7 @@ const FAQ_ANCHOR_BY_ID = {
   "file-too-large": "#faq-file-too-large",
   "type-hints-runtime-failed": "#faq-type-hints-runtime-failed",
   "validation-command-failed": "#faq-validation-command-failed",
+  "extension-command-failed": "#faq-extension-command-failed",
 } as const;
 
 export type FaqId = keyof typeof FAQ_ANCHOR_BY_ID;

@@ -20,6 +20,7 @@ import {
   resolveValidationCommandTemplate,
   sanitizeLogMessage,
 } from "../security/index.js";
+import { showGuidedErrorMessage } from "../support/faq.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { parseBirdValidationOutput } from "./parser.js";
 
@@ -142,6 +143,7 @@ export const createFallbackValidator = (
     languages.createDiagnosticCollection("bird2-fallback");
   const disposables: Disposable[] = [];
   const warningCache = new Set<string>();
+  const guidanceCache = new Set<string>();
   const approvedCustomValidationCommands = new Set<string>();
   const pendingValidationTimers = new Map<
     string,
@@ -312,6 +314,13 @@ export const createFallbackValidator = (
       outputChannel.appendLine(
         `[bird2-lsp] validation command rejected: ${command.reason}`,
       );
+      void showGuidedErrorMessage({
+        message:
+          "BIRD2 validation command is invalid or unsafe. Open FAQ for valid command examples.",
+        faqId: "validation-command-failed",
+        dedupeKey: `validation-command-rejected:${command.reason}`,
+        dedupeCache: guidanceCache,
+      });
       clearDocumentDiagnostics(document);
       return;
     }
@@ -360,10 +369,24 @@ export const createFallbackValidator = (
             ),
           },
         ]);
+        void showGuidedErrorMessage({
+          message:
+            "BIRD2 validation command failed. Open FAQ for troubleshooting or report an issue.",
+          faqId: "validation-command-failed",
+          dedupeKey: `validation-command-runtime:${document.uri.toString()}`,
+          dedupeCache: guidanceCache,
+        });
         return;
       }
 
       diagnosticCollection.set(document.uri, diagnostics);
+      void showGuidedErrorMessage({
+        message:
+          "BIRD2 validation command failed. Open FAQ for troubleshooting or report an issue.",
+        faqId: "validation-command-failed",
+        dedupeKey: `validation-command-runtime:${document.uri.toString()}`,
+        dedupeCache: guidanceCache,
+      });
     }
   };
 

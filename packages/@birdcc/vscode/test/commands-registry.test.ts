@@ -115,4 +115,26 @@ describe("commands registry", () => {
       "BIRD2 configuration reloaded.",
     );
   });
+
+  it("shows guided error when restart command fails", async () => {
+    const context = createContext();
+    context.lifecycle.restart = vi.fn(async () => {
+      throw new Error("boom");
+    });
+
+    registerBirdCommands(context);
+    const handler = mocks.commandHandlers.get(
+      BIRD_COMMAND_IDS.restartLanguageServer,
+    );
+
+    expect(handler).toBeDefined();
+    await handler?.();
+
+    expect(mocks.showErrorMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.showErrorMessage).toHaveBeenCalledWith(
+      "Failed to restart BIRD2 language server.",
+      "Open FAQ",
+      "Report Issue",
+    );
+  });
 });
