@@ -5,8 +5,9 @@ import {
   type Position,
 } from "vscode-languageserver/node.js";
 import type { BirdDeclaration, SourceRange } from "@birdcc/parser";
+import { HOVER_KEYWORD_DOCS } from "./hover-docs.js";
 
-export const KEYWORD_DOCS: Record<string, string> = {
+const BASE_KEYWORD_DOCS: Record<string, string> = {
   protocol: "Define a protocol instance. Example: `protocol bgp edge { ... }`.",
   template: "Define a reusable protocol template.",
   filter: "Define route filtering logic.",
@@ -21,6 +22,11 @@ export const KEYWORD_DOCS: Record<string, string> = {
   "router id": "Set explicit router ID or select from runtime source.",
   ipv4: "IPv4 address family/channel/table scope keyword.",
   ipv6: "IPv6 address family/channel/table scope keyword.",
+};
+
+export const KEYWORD_DOCS: Record<string, string> = {
+  ...BASE_KEYWORD_DOCS,
+  ...HOVER_KEYWORD_DOCS,
 };
 
 export interface LspDeclarationMetadata {

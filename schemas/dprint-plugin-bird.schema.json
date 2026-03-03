@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/dprint-plugin-bird.schema.json",
+  "title": "dprint plugin bird config",
+  "description": "Schema for dprint-plugin-bird plugin configuration.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lineWidth": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "indentWidth": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "safeMode": {
+      "type": "boolean"
+    }
+  }
+}

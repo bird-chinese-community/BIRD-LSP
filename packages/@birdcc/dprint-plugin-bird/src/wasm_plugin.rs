@@ -46,7 +46,7 @@ impl SyncPluginHandler<Configuration> for BirdccPluginHandler {
             version: env!("CARGO_PKG_VERSION").to_string(),
             config_key: "birdcc".to_string(),
             help_url: "https://github.com/bird-chinese-community/BIRD-LSP".to_string(),
-            config_schema_url: "https://birdcc.link/schemas/dprint-plugin-bird.schema.json"
+            config_schema_url: "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/dprint-plugin-bird.schema.json"
                 .to_string(),
             update_url: None,
         }

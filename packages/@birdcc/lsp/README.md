@@ -286,7 +286,7 @@ args = ["birdcc", "lsp", "--stdio"]
 ```json
 // birdcc.config.json
 {
-  "$schema": "https://birdcc.link/schemas/birdcc-tooling.schema.json",
+  "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
   "bird": {
     "validateCommand": "sudo bird -p -c {file}"
   }

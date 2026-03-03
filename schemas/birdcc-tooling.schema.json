@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/birdcc-tooling.schema.json",
+  "title": "birdcc tooling config",
+  "description": "Schema for birdcc.config.json used by @birdcc/cli.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "formatter": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["dprint", "builtin"]
+        },
+        "indentSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "lineWidth": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 1000
+        },
+        "safeMode": {
+          "type": "boolean"
+        }
+      }
+    },
+    "linter": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "rules": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["error", "warning", "info"]
+          }
+        }
+      }
+    },
+    "bird": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "validateCommand": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
