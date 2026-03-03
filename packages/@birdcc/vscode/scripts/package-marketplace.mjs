@@ -56,6 +56,7 @@ const runVscePackage = async () => {
 };
 
 try {
+  await rm(outputVsixPath, { force: true });
   await writeFile(
     packageJsonPath,
     `${JSON.stringify(marketplacePackageJson, null, 2)}\n`,

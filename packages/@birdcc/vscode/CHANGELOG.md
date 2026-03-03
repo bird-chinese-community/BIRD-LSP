@@ -2,6 +2,13 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.1.1]
+
+### Changed
+
+- Add marketplace `icon` metadata so extension icon is displayed in VS Code Marketplace and OpenVSX.
+- Prevent nested VSIX artifacts by cleaning stale `dist/bird2-lsp.vsix` before packaging.
+
 ## [0.1.0]
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/vscode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -39,6 +39,7 @@
     "Linters",
     "Formatters"
   ],
+  "icon": "assets/favicon-256.png",
   "files": [
     "dist/**",
     "language-configuration.json",
