@@ -122,7 +122,7 @@ describe("hover docs catalog", () => {
   });
 
   it("loads generated hover docs map with stable keyword coverage", () => {
-    expect(HOVER_KEYWORDS.length).toBeGreaterThanOrEqual(80);
+    expect(HOVER_KEYWORDS.length).toBeGreaterThanOrEqual(100);
     expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Diff: `added`");
     expect(HOVER_KEYWORD_DOCS["thread group"]).toContain("Version: `v3+`");
     expect(HOVER_KEYWORD_DOCS["router id"]).toContain("Usage:");
@@ -134,6 +134,11 @@ describe("hover docs catalog", () => {
     expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Related:");
     expect(HOVER_KEYWORD_DOCS["rpki"]).toContain("Usage:");
     expect(HOVER_KEYWORD_DOCS["route"]).toContain("proto-static-route");
+
+    const usageRichCount = Object.values(HOVER_KEYWORD_DOCS).filter(
+      (markdown) => markdown.includes("\n\nUsage:\n```bird\n"),
+    ).length;
+    expect(usageRichCount).toBeGreaterThanOrEqual(85);
   });
 
   it("exposes merged keyword docs through shared keyword map", () => {

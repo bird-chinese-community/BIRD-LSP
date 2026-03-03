@@ -30,4 +30,12 @@ entries:
   - keyword: rpki reload
     usage: rpki reload on;
   - keyword: table
+    path:
+      - protocol.bgp.channel
+      - protocol.ospf.channel
+      - protocol.rip.channel
+      - protocol.babel.channel
+      - protocol.kernel.channel
+      - protocol.static.channel
+      - protocol.pipe.channel
     usage: table master4;
