@@ -28,3 +28,6 @@ target
 .vscode-test
 .vscode-test-*.zip
 *.zip
+
+# VS Code extension package artifacts
+packages/@birdcc/vscode/dist/*.vsix
