@@ -10,6 +10,7 @@ import {
   createReferenceLocations,
   toLspDiagnostic,
 } from "../src/index.js";
+import { resolveHoverContextPath } from "../src/hover-context.js";
 
 describe("@birdcc/lsp", () => {
   it("maps bird diagnostics to lsp diagnostics", () => {
@@ -141,6 +142,81 @@ describe("@birdcc/lsp", () => {
     expect(
       hover && typeof hover.contents !== "string" ? hover.contents.value : "",
     ).toContain("debug latency");
+  });
+
+  it("prefers channel-specific table docs in protocol channel context", async () => {
+    const text = `
+      protocol bgp edge {
+        ipv4 {
+          table master4;
+        };
+      }
+    `;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+    const hover = createHoverFromParsed(parsed, document, {
+      line: 3,
+      character: 12,
+    });
+
+    expect(hover?.contents).toBeDefined();
+    expect(
+      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
+    ).toContain("Associate channel with routing table");
+  });
+
+  it("extracts nested hover context path from document blocks", () => {
+    const text = `
+      protocol ospf v2 core {
+        area 0 {
+          authentication cryptographic;
+          password "ospf-secret";
+        };
+      }
+    `;
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+    const contextPath = resolveHoverContextPath(document, 4, 12);
+
+    expect(contextPath).toEqual(["protocol", "ospf", "area"]);
+  });
+
+  it("resolves shared keyword usage by hover context", async () => {
+    const text = `
+      protocol ospf v2 core {
+        area 0 {
+          authentication cryptographic;
+          password "ospf-secret";
+        };
+      }
+
+      protocol bgp edge {
+        neighbor 192.0.2.1 as 64496;
+        password "bgp-secret";
+      }
+    `;
+    const parsed = await parseBirdConfig(text);
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
+
+    const ospfHover = createHoverFromParsed(parsed, document, {
+      line: 4,
+      character: 12,
+    });
+    const bgpHover = createHoverFromParsed(parsed, document, {
+      line: 10,
+      character: 12,
+    });
+
+    const ospfContent =
+      ospfHover && typeof ospfHover.contents !== "string"
+        ? ospfHover.contents.value
+        : "";
+    const bgpContent =
+      bgpHover && typeof bgpHover.contents !== "string"
+        ? bgpHover.contents.value
+        : "";
+
+    expect(ospfContent).toContain("ospf-secret");
+    expect(bgpContent).toContain("bgp-secret");
   });
 
   it("creates hover when cursor is at word boundary", async () => {

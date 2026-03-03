@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
-import { HOVER_KEYWORDS, HOVER_KEYWORD_DOCS } from "../src/hover-docs.js";
+import {
+  HOVER_KEYWORDS,
+  HOVER_KEYWORD_DOCS,
+  resolveHoverKeywordDoc,
+} from "../src/hover-docs.js";
 import { KEYWORD_DOCS } from "../src/shared.js";
 
 describe("hover docs catalog", () => {
@@ -139,6 +143,26 @@ describe("hover docs catalog", () => {
       (markdown) => markdown.includes("\n\nUsage:\n```bird\n"),
     ).length;
     expect(usageRichCount).toBeGreaterThanOrEqual(100);
+  });
+
+  it("resolves context-specific docs and usage for shared keywords", () => {
+    const bgpPasswordDoc = resolveHoverKeywordDoc("password", {
+      contextPath: ["protocol", "bgp"],
+    });
+    const ospfPasswordDoc = resolveHoverKeywordDoc("password", {
+      contextPath: ["protocol", "ospf", "area", "authentication"],
+    });
+    const globalTableDoc = resolveHoverKeywordDoc("table", {
+      contextPath: ["global"],
+    });
+    const channelTableDoc = resolveHoverKeywordDoc("table", {
+      contextPath: ["protocol", "bgp", "channel", "ipv4"],
+    });
+
+    expect(bgpPasswordDoc).toContain("bgp-secret");
+    expect(ospfPasswordDoc).toContain("ospf-secret");
+    expect(globalTableDoc).toContain("Define a routing table");
+    expect(channelTableDoc).toContain("Associate channel with routing table");
   });
 
   it("exposes merged keyword docs through shared keyword map", () => {
