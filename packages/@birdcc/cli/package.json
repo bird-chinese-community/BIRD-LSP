@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/cli",
-  "version": "0.0.1-alpha.0",
+  "version": "0.0.1-alpha.1",
   "private": true,
   "license": "GPL-3.0-only",
   "author": {
@@ -8,18 +8,24 @@
     "email": "npm-dev@birdcc.link",
     "url": "https://github.com/bird-chinese-community/"
   },
+  "description": "CLI for linting, formatting, and language-server workflows on BIRD2 configs.",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "bin": {
     "birdcc": "./dist/cli.js"
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@birdcc/core": "workspace:*",
     "@birdcc/formatter": "workspace:*",

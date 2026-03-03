@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/linter",
-  "version": "0.0.1-alpha.0",
+  "version": "0.0.1-alpha.1",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -9,14 +9,21 @@
     "email": "npm-dev@birdcc.link",
     "url": "https://github.com/bird-chinese-community/"
   },
+  "description": "Lint rule engine for BIRD2 configuration files.",
   "main": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
   },
+  "sideEffects": false,
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@birdcc/core": "workspace:*",
     "@birdcc/parser": "workspace:*"
