@@ -128,3 +128,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @birdcc/vscode build
       - run: xvfb-run -a pnpm --filter @birdcc/vscode test:e2e
+
+  vscode-pack-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter bird2-extension-pack marketplace:package

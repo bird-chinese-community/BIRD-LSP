@@ -13,6 +13,16 @@ on:
         required: true
         default: false
         type: boolean
+      publish_pack_marketplace:
+        description: "Publish extension pack to VS Code Marketplace (requires VS_PUBLISH_TOKEN)"
+        required: true
+        default: false
+        type: boolean
+      publish_pack_openvsx:
+        description: "Publish extension pack to OpenVSX (requires OPEN_VSX_PUBLISH_TOKEN)"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   package-vsix:
@@ -32,10 +42,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @birdcc/vscode marketplace:package
+      - run: pnpm --filter bird2-extension-pack marketplace:package
       - uses: actions/upload-artifact@v4
         with:
           name: bird2-lsp-vsix
           path: packages/@birdcc/vscode/release/bird2-lsp.vsix
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bird2-extension-pack-vsix
+          path: packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
           if-no-files-found: error
 
   publish-vscode-marketplace:
@@ -79,5 +95,49 @@ jobs:
           name: bird2-lsp-vsix
           path: packages/@birdcc/vscode/release
       - run: pnpm --filter @birdcc/vscode marketplace:publish:ovsx
+        env:
+          OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}
+
+  publish-pack-vscode-marketplace:
+    needs: package-vsix
+    if: ${{ github.event.inputs.publish_pack_marketplace == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-extension-pack-vsix
+          path: packages/@birdcc/vscode-pack/release
+      - run: pnpm --filter bird2-extension-pack marketplace:publish:vsce
+        env:
+          VSCE_PAT: ${{ secrets.VS_PUBLISH_TOKEN }}
+
+  publish-pack-openvsx:
+    needs: package-vsix
+    if: ${{ github.event.inputs.publish_pack_openvsx == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-extension-pack-vsix
+          path: packages/@birdcc/vscode-pack/release
+      - run: pnpm --filter bird2-extension-pack marketplace:publish:ovsx
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}
