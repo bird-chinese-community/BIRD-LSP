@@ -11,6 +11,8 @@ import {
   KEYWORD_DOCS,
   toLspRange,
 } from "./shared.js";
+import { resolveHoverKeywordDoc } from "./hover-docs.js";
+import { resolveHoverContextPath } from "./hover-context.js";
 
 interface LineWord {
   readonly value: string;
@@ -21,6 +23,24 @@ interface LineWord {
 interface ResolvedKeywordDoc {
   readonly keyword: string;
   readonly doc: string;
+}
+
+interface ResolvedKeywordHit {
+  readonly word: string;
+  readonly doc: string;
+  readonly startCharacter: number;
+  readonly endCharacter: number;
+}
+
+export interface KeywordHoverResolutionOptions {
+  readonly contextPath?: readonly string[];
+}
+
+export interface ResolvedKeywordHover {
+  readonly key: string;
+  readonly markdown: string;
+  readonly startCharacter: number;
+  readonly endCharacter: number;
 }
 
 const WORD_PATTERN = /(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)/g;
@@ -148,21 +168,16 @@ const findResolvedKeywordDoc = (
   return undefined;
 };
 
-const keywordAtPosition = (
-  document: TextDocument,
-  position: Position,
-): { word: string; doc: string; range: Range } | null => {
-  if (position.line < 0 || position.line >= document.lineCount) {
-    return null;
-  }
-
-  const lineText = getLineText(document, position.line);
+const keywordAtLine = (
+  lineText: string,
+  character: number,
+): ResolvedKeywordHit | null => {
   const words = collectLineWords(lineText);
   if (words.length === 0) {
     return null;
   }
 
-  const focusedWordIndex = resolveFocusedWordIndex(words, position.character);
+  const focusedWordIndex = resolveFocusedWordIndex(words, character);
   if (focusedWordIndex === -1) {
     return null;
   }
@@ -188,21 +203,36 @@ const keywordAtPosition = (
       return {
         word: resolved.keyword,
         doc: resolved.doc,
-        range: {
-          start: {
-            line: position.line,
-            character: words[startIndex].start,
-          },
-          end: {
-            line: position.line,
-            character: words[endIndex].end,
-          },
-        },
+        startCharacter: words[startIndex].start,
+        endCharacter: words[endIndex].end,
       };
     }
   }
 
   return null;
+};
+
+export const resolveKeywordHoverOnLine = (
+  lineText: string,
+  character: number,
+  options?: KeywordHoverResolutionOptions,
+): ResolvedKeywordHover | null => {
+  const keyword = keywordAtLine(lineText, character);
+  if (!keyword) {
+    return null;
+  }
+
+  const resolvedDoc =
+    resolveHoverKeywordDoc(keyword.word, {
+      contextPath: options?.contextPath,
+    }) ?? keyword.doc;
+
+  return {
+    key: keyword.word,
+    markdown: `**${keyword.word}**\n\n${resolvedDoc}`,
+    startCharacter: keyword.startCharacter,
+    endCharacter: keyword.endCharacter,
+  };
 };
 
 export const createHoverFromParsed = (
@@ -225,7 +255,19 @@ export const createHoverFromParsed = (
     };
   }
 
-  const keyword = keywordAtPosition(document, position);
+  if (position.line < 0 || position.line >= document.lineCount) {
+    return null;
+  }
+
+  const lineText = getLineText(document, position.line);
+  const contextPath = resolveHoverContextPath(
+    document,
+    position.line,
+    position.character,
+  );
+  const keyword = resolveKeywordHoverOnLine(lineText, position.character, {
+    contextPath,
+  });
   if (!keyword) {
     return null;
   }
@@ -233,8 +275,17 @@ export const createHoverFromParsed = (
   return {
     contents: {
       kind: "markdown",
-      value: `**${keyword.word}**\n\n${keyword.doc}`,
+      value: keyword.markdown,
     },
-    range: keyword.range,
+    range: {
+      start: {
+        line: position.line,
+        character: keyword.startCharacter,
+      },
+      end: {
+        line: position.line,
+        character: keyword.endCharacter,
+      },
+    } satisfies Range,
   };
 };

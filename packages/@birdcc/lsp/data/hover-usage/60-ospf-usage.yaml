@@ -21,5 +21,8 @@ entries:
   - keyword: type
     usage: type broadcast;
   - keyword: password
-    path: protocol.ospf.authentication
+    path:
+      - protocol.ospf.authentication
+      - protocol.ospf.area
+      - protocol.ospf
     usage: password "ospf-secret";

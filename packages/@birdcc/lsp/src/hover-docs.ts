@@ -61,6 +61,34 @@ interface HoverUsageYamlFragment {
   readonly entries?: readonly HoverUsageYamlEntry[];
 }
 
+interface HoverUsageEntry {
+  readonly keyword: string;
+  readonly usage: string;
+  readonly normalizedPaths: readonly (readonly string[])[];
+}
+
+interface CanonicalHoverDocEntry extends HoverDocYamlEntry {
+  readonly keyword: string;
+  readonly usage?: string;
+  readonly anchor?: string;
+  readonly anchors?: {
+    readonly v2?: string;
+    readonly v3?: string;
+  };
+  readonly normalizedPaths: readonly (readonly string[])[];
+  readonly usageCandidates: readonly HoverUsageEntry[];
+}
+
+export interface HoverDocResolutionOptions {
+  readonly contextPath?: readonly string[];
+}
+
+const HOVER_MARKDOWN_CACHE_LIMIT = 2048;
+const hoverMarkdownCache = new Map<string, string>();
+
+const toCanonicalKey = (value: string): string =>
+  value.trim().toLowerCase().replace(/\s+/g, " ");
+
 const normalizeAnchor = (value: string | undefined): string | undefined => {
   if (typeof value !== "string") {
     return undefined;
@@ -68,6 +96,31 @@ const normalizeAnchor = (value: string | undefined): string | undefined => {
 
   const normalized = value.trim().replace(/^#/, "");
   return normalized.length > 0 ? normalized : undefined;
+};
+
+const normalizePathSegments = (value: string): readonly string[] =>
+  value
+    .trim()
+    .toLowerCase()
+    .split(/[./]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+const toNormalizedPaths = (
+  value: string | readonly string[] | undefined,
+): readonly (readonly string[])[] => {
+  if (!value) {
+    return [];
+  }
+
+  if (typeof value === "string") {
+    const normalized = normalizePathSegments(value);
+    return normalized.length > 0 ? [normalized] : [];
+  }
+
+  return value
+    .map((item) => normalizePathSegments(item))
+    .filter((segments) => segments.length > 0);
 };
 
 const resolveDataDir = (directoryName: string): string => {
@@ -145,16 +198,16 @@ const loadHoverDocYaml = (): HoverDocYamlSource => {
   };
 };
 
-const loadHoverUsageMap = (): ReadonlyMap<string, string> => {
+const loadHoverUsageEntries = (): readonly HoverUsageEntry[] => {
   const hoverUsageDir = resolveDataDir("hover-usage");
   const fileNames = readdirSync(hoverUsageDir)
     .filter((fileName) => fileName.endsWith(".yaml"))
     .sort((left, right) => left.localeCompare(right));
   if (fileNames.length === 0) {
-    return new Map();
+    return [];
   }
 
-  const usageMap = new Map<string, string>();
+  const usageEntries: HoverUsageEntry[] = [];
   for (const fileName of fileNames) {
     const filePath = path.join(hoverUsageDir, fileName);
     const raw = readFileSync(filePath, "utf8");
@@ -167,6 +220,7 @@ const loadHoverUsageMap = (): ReadonlyMap<string, string> => {
         `Invalid entries in hover usage yaml fragment: ${fileName}`,
       );
     }
+
     for (const entry of parsed.entries ?? []) {
       if (
         !entry ||
@@ -176,22 +230,21 @@ const loadHoverUsageMap = (): ReadonlyMap<string, string> => {
         throw new Error(`Invalid usage entry in fragment: ${fileName}`);
       }
 
-      const keyword = entry.keyword.trim().toLowerCase();
-      if (keyword.length === 0 || entry.usage.trim().length === 0) {
+      const keyword = toCanonicalKey(entry.keyword);
+      const usage = entry.usage.trim();
+      if (keyword.length === 0 || usage.length === 0) {
         continue;
       }
 
-      // LSP currently resolves hover docs by keyword only. Prefer generic snippets.
-      const hasPathScope =
-        typeof entry.path === "string" ||
-        (Array.isArray(entry.path) && entry.path.length > 0);
-      if (!usageMap.has(keyword) || !hasPathScope) {
-        usageMap.set(keyword, entry.usage);
-      }
+      usageEntries.push({
+        keyword,
+        usage,
+        normalizedPaths: toNormalizedPaths(entry.path),
+      });
     }
   }
 
-  return usageMap;
+  return usageEntries;
 };
 
 const isDiffType = (value: string): value is HoverDocDiffType =>
@@ -203,16 +256,141 @@ const isDiffType = (value: string): value is HoverDocDiffType =>
 const isVersionTag = (value: string): value is HoverDocVersionTag =>
   value === "v2+" || value === "v3+" || value === "v2" || value === "v2-v3";
 
+const isPrefixPath = (
+  pathSegments: readonly string[],
+  contextSegments: readonly string[],
+): boolean => {
+  if (
+    pathSegments.length === 0 ||
+    pathSegments.length > contextSegments.length
+  ) {
+    return false;
+  }
+
+  for (let index = 0; index < pathSegments.length; index += 1) {
+    if (pathSegments[index] !== contextSegments[index]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const isSubsequencePath = (
+  pathSegments: readonly string[],
+  contextSegments: readonly string[],
+): boolean => {
+  if (
+    pathSegments.length === 0 ||
+    pathSegments.length > contextSegments.length
+  ) {
+    return false;
+  }
+
+  let contextIndex = 0;
+  for (const segment of pathSegments) {
+    while (
+      contextIndex < contextSegments.length &&
+      contextSegments[contextIndex] !== segment
+    ) {
+      contextIndex += 1;
+    }
+
+    if (contextIndex >= contextSegments.length) {
+      return false;
+    }
+
+    contextIndex += 1;
+  }
+
+  return true;
+};
+
+const scorePathMatch = (
+  normalizedPaths: readonly (readonly string[])[],
+  contextPath: readonly string[] | undefined,
+): number => {
+  if (!contextPath || contextPath.length === 0) {
+    return normalizedPaths.length === 0 ? 0 : -1;
+  }
+
+  if (normalizedPaths.length === 0) {
+    return 0;
+  }
+
+  const normalizedContext = contextPath.map((segment) => segment.toLowerCase());
+  let bestScore = -1;
+
+  for (const pathSegments of normalizedPaths) {
+    if (isPrefixPath(pathSegments, normalizedContext)) {
+      bestScore = Math.max(bestScore, pathSegments.length * 10);
+      continue;
+    }
+
+    if (isSubsequencePath(pathSegments, normalizedContext)) {
+      bestScore = Math.max(bestScore, pathSegments.length * 5);
+    }
+  }
+
+  return bestScore;
+};
+
+const resolveDefaultUsage = (
+  entries: readonly HoverUsageEntry[],
+): string | undefined => {
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  const genericEntry = entries.find(
+    (entry) => entry.normalizedPaths.length === 0,
+  );
+  if (genericEntry) {
+    return genericEntry.usage;
+  }
+
+  return entries[0]?.usage;
+};
+
+const resolveUsageForContext = (
+  entries: readonly HoverUsageEntry[],
+  contextPath: readonly string[] | undefined,
+): string | undefined => {
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  let selectedUsage: string | undefined;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+
+  for (const entry of entries) {
+    const score = scorePathMatch(entry.normalizedPaths, contextPath);
+    if (score > selectedScore) {
+      selectedUsage = entry.usage;
+      selectedScore = score;
+    }
+  }
+
+  return selectedUsage ?? entries[0]?.usage;
+};
+
 const hoverDocSource = loadHoverDocYaml();
-const hoverUsageMap = loadHoverUsageMap();
+const hoverUsageEntries = loadHoverUsageEntries();
+
+const hoverUsageByKeyword = new Map<string, HoverUsageEntry[]>();
+for (const usageEntry of hoverUsageEntries) {
+  const existing = hoverUsageByKeyword.get(usageEntry.keyword) ?? [];
+  existing.push(usageEntry);
+  hoverUsageByKeyword.set(usageEntry.keyword, existing);
+}
 
 const VERSION_BASE_URLS = {
   v2: hoverDocSource.baseUrls.v2,
   v3: hoverDocSource.baseUrls.v3,
 } as const;
 
-const toCanonicalEntry = (entry: HoverDocYamlEntry): HoverDocYamlEntry => {
-  const keyword = entry.keyword.trim().toLowerCase();
+const toCanonicalEntry = (entry: HoverDocYamlEntry): CanonicalHoverDocEntry => {
+  const keyword = toCanonicalKey(entry.keyword);
   if (keyword.length === 0) {
     throw new Error("Hover keyword must not be empty");
   }
@@ -258,27 +436,45 @@ const toCanonicalEntry = (entry: HoverDocYamlEntry): HoverDocYamlEntry => {
     );
   }
 
+  const usageCandidates = hoverUsageByKeyword.get(keyword) ?? [];
+
   return {
     ...entry,
     keyword,
-    usage: entry.usage ?? hoverUsageMap.get(keyword),
+    usage: entry.usage ?? resolveDefaultUsage(usageCandidates),
     anchor,
     anchors,
+    normalizedPaths: toNormalizedPaths(entry.path),
+    usageCandidates,
   };
 };
 
 const normalizedEntries = hoverDocSource.entries.map(toCanonicalEntry);
 
-const dedupedEntries: HoverDocYamlEntry[] = [];
-const seenKeywords = new Set<string>();
+const entriesByKeyword = new Map<string, CanonicalHoverDocEntry[]>();
 for (const entry of normalizedEntries) {
-  if (seenKeywords.has(entry.keyword)) {
-    continue;
+  const existing = entriesByKeyword.get(entry.keyword) ?? [];
+  existing.push(entry);
+  entriesByKeyword.set(entry.keyword, existing);
+}
+
+const selectEntryForContext = (
+  entries: readonly CanonicalHoverDocEntry[],
+  contextPath: readonly string[] | undefined,
+): CanonicalHoverDocEntry | undefined => {
+  let selected: CanonicalHoverDocEntry | undefined;
+  let selectedScore = Number.NEGATIVE_INFINITY;
+
+  for (const entry of entries) {
+    const score = scorePathMatch(entry.normalizedPaths, contextPath);
+    if (score > selectedScore) {
+      selected = entry;
+      selectedScore = score;
+    }
   }
 
-  seenKeywords.add(entry.keyword);
-  dedupedEntries.push(entry);
-}
+  return selected;
+};
 
 const buildDocUrl = (
   version: keyof typeof VERSION_BASE_URLS,
@@ -292,7 +488,7 @@ const buildDocUrl = (
   return `${baseUrl}#${anchor}`;
 };
 
-const buildDocsSection = (entry: HoverDocYamlEntry): string => {
+const buildDocsSection = (entry: CanonicalHoverDocEntry): string => {
   const lines: string[] = [];
 
   if (entry.version === "v2+") {
@@ -317,7 +513,7 @@ const buildDocsSection = (entry: HoverDocYamlEntry): string => {
   return lines.join("\n");
 };
 
-const buildNotesSection = (entry: HoverDocYamlEntry): string => {
+const buildNotesSection = (entry: CanonicalHoverDocEntry): string => {
   if (!entry.notes) {
     return "";
   }
@@ -338,7 +534,7 @@ const buildNotesSection = (entry: HoverDocYamlEntry): string => {
   return `\n\nNotes:\n${lines.join("\n")}`;
 };
 
-const buildContextSection = (entry: HoverDocYamlEntry): string => {
+const buildContextSection = (entry: CanonicalHoverDocEntry): string => {
   if (!entry.path) {
     return "";
   }
@@ -351,7 +547,7 @@ const buildContextSection = (entry: HoverDocYamlEntry): string => {
   return `\n\nContext:\n${paths.map((item) => `- \`${item}\``).join("\n")}`;
 };
 
-const buildRelatedSection = (entry: HoverDocYamlEntry): string => {
+const buildRelatedSection = (entry: CanonicalHoverDocEntry): string => {
   if (!entry.related || entry.related.length === 0) {
     return "";
   }
@@ -359,7 +555,7 @@ const buildRelatedSection = (entry: HoverDocYamlEntry): string => {
   return `\n\nRelated:\n${entry.related.map((item) => `- \`${item}\``).join("\n")}`;
 };
 
-const buildParametersSection = (entry: HoverDocYamlEntry): string => {
+const buildParametersSection = (entry: CanonicalHoverDocEntry): string => {
   if (!entry.parameters || entry.parameters.length === 0) {
     return "";
   }
@@ -371,10 +567,11 @@ const buildParametersSection = (entry: HoverDocYamlEntry): string => {
   return `\n\nParameters:\n${lines.join("\n")}`;
 };
 
-const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
-  const usageSection = entry.usage
-    ? `\n\nUsage:\n\`\`\`bird\n${entry.usage}\n\`\`\``
-    : "";
+const toHoverMarkdown = (
+  entry: CanonicalHoverDocEntry,
+  usage: string | undefined,
+): string => {
+  const usageSection = usage ? `\n\nUsage:\n\`\`\`bird\n${usage}\n\`\`\`` : "";
   return (
     [
       `### ${entry.description}`,
@@ -394,10 +591,73 @@ const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
   );
 };
 
-export const HOVER_KEYWORD_DOCS: Record<string, string> = Object.fromEntries(
-  dedupedEntries.map((entry) => [entry.keyword, toHoverMarkdown(entry)]),
-);
+const toContextCacheKey = (
+  contextPath: readonly string[] | undefined,
+): string =>
+  contextPath && contextPath.length > 0
+    ? contextPath.map((segment) => segment.toLowerCase()).join(".")
+    : "";
 
-export const HOVER_KEYWORDS: readonly string[] = Object.freeze(
-  dedupedEntries.map((entry) => entry.keyword),
+const setCachedMarkdown = (cacheKey: string, markdown: string): void => {
+  if (hoverMarkdownCache.has(cacheKey)) {
+    hoverMarkdownCache.delete(cacheKey);
+  }
+  hoverMarkdownCache.set(cacheKey, markdown);
+
+  if (hoverMarkdownCache.size > HOVER_MARKDOWN_CACHE_LIMIT) {
+    const oldestKey = hoverMarkdownCache.keys().next().value;
+    if (oldestKey) {
+      hoverMarkdownCache.delete(oldestKey);
+    }
+  }
+};
+
+export const resolveHoverKeywordDoc = (
+  keyword: string,
+  options?: HoverDocResolutionOptions,
+): string | undefined => {
+  const canonicalKey = toCanonicalKey(keyword);
+  if (canonicalKey.length === 0) {
+    return undefined;
+  }
+
+  const contextCacheKey = toContextCacheKey(options?.contextPath);
+  const cacheKey = `${canonicalKey}::${contextCacheKey}`;
+  const cachedMarkdown = hoverMarkdownCache.get(cacheKey);
+  if (cachedMarkdown !== undefined) {
+    return cachedMarkdown;
+  }
+
+  const entries = entriesByKeyword.get(canonicalKey);
+  if (!entries || entries.length === 0) {
+    return undefined;
+  }
+
+  const entry = selectEntryForContext(entries, options?.contextPath);
+  if (!entry) {
+    return undefined;
+  }
+
+  const usage =
+    resolveUsageForContext(entry.usageCandidates, options?.contextPath) ??
+    entry.usage;
+  const markdown = toHoverMarkdown(entry, usage);
+  setCachedMarkdown(cacheKey, markdown);
+
+  return markdown;
+};
+
+export const HOVER_KEYWORDS: readonly string[] = Object.freeze([
+  ...entriesByKeyword.keys(),
+]);
+
+export const HOVER_KEYWORD_DOCS: Record<string, string> = Object.fromEntries(
+  HOVER_KEYWORDS.flatMap((keyword) => {
+    const markdown = resolveHoverKeywordDoc(keyword);
+    if (!markdown) {
+      return [];
+    }
+
+    return [[keyword, markdown]];
+  }),
 );
