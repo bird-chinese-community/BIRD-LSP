@@ -25,6 +25,7 @@
     "@birdcc/parser": "workspace:*"
   },
   "scripts": {
+    "hover-docs:generate": "node scripts/generate-hover-docs.mjs",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
