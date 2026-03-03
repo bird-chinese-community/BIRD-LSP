@@ -58,6 +58,16 @@ console.log(result.diagnostics);
 // [{ code: "bgp/missing-local-as", message: "BGP protocol missing local as configuration", severity: "warning" }]
 ```
 
+### Reference Samples Sync
+
+```bash
+pnpm --filter @birdcc/linter sync:examples
+```
+
+This command copies `refer/vscode-bird2/syntaxes/bird-tm-grammar/sample/*.conf`
+to `packages/@birdcc/linter/examples/` and runs automatically during `build`
+and `test`.
+
 ### Custom Rules
 
 ```typescript
@@ -74,7 +84,9 @@ const namingConventionRule: BirdRule = ({ core }) => {
           message: `Protocol name '${symbol.name}' should only contain lowercase letters, numbers, and hyphens`,
           severity: "warning",
           source: "linter",
-          range: { /* ... */ },
+          range: {
+            /* ... */
+          },
         });
       }
     }
@@ -90,51 +102,51 @@ const namingConventionRule: BirdRule = ({ core }) => {
 
 ### Symbol Rules (`sym/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
-| `sym/undefined` | Reference to undefined symbol | error |
-| `sym/duplicate` | Duplicate symbol definition | error |
-| `sym/proto-type-mismatch` | Protocol type mismatch | error |
+| Rule                      | Description                   | Level |
+| ------------------------- | ----------------------------- | ----- |
+| `sym/undefined`           | Reference to undefined symbol | error |
+| `sym/duplicate`           | Duplicate symbol definition   | error |
+| `sym/proto-type-mismatch` | Protocol type mismatch        | error |
 
 ### Config Rules (`cfg/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
-| `cfg/no-protocol` | No protocol defined | error |
-| `cfg/missing-router-id` | Missing router id | error |
-| `cfg/syntax-error` | Syntax error detected | error |
+| Rule                     | Description              | Level |
+| ------------------------ | ------------------------ | ----- |
+| `cfg/no-protocol`        | No protocol defined      | error |
+| `cfg/missing-router-id`  | Missing router id        | error |
+| `cfg/syntax-error`       | Syntax error detected    | error |
 | `cfg/value-out-of-range` | Value out of valid range | error |
 
 ### Network Rules (`net/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
+| Rule                        | Description           | Level |
+| --------------------------- | --------------------- | ----- |
 | `net/invalid-prefix-length` | Invalid prefix length | error |
-| `net/invalid-ipv4-prefix` | Invalid IPv4 prefix | error |
-| `net/invalid-ipv6-prefix` | Invalid IPv6 prefix | error |
+| `net/invalid-ipv4-prefix`   | Invalid IPv4 prefix   | error |
+| `net/invalid-ipv6-prefix`   | Invalid IPv6 prefix   | error |
 
 ### Type Rules (`type/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
-| `type/mismatch` | Type mismatch | error |
+| Rule                | Description          | Level |
+| ------------------- | -------------------- | ----- |
+| `type/mismatch`     | Type mismatch        | error |
 | `type/not-iterable` | Non-iterable in loop | error |
 
 ### BGP Rules (`bgp/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
-| `bgp/missing-local-as` | Missing local AS | warning |
-| `bgp/missing-neighbor` | Missing neighbor | warning |
-| `bgp/missing-remote-as` | Missing remote AS | warning |
-| `bgp/as-mismatch` | AS number mismatch | warning |
+| Rule                    | Description        | Level   |
+| ----------------------- | ------------------ | ------- |
+| `bgp/missing-local-as`  | Missing local AS   | warning |
+| `bgp/missing-neighbor`  | Missing neighbor   | warning |
+| `bgp/missing-remote-as` | Missing remote AS  | warning |
+| `bgp/as-mismatch`       | AS number mismatch | warning |
 
 ### OSPF Rules (`ospf/*`)
 
-| Rule | Description | Level |
-| ---- | ----------- | ----- |
-| `ospf/missing-area` | Missing area configuration | warning |
-| `ospf/backbone-stub` | Stub area on backbone | warning |
+| Rule                 | Description                | Level   |
+| -------------------- | -------------------------- | ------- |
+| `ospf/missing-area`  | Missing area configuration | warning |
+| `ospf/backbone-stub` | Stub area on backbone      | warning |
 
 ---
 
@@ -175,13 +187,13 @@ interface RuleContext {
 
 ## Related Packages
 
-| Package | Description |
-| ------- | ----------- |
-| [@birdcc/parser](../parser/) | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/) | Semantic analysis engine |
-| [@birdcc/formatter](../formatter/) | Code formatting engine |
-| [@birdcc/lsp](../lsp/) | LSP server implementation |
-| [@birdcc/cli](../cli/) | Command-line interface |
+| Package                            | Description                    |
+| ---------------------------------- | ------------------------------ |
+| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
+| [@birdcc/core](../core/)           | Semantic analysis engine       |
+| [@birdcc/formatter](../formatter/) | Code formatting engine         |
+| [@birdcc/lsp](../lsp/)             | LSP server implementation      |
+| [@birdcc/cli](../cli/)             | Command-line interface         |
 
 ---
 

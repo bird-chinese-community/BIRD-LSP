@@ -1,5 +1,5 @@
 import type { BirdDiagnostic } from "@birdcc/core";
-import type { FilterBodyStatement, SourceRange } from "@birdcc/parser";
+import type { SourceRange } from "@birdcc/parser";
 import {
   createRuleDiagnostic,
   filterAndFunctionDeclarations,
@@ -51,26 +51,6 @@ const splitSetItems = (setText: string): string[] => {
     .filter((item) => item.length > 0);
 };
 
-const statementText = (statement: FilterBodyStatement): string => {
-  if (statement.kind === "expression") {
-    return statement.expressionText;
-  }
-
-  if (statement.kind === "other") {
-    return statement.text;
-  }
-
-  if (statement.kind === "if") {
-    return statement.conditionText ?? "";
-  }
-
-  if (statement.kind === "return") {
-    return statement.valueText ?? "";
-  }
-
-  return "";
-};
-
 const declarationText = (source: string, range: SourceRange): string => {
   const lines = source.split(/\r?\n/);
   const startLine = Math.max(1, range.line);
@@ -78,37 +58,26 @@ const declarationText = (source: string, range: SourceRange): string => {
   return lines.slice(startLine - 1, endLine).join("\n");
 };
 
+const isLikelyReference = (value: string): boolean =>
+  /^[A-Za-z_][A-Za-z0-9_.]*$/u.test(value.trim());
+
+const isLikelyPrefixPattern = (value: string): boolean =>
+  /^[0-9A-Fa-f:.]+\/\d+(?:\+|\{\d+,\d+\})?$/u.test(value.trim());
+
 const typeNotIterableRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
 
   for (const declaration of filterAndFunctionDeclarations(parsed)) {
-    for (const statement of declaration.statements) {
-      const text = statementText(statement);
-      if (!text) {
-        continue;
-      }
-
-      for (const match of extractMatches(text)) {
-        if (match.right.startsWith("[") && match.right.endsWith("]")) {
-          continue;
-        }
-
-        pushUniqueDiagnostic(
-          diagnostics,
-          seen,
-          createRuleDiagnostic(
-            "type/not-iterable",
-            `Type '${match.right}' is not iterable in match expression '${match.left} ~ ${match.right}'`,
-            statement,
-          ),
-        );
-      }
-    }
-
     for (const match of declaration.matches) {
       const right = normalizeRightExpression(match.right);
-      if (right.startsWith("[") && right.endsWith("]")) {
+      if (
+        (right.startsWith("[") && right.endsWith("]")) ||
+        isLikelyReference(right) ||
+        isLikelyPrefixPattern(right) ||
+        scalarTypeOfExpression(right) === "ip" ||
+        scalarTypeOfExpression(right) === "prefix"
+      ) {
         continue;
       }
 
@@ -168,17 +137,6 @@ const typeSetIncompatibleRule: BirdRule = ({ parsed, text }) => {
   };
 
   for (const declaration of filterAndFunctionDeclarations(parsed)) {
-    for (const statement of declaration.statements) {
-      const text = statementText(statement);
-      if (!text) {
-        continue;
-      }
-
-      for (const match of extractMatches(text)) {
-        evaluateSetCompatibility(match.left, match.right, statement);
-      }
-    }
-
     for (const match of declaration.matches) {
       evaluateSetCompatibility(match.left, match.right, match);
     }

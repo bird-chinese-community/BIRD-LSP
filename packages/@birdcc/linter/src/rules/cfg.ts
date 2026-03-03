@@ -18,9 +18,21 @@ import {
 
 const MAX_ASN = 4_294_967_294;
 const MAX_ROUTE_LIMIT = 10_000_000;
+const SYMBOLIC_NUMBER_PATTERN = /^(?=.*[A-Z_])[A-Za-z_][A-Za-z0-9_]*$/u;
+const BGP_ASN_KEYWORDS = new Set(["internal", "external", "ibgp", "ebgp"]);
+const hasDefineDeclarations = (
+  parsed: Parameters<BirdRule>[0]["parsed"],
+): boolean =>
+  parsed.program.declarations.some(
+    (declaration) => declaration.kind === "define",
+  );
 
 const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   if (protocolDeclarations(parsed).length > 0) {
+    return [];
+  }
+
+  if (hasDefineDeclarations(parsed)) {
     return [];
   }
 
@@ -40,6 +52,13 @@ const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
 
 const cfgMissingRouterIdRule: BirdRule = ({ parsed }) => {
   if (routerIdDeclarations(parsed).length > 0) {
+    return [];
+  }
+
+  if (
+    protocolDeclarations(parsed).length === 0 &&
+    hasDefineDeclarations(parsed)
+  ) {
     return [];
   }
 
@@ -70,6 +89,18 @@ const diagnoseNumberExpected = (
   }
 
   if (numericValue(value) !== null) {
+    return;
+  }
+
+  const normalized = value.trim();
+  if (SYMBOLIC_NUMBER_PATTERN.test(normalized)) {
+    return;
+  }
+
+  if (
+    fieldName.includes("as") &&
+    BGP_ASN_KEYWORDS.has(normalized.toLowerCase())
+  ) {
     return;
   }
 

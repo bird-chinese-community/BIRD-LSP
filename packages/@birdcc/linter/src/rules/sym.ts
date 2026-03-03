@@ -45,6 +45,14 @@ const BUILTIN_FUNCTION_NAMES = new Set([
   "prefix",
   "ip",
   "int",
+  "append",
+]);
+const BUILTIN_TABLE_NAMES = new Set([
+  "master4",
+  "master6",
+  "master",
+  "main4",
+  "main6",
 ]);
 
 const isImportOrExportFilterClause = (
@@ -67,16 +75,52 @@ const isChannelFilterClause = (
   (entry.kind === "import" || entry.kind === "export") &&
   entry.mode === "filter";
 
+const textInRange = (source: string, range: SourceRange): string => {
+  const lines = source.split(/\r?\n/u);
+  const startLine = Math.max(range.line - 1, 0);
+  const endLine = Math.max(range.endLine - 1, startLine);
+  const selected = lines.slice(startLine, endLine + 1);
+
+  if (selected.length === 0) {
+    return "";
+  }
+
+  const first = selected[0] ?? "";
+  const last = selected[selected.length - 1] ?? "";
+  selected[0] = first.slice(Math.max(range.column - 1, 0));
+  selected[selected.length - 1] = last.slice(
+    0,
+    Math.max(range.endColumn - 1, 0),
+  );
+  return selected.join("\n");
+};
+
+const hasInlineFilterBlock = (source: string, range: SourceRange): boolean => {
+  const clauseText = textInRange(source, range).toLowerCase();
+  return /\bfilter\s*\{/u.test(clauseText);
+};
+
 const collectProtocolFilterClauses = (
+  source: string,
   declaration: ProtocolDeclaration,
-): Array<{ filterName?: string; range: SourceRange }> => {
-  const clauses: Array<{ filterName?: string; range: SourceRange }> = [];
+): Array<{
+  filterName?: string;
+  range: SourceRange;
+  requiresFilterName: boolean;
+}> => {
+  const clauses: Array<{
+    filterName?: string;
+    range: SourceRange;
+    requiresFilterName: boolean;
+  }> = [];
 
   for (const statement of declaration.statements) {
     if (isImportOrExportFilterClause(statement)) {
+      const range = statement.filterNameRange ?? statement;
       clauses.push({
         filterName: statement.filterName,
-        range: statement.filterNameRange ?? statement,
+        range,
+        requiresFilterName: !hasInlineFilterBlock(source, range),
       });
       continue;
     }
@@ -93,6 +137,10 @@ const collectProtocolFilterClauses = (
       clauses.push({
         filterName: entry.filterName,
         range: entry.filterNameRange ?? entry,
+        requiresFilterName: !hasInlineFilterBlock(
+          source,
+          entry.filterNameRange ?? entry,
+        ),
       });
     }
   }
@@ -138,7 +186,7 @@ const symProtoTypeMismatchRule: BirdRule = ({ parsed }) => {
   return diagnostics;
 };
 
-const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
+const symFilterRequiredRule: BirdRule = ({ text, parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
   const filterNames = new Set(
@@ -146,9 +194,9 @@ const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
   );
 
   for (const declaration of protocolDeclarations(parsed)) {
-    for (const clause of collectProtocolFilterClauses(declaration)) {
+    for (const clause of collectProtocolFilterClauses(text, declaration)) {
       const name = clause.filterName?.trim();
-      if (!name) {
+      if (!name && clause.requiresFilterName) {
         pushUniqueDiagnostic(
           diagnostics,
           seen,
@@ -158,6 +206,9 @@ const symFilterRequiredRule: BirdRule = ({ parsed, core }) => {
             clause.range,
           ),
         );
+        continue;
+      }
+      if (!name) {
         continue;
       }
 
@@ -269,7 +320,8 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
 
           if (
             !tableNames.has(tableName.toLowerCase()) &&
-            !hasSymbolKind(core, "table", tableName)
+            !hasSymbolKind(core, "table", tableName) &&
+            !BUILTIN_TABLE_NAMES.has(tableName.toLowerCase())
           ) {
             pushUniqueDiagnostic(
               diagnostics,
@@ -310,7 +362,8 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
 
       if (
         !tableNames.has(tableName.toLowerCase()) &&
-        !hasSymbolKind(core, "table", tableName)
+        !hasSymbolKind(core, "table", tableName) &&
+        !BUILTIN_TABLE_NAMES.has(tableName.toLowerCase())
       ) {
         pushUniqueDiagnostic(
           diagnostics,

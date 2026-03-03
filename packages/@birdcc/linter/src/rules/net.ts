@@ -11,16 +11,46 @@ import {
 
 interface PrefixParts {
   address: string;
-  length: number | null;
+  minLength: number | null;
+  maxLength: number | null;
   raw: string;
 }
 
-const PREFIX_PATTERN_SOURCE = "([0-9A-Za-z:.]+\\/[^\\s,;{}[\\]]+)";
+const PREFIX_PATTERN_SOURCE =
+  "([0-9A-Za-z:.]+\\/(?:\\d+)(?:\\+|\\{\\d+,\\d+\\})?)";
+
+const stripQuotedStrings = (text: string): string =>
+  text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/gu, " ");
+
+const toPrefixLengthRange = (
+  value: string,
+): { minLength: number | null; maxLength: number | null } => {
+  if (/^\d+$/u.test(value)) {
+    const length = Number.parseInt(value, 10);
+    return { minLength: length, maxLength: length };
+  }
+
+  const plusMatched = value.match(/^(\d+)\+$/u);
+  if (plusMatched) {
+    const length = Number.parseInt(plusMatched[1] ?? "", 10);
+    return { minLength: length, maxLength: null };
+  }
+
+  const rangeMatched = value.match(/^(\d+)\{(\d+),(\d+)\}$/u);
+  if (rangeMatched) {
+    return {
+      minLength: Number.parseInt(rangeMatched[2] ?? "", 10),
+      maxLength: Number.parseInt(rangeMatched[3] ?? "", 10),
+    };
+  }
+
+  return { minLength: null, maxLength: null };
+};
 
 const extractPrefixes = (text: string): PrefixParts[] => {
   const prefixes: PrefixParts[] = [];
   const prefixPattern = new RegExp(PREFIX_PATTERN_SOURCE, "g");
-  let matched = prefixPattern.exec(text);
+  let matched = prefixPattern.exec(stripQuotedStrings(text));
 
   while (matched) {
     const raw = matched[1] ?? "";
@@ -31,10 +61,13 @@ const extractPrefixes = (text: string): PrefixParts[] => {
     }
 
     const normalizedLength = lengthText.trim();
-    const length = /^\d+$/.test(normalizedLength)
-      ? Number.parseInt(normalizedLength, 10)
-      : null;
-    prefixes.push({ address: address.trim(), length, raw });
+    const parsedRange = toPrefixLengthRange(normalizedLength);
+    prefixes.push({
+      address: address.trim(),
+      minLength: parsedRange.minLength,
+      maxLength: parsedRange.maxLength,
+      raw,
+    });
 
     matched = prefixPattern.exec(text);
   }
@@ -73,8 +106,17 @@ const analyzePrefix = (
   range: SourceRange,
 ): void => {
   const family = isIP(prefix.address);
+  const maxAllowedByFamily = prefix.address.includes(".") ? 32 : 128;
+  const effectiveMaxLength = prefix.maxLength ?? maxAllowedByFamily;
 
-  if (prefix.length === null || prefix.length < 0 || prefix.length > 128) {
+  if (
+    prefix.minLength === null ||
+    prefix.minLength < 0 ||
+    effectiveMaxLength < 0 ||
+    prefix.minLength > effectiveMaxLength ||
+    prefix.minLength > 128 ||
+    effectiveMaxLength > 128
+  ) {
     pushUniqueDiagnostic(
       diagnostics,
       seen,
@@ -101,13 +143,13 @@ const analyzePrefix = (
       return;
     }
 
-    if (prefix.length > 32) {
+    if (effectiveMaxLength > 32) {
       pushUniqueDiagnostic(
         diagnostics,
         seen,
         createRuleDiagnostic(
           "net/max-prefix-length",
-          `Invalid max prefix length ${prefix.length} for IPv4 prefix '${prefix.raw}'`,
+          `Invalid max prefix length ${effectiveMaxLength} for IPv4 prefix '${prefix.raw}'`,
           range,
         ),
       );
@@ -129,13 +171,13 @@ const analyzePrefix = (
       return;
     }
 
-    if (prefix.length > 128) {
+    if (effectiveMaxLength > 128) {
       pushUniqueDiagnostic(
         diagnostics,
         seen,
         createRuleDiagnostic(
           "net/max-prefix-length",
-          `Invalid max prefix length ${prefix.length} for IPv6 prefix '${prefix.raw}'`,
+          `Invalid max prefix length ${effectiveMaxLength} for IPv6 prefix '${prefix.raw}'`,
           range,
         ),
       );
