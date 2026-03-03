@@ -138,7 +138,7 @@ describe("hover docs catalog", () => {
     const usageRichCount = Object.values(HOVER_KEYWORD_DOCS).filter(
       (markdown) => markdown.includes("\n\nUsage:\n```bird\n"),
     ).length;
-    expect(usageRichCount).toBeGreaterThanOrEqual(85);
+    expect(usageRichCount).toBeGreaterThanOrEqual(100);
   });
 
   it("exposes merged keyword docs through shared keyword map", () => {

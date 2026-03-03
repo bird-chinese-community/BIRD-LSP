@@ -37,3 +37,5 @@ entries:
     usage: ip next_hop;
   - keyword: prefix
     usage: prefix allowed_net;
+  - keyword: string
+    usage: string policy_name;

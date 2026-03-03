@@ -23,7 +23,7 @@ describe("bird keyword hover resolver", () => {
     expect(withPath).toBeGreaterThanOrEqual(100);
     expect(withRelated).toBeGreaterThanOrEqual(75);
     expect(withParameters).toBeGreaterThanOrEqual(75);
-    expect(withUsage).toBeGreaterThanOrEqual(85);
+    expect(withUsage).toBeGreaterThanOrEqual(100);
   });
 
   it("resolves multi-word router id topic", async () => {

@@ -41,6 +41,26 @@ entries:
     usage: thread group worker { threads 4; max latency 200 ms; };
   - keyword: max latency
     usage: max latency 200 ms;
+  - keyword: cork threshold
+    usage: cork threshold 50000;
+  - keyword: debug
+    usage: debug protocols { states, routes };
+  - keyword: debug latency
+    usage: debug latency { scheduling, timers };
+  - keyword: debug tables
+    usage: debug tables on;
+  - keyword: graceful restart wait
+    usage: graceful restart wait 240;
+  - keyword: hostname
+    usage: hostname "router-edge-01";
+  - keyword: threads
+    usage: threads 4;
+  - keyword: timeformat
+    usage: timeformat base "%F %T";
+  - keyword: trie
+    usage: trie on;
+  - keyword: watchdog warning
+    usage: watchdog warning 5 s;
   - keyword: max settle time
     usage: max settle time 30;
   - keyword: min settle time
