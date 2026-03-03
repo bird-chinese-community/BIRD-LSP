@@ -40,7 +40,7 @@ jobs:
 
   publish-vscode-marketplace:
     needs: package-vsix
-    if: ${{ github.event.inputs.publish_marketplace == 'true' && secrets.VS_PUBLISH_TOKEN != '' }}
+    if: ${{ github.event.inputs.publish_marketplace == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
 
   publish-openvsx:
     needs: package-vsix
-    if: ${{ github.event.inputs.publish_openvsx == 'true' && secrets.OPEN_VSX_PUBLISH_TOKEN != '' }}
+    if: ${{ github.event.inputs.publish_openvsx == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
