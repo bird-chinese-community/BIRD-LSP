@@ -62,6 +62,7 @@
     }
   },
   "activationEvents": [
+    "onLanguage:bird2",
     "workspaceContains:**/bird.conf",
     "workspaceContains:**/bird2.conf",
     "workspaceContains:**/bird3.conf",
@@ -152,6 +153,11 @@
         "category": "BIRD2"
       }
     ],
+    "configurationDefaults": {
+      "[bird2]": {
+        "editor.defaultFormatter": "birdcc.bird2-lsp"
+      }
+    },
     "configuration": {
       "title": "BIRD2 LSP",
       "properties": {
