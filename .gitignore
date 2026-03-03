@@ -33,3 +33,4 @@ target
 # VS Code extension package artifacts
 packages/@birdcc/vscode/dist/*.vsix
 packages/@birdcc/vscode/release/*.vsix
+packages/@birdcc/vscode-pack/release/*.vsix

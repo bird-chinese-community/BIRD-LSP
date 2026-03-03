@@ -1,0 +1,61 @@
+{
+  "name": "bird2-extension-pack",
+  "displayName": "BIRD2 Extension Pack",
+  "description": "Install both BIRD2 LSP and BIRD2 syntax highlighting extensions.",
+  "version": "0.1.0",
+  "publisher": "BIRDCC",
+  "private": false,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "BIRD Chinese Community",
+    "email": "npm-dev@birdcc.link",
+    "url": "https://github.com/bird-chinese-community/"
+  },
+  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/%40birdcc/vscode-pack/README.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP.git",
+    "directory": "packages/@birdcc/vscode-pack"
+  },
+  "bugs": {
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP/issues"
+  },
+  "keywords": [
+    "bird2",
+    "vscode",
+    "extension-pack",
+    "language-server",
+    "syntax-highlighting"
+  ],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Extension Packs"
+  ],
+  "icon": "assets/favicon-256.png",
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "extensionPack": [
+    "birdcc.bird2-lsp",
+    "birdcc.vscode-bird2-conf"
+  ],
+  "files": [
+    "assets/**",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node -e \"console.log('vscode-pack: no build step required')\"",
+    "typecheck": "node -e \"console.log('vscode-pack: no typecheck step required')\"",
+    "lint": "node -e \"console.log('vscode-pack: no lint step required')\"",
+    "test": "node -e \"console.log('vscode-pack: no test step required')\"",
+    "marketplace:package": "mkdir -p release && pnpm dlx @vscode/vsce package --out ./release/bird2-extension-pack.vsix",
+    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-extension-pack.vsix --pat \"$VSCE_PAT\"",
+    "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./release/bird2-extension-pack.vsix -p \"$OVSX_PAT\""
+  }
+}
