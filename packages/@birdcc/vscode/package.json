@@ -295,7 +295,7 @@
     "test:e2e": "pnpm --filter @birdcc/parser build && node e2e/run.mjs",
     "format": "oxfmt .",
     "coverage": "pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
-    "marketplace:package": "pnpm --filter @birdcc/parser build && pnpm --filter @birdcc/dprint-plugin-bird build && pnpm --filter @birdcc/formatter build && pnpm --filter @birdcc/vscode build && node scripts/package-marketplace.mjs",
+    "marketplace:package": "pnpm --filter @birdcc/vscode... build && node scripts/package-marketplace.mjs",
     "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./dist/bird2-lsp.vsix --pat \"$VSCE_PAT\"",
     "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./dist/bird2-lsp.vsix -p \"$OVSX_PAT\""
   }
