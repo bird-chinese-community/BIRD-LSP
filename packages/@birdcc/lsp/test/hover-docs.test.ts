@@ -129,6 +129,9 @@ describe("hover docs catalog", () => {
     expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain(
       "neighbor 192.0.2.1 as 64496;",
     );
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Parameters:");
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Context:");
+    expect(HOVER_KEYWORD_DOCS["neighbor"]).toContain("Related:");
     expect(HOVER_KEYWORD_DOCS["rpki"]).toContain("Usage:");
     expect(HOVER_KEYWORD_DOCS["route"]).toContain("proto-static-route");
   });

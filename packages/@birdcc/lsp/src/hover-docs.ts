@@ -14,6 +14,13 @@ interface HoverDocYamlEntry {
   readonly diff: HoverDocDiffType;
   readonly version: HoverDocVersionTag;
   readonly usage?: string;
+  readonly path?: string | readonly string[];
+  readonly related?: readonly string[];
+  readonly parameters?: readonly {
+    readonly name: string;
+    readonly description: string;
+    readonly required?: boolean;
+  }[];
   readonly anchor?: string;
   readonly anchors?: {
     readonly v2?: string;
@@ -331,6 +338,39 @@ const buildNotesSection = (entry: HoverDocYamlEntry): string => {
   return `\n\nNotes:\n${lines.join("\n")}`;
 };
 
+const buildContextSection = (entry: HoverDocYamlEntry): string => {
+  if (!entry.path) {
+    return "";
+  }
+
+  const paths = Array.isArray(entry.path) ? entry.path : [entry.path];
+  if (paths.length === 0) {
+    return "";
+  }
+
+  return `\n\nContext:\n${paths.map((item) => `- \`${item}\``).join("\n")}`;
+};
+
+const buildRelatedSection = (entry: HoverDocYamlEntry): string => {
+  if (!entry.related || entry.related.length === 0) {
+    return "";
+  }
+
+  return `\n\nRelated:\n${entry.related.map((item) => `- \`${item}\``).join("\n")}`;
+};
+
+const buildParametersSection = (entry: HoverDocYamlEntry): string => {
+  if (!entry.parameters || entry.parameters.length === 0) {
+    return "";
+  }
+
+  const lines = entry.parameters.map((parameter) => {
+    const requiredLabel = parameter.required ? " (required)" : "";
+    return `- \`${parameter.name}\`${requiredLabel}: ${parameter.description}`;
+  });
+  return `\n\nParameters:\n${lines.join("\n")}`;
+};
+
 const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
   const usageSection = entry.usage
     ? `\n\nUsage:\n\`\`\`bird\n${entry.usage}\n\`\`\``
@@ -347,6 +387,9 @@ const toHoverMarkdown = (entry: HoverDocYamlEntry): string => {
       buildDocsSection(entry),
     ].join("\n") +
     usageSection +
+    buildContextSection(entry) +
+    buildParametersSection(entry) +
+    buildRelatedSection(entry) +
     buildNotesSection(entry)
   );
 };
