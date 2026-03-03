@@ -1,7 +1,16 @@
-import { TextDocument } from "vscode-languageserver-textdocument";
-
 interface BlockFrame {
   readonly segments: readonly string[];
+}
+
+export interface HoverContextDocumentLike {
+  readonly uri: string | { toString: () => string };
+  readonly version: number;
+  readonly lineCount: number;
+  lineAt?: (line: number) => { readonly text: string };
+  getText?: (range?: {
+    readonly start: { readonly line: number; readonly character: number };
+    readonly end: { readonly line: number; readonly character: number };
+  }) => string;
 }
 
 interface CachedContextIndex {
@@ -14,14 +23,25 @@ const WORD_PATTERN = /[A-Za-z_][A-Za-z0-9_]*/g;
 const CONTEXT_CACHE_LIMIT = 16;
 const contextIndexCache = new Map<string, CachedContextIndex>();
 
-const getLineText = (document: TextDocument, line: number): string => {
-  const start = { line, character: 0 };
-  const end =
-    line + 1 < document.lineCount
-      ? { line: line + 1, character: 0 }
-      : { line, character: Number.MAX_SAFE_INTEGER };
+const getLineText = (
+  document: HoverContextDocumentLike,
+  line: number,
+): string => {
+  if (typeof document.lineAt === "function") {
+    return document.lineAt(line).text;
+  }
 
-  return document.getText({ start, end }).replace(/\r?\n$/, "");
+  if (typeof document.getText === "function") {
+    const start = { line, character: 0 };
+    const end =
+      line + 1 < document.lineCount
+        ? { line: line + 1, character: 0 }
+        : { line, character: Number.MAX_SAFE_INTEGER };
+
+    return document.getText({ start, end }).replace(/\r?\n$/, "");
+  }
+
+  return "";
 };
 
 const stripLineComment = (line: string): string => {
@@ -110,7 +130,9 @@ const cloneFrames = (frames: readonly BlockFrame[]): BlockFrame[] =>
     segments: frame.segments,
   }));
 
-const buildContextIndex = (document: TextDocument): CachedContextIndex => {
+const buildContextIndex = (
+  document: HoverContextDocumentLike,
+): CachedContextIndex => {
   const stack: BlockFrame[] = [];
   const lineFrames: BlockFrame[][] = [];
 
@@ -130,7 +152,7 @@ const buildContextIndex = (document: TextDocument): CachedContextIndex => {
   };
 };
 
-const toDocumentFingerprint = (document: TextDocument): string => {
+const toDocumentFingerprint = (document: HoverContextDocumentLike): string => {
   if (document.lineCount === 0) {
     return "0::";
   }
@@ -140,8 +162,11 @@ const toDocumentFingerprint = (document: TextDocument): string => {
   return `${String(document.lineCount)}:${firstLine}:${lastLine}`;
 };
 
-const getCachedContextIndex = (document: TextDocument): CachedContextIndex => {
-  const cacheKey = document.uri;
+const getCachedContextIndex = (
+  document: HoverContextDocumentLike,
+): CachedContextIndex => {
+  const cacheKey =
+    typeof document.uri === "string" ? document.uri : document.uri.toString();
   const cached = contextIndexCache.get(cacheKey);
   const fingerprint = toDocumentFingerprint(document);
   if (
@@ -165,7 +190,7 @@ const getCachedContextIndex = (document: TextDocument): CachedContextIndex => {
 };
 
 export const resolveHoverContextPath = (
-  document: TextDocument,
+  document: HoverContextDocumentLike,
   targetLine: number,
   targetCharacter: number,
 ): readonly string[] => {

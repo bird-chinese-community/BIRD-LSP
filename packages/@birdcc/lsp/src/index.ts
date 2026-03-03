@@ -9,5 +9,9 @@ export {
   type KeywordHoverResolutionOptions,
   type ResolvedKeywordHover,
 } from "./hover.js";
+export {
+  resolveHoverContextPath,
+  type HoverContextDocumentLike,
+} from "./hover-context.js";
 export { createReferenceLocations } from "./references.js";
 export { startLspServer } from "./lsp-server.js";
