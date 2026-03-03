@@ -59,6 +59,22 @@ The extension protects editor responsiveness with `bird2-lsp.performance.maxFile
 
 ---
 
+## FAQ: extension-command-failed
+
+### Symptoms
+
+- A command such as restart/format/validate/reload fails in Command Palette.
+- You see an error popup with quick actions to open FAQ or report issue.
+
+### How to fix
+
+1. Retry once after `BIRD2: Restart Language Server`.
+2. Check extension output logs (`BIRD2 LSP (Beta)`).
+3. Confirm workspace trust is enabled and required binaries are available.
+4. If still failing, use `Report Issue` and include logs.
+
+---
+
 ## More help
 
 - Issues: <https://github.com/bird-chinese-community/BIRD-LSP/issues>
