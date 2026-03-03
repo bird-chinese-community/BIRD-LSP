@@ -3,6 +3,29 @@ import { describe, expect, it } from "vitest";
 import { loadBirdHoverDocs, resolveBirdHoverTopic } from "../src/hover/docs.js";
 
 describe("bird keyword hover resolver", () => {
+  it("keeps strong structured coverage in merged runtime docs", async () => {
+    const docs = await loadBirdHoverDocs();
+    const values = [...docs.docs.values()];
+
+    const withPath = values.filter((entry) => entry.path !== undefined).length;
+    const withRelated = values.filter(
+      (entry) => Array.isArray(entry.related) && entry.related.length > 0,
+    ).length;
+    const withParameters = values.filter(
+      (entry) => Array.isArray(entry.parameters) && entry.parameters.length > 0,
+    ).length;
+    const withUsage = values.filter(
+      (entry) =>
+        typeof entry.usage === "string" && entry.usage.trim().length > 0,
+    ).length;
+
+    expect(values.length).toBeGreaterThanOrEqual(100);
+    expect(withPath).toBeGreaterThanOrEqual(100);
+    expect(withRelated).toBeGreaterThanOrEqual(75);
+    expect(withParameters).toBeGreaterThanOrEqual(75);
+    expect(withUsage).toBeGreaterThanOrEqual(85);
+  });
+
   it("resolves multi-word router id topic", async () => {
     const docs = await loadBirdHoverDocs();
     const line = "router id 10.0.0.1;";
