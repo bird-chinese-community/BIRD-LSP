@@ -2,16 +2,26 @@ interface BlockFrame {
   readonly segments: readonly string[];
 }
 
-export interface HoverContextDocumentLike {
+interface HoverContextLineDocumentLike {
   readonly uri: string | { toString: () => string };
   readonly version: number;
   readonly lineCount: number;
-  lineAt?: (line: number) => { readonly text: string };
-  getText?: (range?: {
+  lineAt(line: number): { readonly text: string };
+}
+
+interface HoverContextRangeDocumentLike {
+  readonly uri: string | { toString: () => string };
+  readonly version: number;
+  readonly lineCount: number;
+  getText(range?: {
     readonly start: { readonly line: number; readonly character: number };
     readonly end: { readonly line: number; readonly character: number };
-  }) => string;
+  }): string;
 }
+
+export type HoverContextDocumentLike =
+  | HoverContextLineDocumentLike
+  | HoverContextRangeDocumentLike;
 
 interface CachedContextIndex {
   readonly version: number;
@@ -27,11 +37,11 @@ const getLineText = (
   document: HoverContextDocumentLike,
   line: number,
 ): string => {
-  if (typeof document.lineAt === "function") {
+  if ("lineAt" in document && typeof document.lineAt === "function") {
     return document.lineAt(line).text;
   }
 
-  if (typeof document.getText === "function") {
+  if ("getText" in document && typeof document.getText === "function") {
     const start = { line, character: 0 };
     const end =
       line + 1 < document.lineCount
