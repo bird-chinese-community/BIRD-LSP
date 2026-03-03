@@ -129,21 +129,33 @@ export const lintResolvedCrossFileGraph = async (
       ? resolution.visitedUris
       : [resolution.entryUri];
 
-  for (const uri of uris) {
-    const text = resolution.documents[uri];
-    const localCore = resolution.snapshots[uri];
-    if (!text || !localCore) {
-      continue;
-    }
+  const lintEntries = uris
+    .map((uri) => {
+      const text = resolution.documents[uri];
+      const localCore = resolution.snapshots[uri];
+      if (!text || !localCore) {
+        return null;
+      }
 
-    const lintResult = await lintBirdConfig(text, {
-      uri,
-      core: createMergedCoreSnapshot(
-        localCore,
-        resolution.symbolTable,
-        diagnosticsForUri(resolution.diagnostics, uri, resolution.entryUri),
-      ),
-    });
+      return { uri, text, localCore };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+  const results = await Promise.all(
+    lintEntries.map(async ({ uri, text, localCore }) => {
+      const lintResult = await lintBirdConfig(text, {
+        uri,
+        core: createMergedCoreSnapshot(
+          localCore,
+          resolution.symbolTable,
+          diagnosticsForUri(resolution.diagnostics, uri, resolution.entryUri),
+        ),
+      });
+      return { uri, lintResult };
+    }),
+  );
+
+  for (const { uri, lintResult } of results) {
     byUri[uri] = lintResult;
     diagnostics.push(...lintResult.diagnostics);
   }
