@@ -240,6 +240,22 @@ The extension includes 22 built-in code snippets:
 
 ---
 
+## Feedback & Support
+
+We welcome your feedback! Please use the appropriate template when reporting issues or requesting features:
+
+| Type                   | Link                                                                                                          | Description                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 🐛 **Bug Report**      | [Create Bug Report](https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=bug-report.yml)    | Report unexpected behavior, crashes, or errors |
+| ✨ **Feature Request** | [Request Feature](https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=feature-request.yml) | Suggest new features or improvements           |
+| 💬 **Discussions**     | [GitHub Discussions](https://github.com/bird-chinese-community/BIRD-LSP/discussions)                          | Ask questions, share ideas, or get help        |
+| 📋 **Task Index**      | [View Task Index](https://github.com/bird-chinese-community/BIRD-LSP/issues/62)                               | Check current implementation progress          |
+
+> [!TIP]
+> Before creating a new issue, please search [existing issues](https://github.com/bird-chinese-community/BIRD-LSP/issues) to avoid duplicates.
+
+---
+
 ### 📖 Documentation
 
 - [BIRD Official Documentation](https://bird.network.cz/)
@@ -261,5 +277,6 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 <p align="center">
   <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
   <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=bug-report.yml">🐛 Report Bug</a> ·
+  <a href="https://github.com/bird-chinese-community/BIRD-LSP/discussions">💬 Discussions</a>
 </p>
