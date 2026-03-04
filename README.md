@@ -37,6 +37,15 @@
 
 <div align="center">
 
+> ⚠️ **Development Stage Notice**
+>
+> | Component                  | Status   | Warning                                                                                     |
+> | -------------------------- | -------- | ------------------------------------------------------------------------------------------- |
+> | npm packages (`@birdcc/*`) | 🚧 Alpha | APIs may change frequently. Evaluate carefully before production use.                       |
+> | VS Code extension          | 🧪 Beta  | More stable than Alpha, but some features may still change. Evaluate before production use. |
+>
+> **Please evaluate carefully before deploying in production environments.**
+
 English Version | [中文文档](./README.zh.md)
 
 > [Overview](#overview) · [Features](#features) · [Quick Start](#quick-start) · [Packages](#packages) · [Architecture](#architecture) · [Development](#development)

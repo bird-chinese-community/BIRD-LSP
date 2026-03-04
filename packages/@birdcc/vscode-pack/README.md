@@ -4,6 +4,12 @@
 
 </div>
 
+<div align="center">
+
+> 🧪 **Beta Stage**: This extension is in active development. While more stable than Alpha, some features may still change or have issues. Please evaluate carefully before deploying in production environments.
+
+</div>
+
 A convenience extension pack for BIRD2 users.
 
 This pack installs both:

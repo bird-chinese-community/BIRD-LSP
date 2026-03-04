@@ -4,6 +4,12 @@
 
 </div>
 
+<div align="center">
+
+> ⚠️ **Alpha Stage**: This package is in early development. APIs may change frequently, and unexpected issues may occur. Please evaluate carefully before deploying in production environments.
+
+</div>
+
 [![npm version](https://img.shields.io/npm/v/@birdcc/dprint-plugin-bird.svg)](https://www.npmjs.com/package/@birdcc/dprint-plugin-bird) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/) [![WASM](https://img.shields.io/badge/WASM-wasm32--wasip1-purple.svg)](https://webassembly.org/)
 
 > [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [Architecture](#architecture) · [Development](#development)
