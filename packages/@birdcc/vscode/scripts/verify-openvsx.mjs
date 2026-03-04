@@ -36,7 +36,8 @@ const fetchExtensionStatus = async (publisher, name, version) => {
 const main = async () => {
   // Read package.json to get extension info
   const packageJson = JSON.parse(await readFile(PACKAGE_JSON_PATH, "utf8"));
-  const { publisher, name, version } = packageJson;
+  const { publisher, version } = packageJson;
+  const name = "bird2-lsp";
 
   if (!publisher || !name || !version) {
     console.error("Error: Missing publisher, name, or version in package.json");
