@@ -2,8 +2,6 @@ import { Uri, env, window } from "vscode";
 
 const FAQ_BASE_URL =
   "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/faq.md";
-const BUG_REPORT_URL =
-  "https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=bug-report.yml";
 const ISSUE_CHOOSE_URL =
   "https://github.com/bird-chinese-community/BIRD-LSP/issues/new/choose";
 
@@ -28,38 +26,18 @@ const resolveFaqUrl = (faqId?: FaqId): string => {
 };
 
 const resolveIssueUrl = (faqId?: FaqId): string => {
-  const baseUrl = faqId ? BUG_REPORT_URL : ISSUE_CHOOSE_URL;
-
   if (!faqId) {
-    return baseUrl;
+    return ISSUE_CHOOSE_URL;
   }
 
-  // Pre-fill the bug report template with context from the error
-  const prefilledDescription = encodeURIComponent(
-    [
-      `### Error Context`,
-      `faqId: \`${faqId}\``,
-      "",
-      `### Environment`,
-      `- Extension version: `,
-      `- VS Code version: `,
-      `- OS: `,
-      "",
-      `### Steps to Reproduce`,
-      `1. `,
-      `2. `,
-      `3. `,
-      "",
-      `### Expected Behavior`,
-      "",
-      `### Actual Behavior`,
-      "",
-      `### Additional Context`,
-      `<!-- Add any other context, logs, or screenshots about the problem here. -->`,
-    ].join("\n"),
-  );
+  // Pre-fill the bug report template title with error context
+  // Note: URLSearchParams automatically encodes special characters
+  const params = new URLSearchParams({
+    template: "bug-report.yml",
+    title: `[bug] ${faqId}`,
+  });
 
-  return `${baseUrl}&description=${prefilledDescription}`;
+  return `${ISSUE_CHOOSE_URL}?${params.toString()}`;
 };
 
 export interface GuidedErrorOptions {
