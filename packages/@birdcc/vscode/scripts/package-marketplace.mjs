@@ -126,7 +126,7 @@ const injectNodeModulesIntoVsix = async (deployDir, vsixPath) => {
     );
 
     await rm(vsixPath, { force: true });
-    await runCommand("zip", ["-q", "-r", vsixPath, "."], patchDir);
+    await runCommand("zip", ["-q", "-X", "-r", vsixPath, "."], patchDir);
   } finally {
     await rm(patchDir, { recursive: true, force: true });
   }

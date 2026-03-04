@@ -101,6 +101,23 @@ jobs:
       - run: pnpm --filter @birdcc/vscode marketplace:publish:ovsx
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}
+      - name: Verify OpenVSX publication
+        run: |
+          echo "Waiting for OpenVSX to process the extension..."
+          sleep 30
+          VERSION=$(jq -r '.version' packages/@birdcc/vscode/package.json)
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://open-vsx.org/api/birdcc/bird2-lsp/${VERSION}")
+            if [ "$STATUS" = "200" ]; then
+              echo "✓ Extension v${VERSION} verified on OpenVSX"
+              exit 0
+            fi
+            echo "Attempt $i: Extension not yet available (HTTP ${STATUS}), retrying in 10s..."
+            sleep 10
+          done
+          echo "✗ Extension v${VERSION} not found on OpenVSX after 2 minutes"
+          echo "The extension may have been rejected by moderation. Check: https://open-vsx.org/extension/birdcc/bird2-lsp"
+          exit 1
 
   publish-pack-vscode-marketplace:
     needs: package-vsix
