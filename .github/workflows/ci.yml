@@ -2,19 +2,30 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: "10.18.3"
+  NODE_VERSION: "22"
 
 jobs:
   prek:
+    name: Pre-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - uses: j178/prek-action@v1
@@ -22,6 +33,7 @@ jobs:
           extra-args: --all-files
 
   parser:
+    name: Parser (grammar verification)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +43,10 @@ jobs:
           git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @birdcc/parser run build:grammar
@@ -47,6 +59,7 @@ jobs:
       - run: pnpm --filter @birdcc/parser run format
 
   turbo:
+    name: Full build & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,15 +75,16 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm typecheck
       - run: pnpm format
       - name: Commitlint range
         run: |
@@ -87,6 +101,8 @@ jobs:
           pnpm exec commitlint --config commitlint.config.cjs --from "$FROM" --to "${{ github.sha }}"
 
   coverage:
+    name: Coverage
+    needs: turbo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,10 +112,10 @@ jobs:
           git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm coverage
@@ -111,6 +127,8 @@ jobs:
           if-no-files-found: error
 
   vscode-e2e-smoke:
+    name: VS Code E2E smoke
+    needs: turbo
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,25 +138,54 @@ jobs:
           git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @birdcc/vscode build
       - run: xvfb-run -a pnpm --filter @birdcc/vscode test:e2e
 
   vscode-pack-smoke:
+    name: VS Code pack smoke
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.18.3
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter bird2-extension-pack marketplace:package
+
+  # Gate check — all required jobs must pass before merging
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [prek, parser, turbo, coverage, vscode-e2e-smoke, vscode-pack-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "prek: ${{ needs.prek.result }}"
+          echo "parser: ${{ needs.parser.result }}"
+          echo "turbo: ${{ needs.turbo.result }}"
+          echo "coverage: ${{ needs.coverage.result }}"
+          echo "vscode-e2e-smoke: ${{ needs.vscode-e2e-smoke.result }}"
+          echo "vscode-pack-smoke: ${{ needs.vscode-pack-smoke.result }}"
+
+          if [[ "${{ needs.prek.result }}" != "success" ]] || \
+             [[ "${{ needs.parser.result }}" != "success" ]] || \
+             [[ "${{ needs.turbo.result }}" != "success" ]] || \
+             [[ "${{ needs.coverage.result }}" != "success" ]] || \
+             [[ "${{ needs.vscode-e2e-smoke.result }}" != "success" ]] || \
+             [[ "${{ needs.vscode-pack-smoke.result }}" != "success" ]]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+
+          echo "All CI jobs passed!"
