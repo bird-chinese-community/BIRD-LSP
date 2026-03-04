@@ -2,7 +2,9 @@ import { Uri, env, window } from "vscode";
 
 const FAQ_BASE_URL =
   "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/faq.md";
-const ISSUE_BASE_URL =
+const BUG_REPORT_URL =
+  "https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=bug-report.yml";
+const ISSUE_CHOOSE_URL =
   "https://github.com/bird-chinese-community/BIRD-LSP/issues/new/choose";
 
 const OPEN_FAQ_ACTION = "Open FAQ";
@@ -26,35 +28,38 @@ const resolveFaqUrl = (faqId?: FaqId): string => {
 };
 
 const resolveIssueUrl = (faqId?: FaqId): string => {
+  const baseUrl = faqId ? BUG_REPORT_URL : ISSUE_CHOOSE_URL;
+
   if (!faqId) {
-    return ISSUE_BASE_URL;
+    return baseUrl;
   }
 
-  const body = encodeURIComponent(
+  // Pre-fill the bug report template with context from the error
+  const prefilledDescription = encodeURIComponent(
     [
-      `faqId: ${faqId}`,
+      `### Error Context`,
+      `faqId: \`${faqId}\``,
       "",
-      "## Environment",
-      "- Extension version:",
-      "- VS Code version:",
-      "- OS:",
+      `### Environment`,
+      `- Extension version: `,
+      `- VS Code version: `,
+      `- OS: `,
       "",
-      "## Reproduction",
-      "1. ",
-      "2. ",
+      `### Steps to Reproduce`,
+      `1. `,
+      `2. `,
+      `3. `,
       "",
-      "## Expected behavior",
+      `### Expected Behavior`,
       "",
-      "## Actual behavior",
+      `### Actual Behavior`,
       "",
-      "## Logs",
-      "```text",
-      "",
-      "```",
+      `### Additional Context`,
+      `<!-- Add any other context, logs, or screenshots about the problem here. -->`,
     ].join("\n"),
   );
 
-  return `${ISSUE_BASE_URL}?body=${body}`;
+  return `${baseUrl}&description=${prefilledDescription}`;
 };
 
 export interface GuidedErrorOptions {
