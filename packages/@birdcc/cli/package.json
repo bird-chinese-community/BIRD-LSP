@@ -29,10 +29,10 @@
   "dependencies": {
     "@birdcc/core": "workspace:*",
     "@birdcc/formatter": "workspace:*",
-    "@birdcc/lsp": "workspace:*",
     "@birdcc/linter": "workspace:*",
+    "@birdcc/lsp": "workspace:*",
     "cac": "^6.7.14",
-    "zod": "^4.1.11"
+    "zod": "^4.3.6"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
