@@ -2,7 +2,7 @@
   "name": "bird2-extension-pack",
   "displayName": "BIRD2 Extension Pack",
   "description": "Install both BIRD2 LSP and BIRD2 syntax highlighting extensions.",
-  "version": "0.0.1-alpha.4",
+  "version": "0.1.0",
   "publisher": "BIRDCC",
   "private": false,
   "type": "module",
