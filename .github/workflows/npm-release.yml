@@ -1,4 +1,4 @@
-name: NPM Release
+name: NPM Release (Manual)
 
 on:
   workflow_dispatch:
@@ -23,9 +23,48 @@ on:
         required: true
         default: false
         type: boolean
+      skip_checks:
+        description: "Skip lint/test/typecheck before publishing (NOT recommended)"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
+  preflight:
+    name: Pre-publish checks
+    if: ${{ inputs.skip_checks != true }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize required submodules
+        run: |
+          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test
+      - name: Typecheck
+        run: pnpm typecheck
+
   npm-release:
+    name: Publish to npm
+    needs: [preflight]
+    if: ${{ always() && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') }}
     permissions:
       contents: read
       id-token: write
