@@ -33,7 +33,12 @@
     },
     {
       "description": "TypeScript & build tools",
-      "matchPackageNames": ["typescript", "turbo", "vitest", "@vitest/coverage-v8"],
+      "matchPackageNames": [
+        "typescript",
+        "turbo",
+        "vitest",
+        "@vitest/coverage-v8"
+      ],
       "groupName": "Build tooling",
       "groupSlug": "build-tools"
     },
@@ -45,7 +50,11 @@
     },
     {
       "description": "VS Code extension dependencies",
-      "matchPackageNames": ["@types/vscode", "@vscode/test-electron", "vscode-languageclient"],
+      "matchPackageNames": [
+        "@types/vscode",
+        "@vscode/test-electron",
+        "vscode-languageclient"
+      ],
       "groupName": "VS Code extension deps",
       "groupSlug": "vscode-deps"
     },
@@ -57,8 +66,6 @@
       "platformAutomerge": true
     }
   ],
-  "ignoreDeps": [
-    "tree-sitter-cli"
-  ],
+  "ignoreDeps": ["tree-sitter-cli"],
   "postUpdateOptions": ["pnpmDedupe"]
 }

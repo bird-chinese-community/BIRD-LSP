@@ -6,13 +6,24 @@
   ],
   "commit": false,
   "fixed": [
-    ["@birdcc/parser", "@birdcc/core", "@birdcc/linter", "@birdcc/lsp", "@birdcc/formatter", "@birdcc/cli"]
+    [
+      "@birdcc/parser",
+      "@birdcc/core",
+      "@birdcc/linter",
+      "@birdcc/lsp",
+      "@birdcc/formatter",
+      "@birdcc/cli"
+    ]
   ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@birdcc/vscode", "bird2-extension-pack", "@birdcc/dprint-plugin-bird"],
+  "ignore": [
+    "@birdcc/vscode",
+    "bird2-extension-pack",
+    "@birdcc/dprint-plugin-bird"
+  ],
   "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
     "onlyUpdatePeerDependentsWhenOutOfRange": true
   }
