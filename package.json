@@ -11,6 +11,10 @@
     "typecheck": "turbo run typecheck",
     "format": "turbo run format",
     "coverage": "turbo run coverage",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:status": "changeset status",
+    "release:publish": "pnpm build && changeset publish",
     "release:npm": "node tools/publish-npm-packages.mjs",
     "sync:config-examples": "node tools/sync-config-examples.mjs",
     "sync:config-examples:check": "node tools/sync-config-examples.mjs --check"
@@ -21,6 +25,8 @@
     ]
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@commitlint/cli": "^20.4.3",
     "@commitlint/config-conventional": "^20.4.3",
     "@j178/prek": "^0.3.4",
