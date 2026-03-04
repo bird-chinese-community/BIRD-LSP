@@ -4,13 +4,9 @@
  * Polls the OpenVSX API until the extension version is available or timeout
  */
 
-import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-
-const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,15 +26,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const fetchExtensionStatus = async (publisher, name, version) => {
   const url = `https://open-vsx.org/api/${publisher}/${name}/${version}`;
   try {
-    const { stdout } = await execFileAsync("curl", [
-      "-s",
-      "-o",
-      "/dev/null",
-      "-w",
-      "%{http_code}",
-      url,
-    ]);
-    return parseInt(stdout.trim(), 10);
+    const response = await fetch(url, { method: "GET" });
+    return { url, status: response.status };
   } catch {
     return 0;
   }
@@ -73,18 +62,24 @@ const main = async () => {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[${elapsed}s] Attempt ${attempt}/${MAX_RETRIES}: Checking...`);
 
-    const status = await fetchExtensionStatus(publisher, name, version);
+    const { url, status } = await fetchExtensionStatus(
+      publisher,
+      name,
+      version,
+    );
 
     if (status === 200) {
       const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(
         `✓ Extension v${version} verified on OpenVSX (${totalTime}s)`,
       );
-      console.log(`  URL: https://open-vsx.org/extension/${publisher}/${name}`);
+      console.log(
+        `  Preview URL: https://open-vsx.org/extension/${publisher}/${name}`,
+      );
       process.exit(0);
     }
 
-    console.log(`  Status: HTTP ${status} (not ready yet)`);
+    console.log(`  Status: [${url}] HTTP ${status} (not ready yet)`);
 
     if (attempt < MAX_RETRIES) {
       console.log(`  Retrying in ${POLL_INTERVAL_MS / 1000}s...`);
