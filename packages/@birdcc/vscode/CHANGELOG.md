@@ -2,6 +2,16 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.3.2] - 2026-03-04
+
+### ✨ Added
+
+- 📋 **Improved Feedback & Support** — Added "Feedback & Support" section in README with direct links to Bug Report and Feature Request templates, GitHub Discussions, and Task Index.
+
+### 🔧 Improved
+
+- 🐛 **Better Issue Reporting** — Updated in-extension "Report Issue" button to directly open the structured Bug Report template with pre-filled error context (faqId, environment info).
+
 ## [0.3.1] - 2026-03-04
 
 ### 🐛 Fixed
