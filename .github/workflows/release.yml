@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize required submodules
+        run: |
+          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Run full CI checks before any release action
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Create Release PR or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm run release:publish
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+
+      # After npm publish, build and upload VSIX artifacts to GitHub Release
+      - name: Package VSIX extensions
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          pnpm --filter @birdcc/vscode marketplace:package
+          pnpm --filter bird2-extension-pack marketplace:package
+
+      - name: Upload VSIX to GitHub Release
+        if: steps.changesets.outputs.published == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ fromJSON(steps.changesets.outputs.publishedPackages)[0].version }}
+          files: |
+            packages/@birdcc/vscode/release/bird2-lsp.vsix
+            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
+          body: |
+            ## Published Packages
+
+            ${{ steps.changesets.outputs.publishedPackages }}
+
+            ## VS Code Extensions
+
+            Download the `.vsix` files below to install manually, or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload VSIX artifacts
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-extensions
+          path: |
+            packages/@birdcc/vscode/release/bird2-lsp.vsix
+            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
+          if-no-files-found: error
