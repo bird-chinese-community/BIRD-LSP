@@ -1,0 +1,91 @@
+name: Bug Report
+description: Report a bug in BIRD2 LSP
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us diagnose the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear description of what the bug is.
+      placeholder: When I do X, Y happens instead of Z...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the behavior.
+      placeholder: |
+        1. Open a `.conf` file with the following content...
+        2. Trigger completion at line X...
+        3. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: BIRD2 Configuration (if applicable)
+      description: The relevant part of your BIRD2 config file.
+      render: bird2
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the toolchain is affected?
+      multiple: true
+      options:
+        - VS Code Extension
+        - Language Server (LSP)
+        - Linter
+        - Formatter
+        - Parser
+        - CLI (birdcc)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Extension version or CLI version (`birdcc --version`)"
+      placeholder: "0.3.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux (x86_64)
+        - Linux (ARM64)
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows (x64)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: "Paste any relevant logs from the Output panel (`BIRD2 LSP` channel)."
+      render: text

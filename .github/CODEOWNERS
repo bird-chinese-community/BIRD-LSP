@@ -1,0 +1,23 @@
+# Default reviewers for all files
+* @bird-chinese-community/maintainers
+
+# CI/CD workflows
+.github/ @bird-chinese-community/maintainers
+
+# Core packages
+packages/@birdcc/parser/ @bird-chinese-community/maintainers
+packages/@birdcc/core/ @bird-chinese-community/maintainers
+packages/@birdcc/linter/ @bird-chinese-community/maintainers
+packages/@birdcc/lsp/ @bird-chinese-community/maintainers
+
+# Formatter (includes Rust code)
+packages/@birdcc/formatter/ @bird-chinese-community/maintainers
+packages/@birdcc/dprint-plugin-bird/ @bird-chinese-community/maintainers
+
+# VS Code extensions
+packages/@birdcc/vscode/ @bird-chinese-community/maintainers
+packages/@birdcc/vscode-pack/ @bird-chinese-community/maintainers
+
+# Release & tooling
+tools/ @bird-chinese-community/maintainers
+.changeset/ @bird-chinese-community/maintainers

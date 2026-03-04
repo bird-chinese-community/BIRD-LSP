@@ -1,0 +1,60 @@
+# Label configuration for actions/labeler
+# See: https://github.com/actions/labeler
+
+"pkg: parser":
+  - changed-files:
+      - any-glob-to-any-file: "packages/@birdcc/parser/**"
+
+"pkg: core":
+  - changed-files:
+      - any-glob-to-any-file: "packages/@birdcc/core/**"
+
+"pkg: linter":
+  - changed-files:
+      - any-glob-to-any-file: "packages/@birdcc/linter/**"
+
+"pkg: lsp":
+  - changed-files:
+      - any-glob-to-any-file: "packages/@birdcc/lsp/**"
+
+"pkg: formatter":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/@birdcc/formatter/**"
+          - "packages/@birdcc/dprint-plugin-bird/**"
+
+"pkg: cli":
+  - changed-files:
+      - any-glob-to-any-file: "packages/@birdcc/cli/**"
+
+"pkg: vscode":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/@birdcc/vscode/**"
+          - "packages/@birdcc/vscode-pack/**"
+
+"ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "tools/ci/**"
+
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+          - "!.changeset/**"
+
+"dependencies":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pnpm-lock.yaml"
+          - "**/package.json"
+          - "renovate.json"
+
+"release":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".changeset/**"
+          - "tools/publish-npm-packages.mjs"
