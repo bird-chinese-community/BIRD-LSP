@@ -1,0 +1,64 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
+    "group:allNonMajor",
+    "schedule:weekly"
+  ],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "Group all devDependencies updates",
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "devDependencies (non-major)",
+      "groupSlug": "dev-deps-non-major",
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Auto-merge patch updates for devDependencies",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Group Rust toolchain updates",
+      "matchManagers": ["cargo"],
+      "groupName": "Rust dependencies",
+      "groupSlug": "rust-deps"
+    },
+    {
+      "description": "TypeScript & build tools",
+      "matchPackageNames": ["typescript", "turbo", "vitest", "@vitest/coverage-v8"],
+      "groupName": "Build tooling",
+      "groupSlug": "build-tools"
+    },
+    {
+      "description": "Linter & formatter tools",
+      "matchPackageNames": ["oxlint", "oxfmt"],
+      "groupName": "Lint & format tools",
+      "groupSlug": "lint-format"
+    },
+    {
+      "description": "VS Code extension dependencies",
+      "matchPackageNames": ["@types/vscode", "@vscode/test-electron", "vscode-languageclient"],
+      "groupName": "VS Code extension deps",
+      "groupSlug": "vscode-deps"
+    },
+    {
+      "description": "Pin GitHub Actions to major versions",
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ],
+  "ignoreDeps": [
+    "tree-sitter-cli"
+  ],
+  "postUpdateOptions": ["pnpmDedupe"]
+}
