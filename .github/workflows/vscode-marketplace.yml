@@ -1,25 +1,30 @@
-name: Publish to VS Code Marketplace & OpenVSX
+name: Publish VS Code Extensions
 
 on:
   workflow_dispatch:
     inputs:
+      version_tag:
+        description: "Version tag for GitHub Release (e.g. v0.3.2). Leave empty to skip GitHub Release."
+        required: false
+        default: ""
+        type: string
       publish_marketplace:
-        description: "Publish to VS Code Marketplace (requires VS_PUBLISH_TOKEN)"
+        description: "Publish main extension to VS Code Marketplace"
         required: true
         default: false
         type: boolean
       publish_openvsx:
-        description: "Publish to OpenVSX (requires OPEN_VSX_PUBLISH_TOKEN)"
+        description: "Publish main extension to OpenVSX"
         required: true
         default: false
         type: boolean
       publish_pack_marketplace:
-        description: "Publish extension pack to VS Code Marketplace (requires VS_PUBLISH_TOKEN)"
+        description: "Publish extension pack to VS Code Marketplace"
         required: true
         default: false
         type: boolean
       publish_pack_openvsx:
-        description: "Publish extension pack to OpenVSX (requires OPEN_VSX_PUBLISH_TOKEN)"
+        description: "Publish extension pack to OpenVSX"
         required: true
         default: false
         type: boolean
@@ -147,3 +152,45 @@ jobs:
       - run: pnpm --filter bird2-extension-pack marketplace:publish:ovsx
         env:
           OVSX_PAT: ${{ secrets.OPEN_VSX_PUBLISH_TOKEN }}
+
+  github-release:
+    name: Upload VSIX to GitHub Release
+    needs: package-vsix
+    if: ${{ inputs.version_tag != '' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-lsp-vsix
+          path: ./vsix
+      - uses: actions/download-artifact@v4
+        with:
+          name: bird2-extension-pack-vsix
+          path: ./vsix
+      - name: Create GitHub Release with VSIX
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version_tag }}
+          name: ${{ inputs.version_tag }}
+          generate_release_notes: true
+          files: |
+            ./vsix/bird2-lsp.vsix
+            ./vsix/bird2-extension-pack.vsix
+          body: |
+            ## VS Code Extensions
+
+            | Extension | File |
+            |---|---|
+            | BIRD2 LSP | `bird2-lsp.vsix` |
+            | BIRD2 Extension Pack | `bird2-extension-pack.vsix` |
+
+            ### Install manually
+
+            ```bash
+            code --install-extension bird2-lsp.vsix
+            code --install-extension bird2-extension-pack.vsix
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
