@@ -1,4 +1,4 @@
-name: VSCode Marketplace
+name: Publish to VS Code Marketplace & OpenVSX
 
 on:
   workflow_dispatch:
@@ -104,7 +104,7 @@ jobs:
       - name: Verify OpenVSX publication
         run: |
           echo "Waiting for OpenVSX to process the extension..."
-          sleep 30
+          sleep 60
           VERSION=$(jq -r '.version' packages/@birdcc/vscode/package.json)
           for i in {1..12}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://open-vsx.org/api/birdcc/bird2-lsp/${VERSION}")
