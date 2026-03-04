@@ -74,11 +74,11 @@ body:
     attributes:
       label: Operating System
       options:
-        - Linux (x86_64)
-        - Linux (ARM64)
-        - macOS (Apple Silicon)
-        - macOS (Intel)
-        - Windows (x64)
+        - 🐧 Linux (x86_64)
+        - 🐧 Linux (ARM64)
+        - 🍎 macOS (Apple Silicon)
+        - 🍎 macOS (Intel)
+        - 🪟 Windows (x64)
         - Other
     validations:
       required: true
