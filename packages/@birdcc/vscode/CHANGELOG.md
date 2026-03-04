@@ -2,6 +2,16 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.3.1] - 2026-03-04
+
+### 🐛 Fixed
+
+- 📦 **OpenVSX Packaging Fix** — Fixed VSIX repackaging issue where the `zip` command added Unix-specific extra fields (UID/GID, permissions) that caused OpenVSX moderation to reject version 0.3.0. Added `-X` flag to exclude extra fields during packaging.
+
+### 🔧 Improved
+
+- 🔄 **OpenVSX Verification** — Added post-publish verification step in CI to poll OpenVSX API and confirm extension availability, detecting async moderation failures early.
+
 ## [0.3.0] - 2026-03-04
 
 ### ✨ Added
