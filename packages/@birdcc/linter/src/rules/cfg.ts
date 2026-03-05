@@ -26,6 +26,12 @@ const hasDefineDeclarations = (
   parsed.program.declarations.some(
     (declaration) => declaration.kind === "define",
   );
+const hasIncludeDeclarations = (
+  parsed: Parameters<BirdRule>[0]["parsed"],
+): boolean =>
+  parsed.program.declarations.some(
+    (declaration) => declaration.kind === "include",
+  );
 
 const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   if (protocolDeclarations(parsed).length > 0) {
@@ -55,10 +61,26 @@ const cfgMissingRouterIdRule: BirdRule = ({ parsed }) => {
     return [];
   }
 
+  const protocols = protocolDeclarations(parsed);
+  if (protocols.length === 0) {
+    return [];
+  }
+
+  if (hasIncludeDeclarations(parsed)) {
+    return [];
+  }
+
+  const bgpProtocols = protocols.filter((declaration) =>
+    isProtocolType(declaration, "bgp"),
+  );
   if (
-    protocolDeclarations(parsed).length === 0 &&
-    hasDefineDeclarations(parsed)
+    bgpProtocols.length > 0 &&
+    bgpProtocols.every((declaration) => declaration.fromTemplate)
   ) {
+    return [];
+  }
+
+  if (hasDefineDeclarations(parsed) && bgpProtocols.length === 0) {
     return [];
   }
 

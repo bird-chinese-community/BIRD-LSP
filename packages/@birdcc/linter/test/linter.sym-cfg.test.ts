@@ -171,7 +171,7 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("sym/variable-scope");
   });
 
-  it("hits cfg/no-protocol and cfg/missing-router-id", async () => {
+  it("hits cfg/no-protocol", async () => {
     const codes = await codesOf(`
       filter only_filter {
         accept;
@@ -179,7 +179,29 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("cfg/no-protocol");
-    expect(codes).toContain("cfg/missing-router-id");
+    expect(codes).not.toContain("cfg/missing-router-id");
+  });
+
+  it("does not hit cfg/missing-router-id for configs with includes", async () => {
+    const codes = await codesOf(`
+      include "vars.conf";
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/missing-router-id");
+  });
+
+  it("does not hit cfg/missing-router-id when all bgp sessions inherit templates", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge from rr_session {
+        neighbor 2001:db8::1 as 65002;
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/missing-router-id");
   });
 
   it("hits cfg/syntax-error", async () => {
