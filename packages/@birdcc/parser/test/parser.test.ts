@@ -502,6 +502,35 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("recovers split link-local IPv6 neighbor clauses", async () => {
+    const sample = `
+      protocol bgp edge {
+        neighbor fe80::1980:1:1 % 'eth1' as 199594;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(
+      parsed.issues.some((item) => item.code === "syntax/missing-semicolon"),
+    ).toBe(false);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const neighbor = protocol.statements.find(
+        (item) => item.kind === "neighbor",
+      );
+      expect(neighbor).toBeDefined();
+      if (neighbor?.kind === "neighbor") {
+        expect(neighbor.address).toBe("fe80::1980:1:1");
+        expect(neighbor.interface).toBe("'eth1'");
+        expect(neighbor.asn).toBe("199594");
+      }
+    }
+  });
+
   it("pins missing protocol name diagnostics to declaration head", async () => {
     const parsed = await parseBirdConfig(
       "protocol bgp {\n  neighbor 192.0.2.1 as 65002;\n}\n",

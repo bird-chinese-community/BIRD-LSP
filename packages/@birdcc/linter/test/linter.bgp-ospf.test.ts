@@ -84,6 +84,17 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).toContain("bgp/missing-remote-as");
   });
 
+  it("does not hit bgp/missing-remote-as for link-local IPv6 with interface scope", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor fe80::1980:1:1 % 'eth1' as 199594;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
+  });
+
   it("hits bgp/timer-invalid", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

@@ -334,7 +334,9 @@ const isRangeImmediatelyAfter = (
   previous: SourceRange,
   next: SourceRange,
 ): boolean =>
-  previous.endLine === next.line && next.column === previous.endColumn + 1;
+  previous.endLine === next.line &&
+  (next.column === previous.endColumn + 1 ||
+    next.column === previous.endColumn);
 
 const removeNeighborTailMissingSemicolonIssue = (
   issues: ParseIssue[],
@@ -344,9 +346,11 @@ const removeNeighborTailMissingSemicolonIssue = (
     (item) =>
       item.code === "syntax/missing-semicolon" &&
       item.line === tailStartRange.line &&
-      item.column === tailStartRange.column - 1 &&
+      (item.column === tailStartRange.column - 1 ||
+        item.column === tailStartRange.column) &&
       item.endLine === tailStartRange.line &&
-      item.endColumn === tailStartRange.column - 1,
+      (item.endColumn === tailStartRange.column - 1 ||
+        item.endColumn === tailStartRange.column),
   );
 
   if (issueIndex === -1) {
@@ -358,26 +362,52 @@ const removeNeighborTailMissingSemicolonIssue = (
 
 const parseNeighborTailClause = (
   text: string,
+  currentAddress: string,
 ): {
   hasKnownClause: boolean;
+  mergedAddress?: string;
   interfaceValue?: string;
   asn?: string;
   port?: string;
+  canConsumeWholeTail: boolean;
 } => {
   const trimmed = text.trim();
-  if (!/^(%|\bas\b|\bport\b)/i.test(trimmed)) {
-    return { hasKnownClause: false };
+  const firstStatementText = (trimmed.split(";")[0] ?? "").trim();
+  if (firstStatementText.length === 0) {
+    return { hasKnownClause: false, canConsumeWholeTail: false };
   }
 
-  const interfaceMatch = trimmed.match(/^%\s+(.+?)(?=\s+\b(?:as|port)\b|$)/i);
-  const asnMatch = trimmed.match(/\bas\s+([^\s;]+)/i);
-  const portMatch = trimmed.match(/\bport\s+([^\s;]+)/i);
+  let clauseSource = firstStatementText;
+  let mergedAddress: string | undefined;
+  const ipv6ContinuationMatch = clauseSource.match(/^(:[0-9A-Fa-f:.]+)/);
+  if (ipv6ContinuationMatch?.[1]) {
+    mergedAddress = `${currentAddress}${ipv6ContinuationMatch[1]}`;
+    clauseSource = clauseSource.slice(ipv6ContinuationMatch[1].length).trim();
+  }
+
+  if (
+    !mergedAddress &&
+    !/^(%|\bas\b|\bport\b)/i.test(clauseSource) &&
+    !/\b(as|port)\b/i.test(clauseSource)
+  ) {
+    return { hasKnownClause: false, canConsumeWholeTail: false };
+  }
+
+  const interfaceMatch = clauseSource.match(
+    /^%\s+(.+?)(?=\s+\b(?:as|port)\b|$)/i,
+  );
+  const asnMatch = clauseSource.match(/\bas\s+([^\s;]+)/i);
+  const portMatch = clauseSource.match(/\bport\s+([^\s;]+)/i);
 
   return {
-    hasKnownClause: Boolean(interfaceMatch || asnMatch || portMatch),
+    hasKnownClause: Boolean(
+      mergedAddress || interfaceMatch || asnMatch || portMatch,
+    ),
+    mergedAddress,
     interfaceValue: interfaceMatch?.[1]?.trim(),
     asn: asnMatch?.[1]?.trim(),
     port: portMatch?.[1]?.trim(),
+    canConsumeWholeTail: firstStatementText === trimmed,
   };
 };
 
@@ -415,9 +445,17 @@ const mergeNeighborTailStatements = (
         continue;
       }
 
-      const tailClause = parseNeighborTailClause(tail.text);
+      const tailClause = parseNeighborTailClause(tail.text, statement.address);
       if (!tailClause.hasKnownClause) {
         continue;
+      }
+
+      if (
+        tailClause.mergedAddress &&
+        isIpLiteralCandidate(tailClause.mergedAddress)
+      ) {
+        statement.address = tailClause.mergedAddress;
+        statement.addressKind = "ip";
       }
 
       if (tailClause.interfaceValue && !statement.interface) {
@@ -435,11 +473,14 @@ const mergeNeighborTailStatements = (
         statement.portRange = tail;
       }
 
-      statement.endLine = tail.endLine;
-      statement.endColumn = tail.endColumn;
-      mergedRange = statement;
-      consumedTails.add(tail);
       removeNeighborTailMissingSemicolonIssue(issues, tail);
+
+      if (tailClause.canConsumeWholeTail) {
+        statement.endLine = tail.endLine;
+        statement.endColumn = tail.endColumn;
+        mergedRange = statement;
+        consumedTails.add(tail);
+      }
     }
   }
 
