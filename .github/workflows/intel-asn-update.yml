@@ -58,13 +58,15 @@ jobs:
       - name: Update version to today's date
         working-directory: packages/@birdcc/intel
         run: |
-          TODAY=$(date -u +"%Y.%m.%d")
+          # npm requires semver. Use prerelease calendar versioning:
+          # 0.0.1-YYYY-MM-DD (UTC), e.g. 0.0.1-2026-03-06
+          TODAY=$(date -u +"%Y-%m-%d")
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${TODAY}';
+            pkg.version = '0.0.1-${TODAY}';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            console.log('Updated version to ${TODAY}');
+            console.log('Updated version to 0.0.1-${TODAY}');
           "
 
       - name: Build package
@@ -86,7 +88,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            TODAY=$(date -u +"%Y.%m.%d")
+            TODAY=$(date -u +"%Y-%m-%d")
             git commit -m "chore(intel): update ASN database to ${TODAY}"
             git push
           fi

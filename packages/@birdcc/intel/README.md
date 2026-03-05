@@ -43,7 +43,8 @@ pnpm build:db -- --csv ./path/to/asns.csv
 
 ## Versioning
 
-This package uses calendar versioning (`YYYY.MM.DD`) and is updated weekly via CI.
+This package uses calendar versioning via semver prerelease tags: `0.0.1-YYYY-MM-DD` (UTC).
+The `intel-asn-update` workflow also uses `YYYY-MM-DD` in commit messages for readability.
 
 ## License
 
