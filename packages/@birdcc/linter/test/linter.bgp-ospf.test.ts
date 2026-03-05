@@ -95,6 +95,17 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).not.toContain("bgp/missing-remote-as");
   });
 
+  it("does not hit bgp/missing-remote-as for symbolic ASN values", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 2001:db8::1 as PUB_MYASN;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
+  });
+
   it("hits bgp/timer-invalid", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

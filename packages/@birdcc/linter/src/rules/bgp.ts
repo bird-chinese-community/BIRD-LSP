@@ -87,7 +87,7 @@ const bgpMissingRemoteAsRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (statement.asn && numericValue(statement.asn) !== null) {
+      if ((statement.asn?.trim().length ?? 0) > 0) {
         continue;
       }
 
