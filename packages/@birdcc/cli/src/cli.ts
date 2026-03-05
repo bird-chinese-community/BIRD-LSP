@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { dirname, resolve } from "node:path";
-import { readdir, stat } from "node:fs/promises";
 import { loadBirdProjectConfigForFile } from "./config.js";
 import { runFmt, runLint, runLspStdio } from "./index.js";
 import { runInit } from "./commands/init.js";
+import { resolveWorkspaceEntries } from "./workspace-patterns.js";
 import {
   CLI_MESSAGES,
   createInvalidPositiveIntegerOptionMessage,
@@ -74,55 +74,6 @@ const resolveTargetFilePath = async (
   const configDir = dirname(loadedConfig.path);
   const entry = loadedConfig.config.main ?? "bird.conf";
   return resolve(configDir, entry);
-};
-
-/**
- * Resolve workspace directory patterns to concrete entry file paths.
- * For each matching directory, the default entry is `bird.conf`.
- */
-const resolveWorkspaceEntries = async (
-  configDir: string,
-  patterns: string[],
-): Promise<string[]> => {
-  const entries: string[] = [];
-
-  for (const pattern of patterns) {
-    // Simple pattern resolution: treat as directory paths (no complex globs for now)
-    const trimmed = pattern.trim().replace(/\/+$/, "");
-    if (trimmed.length === 0) continue;
-
-    // If pattern contains *, do simple one-level glob
-    if (trimmed.includes("*")) {
-      const parts = trimmed.split("/");
-      const basePath = resolve(configDir, parts.slice(0, -1).join("/") || ".");
-      const globPart = parts[parts.length - 1];
-      const globRegex = new RegExp(
-        `^${globPart.replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]")}$`,
-      );
-
-      try {
-        const dirEntries = await readdir(basePath);
-        for (const entry of dirEntries) {
-          if (!globRegex.test(entry)) continue;
-          const fullDir = resolve(basePath, entry);
-          try {
-            const s = await stat(fullDir);
-            if (s.isDirectory()) {
-              entries.push(resolve(fullDir, "bird.conf"));
-            }
-          } catch {
-            // skip non-existent
-          }
-        }
-      } catch {
-        // dir doesn't exist, skip
-      }
-    } else {
-      entries.push(resolve(configDir, trimmed, "bird.conf"));
-    }
-  }
-
-  return entries;
 };
 
 const withCommandErrorHandling = <TOptions extends object>(
