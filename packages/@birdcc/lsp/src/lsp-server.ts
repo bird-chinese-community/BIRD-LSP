@@ -10,6 +10,7 @@ import {
 import {
   createConnection,
   type Diagnostic,
+  type InlayHint,
   type InitializeResult,
   ProposedFeatures,
   TextDocuments,
@@ -23,6 +24,7 @@ import {
   lintResolvedCrossFileGraph,
   type LintResult,
 } from "@birdcc/linter";
+import { formatBirdConfig } from "@birdcc/formatter";
 import { createAsnIntel, type AsnIntel } from "@birdcc/intel";
 import { createCompletionItemsFromParsed } from "./completion.js";
 import { createDefinitionLocations } from "./definition.js";
@@ -31,6 +33,7 @@ import { toInternalErrorDiagnostic, toLspDiagnostic } from "./diagnostic.js";
 import { createHoverFromParsed } from "./hover.js";
 import { createAsnCompletionItems } from "./asn-completion.js";
 import { createAsnInlayHints } from "./asn-inlay-hints.js";
+import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import { resolveProjectAnalysisOptions } from "./project-config.js";
@@ -367,11 +370,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
         hoverProvider: true,
         definitionProvider: true,
         referencesProvider: true,
+        documentFormattingProvider: true,
         completionProvider: {
           resolveProvider: false,
           triggerCharacters: [" ", "."],
         },
-        inlayHintProvider: asnIntel.available,
+        inlayHintProvider: true,
       },
     };
   });
@@ -533,14 +537,64 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }),
   );
 
-  // ASN Inlay Hints
-  connection.languages.inlayHint.on((params) => {
-    if (!asnIntel.available) return [];
-    const document = documents.get(params.textDocument.uri);
-    if (!document) return [];
+  connection.onDocumentFormatting(async (params) =>
+    withDocument(documents, params.textDocument.uri, [], async (document) => {
+      try {
+        const text = document.getText();
+        const result = await formatBirdConfig(text);
+        if (!result.changed) {
+          return [];
+        }
 
-    return createAsnInlayHints(asnIntel, document.getText(), params.range);
-  });
+        const lines = text.split("\n");
+        const lastLine = lines.length - 1;
+        const lastChar = lines[lastLine]?.length ?? 0;
+
+        return [
+          {
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: lastLine, character: lastChar },
+            },
+            newText: result.text,
+          },
+        ];
+      } catch (error) {
+        connection.console.log(
+          `[format] formatting failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      }
+    }),
+  );
+
+  // Inlay Hints (ASN + function return type)
+  connection.languages.inlayHint.on(async (params) =>
+    withDocument(
+      documents,
+      params.textDocument.uri,
+      [],
+      async (document): Promise<InlayHint[]> => {
+        const text = document.getText();
+        const results: InlayHint[] = [];
+
+        // ASN inlay hints
+        if (asnIntel.available) {
+          results.push(...createAsnInlayHints(asnIntel, text, params.range));
+        }
+
+        // Function return type inlay hints
+        try {
+          const typeHints = await createTypeHintInlayHints(text, params.range);
+          results.push(...typeHints);
+        } catch {
+          // Type hint inference is best-effort
+        }
+
+        return results;
+      },
+    ),
+  );
 
   connection.onShutdown(() => {
     hasShutdownBeenRequested = true;

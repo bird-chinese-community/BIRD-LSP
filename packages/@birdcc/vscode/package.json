@@ -354,6 +354,7 @@
     }
   },
   "dependencies": {
+    "@birdcc/core": "workspace:*",
     "@birdcc/formatter": "workspace:*",
     "@birdcc/lsp": "workspace:*",
     "@birdcc/parser": "workspace:*",

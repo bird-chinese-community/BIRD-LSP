@@ -41,6 +41,13 @@ export const buildCoreSnapshot = async (text: string) => {
 
 export type ResolveCrossFileReferences = typeof resolveCrossFileReferences;
 
+export {
+  collectFunctionReturnHints,
+  type BirdHintType,
+  type FunctionReturnDetail,
+  type FunctionReturnHint,
+} from "./type-inference.js";
+
 export { parseBirdValidationOutput } from "./bird-validation-parser.js";
 export { sniffProjectEntrypoints } from "./detection/index.js";
 export type {

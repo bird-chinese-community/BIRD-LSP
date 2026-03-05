@@ -26,12 +26,13 @@
   ],
   "dependencies": {
     "@birdcc/core": "workspace:*",
+    "@birdcc/formatter": "workspace:*",
     "@birdcc/intel": "workspace:*",
     "@birdcc/linter": "workspace:*",
-    "yaml": "^2.8.2",
+    "@birdcc/parser": "workspace:*",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12",
-    "@birdcc/parser": "workspace:*"
+    "yaml": "^2.8.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-hover-yaml.mjs && pnpm run hover:coverage:check",
