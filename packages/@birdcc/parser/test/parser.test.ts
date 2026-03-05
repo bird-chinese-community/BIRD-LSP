@@ -472,4 +472,47 @@ describe("@birdcc/parser tree-sitter", () => {
       parsed.issues.some((item) => item.code === "syntax/missing-semicolon"),
     ).toBe(true);
   });
+
+  it("parses neighbor statements with scoped interface and custom port", async () => {
+    const sample = `
+      protocol bgp edge {
+        neighbor 1.0.0.2 % 'ens19' as 123456 port 12346;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(
+      parsed.issues.some((item) => item.code === "syntax/missing-semicolon"),
+    ).toBe(false);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const neighbor = protocol.statements.find(
+        (item) => item.kind === "neighbor",
+      );
+      expect(neighbor).toBeDefined();
+      if (neighbor?.kind === "neighbor") {
+        expect(neighbor.interface).toBe("'ens19'");
+        expect(neighbor.asn).toBe("123456");
+        expect(neighbor.port).toBe("12346");
+      }
+    }
+  });
+
+  it("pins missing protocol name diagnostics to declaration head", async () => {
+    const parsed = await parseBirdConfig(
+      "protocol bgp {\n  neighbor 192.0.2.1 as 65002;\n}\n",
+    );
+    const issue = parsed.issues.find(
+      (item) => item.message === "Missing name for protocol declaration",
+    );
+
+    expect(issue).toBeDefined();
+    expect(issue?.line).toBe(1);
+    expect(issue?.endLine).toBe(1);
+    expect(issue?.column).toBeGreaterThanOrEqual(13);
+  });
 });

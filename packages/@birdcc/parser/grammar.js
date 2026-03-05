@@ -299,6 +299,18 @@ export default grammar({
         ";",
       ),
 
+    neighbor_as_clause: ($) =>
+      seq("as", field("asn", choice($.number, $.identifier, $.raw_token))),
+
+    neighbor_port_clause: ($) =>
+      seq("port", field("port", choice($.number, $.identifier, $.raw_token))),
+
+    neighbor_as_port_clause: ($) =>
+      choice(
+        seq($.neighbor_as_clause, optional($.neighbor_port_clause)),
+        seq($.neighbor_port_clause, optional($.neighbor_as_clause)),
+      ),
+
     neighbor_statement: ($) =>
       seq(
         "neighbor",
@@ -312,9 +324,7 @@ export default grammar({
             field("interface", choice($.identifier, $.string, $.raw_token)),
           ),
         ),
-        optional(
-          seq("as", field("asn", choice($.number, $.identifier, $.raw_token))),
-        ),
+        optional($.neighbor_as_port_clause),
         ";",
       ),
 

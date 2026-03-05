@@ -84,8 +84,12 @@ export interface NeighborStatement extends StatementBase {
   address: string;
   addressRange: SourceRange;
   addressKind: "ip" | "other";
+  interface?: string;
+  interfaceRange?: SourceRange;
   asn?: string;
   asnRange?: SourceRange;
+  port?: string;
+  portRange?: SourceRange;
 }
 
 export interface ImportStatement extends StatementBase {

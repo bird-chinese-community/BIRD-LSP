@@ -1,5 +1,5 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
-import type { ParseIssue } from "./types.js";
+import type { ParseIssue, SourceRange } from "./types.js";
 import { toRange } from "./tree.js";
 
 export const collectTreeIssues = (
@@ -60,11 +60,15 @@ export const pushMissingFieldIssue = (
   declarationNode: SyntaxNode,
   message: string,
   source: string,
+  options: {
+    range?: SourceRange;
+  } = {},
 ): void => {
+  const range = options.range ?? toRange(declarationNode, source);
   issues.push({
     code: "parser/missing-symbol",
     message,
-    ...toRange(declarationNode, source),
+    ...range,
   });
 };
 

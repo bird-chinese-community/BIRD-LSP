@@ -62,6 +62,28 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).not.toContain("bgp/missing-remote-as");
   });
 
+  it("does not hit bgp/missing-remote-as when neighbor uses scoped interface with ASN", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 % 'ens19' as 65002;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
+  });
+
+  it("hits bgp/missing-remote-as when neighbor uses scoped interface without ASN", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 % 'ens19';
+      }
+    `);
+
+    expect(codes).toContain("bgp/missing-remote-as");
+  });
+
   it("hits bgp/timer-invalid", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

@@ -5,6 +5,7 @@ import type {
   ImportStatement,
   ParseIssue,
   ProtocolStatement,
+  SourceRange,
 } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
 import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
@@ -329,6 +330,127 @@ const parseChannelEntries = (
   return entries;
 };
 
+const isRangeImmediatelyAfter = (
+  previous: SourceRange,
+  next: SourceRange,
+): boolean =>
+  previous.endLine === next.line && next.column === previous.endColumn + 1;
+
+const removeNeighborTailMissingSemicolonIssue = (
+  issues: ParseIssue[],
+  tailStartRange: SourceRange,
+): void => {
+  const issueIndex = issues.findIndex(
+    (item) =>
+      item.code === "syntax/missing-semicolon" &&
+      item.line === tailStartRange.line &&
+      item.column === tailStartRange.column - 1 &&
+      item.endLine === tailStartRange.line &&
+      item.endColumn === tailStartRange.column - 1,
+  );
+
+  if (issueIndex === -1) {
+    return;
+  }
+
+  issues.splice(issueIndex, 1);
+};
+
+const parseNeighborTailClause = (
+  text: string,
+): {
+  hasKnownClause: boolean;
+  interfaceValue?: string;
+  asn?: string;
+  port?: string;
+} => {
+  const trimmed = text.trim();
+  if (!/^(%|\bas\b|\bport\b)/i.test(trimmed)) {
+    return { hasKnownClause: false };
+  }
+
+  const interfaceMatch = trimmed.match(/^%\s+(.+?)(?=\s+\b(?:as|port)\b|$)/i);
+  const asnMatch = trimmed.match(/\bas\s+([^\s;]+)/i);
+  const portMatch = trimmed.match(/\bport\s+([^\s;]+)/i);
+
+  return {
+    hasKnownClause: Boolean(interfaceMatch || asnMatch || portMatch),
+    interfaceValue: interfaceMatch?.[1]?.trim(),
+    asn: asnMatch?.[1]?.trim(),
+    port: portMatch?.[1]?.trim(),
+  };
+};
+
+const mergeNeighborTailStatements = (
+  statements: ProtocolStatement[],
+  issues: ParseIssue[],
+): ProtocolStatement[] => {
+  const tailCandidates = statements
+    .filter((item): item is Extract<ProtocolStatement, { kind: "other" }> => {
+      return item.kind === "other";
+    })
+    .sort((left, right) => {
+      if (left.line !== right.line) {
+        return left.line - right.line;
+      }
+      return left.column - right.column;
+    });
+
+  const consumedTails = new Set<
+    Extract<ProtocolStatement, { kind: "other" }>
+  >();
+
+  for (const statement of statements) {
+    if (statement.kind !== "neighbor") {
+      continue;
+    }
+
+    let mergedRange: SourceRange = statement;
+    for (const tail of tailCandidates) {
+      if (consumedTails.has(tail)) {
+        continue;
+      }
+
+      if (!isRangeImmediatelyAfter(mergedRange, tail)) {
+        continue;
+      }
+
+      const tailClause = parseNeighborTailClause(tail.text);
+      if (!tailClause.hasKnownClause) {
+        continue;
+      }
+
+      if (tailClause.interfaceValue && !statement.interface) {
+        statement.interface = tailClause.interfaceValue;
+        statement.interfaceRange = tail;
+      }
+
+      if (tailClause.asn && !statement.asn) {
+        statement.asn = tailClause.asn;
+        statement.asnRange = tail;
+      }
+
+      if (tailClause.port && !statement.port) {
+        statement.port = tailClause.port;
+        statement.portRange = tail;
+      }
+
+      statement.endLine = tail.endLine;
+      statement.endColumn = tail.endColumn;
+      mergedRange = statement;
+      consumedTails.add(tail);
+      removeNeighborTailMissingSemicolonIssue(issues, tail);
+    }
+  }
+
+  return statements.filter((statement) => {
+    if (statement.kind !== "other") {
+      return true;
+    }
+    return !consumedTails.has(statement);
+  });
+};
+
 export const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
@@ -366,7 +488,9 @@ export const parseProtocolStatements = (
 
     if (statementNode.type === "neighbor_statement") {
       const addressNode = statementNode.childForFieldName("address");
+      const interfaceNode = statementNode.childForFieldName("interface");
       const asnNode = statementNode.childForFieldName("asn");
+      const portNode = statementNode.childForFieldName("port");
 
       if (!isPresentNode(addressNode)) {
         pushMissingFieldIssue(
@@ -392,8 +516,18 @@ export const parseProtocolStatements = (
           ? toRange(addressNode, source)
           : statementRange,
         addressKind,
+        interface: isPresentNode(interfaceNode)
+          ? textOf(interfaceNode, source)
+          : undefined,
+        interfaceRange: isPresentNode(interfaceNode)
+          ? toRange(interfaceNode, source)
+          : undefined,
         asn: isPresentNode(asnNode) ? textOf(asnNode, source) : undefined,
         asnRange: isPresentNode(asnNode) ? toRange(asnNode, source) : undefined,
+        port: isPresentNode(portNode) ? textOf(portNode, source) : undefined,
+        portRange: isPresentNode(portNode)
+          ? toRange(portNode, source)
+          : undefined,
         ...statementRange,
       });
       continue;
@@ -514,7 +648,48 @@ export const parseProtocolStatements = (
     index = endIndex;
   }
 
-  return statements;
+  return mergeNeighborTailStatements(statements, issues);
+};
+
+const collapseRangeToStart = (range: SourceRange): SourceRange => ({
+  line: range.line,
+  column: range.column,
+  endLine: range.line,
+  endColumn: range.column,
+});
+
+const collapseRangeToEnd = (range: SourceRange): SourceRange => ({
+  line: range.endLine,
+  column: range.endColumn,
+  endLine: range.endLine,
+  endColumn: range.endColumn,
+});
+
+const protocolNamePlaceholderRange = (
+  declarationRange: SourceRange,
+  protocolTypeNode: SyntaxNode | null,
+  protocolVariantNode: SyntaxNode | null,
+  fromTemplateNode: SyntaxNode | null,
+  bodyNode: SyntaxNode | null,
+  source: string,
+): SourceRange => {
+  if (isPresentNode(bodyNode)) {
+    return collapseRangeToStart(toRange(bodyNode, source));
+  }
+
+  if (isPresentNode(fromTemplateNode)) {
+    return collapseRangeToStart(toRange(fromTemplateNode, source));
+  }
+
+  if (isPresentNode(protocolVariantNode)) {
+    return collapseRangeToEnd(toRange(protocolVariantNode, source));
+  }
+
+  if (isPresentNode(protocolTypeNode)) {
+    return collapseRangeToEnd(toRange(protocolTypeNode, source));
+  }
+
+  return collapseRangeToStart(declarationRange);
 };
 
 export const parseProtocolDeclaration = (
@@ -548,6 +723,16 @@ export const parseProtocolDeclaration = (
       declarationNode,
       "Missing name for protocol declaration",
       source,
+      {
+        range: protocolNamePlaceholderRange(
+          declarationRange,
+          protocolTypeNode,
+          protocolVariantNode,
+          fromTemplateNode,
+          bodyNode,
+          source,
+        ),
+      },
     );
   }
 
