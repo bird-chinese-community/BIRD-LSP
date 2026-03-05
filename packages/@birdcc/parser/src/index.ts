@@ -5,6 +5,7 @@ import {
   ensureBraceBalanceIssue,
   parseFailureIssue,
   runtimeFailureIssue,
+  suppressRecoverableSyntaxIssues,
 } from "./issues.js";
 import { parseDeclarations } from "./declarations.js";
 import type { ParseIssue, ParsedBirdDocument } from "./types.js";
@@ -88,13 +89,14 @@ export const parseBirdConfig = async (
     ensureBraceBalanceIssue(input, issues);
 
     const declarations = parseDeclarations(tree.rootNode, input, issues);
+    const normalizedIssues = suppressRecoverableSyntaxIssues(issues, input);
 
     return {
       program: {
         kind: "program",
         declarations,
       },
-      issues: dedupeIssues(issues),
+      issues: dedupeIssues(normalizedIssues),
     };
   } finally {
     tree.delete();

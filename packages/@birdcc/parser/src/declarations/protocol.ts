@@ -692,47 +692,6 @@ export const parseProtocolStatements = (
   return mergeNeighborTailStatements(statements, issues);
 };
 
-const collapseRangeToStart = (range: SourceRange): SourceRange => ({
-  line: range.line,
-  column: range.column,
-  endLine: range.line,
-  endColumn: range.column,
-});
-
-const collapseRangeToEnd = (range: SourceRange): SourceRange => ({
-  line: range.endLine,
-  column: range.endColumn,
-  endLine: range.endLine,
-  endColumn: range.endColumn,
-});
-
-const protocolNamePlaceholderRange = (
-  declarationRange: SourceRange,
-  protocolTypeNode: SyntaxNode | null,
-  protocolVariantNode: SyntaxNode | null,
-  fromTemplateNode: SyntaxNode | null,
-  bodyNode: SyntaxNode | null,
-  source: string,
-): SourceRange => {
-  if (isPresentNode(bodyNode)) {
-    return collapseRangeToStart(toRange(bodyNode, source));
-  }
-
-  if (isPresentNode(fromTemplateNode)) {
-    return collapseRangeToStart(toRange(fromTemplateNode, source));
-  }
-
-  if (isPresentNode(protocolVariantNode)) {
-    return collapseRangeToEnd(toRange(protocolVariantNode, source));
-  }
-
-  if (isPresentNode(protocolTypeNode)) {
-    return collapseRangeToEnd(toRange(protocolTypeNode, source));
-  }
-
-  return collapseRangeToStart(declarationRange);
-};
-
 export const parseProtocolDeclaration = (
   declarationNode: SyntaxNode,
   source: string,
@@ -755,25 +714,6 @@ export const parseProtocolDeclaration = (
       declarationNode,
       "Missing protocol type for protocol declaration",
       source,
-    );
-  }
-
-  if (!isPresentNode(nameNode)) {
-    pushMissingFieldIssue(
-      issues,
-      declarationNode,
-      "Missing name for protocol declaration",
-      source,
-      {
-        range: protocolNamePlaceholderRange(
-          declarationRange,
-          protocolTypeNode,
-          protocolVariantNode,
-          fromTemplateNode,
-          bodyNode,
-          source,
-        ),
-      },
     );
   }
 

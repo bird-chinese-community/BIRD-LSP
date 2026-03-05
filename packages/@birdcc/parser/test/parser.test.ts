@@ -440,7 +440,6 @@ describe("@birdcc/parser tree-sitter", () => {
     expect(messages).toContain("Missing name for define declaration");
     expect(messages).toContain("Missing value for router id declaration");
     expect(messages).toContain("Missing name for table declaration");
-    expect(messages).toContain("Missing name for protocol declaration");
     expect(messages).toContain("Missing name for template declaration");
     expect(messages).toContain("Missing name for filter declaration");
     expect(messages).toContain("Missing name for function declaration");
@@ -531,17 +530,37 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
-  it("pins missing protocol name diagnostics to declaration head", async () => {
+  it("accepts anonymous protocol declarations", async () => {
     const parsed = await parseBirdConfig(
-      "protocol bgp {\n  neighbor 192.0.2.1 as 65002;\n}\n",
+      "protocol static {\n  route 2001:db8::/32 reject;\n}\n",
     );
     const issue = parsed.issues.find(
       (item) => item.message === "Missing name for protocol declaration",
     );
 
-    expect(issue).toBeDefined();
-    expect(issue?.line).toBe(1);
-    expect(issue?.endLine).toBe(1);
-    expect(issue?.column).toBeGreaterThanOrEqual(13);
+    expect(issue).toBeUndefined();
+  });
+
+  it("suppresses recoverable syntax errors for local address and allow local as", async () => {
+    const parsed = await parseBirdConfig(`
+      template bgp rr_session {
+        local OWNIPv6_rr port 1179 as PUB_MYASN;
+        allow local as;
+      };
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+  });
+
+  it("suppresses recoverable syntax errors for semicolon-separated function params and declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      function f1 (int a; bgppath p; bool debug)
+      int remain;
+      {
+        return true;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
   });
 });

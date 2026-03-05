@@ -156,3 +156,71 @@ export const runtimeFailureIssue = (error: unknown): ParseIssue => ({
   endLine: 1,
   endColumn: 1,
 });
+
+const TYPE_DECLARATION_LINE =
+  /^\s*(?:int|bool|string|ip|prefix|pair|quad|ec|lc|bgppath|clist|eclist|lclist)\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*\s*;\s*$/i;
+const FUNCTION_PARAM_WITH_SEMICOLON =
+  /^\s*function\b[^{]*\([^)]*;[^)]*\)\s*[{]?\s*$/i;
+const LOCAL_ADDRESS_WITH_AS =
+  /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
+const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
+
+const linesOf = (source: string): string[] => source.split(/\r?\n/);
+
+const lineTextAt = (lines: string[], line: number): string =>
+  lines[line - 1] ?? "";
+
+const isTypedDeclarationRange = (
+  issue: ParseIssue,
+  lines: string[],
+): boolean => {
+  if (issue.endLine < issue.line) {
+    return false;
+  }
+
+  for (let line = issue.line; line <= issue.endLine; line += 1) {
+    if (!TYPE_DECLARATION_LINE.test(lineTextAt(lines, line))) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const isRecoverableSyntaxIssue = (
+  issue: ParseIssue,
+  lines: string[],
+): boolean => {
+  if (issue.code !== "parser/syntax-error") {
+    return false;
+  }
+
+  const currentLineText = lineTextAt(lines, issue.line);
+  if (
+    LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
+    ALLOW_LOCAL_AS.test(currentLineText)
+  ) {
+    return true;
+  }
+
+  if (
+    issue.message.includes("';'") &&
+    FUNCTION_PARAM_WITH_SEMICOLON.test(currentLineText)
+  ) {
+    return true;
+  }
+
+  if (isTypedDeclarationRange(issue, lines)) {
+    return true;
+  }
+
+  return false;
+};
+
+export const suppressRecoverableSyntaxIssues = (
+  issues: ParseIssue[],
+  source: string,
+): ParseIssue[] => {
+  const lines = linesOf(source);
+  return issues.filter((issue) => !isRecoverableSyntaxIssue(issue, lines));
+};

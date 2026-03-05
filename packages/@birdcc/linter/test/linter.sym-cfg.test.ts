@@ -251,19 +251,14 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).toContain("cfg/circular-template");
   });
 
-  it("normalizes missing protocol name as info and pins range to declaration head", async () => {
+  it("does not report missing protocol name for anonymous declarations", async () => {
     const result = await lintBirdConfig(
-      "protocol bgp {\n  neighbor 192.0.2.1 as 65002;\n}\n",
+      "protocol static {\n  route 2001:db8::/32 reject;\n}\n",
     );
-    const diagnostic = result.diagnostics.find(
-      (item) =>
-        item.code === "cfg/syntax-error" &&
-        item.message.includes("Missing name for protocol declaration"),
+    const diagnostic = result.diagnostics.find((item) =>
+      item.message.includes("Missing name for protocol declaration"),
     );
 
-    expect(diagnostic).toBeDefined();
-    expect(diagnostic?.severity).toBe("info");
-    expect(diagnostic?.range.line).toBe(1);
-    expect(diagnostic?.range.endLine).toBe(1);
+    expect(diagnostic).toBeUndefined();
   });
 });
