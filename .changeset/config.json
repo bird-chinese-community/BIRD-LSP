@@ -20,6 +20,7 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
+    "@birdcc/intel",
     "@birdcc/vscode",
     "bird2-extension-pack",
     "@birdcc/dprint-plugin-bird"
