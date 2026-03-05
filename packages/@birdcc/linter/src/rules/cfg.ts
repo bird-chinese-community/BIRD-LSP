@@ -38,7 +38,7 @@ const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
     return [];
   }
 
-  if (hasDefineDeclarations(parsed)) {
+  if (hasDefineDeclarations(parsed) || hasIncludeDeclarations(parsed)) {
     return [];
   }
 

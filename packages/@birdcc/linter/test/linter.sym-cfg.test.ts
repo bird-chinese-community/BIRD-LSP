@@ -182,6 +182,15 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("cfg/missing-router-id");
   });
 
+  it("does not hit cfg/no-protocol for include-only fragments", async () => {
+    const codes = await codesOf(`
+      include "base.conf";
+      include "peers/*.conf";
+    `);
+
+    expect(codes).not.toContain("cfg/no-protocol");
+  });
+
   it("does not hit cfg/missing-router-id for configs with includes", async () => {
     const codes = await codesOf(`
       include "vars.conf";
