@@ -40,3 +40,16 @@ export const buildCoreSnapshot = async (text: string) => {
 };
 
 export type ResolveCrossFileReferences = typeof resolveCrossFileReferences;
+
+export { sniffProjectEntrypoints } from "./detection/index.js";
+export type {
+  ContentSignals,
+  DetectionKind,
+  DetectionOptions,
+  DetectionResult,
+  DetectionWarning,
+  EntryCandidate,
+  FileRole,
+  IncludeGraphExtras,
+  SignalRecord,
+} from "./detection/index.js";
