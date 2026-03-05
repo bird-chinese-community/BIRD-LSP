@@ -26,6 +26,7 @@
   ],
   "dependencies": {
     "@birdcc/core": "workspace:*",
+    "@birdcc/intel": "workspace:*",
     "@birdcc/linter": "workspace:*",
     "yaml": "^2.8.2",
     "vscode-languageserver": "^9.0.1",

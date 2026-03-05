@@ -14,7 +14,13 @@ export {
   type HoverContextDocumentLike,
 } from "./hover-context.js";
 export { createReferenceLocations } from "./references.js";
-export { startLspServer } from "./lsp-server.js";
+export {
+  createAsnCompletionItems,
+  extractAsnPrefix,
+} from "./asn-completion.js";
+export { createAsnInlayHints } from "./asn-inlay-hints.js";
+export { createAsnHover } from "./asn-hover.js";
+export { startLspServer, type LspServerOptions } from "./lsp-server.js";
 export {
   toCanonicalKey,
   toLspRange,

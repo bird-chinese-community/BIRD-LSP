@@ -20,11 +20,15 @@ import {
   lintResolvedCrossFileGraph,
   type LintResult,
 } from "@birdcc/linter";
+import { createAsnIntel, type AsnIntel } from "@birdcc/intel";
 import { createCompletionItemsFromParsed } from "./completion.js";
 import { createDefinitionLocations } from "./definition.js";
 import { createDocumentSymbolsFromParsed } from "./document-symbol.js";
 import { toInternalErrorDiagnostic, toLspDiagnostic } from "./diagnostic.js";
 import { createHoverFromParsed } from "./hover.js";
+import { createAsnCompletionItems } from "./asn-completion.js";
+import { createAsnInlayHints } from "./asn-inlay-hints.js";
+import { createAsnHover } from "./asn-hover.js";
 import { createReferenceLocations } from "./references.js";
 import { createValidationScheduler } from "./validation.js";
 
@@ -69,8 +73,15 @@ const flattenAdditionalDeclarations = (
   return declarations;
 };
 
+export interface LspServerOptions {
+  /** Override the path to the ASN database binary. Undefined = use bundled default. */
+  asnDbPath?: string;
+  /** Disable ASN intelligence entirely. */
+  disableAsnIntel?: boolean;
+}
+
 /** Starts the stdio LSP server with async lint validation and last-write-wins scheduling. */
-export const startLspServer = (): void => {
+export const startLspServer = (options?: LspServerOptions): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
   const parsedByUri = new Map<string, ParsedCacheEntry>();
@@ -79,6 +90,28 @@ export const startLspServer = (): void => {
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
   let hasShutdownBeenRequested = false;
+
+  // ASN intelligence — loads the bundled database (gracefully degrades if missing)
+  const asnIntel: AsnIntel = options?.disableAsnIntel
+    ? {
+        available: false,
+        count: 0,
+        exactLookup: () => undefined,
+        prefixSearch: () => [],
+        formatDisplay: () => ({
+          inlayLabel: "",
+          completionDetail: "",
+          hoverMarkdown: "",
+        }),
+        lookupDisplay: () => undefined,
+      }
+    : createAsnIntel(options?.asnDbPath);
+
+  if (asnIntel.available) {
+    connection.console.log(
+      `[intel] ASN database loaded: ${asnIntel.count} records`,
+    );
+  }
 
   void warmupParserRuntime();
 
@@ -214,6 +247,7 @@ export const startLspServer = (): void => {
           resolveProvider: false,
           triggerCharacters: [" ", "."],
         },
+        inlayHintProvider: asnIntel.available,
       },
     }),
   );
@@ -281,6 +315,18 @@ export const startLspServer = (): void => {
       return null;
     }
 
+    // Try ASN hover first (more specific)
+    if (asnIntel.available) {
+      const lineText = document
+        .getText({
+          start: { line: params.position.line, character: 0 },
+          end: { line: params.position.line + 1, character: 0 },
+        })
+        .replace(/\n$/, "");
+      const asnHover = createAsnHover(asnIntel, lineText, params.position);
+      if (asnHover) return asnHover;
+    }
+
     const parsed = await getParsedDocument(document);
     return createHoverFromParsed(parsed, document, params.position);
   });
@@ -335,6 +381,12 @@ export const startLspServer = (): void => {
       end: params.position,
     });
 
+    // Check if we're in an ASN context — return ASN completions instead
+    if (asnIntel.available) {
+      const asnItems = createAsnCompletionItems(asnIntel, linePrefix);
+      if (asnItems.length > 0) return asnItems;
+    }
+
     try {
       const graph = await getGraphForDocument(document);
       return createCompletionItemsFromParsed(parsed, {
@@ -347,6 +399,17 @@ export const startLspServer = (): void => {
     } catch {
       return createCompletionItemsFromParsed(parsed, { linePrefix });
     }
+  });
+
+  // ASN Inlay Hints
+  connection.languages.inlayHint.on((params) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document || !asnIntel.available) {
+      return [];
+    }
+
+    const text = document.getText();
+    return createAsnInlayHints(asnIntel, text, params.range);
   });
 
   connection.onShutdown(() => {
