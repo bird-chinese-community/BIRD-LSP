@@ -35,6 +35,14 @@ import { createAsnHover } from "./asn-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import { resolveProjectAnalysisOptions } from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
+import {
+  clearDiagnostics,
+  clearDiagnosticsMany,
+  getLineText,
+  publishDiagnostics,
+  showInfoOnce,
+  withDocument,
+} from "./utils.js";
 import { createValidationScheduler } from "./validation.js";
 
 const VALIDATION_DEBOUNCE_MS = 120;
@@ -151,23 +159,13 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
 
   const notifyInfoOnce = (key: string, message: string): void => {
-    if (announcedInfoNotifications.has(key)) {
-      return;
-    }
-
-    announcedInfoNotifications.add(key);
-    connection.sendNotification("window/showMessage", {
-      type: 3, // Info
-      message,
-    });
+    showInfoOnce(connection, announcedInfoNotifications, key, message);
   };
 
   const clearEntryTracking = (entryUri: string): void => {
-    const publishedUris = publishedUrisByEntry.get(entryUri);
-    if (publishedUris) {
-      for (const uri of publishedUris) {
-        connection.sendDiagnostics({ uri, diagnostics: [] });
-      }
+    const previousUris = publishedUrisByEntry.get(entryUri);
+    if (previousUris) {
+      clearDiagnosticsMany(connection, previousUris);
       publishedUrisByEntry.delete(entryUri);
     }
 
@@ -301,23 +299,20 @@ export const startLspServer = (options?: LspServerOptions): void => {
         publishedUrisByEntry.get(document.uri) ?? new Set<string>();
 
       for (const uri of previousUris) {
-        if (visitedUris.has(uri)) {
-          continue;
+        if (!visitedUris.has(uri)) {
+          clearDiagnostics(connection, uri);
         }
-
-        connection.sendDiagnostics({ uri, diagnostics: [] });
       }
 
       for (const [uri, diagnostics] of diagnosticsByUri) {
-        if (uri === document.uri) {
-          continue;
+        if (uri !== document.uri) {
+          publishDiagnostics(
+            connection,
+            uri,
+            diagnostics,
+            documents.get(uri)?.version,
+          );
         }
-
-        connection.sendDiagnostics({
-          uri,
-          version: documents.get(uri)?.version,
-          diagnostics,
-        });
       }
 
       publishedUrisByEntry.set(document.uri, visitedUris);
@@ -421,8 +416,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
         return [toInternalErrorDiagnostic(error)];
       }
     },
-    publish: (payload) => {
-      connection.sendDiagnostics(payload);
+    publish: ({ uri, version, diagnostics }) => {
+      publishDiagnostics(connection, uri, diagnostics, version);
     },
   });
 
@@ -456,117 +451,95 @@ export const startLspServer = (options?: LspServerOptions): void => {
     return parsed;
   };
 
-  connection.onDocumentSymbol(async (params) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return [];
-    }
+  connection.onDocumentSymbol(async (params) =>
+    withDocument(documents, params.textDocument.uri, [], async (document) => {
+      const parsed = await getParsedDocument(document);
+      return createDocumentSymbolsFromParsed(parsed);
+    }),
+  );
 
-    const parsed = await getParsedDocument(document);
-    return createDocumentSymbolsFromParsed(parsed);
-  });
+  connection.onHover(async (params) =>
+    withDocument(documents, params.textDocument.uri, null, async (document) => {
+      // Try ASN hover first (more specific)
+      if (asnIntel.available) {
+        const lineText = getLineText(document, params.position.line);
+        const asnHover = createAsnHover(asnIntel, lineText, params.position);
+        if (asnHover) return asnHover;
+      }
 
-  connection.onHover(async (params) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return null;
-    }
+      const parsed = await getParsedDocument(document);
+      return createHoverFromParsed(parsed, document, params.position);
+    }),
+  );
 
-    // Try ASN hover first (more specific)
-    if (asnIntel.available) {
-      const lineText = document
-        .getText({
-          start: { line: params.position.line, character: 0 },
-          end: { line: params.position.line + 1, character: 0 },
-        })
-        .replace(/\n$/, "");
-      const asnHover = createAsnHover(asnIntel, lineText, params.position);
-      if (asnHover) return asnHover;
-    }
-
-    const parsed = await getParsedDocument(document);
-    return createHoverFromParsed(parsed, document, params.position);
-  });
-
-  connection.onDefinition(async (params) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return [];
-    }
-
-    try {
-      const graph = await getGraphForDocument(document);
-      return createDefinitionLocations(
-        graph.symbolTable,
-        document.uri,
-        params.position,
-        document.getText(),
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  connection.onReferences(async (params) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return [];
-    }
-
-    try {
-      const graph = await getGraphForDocument(document);
-      return createReferenceLocations(
-        graph.symbolTable,
-        document.uri,
-        params.position,
-        document.getText(),
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  connection.onCompletion(async (params) => {
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-      return [];
-    }
-
-    const parsed = await getParsedDocument(document);
-    const linePrefix = document.getText({
-      start: { line: params.position.line, character: 0 },
-      end: params.position,
-    });
-
-    // Check if we're in an ASN context — return ASN completions instead
-    if (asnIntel.available) {
-      const asnItems = createAsnCompletionItems(asnIntel, linePrefix);
-      if (asnItems.length > 0) return asnItems;
-    }
-
-    try {
-      const graph = await getGraphForDocument(document);
-      return createCompletionItemsFromParsed(parsed, {
-        linePrefix,
-        additionalDeclarations: flattenAdditionalDeclarations(
-          graph,
+  connection.onDefinition(async (params) =>
+    withDocument(documents, params.textDocument.uri, [], async (document) => {
+      try {
+        const graph = await getGraphForDocument(document);
+        return createDefinitionLocations(
+          graph.symbolTable,
           document.uri,
-        ),
+          params.position,
+          document.getText(),
+        );
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  connection.onReferences(async (params) =>
+    withDocument(documents, params.textDocument.uri, [], async (document) => {
+      try {
+        const graph = await getGraphForDocument(document);
+        return createReferenceLocations(
+          graph.symbolTable,
+          document.uri,
+          params.position,
+          document.getText(),
+        );
+      } catch {
+        return [];
+      }
+    }),
+  );
+
+  connection.onCompletion(async (params) =>
+    withDocument(documents, params.textDocument.uri, [], async (document) => {
+      const parsed = await getParsedDocument(document);
+      const linePrefix = document.getText({
+        start: { line: params.position.line, character: 0 },
+        end: params.position,
       });
-    } catch {
-      return createCompletionItemsFromParsed(parsed, { linePrefix });
-    }
-  });
+
+      // Check if we're in an ASN context — return ASN completions instead
+      if (asnIntel.available) {
+        const asnItems = createAsnCompletionItems(asnIntel, linePrefix);
+        if (asnItems.length > 0) return asnItems;
+      }
+
+      try {
+        const graph = await getGraphForDocument(document);
+        return createCompletionItemsFromParsed(parsed, {
+          linePrefix,
+          additionalDeclarations: flattenAdditionalDeclarations(
+            graph,
+            document.uri,
+          ),
+        });
+      } catch {
+        return createCompletionItemsFromParsed(parsed, { linePrefix });
+      }
+    }),
+  );
 
   // ASN Inlay Hints
   connection.languages.inlayHint.on((params) => {
+    if (!asnIntel.available) return [];
     const document = documents.get(params.textDocument.uri);
-    if (!document || !asnIntel.available) {
-      return [];
-    }
+    if (!document) return [];
 
-    const text = document.getText();
-    return createAsnInlayHints(asnIntel, text, params.range);
+    return createAsnInlayHints(asnIntel, document.getText(), params.range);
   });
 
   connection.onShutdown(() => {

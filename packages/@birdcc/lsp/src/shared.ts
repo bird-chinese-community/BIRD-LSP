@@ -15,6 +15,15 @@ export {
   toCanonicalKey,
   getLineText,
   type GetLineTextDocument,
+  showMessage,
+  showInfo,
+  showWarning,
+  showInfoOnce,
+  publishDiagnostics,
+  clearDiagnostics,
+  clearDiagnosticsMany,
+  withDocument,
+  type DocumentStore,
 } from "./utils.js";
 
 const BASE_KEYWORD_DOCS: Record<string, string> = {

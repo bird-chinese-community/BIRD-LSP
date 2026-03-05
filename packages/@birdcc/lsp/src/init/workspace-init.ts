@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
 import type { Connection } from "vscode-languageserver/node.js";
+import { showInfo, showWarning } from "../utils.js";
 
 export interface WorkspaceInitResult {
   detectionResult: DetectionResult;
@@ -64,10 +65,10 @@ export const detectWorkspaceEntry = async (
         connection.console.log(
           `[init] Auto-detected entry: ${result.primary.path} (confidence: ${result.confidence}%)`,
         );
-        connection.sendNotification("window/showMessage", {
-          type: 3, // Info
-          message: `Auto-detected BIRD entry: ${result.primary.path} (${result.confidence}% confidence).`,
-        });
+        showInfo(
+          connection,
+          `Auto-detected BIRD entry: ${result.primary.path} (${result.confidence}% confidence).`,
+        );
       }
       break;
     }
@@ -76,29 +77,29 @@ export const detectWorkspaceEntry = async (
       if (result.primary) {
         suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
         needsConfirmation = true;
-        connection.sendNotification("window/showMessage", {
-          type: 2, // Warning
-          message: `BIRD project entry detected with low confidence: ${result.primary.path}. Consider creating bird.config.json with \`birdcc init\`.`,
-        });
+        showWarning(
+          connection,
+          `BIRD project entry detected with low confidence: ${result.primary.path}. Consider creating bird.config.json with \`birdcc init\`.`,
+        );
       }
       break;
     }
 
     case "monorepo-multi-entry": {
-      connection.sendNotification("window/showMessage", {
-        type: 3, // Info
-        message: `Multiple BIRD project entries detected. Run \`birdcc init --write\` to generate workspace configuration.`,
-      });
+      showInfo(
+        connection,
+        `Multiple BIRD project entries detected. Run \`birdcc init --write\` to generate workspace configuration.`,
+      );
       break;
     }
 
     case "monorepo-multi-role": {
       if (result.primary) {
         suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
-        connection.sendNotification("window/showMessage", {
-          type: 3, // Info
-          message: `BIRD project with multiple roles detected. Entry: ${result.primary.path}. Run \`birdcc init --write\` for full configuration.`,
-        });
+        showInfo(
+          connection,
+          `BIRD project with multiple roles detected. Entry: ${result.primary.path}. Run \`birdcc init --write\` for full configuration.`,
+        );
       }
       break;
     }
