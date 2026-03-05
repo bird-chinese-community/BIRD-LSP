@@ -29,6 +29,7 @@ import { createHoverFromParsed } from "./hover.js";
 import { createAsnCompletionItems } from "./asn-completion.js";
 import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createAsnHover } from "./asn-hover.js";
+import { resolveProjectAnalysisOptions } from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
 import { createValidationScheduler } from "./validation.js";
 
@@ -89,6 +90,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
+  const announcedProjectConfigs = new Set<string>();
+  let workspaceRootUris: string[] = [];
+  let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
 
   // ASN intelligence — loads the bundled database (gracefully degrades if missing)
@@ -135,23 +139,85 @@ export const startLspServer = (options?: LspServerOptions): void => {
     document: TextDocument,
     options: { publishRelatedDiagnostics: boolean },
   ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
+    const project = await resolveProjectAnalysisOptions({
+      documentUri: document.uri,
+      workspaceRootUris,
+      defaults: {
+        maxDepth: INCLUDE_MAX_DEPTH,
+        maxFiles: INCLUDE_MAX_FILES,
+      },
+    });
+
+    if (
+      project.configPath &&
+      !announcedProjectConfigs.has(project.configPath)
+    ) {
+      announcedProjectConfigs.add(project.configPath);
+      connection.console.log(
+        `[project] using ${project.configPath} (mode=${project.mode}, entry=${project.entryUri})`,
+      );
+    } else if (
+      !project.configPath &&
+      workspaceRootUris.length > 1 &&
+      !noConfigTipAnnounced
+    ) {
+      noConfigTipAnnounced = true;
+      connection.console.log(
+        "[project] no bird.config.json detected; add one with workspaces/main/includePaths for monorepo-grade analysis",
+      );
+    }
+
+    if (!project.crossFileEnabled) {
+      const lintResult = await lintBirdConfig(document.getText(), {
+        uri: document.uri,
+      });
+      const graph: GraphCacheEntry = {
+        entryUri: document.uri,
+        visitedUris: new Set([document.uri]),
+        symbolTable: lintResult.core.symbolTable,
+        byUri: { [document.uri]: lintResult },
+      };
+
+      parsedByUri.set(document.uri, {
+        version: document.version,
+        parsed: lintResult.parsed,
+      });
+      graphByUri.set(document.uri, graph);
+
+      return {
+        entryDiagnostics: lintResult.diagnostics.map(toLspDiagnostic),
+        graph,
+      };
+    }
+
     const openDocuments = documents.all().map((item) => ({
       uri: item.uri,
       text: item.getText(),
     }));
 
     const crossFile = await resolveCrossFileReferences({
-      entryUri: document.uri,
+      entryUri: project.entryUri,
       documents: openDocuments,
       loadFromFileSystem: true,
-      maxDepth: INCLUDE_MAX_DEPTH,
-      maxFiles: INCLUDE_MAX_FILES,
+      maxDepth: project.maxDepth,
+      maxFiles: project.maxFiles,
+      workspaceRootUri: project.workspaceRootUri,
+      allowIncludeOutsideWorkspace: project.allowIncludeOutsideWorkspace,
+      includeSearchPaths: project.includeSearchPathUris,
     });
 
     const lintGraph = await lintResolvedCrossFileGraph(crossFile);
+    if (!Object.hasOwn(lintGraph.byUri, document.uri)) {
+      lintGraph.byUri[document.uri] = await lintBirdConfig(document.getText(), {
+        uri: document.uri,
+      });
+    }
     const visitedUris = new Set(
-      crossFile.visitedUris.length > 0 ? crossFile.visitedUris : [document.uri],
+      crossFile.visitedUris.length > 0
+        ? crossFile.visitedUris
+        : [project.entryUri],
     );
+    visitedUris.add(document.uri);
 
     const graph: GraphCacheEntry = {
       entryUri: document.uri,
@@ -235,8 +301,20 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   };
 
-  connection.onInitialize(
-    (): InitializeResult => ({
+  connection.onInitialize((params): InitializeResult => {
+    workspaceRootUris =
+      params.workspaceFolders
+        ?.map((folder) => folder.uri)
+        .filter((uri) => uri.startsWith("file://")) ?? [];
+    if (
+      workspaceRootUris.length === 0 &&
+      params.rootUri &&
+      params.rootUri.startsWith("file://")
+    ) {
+      workspaceRootUris = [params.rootUri];
+    }
+
+    return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         documentSymbolProvider: true,
@@ -249,8 +327,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
         },
         inlayHintProvider: asnIntel.available,
       },
-    }),
-  );
+    };
+  });
 
   const scheduler = createValidationScheduler<TextDocument, Diagnostic>({
     debounceMs: VALIDATION_DEBOUNCE_MS,
