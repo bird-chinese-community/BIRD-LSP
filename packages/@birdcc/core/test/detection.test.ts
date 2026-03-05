@@ -362,4 +362,20 @@ protocol bgp peer${i} {
     // Should complete in reasonable time (< 10s even on slow machines)
     expect(elapsed).toBeLessThan(10_000);
   }, 15_000);
+
+  it("#17 keeps full-scan fallback when shallow scan only sees fragment confs", async () => {
+    root = await createFixture({
+      "filters/common.conf": `
+define LOCAL_AS = 65001;
+`,
+      "sites/asia/tokyo/bird.conf": `
+router id 10.0.0.1;
+protocol device {}
+`,
+    });
+
+    const result = await sniffProjectEntrypoints(root);
+    expect(result.kind).toBe("single");
+    expect(result.primary?.path).toBe("sites/asia/tokyo/bird.conf");
+  });
 });

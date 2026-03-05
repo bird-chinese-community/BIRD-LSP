@@ -164,11 +164,7 @@ export const collectWithShallowPriority = async (
     return shallowResult;
   }
 
-  // If shallow scan has any .conf files at all, still return them
-  if (shallowResult.files.length > 0) {
-    return shallowResult;
-  }
-
-  // Nothing found in shallow — do full scan
+  // No canonical entry discovered in shallow scan.
+  // Fall back to full scan to avoid missing deeper entrypoints.
   return collectCandidateFiles(root, opts);
 };
