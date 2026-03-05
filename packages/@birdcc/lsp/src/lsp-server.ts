@@ -1,3 +1,6 @@
+import { access } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
   DEFAULT_CROSS_FILE_MAX_FILES,
@@ -29,6 +32,7 @@ import { createHoverFromParsed } from "./hover.js";
 import { createAsnCompletionItems } from "./asn-completion.js";
 import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createAsnHover } from "./asn-hover.js";
+import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import { resolveProjectAnalysisOptions } from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
 import { createValidationScheduler } from "./validation.js";
@@ -36,6 +40,7 @@ import { createValidationScheduler } from "./validation.js";
 const VALIDATION_DEBOUNCE_MS = 120;
 const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
 const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
+const PROJECT_CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"];
 
 interface ParsedCacheEntry {
   version: number;
@@ -118,6 +123,31 @@ export const startLspServer = (options?: LspServerOptions): void => {
   }
 
   void warmupParserRuntime();
+
+  const hasProjectConfigAtWorkspaceRoot = async (
+    workspaceRootUri: string,
+  ): Promise<boolean> => {
+    try {
+      const workspaceRootPath = fileURLToPath(workspaceRootUri);
+      for (const fileName of PROJECT_CONFIG_FILE_NAMES) {
+        // eslint-disable-next-line no-await-in-loop
+        try {
+          await access(join(workspaceRootPath, fileName));
+          return true;
+        } catch (error) {
+          const ioError = error as NodeJS.ErrnoException;
+          if (ioError.code === "ENOENT") {
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   const clearEntryTracking = (entryUri: string): void => {
     const publishedUris = publishedUrisByEntry.get(entryUri);
@@ -328,6 +358,34 @@ export const startLspServer = (options?: LspServerOptions): void => {
         inlayHintProvider: asnIntel.available,
       },
     };
+  });
+
+  connection.onInitialized(() => {
+    void (async () => {
+      for (const workspaceRootUri of workspaceRootUris) {
+        if (hasShutdownBeenRequested) {
+          return;
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        const hasProjectConfig =
+          await hasProjectConfigAtWorkspaceRoot(workspaceRootUri);
+        if (hasProjectConfig) {
+          continue;
+        }
+
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await detectWorkspaceEntry(workspaceRootUri, connection);
+        } catch (error) {
+          connection.console.log(
+            `[init] workspace entry detection failed for ${workspaceRootUri}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+    })();
   });
 
   const scheduler = createValidationScheduler<TextDocument, Diagnostic>({

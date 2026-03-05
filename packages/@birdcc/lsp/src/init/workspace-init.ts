@@ -9,7 +9,8 @@
  * - Warning message requesting user action (low confidence / ambiguous)
  */
 
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
 import type { Connection } from "vscode-languageserver/node.js";
 
@@ -33,6 +34,8 @@ export const detectWorkspaceEntry = async (
   connection: Connection,
 ): Promise<WorkspaceInitResult> => {
   const rootPath = fileURLToPath(workspaceRootUri);
+  const toSuggestedEntryUri = (relativePath: string): string =>
+    pathToFileURL(resolve(rootPath, relativePath)).toString();
 
   const result = await sniffProjectEntrypoints(rootPath, {
     maxDepth: 8,
@@ -57,7 +60,7 @@ export const detectWorkspaceEntry = async (
   switch (result.kind) {
     case "single": {
       if (result.primary) {
-        suggestedEntryUri = `${workspaceRootUri}/${result.primary.path}`;
+        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
         connection.console.log(
           `[init] Auto-detected entry: ${result.primary.path} (confidence: ${result.confidence}%)`,
         );
@@ -67,7 +70,7 @@ export const detectWorkspaceEntry = async (
 
     case "single-ambiguous": {
       if (result.primary) {
-        suggestedEntryUri = `${workspaceRootUri}/${result.primary.path}`;
+        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
         needsConfirmation = true;
         connection.sendNotification("window/showMessage", {
           type: 2, // Warning
@@ -87,7 +90,7 @@ export const detectWorkspaceEntry = async (
 
     case "monorepo-multi-role": {
       if (result.primary) {
-        suggestedEntryUri = `${workspaceRootUri}/${result.primary.path}`;
+        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
         connection.sendNotification("window/showMessage", {
           type: 3, // Info
           message: `BIRD project with multiple roles detected. Entry: ${result.primary.path}. Run \`birdcc init --write\` for full configuration.`,
