@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
@@ -96,6 +96,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
   const announcedProjectConfigs = new Set<string>();
+  const announcedInfoNotifications = new Set<string>();
   let workspaceRootUris: string[] = [];
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
@@ -149,6 +150,18 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   };
 
+  const notifyInfoOnce = (key: string, message: string): void => {
+    if (announcedInfoNotifications.has(key)) {
+      return;
+    }
+
+    announcedInfoNotifications.add(key);
+    connection.sendNotification("window/showMessage", {
+      type: 3, // Info
+      message,
+    });
+  };
+
   const clearEntryTracking = (entryUri: string): void => {
     const publishedUris = publishedUrisByEntry.get(entryUri);
     if (publishedUris) {
@@ -186,6 +199,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
       connection.console.log(
         `[project] using ${project.configPath} (mode=${project.mode}, entry=${project.entryUri})`,
       );
+      notifyInfoOnce(
+        `project-config:${project.configPath}`,
+        `Using ${basename(project.configPath)} (${project.mode} mode) for cross-file analysis.`,
+      );
     } else if (
       !project.configPath &&
       workspaceRootUris.length > 1 &&
@@ -194,6 +211,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
       noConfigTipAnnounced = true;
       connection.console.log(
         "[project] no bird.config.json detected; add one with workspaces/main/includePaths for monorepo-grade analysis",
+      );
+      notifyInfoOnce(
+        "project-config:missing-monorepo",
+        "No bird.config.json found in this multi-root workspace. Add workspaces/main/includePaths for better analysis.",
       );
     }
 

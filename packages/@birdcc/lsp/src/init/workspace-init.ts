@@ -64,6 +64,10 @@ export const detectWorkspaceEntry = async (
         connection.console.log(
           `[init] Auto-detected entry: ${result.primary.path} (confidence: ${result.confidence}%)`,
         );
+        connection.sendNotification("window/showMessage", {
+          type: 3, // Info
+          message: `Auto-detected BIRD entry: ${result.primary.path} (${result.confidence}% confidence).`,
+        });
       }
       break;
     }
