@@ -30,6 +30,17 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).not.toContain("bgp/missing-local-as");
   });
 
+  it("does not hit bgp/missing-local-as for local address with port and ASN", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local OWNIPv6_rr port 1179 as PUB_MYASN;
+        neighbor 2001:db8::1 as 65002;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-local-as");
+  });
+
   it("hits bgp/missing-neighbor", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

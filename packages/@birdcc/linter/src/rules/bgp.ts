@@ -15,6 +15,9 @@ const isInternalSession = (value: string | undefined): boolean =>
 const isExternalSession = (value: string | undefined): boolean =>
   /^(external|ebgp)$/i.test(value?.trim() ?? "");
 
+const hasLocalAsClauseInOtherStatement = (text: string): boolean =>
+  /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;?$/i.test(text);
+
 const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
@@ -28,7 +31,12 @@ const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
     }
 
     if (
-      declaration.statements.some((statement) => statement.kind === "local-as")
+      declaration.statements.some(
+        (statement) =>
+          statement.kind === "local-as" ||
+          (statement.kind === "other" &&
+            hasLocalAsClauseInOtherStatement(statement.text)),
+      )
     ) {
       continue;
     }
