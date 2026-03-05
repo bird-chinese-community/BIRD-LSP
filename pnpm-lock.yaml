@@ -123,6 +123,9 @@ importers:
       '@birdcc/core':
         specifier: workspace:*
         version: link:../core
+      '@birdcc/formatter':
+        specifier: workspace:*
+        version: link:../formatter
       '@birdcc/intel':
         specifier: workspace:*
         version: link:../intel
@@ -154,6 +157,9 @@ importers:
 
   packages/@birdcc/vscode:
     dependencies:
+      '@birdcc/core':
+        specifier: workspace:*
+        version: link:../core
       '@birdcc/formatter':
         specifier: workspace:*
         version: link:../formatter
