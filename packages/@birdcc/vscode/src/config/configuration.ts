@@ -104,6 +104,22 @@ const readWorkspaceConfiguration = (): ExtensionConfiguration => {
       fields.typeHintsInlayEnabled.workspaceKey,
       fields.typeHintsInlayEnabled.defaultValue,
     ),
+    intelEnabled: config.get(
+      fields.intelEnabled.workspaceKey,
+      fields.intelEnabled.defaultValue,
+    ),
+    intelInlayHints: config.get(
+      fields.intelInlayHints.workspaceKey,
+      fields.intelInlayHints.defaultValue,
+    ),
+    intelCompletion: config.get(
+      fields.intelCompletion.workspaceKey,
+      fields.intelCompletion.defaultValue,
+    ),
+    intelHover: config.get(
+      fields.intelHover.workspaceKey,
+      fields.intelHover.defaultValue,
+    ),
   });
 };
 

@@ -8,6 +8,10 @@ import {
   DEFAULT_TYPE_HINTS_ENABLED,
   DEFAULT_TYPE_HINTS_HOVER_ENABLED,
   DEFAULT_TYPE_HINTS_INLAY_ENABLED,
+  DEFAULT_INTEL_ENABLED,
+  DEFAULT_INTEL_INLAY_HINTS,
+  DEFAULT_INTEL_COMPLETION,
+  DEFAULT_INTEL_HOVER,
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
@@ -47,6 +51,10 @@ export const extensionConfigurationSchema = z.object({
   typeHintsEnabled: z.boolean(),
   typeHintsHoverEnabled: z.boolean(),
   typeHintsInlayEnabled: z.boolean(),
+  intelEnabled: z.boolean(),
+  intelInlayHints: z.boolean(),
+  intelCompletion: z.boolean(),
+  intelHover: z.boolean(),
 });
 
 export type FormatterEngine = z.infer<typeof formatterEngineSchema>;
@@ -79,6 +87,10 @@ export const defaultExtensionConfiguration: ExtensionConfiguration =
     typeHintsEnabled: DEFAULT_TYPE_HINTS_ENABLED,
     typeHintsHoverEnabled: DEFAULT_TYPE_HINTS_HOVER_ENABLED,
     typeHintsInlayEnabled: DEFAULT_TYPE_HINTS_INLAY_ENABLED,
+    intelEnabled: DEFAULT_INTEL_ENABLED,
+    intelInlayHints: DEFAULT_INTEL_INLAY_HINTS,
+    intelCompletion: DEFAULT_INTEL_COMPLETION,
+    intelHover: DEFAULT_INTEL_HOVER,
   });
 
 export const createDefaultRuntimeState = (): ExtensionRuntimeState => ({

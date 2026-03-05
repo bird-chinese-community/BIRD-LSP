@@ -92,6 +92,30 @@ export const extensionConfigurationFields = {
     defaultValue: true,
     restartRequired: false,
   },
+  intelEnabled: {
+    workspaceKey: "intel.enabled",
+    packageKey: "bird2-lsp.intel.enabled",
+    defaultValue: true,
+    restartRequired: true,
+  },
+  intelInlayHints: {
+    workspaceKey: "intel.inlayHints",
+    packageKey: "bird2-lsp.intel.inlayHints",
+    defaultValue: true,
+    restartRequired: false,
+  },
+  intelCompletion: {
+    workspaceKey: "intel.completion",
+    packageKey: "bird2-lsp.intel.completion",
+    defaultValue: true,
+    restartRequired: false,
+  },
+  intelHover: {
+    workspaceKey: "intel.hover",
+    packageKey: "bird2-lsp.intel.hover",
+    defaultValue: true,
+    restartRequired: false,
+  },
 } as const;
 
 export type ExtensionConfigurationFieldKey =

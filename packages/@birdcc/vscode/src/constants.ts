@@ -39,6 +39,14 @@ export const DEFAULT_TYPE_HINTS_HOVER_ENABLED =
   extensionConfigurationFields.typeHintsHoverEnabled.defaultValue;
 export const DEFAULT_TYPE_HINTS_INLAY_ENABLED =
   extensionConfigurationFields.typeHintsInlayEnabled.defaultValue;
+export const DEFAULT_INTEL_ENABLED =
+  extensionConfigurationFields.intelEnabled.defaultValue;
+export const DEFAULT_INTEL_INLAY_HINTS =
+  extensionConfigurationFields.intelInlayHints.defaultValue;
+export const DEFAULT_INTEL_COMPLETION =
+  extensionConfigurationFields.intelCompletion.defaultValue;
+export const DEFAULT_INTEL_HOVER =
+  extensionConfigurationFields.intelHover.defaultValue;
 
 export const RESTART_REQUIRED_CONFIGURATION_PATHS =
   restartRequiredConfigurationPaths;

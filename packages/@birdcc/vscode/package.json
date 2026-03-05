@@ -325,6 +325,30 @@
           "default": true,
           "markdownDescription": "Show function return type as inlay hints (POC).",
           "scope": "resource"
+        },
+        "bird2-lsp.intel.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable ASN intelligence features (completion, inlay hints, hover). Powered by [BGP.Tools OpenDB](https://github.com/Alice39s/BGP.Tools-OpenDB).",
+          "scope": "resource"
+        },
+        "bird2-lsp.intel.inlayHints": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show ASN inlay hints (flag + AS number) next to ASN integers in configuration files.",
+          "scope": "resource"
+        },
+        "bird2-lsp.intel.completion": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show ASN completion suggestions when typing ASN integers.",
+          "scope": "resource"
+        },
+        "bird2-lsp.intel.hover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show ASN details on hover over ASN integers.",
+          "scope": "resource"
         }
       }
     }
