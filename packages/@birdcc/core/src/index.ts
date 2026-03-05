@@ -41,6 +41,7 @@ export const buildCoreSnapshot = async (text: string) => {
 
 export type ResolveCrossFileReferences = typeof resolveCrossFileReferences;
 
+export { parseBirdValidationOutput } from "./bird-validation-parser.js";
 export { sniffProjectEntrypoints } from "./detection/index.js";
 export type {
   ContentSignals,
