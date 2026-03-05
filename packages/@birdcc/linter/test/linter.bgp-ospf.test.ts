@@ -17,6 +17,19 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).toContain("bgp/missing-local-as");
   });
 
+  it("does not hit bgp/missing-local-as when protocol inherits from template", async () => {
+    const codes = await codesOf(`
+      template bgp base_tpl {
+        local as 65001;
+      }
+      protocol bgp edge from base_tpl {
+        neighbor 192.0.2.1 as 65002;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-local-as");
+  });
+
   it("hits bgp/missing-neighbor", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

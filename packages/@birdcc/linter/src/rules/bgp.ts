@@ -23,6 +23,10 @@ const bgpMissingLocalAsRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
+    if (declaration.fromTemplate) {
+      continue;
+    }
+
     if (
       declaration.statements.some((statement) => statement.kind === "local-as")
     ) {
