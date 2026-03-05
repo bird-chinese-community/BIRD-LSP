@@ -1,0 +1,59 @@
+{
+  "name": "@birdcc/intel",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "BIRD Chinese Community",
+    "email": "npm-dev@birdcc.link",
+    "url": "https://github.com/bird-chinese-community/"
+  },
+  "description": "ASN intelligence database for BIRD2 LSP — weekly-updated lookup engine powered by BGP.Tools OpenDB.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist/**",
+    "db/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.3"
+  },
+  "devDependencies": {
+    "csv-parse": "^6.1.0",
+    "tsx": "^4.21.0"
+  },
+  "scripts": {
+    "build:db": "node --import tsx/esm scripts/build-db.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings src",
+    "test": "vitest run",
+    "format": "oxfmt ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP.git",
+    "directory": "packages/@birdcc/intel"
+  },
+  "homepage": "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/%40birdcc/intel/README.md",
+  "bugs": {
+    "url": "https://github.com/bird-chinese-community/BIRD-LSP/issues"
+  },
+  "keywords": [
+    "asn",
+    "bgp",
+    "bird2",
+    "intel",
+    "lookup",
+    "network"
+  ]
+}
