@@ -59,14 +59,16 @@ jobs:
         working-directory: packages/@birdcc/intel
         run: |
           # npm requires semver. Use prerelease calendar versioning:
-          # 0.0.1-YYYY-MM-DD (UTC), e.g. 0.0.1-2026-03-06
+          # 0.0.1-YYYY-MM-DD.RUN_NUMBER (UTC), e.g. 0.0.1-2026-03-06.227
+          # The extra run number keeps same-day reruns publishable.
           TODAY=$(date -u +"%Y-%m-%d")
+          VERSION="0.0.1-${TODAY}.${GITHUB_RUN_NUMBER}"
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '0.0.1-${TODAY}';
+            pkg.version = '${VERSION}';
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            console.log('Updated version to 0.0.1-${TODAY}');
+            console.log('Updated version to ${VERSION}');
           "
 
       - name: Build package
