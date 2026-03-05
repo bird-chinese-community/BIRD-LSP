@@ -1,0 +1,98 @@
+name: Intel ASN Database Update (Weekly)
+
+on:
+  schedule:
+    # Every Monday at 04:00 UTC
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — build DB but skip publish"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  update-asn-db:
+    name: Update ASN Database
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build ASN database
+        working-directory: packages/@birdcc/intel
+        run: pnpm build:db
+
+      - name: Verify database
+        working-directory: packages/@birdcc/intel
+        run: |
+          if [ ! -f db/asn-db.bin.gz ]; then
+            echo "::error::Database file not found"
+            exit 1
+          fi
+          SIZE=$(stat -c%s db/asn-db.bin.gz 2>/dev/null || stat -f%z db/asn-db.bin.gz)
+          echo "Database size: $SIZE bytes"
+          if [ "$SIZE" -lt 100000 ]; then
+            echo "::error::Database file too small ($SIZE bytes), likely corrupted"
+            exit 1
+          fi
+          echo "✓ Database verified"
+
+      - name: Update version to today's date
+        working-directory: packages/@birdcc/intel
+        run: |
+          TODAY=$(date -u +"%Y.%m.%d")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${TODAY}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('Updated version to ${TODAY}');
+          "
+
+      - name: Build package
+        run: pnpm --filter @birdcc/intel build
+
+      - name: Publish to npm
+        if: ${{ inputs.dry_run != true }}
+        working-directory: packages/@birdcc/intel
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Commit updated database
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/@birdcc/intel/db/asn-db.bin.gz packages/@birdcc/intel/package.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            TODAY=$(date -u +"%Y.%m.%d")
+            git commit -m "chore(intel): update ASN database to ${TODAY}"
+            git push
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asn-db-${{ github.run_id }}
+          path: packages/@birdcc/intel/db/asn-db.bin.gz
+          retention-days: 30
