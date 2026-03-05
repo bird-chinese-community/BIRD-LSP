@@ -51,6 +51,21 @@ const normalizeMessage = (
   return `[${code}] ${message}`;
 };
 
+const normalizedSeverity = (
+  diagnostic: BirdDiagnostic,
+  mappedCode: RuleCode,
+): BirdDiagnostic["severity"] => {
+  if (
+    diagnostic.source === "parser" &&
+    diagnostic.code === "parser/missing-symbol" &&
+    diagnostic.message === "Missing name for protocol declaration"
+  ) {
+    return "info";
+  }
+
+  return RULE_SEVERITY[mappedCode];
+};
+
 const toNormalizedDiagnostic = (
   diagnostic: BirdDiagnostic,
   fallbackUri?: string,
@@ -59,7 +74,7 @@ const toNormalizedDiagnostic = (
   return {
     ...diagnostic,
     code: mappedCode,
-    severity: RULE_SEVERITY[mappedCode],
+    severity: normalizedSeverity(diagnostic, mappedCode),
     message: normalizeMessage(diagnostic.code, mappedCode, diagnostic.message),
     uri: diagnostic.uri ?? fallbackUri,
   };

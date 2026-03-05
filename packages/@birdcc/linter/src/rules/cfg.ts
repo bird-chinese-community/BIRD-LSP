@@ -17,7 +17,7 @@ import {
 } from "./shared.js";
 
 const MAX_ASN = 4_294_967_294;
-const MAX_ROUTE_LIMIT = 10_000_000;
+const MAX_ROUTE_LIMIT = 4_294_967_295;
 const SYMBOLIC_NUMBER_PATTERN = /^(?=.*[A-Z_])[A-Za-z_][A-Za-z0-9_]*$/u;
 const BGP_ASN_KEYWORDS = new Set(["internal", "external", "ibgp", "ebgp"]);
 const hasDefineDeclarations = (

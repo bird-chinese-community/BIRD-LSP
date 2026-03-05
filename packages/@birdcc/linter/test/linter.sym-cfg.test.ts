@@ -153,6 +153,35 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).toContain("cfg/value-out-of-range");
   });
 
+  it("does not hit cfg/value-out-of-range for large route limits", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv6 {
+          import limit 99999999 action block;
+          export limit 99999999 action block;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/value-out-of-range");
+  });
+
+  it("hits cfg/value-out-of-range for overflow route limits", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65002;
+        ipv6 {
+          import limit 4294967296 action block;
+        };
+      }
+    `);
+
+    expect(codes).toContain("cfg/value-out-of-range");
+  });
+
   it("hits cfg/switch-value-expected", async () => {
     const codes = await codesOf(`
       protocol bgp edge {
@@ -220,5 +249,21 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("cfg/circular-template");
+  });
+
+  it("normalizes missing protocol name as info and pins range to declaration head", async () => {
+    const result = await lintBirdConfig(
+      "protocol bgp {\n  neighbor 192.0.2.1 as 65002;\n}\n",
+    );
+    const diagnostic = result.diagnostics.find(
+      (item) =>
+        item.code === "cfg/syntax-error" &&
+        item.message.includes("Missing name for protocol declaration"),
+    );
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.severity).toBe("info");
+    expect(diagnostic?.range.line).toBe(1);
+    expect(diagnostic?.range.endLine).toBe(1);
   });
 });
