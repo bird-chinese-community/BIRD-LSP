@@ -179,6 +179,43 @@ const parseControlStatements = (
   return statements;
 };
 
+const FUNCTION_LEADING_DECLARATION_PATTERN =
+  /\b(int|bool|string|ip|prefix|pair|quad|ec|lc|bgppath|clist|eclist|lclist)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*([^;]+))?\s*;/giu;
+
+const collectFunctionLeadingDeclarations = (
+  declarationNode: SyntaxNode,
+  bodyNode: SyntaxNode,
+  source: string,
+): FilterBodyStatement[] => {
+  const statements: FilterBodyStatement[] = [];
+  const declarationRange = toRange(declarationNode, source);
+  const declarationHead = source.slice(
+    declarationNode.startIndex,
+    bodyNode.startIndex,
+  );
+
+  let current = FUNCTION_LEADING_DECLARATION_PATTERN.exec(declarationHead);
+  while (current) {
+    const declaredType = (current[1] ?? "").trim().toLowerCase();
+    const variableName = (current[2] ?? "").trim();
+    const initializer = current[3]?.trim();
+
+    if (declaredType && variableName) {
+      statements.push({
+        kind: "expression",
+        expressionText: initializer
+          ? `${declaredType} ${variableName} = ${initializer}`
+          : `${declaredType} ${variableName}`,
+        ...declarationRange,
+      });
+    }
+
+    current = FUNCTION_LEADING_DECLARATION_PATTERN.exec(declarationHead);
+  }
+
+  return statements;
+};
+
 const collectLiteralsAndMatches = (
   bodyNode: SyntaxNode,
   source: string,
@@ -420,6 +457,12 @@ export const parseFunctionDeclaration = (
   const extracted = isPresentNode(bodyNode)
     ? collectLiteralsAndMatches(bodyNode, source)
     : { literals: [], matches: [] };
+  const leadingDeclarations = isPresentNode(bodyNode)
+    ? collectFunctionLeadingDeclarations(declarationNode, bodyNode, source)
+    : [];
+  const bodyStatements = isPresentNode(bodyNode)
+    ? parseControlStatements(bodyNode, source)
+    : [];
 
   return {
     kind: "function",
@@ -427,9 +470,7 @@ export const parseFunctionDeclaration = (
     nameRange: isPresentNode(nameNode)
       ? toRange(nameNode, source)
       : declarationRange,
-    statements: isPresentNode(bodyNode)
-      ? parseControlStatements(bodyNode, source)
-      : [],
+    statements: [...leadingDeclarations, ...bodyStatements],
     literals: extracted.literals,
     matches: extracted.matches,
     ...declarationRange,

@@ -563,4 +563,28 @@ describe("@birdcc/parser tree-sitter", () => {
 
     expect(parsed.issues).toHaveLength(0);
   });
+
+  it("collects function leading declarations as expression statements", async () => {
+    const parsed = await parseBirdConfig(`
+      function f1 (int a; bgppath p; bool debug)
+      int remain;
+      {
+        remain = p.len;
+        return true;
+      }
+    `);
+
+    const fn = parsed.program.declarations.find(
+      (item) => item.kind === "function",
+    );
+    expect(fn).toBeDefined();
+    if (fn?.kind === "function") {
+      const expressions = fn.statements
+        .filter((item) => item.kind === "expression")
+        .map((item) => item.expressionText);
+      expect(expressions).toContain("int a");
+      expect(expressions).toContain("bgppath p");
+      expect(expressions).toContain("int remain");
+    }
+  });
 });

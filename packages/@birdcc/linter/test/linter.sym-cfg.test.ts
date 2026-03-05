@@ -86,6 +86,27 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("sym/function-required");
   });
 
+  it("does not hit sym/function-required for delete() built-in", async () => {
+    const codes = await codesOf(`
+      function f1() {
+        bgp_path = delete(bgp_path, 65001);
+      }
+    `);
+
+    expect(codes).not.toContain("sym/function-required");
+  });
+
+  it("does not hit sym/function-required for comment text", async () => {
+    const codes = await codesOf(`
+      function f1() {
+        # Implement(action)
+        return true;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/function-required");
+  });
+
   it("hits sym/table-required", async () => {
     const codes = await codesOf(`
       protocol bgp edge {
@@ -109,6 +130,20 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("sym/variable-scope");
+  });
+
+  it("does not hit sym/variable-scope for function-leading declarations", async () => {
+    const codes = await codesOf(`
+      function f1 (int a; bgppath p)
+      int remain;
+      {
+        remain = p.len;
+        a = 1;
+        return true;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/variable-scope");
   });
 
   it("hits cfg/no-protocol and cfg/missing-router-id", async () => {

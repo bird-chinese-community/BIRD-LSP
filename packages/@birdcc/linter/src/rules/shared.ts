@@ -232,18 +232,19 @@ export const hasBooleanValue = (value: string): boolean =>
 
 export const extractFunctionCalls = (text: string): string[] => {
   const names: string[] = [];
+  const sanitized = text.replace(/#.*$/gm, "");
   const pattern = /\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
   const ignored = new Set(["if", "switch", "print", "defined"]);
-  let current = pattern.exec(text);
+  let current = pattern.exec(sanitized);
 
   while (current) {
     const name = current[1] ?? "";
     const matchIndex = current.index ?? -1;
-    const isMethodCall = matchIndex > 0 && text[matchIndex - 1] === ".";
+    const isMethodCall = matchIndex > 0 && sanitized[matchIndex - 1] === ".";
     if (name.length > 0 && !ignored.has(name.toLowerCase()) && !isMethodCall) {
       names.push(name);
     }
-    current = pattern.exec(text);
+    current = pattern.exec(sanitized);
   }
 
   return names;

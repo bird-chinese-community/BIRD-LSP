@@ -42,6 +42,7 @@ const BUILTIN_FUNCTION_NAMES = new Set([
   "match",
   "route_source",
   "roa_check",
+  "delete",
   "prefix",
   "ip",
   "int",
