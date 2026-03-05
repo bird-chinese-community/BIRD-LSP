@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bumpp NPM Versioning"
+  short_description: "Safe bumpp workflow for monorepo npm releases."
+  default_prompt: "Use $bumpp-npm-versioning to bump package versions with bumpp and verify excluded packages stay unchanged."

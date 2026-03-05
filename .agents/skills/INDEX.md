@@ -20,6 +20,7 @@
 | VS Code 扩展开发      | [`vscode-extension-builder`](#vscode-extension-builder) |
 | GitHub 项目管理       | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     |
 | PR 评论处理           | [`pr-address-comments`](#pr-address-comments)           |
+| npm 版本升级          | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         |
 
 ---
 
@@ -48,7 +49,7 @@
 | [`typescript-e2e-testing`](#typescript-e2e-testing) | TypeScript E2E 测试 | Jest、Docker 基础设施、GWT 模式、真实服务测试    |
 | [`vitest`](#vitest)                                 | 单元测试框架        | Vite 原生、Mock、Coverage、并发测试              |
 
-### 🔧 工具平台（3 skills）
+### 🔧 工具平台（4 skills）
 
 特定平台/工具的使用指南。
 
@@ -57,6 +58,7 @@
 | [`vscode-extension-builder`](#vscode-extension-builder) | VS Code Extension API    | 扩展脚手架、命令/webview/语言支持、打包发布       |
 | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     | GitHub (Issues/Projects) | Epic 管理、Sub-Issues 拆分、标签体系、Projects v2 |
 | [`pr-address-comments`](#pr-address-comments)           | GitHub PR                | PR 评论处理、代码审查反馈                         |
+| [`bumpp-npm-versioning`](#bumpp-npm-versioning)         | bumpp + npm + gh         | Monorepo npm 包版本升级与发布可见性检查           |
 
 ---
 
@@ -253,6 +255,20 @@
 - 代码修改建议
 
 **触发关键词**: PR comments、review feedback、address comments
+
+---
+
+### bumpp-npm-versioning
+
+**描述**: 使用 bumpp 在 monorepo 中统一提升 npm 包版本，并执行发布前后可见性检查。
+
+**使用场景**:
+
+- 发版前统一 bump npm 包版本
+- 需要排除特定包（例如 vscode、intel）
+- 校验 npm/gh 上的发布状态
+
+**触发关键词**: bumpp、npm version、pre-release、发布检查、npm view、gh run
 
 ---
 
