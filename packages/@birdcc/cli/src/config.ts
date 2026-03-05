@@ -12,6 +12,16 @@ const birdProjectConfigSchema = z
     $schema: z.string().optional(),
     main: z.string().optional(),
     workspaces: z.array(z.string()).optional(),
+    roles: z
+      .array(
+        z
+          .object({
+            name: z.string(),
+            vars: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
     includePaths: z.array(z.string()).optional(),
     crossFile: z
       .object({

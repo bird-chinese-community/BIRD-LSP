@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { cac } from "cac";
 import { dirname, resolve } from "node:path";
+import { readdir, stat } from "node:fs/promises";
 import { loadBirdProjectConfigForFile } from "./config.js";
 import { runFmt, runLint, runLspStdio } from "./index.js";
+import { runInit } from "./commands/init.js";
 import {
   CLI_MESSAGES,
   createInvalidPositiveIntegerOptionMessage,
@@ -74,6 +76,55 @@ const resolveTargetFilePath = async (
   return resolve(configDir, entry);
 };
 
+/**
+ * Resolve workspace directory patterns to concrete entry file paths.
+ * For each matching directory, the default entry is `bird.conf`.
+ */
+const resolveWorkspaceEntries = async (
+  configDir: string,
+  patterns: string[],
+): Promise<string[]> => {
+  const entries: string[] = [];
+
+  for (const pattern of patterns) {
+    // Simple pattern resolution: treat as directory paths (no complex globs for now)
+    const trimmed = pattern.trim().replace(/\/+$/, "");
+    if (trimmed.length === 0) continue;
+
+    // If pattern contains *, do simple one-level glob
+    if (trimmed.includes("*")) {
+      const parts = trimmed.split("/");
+      const basePath = resolve(configDir, parts.slice(0, -1).join("/") || ".");
+      const globPart = parts[parts.length - 1];
+      const globRegex = new RegExp(
+        `^${globPart.replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]")}$`,
+      );
+
+      try {
+        const dirEntries = await readdir(basePath);
+        for (const entry of dirEntries) {
+          if (!globRegex.test(entry)) continue;
+          const fullDir = resolve(basePath, entry);
+          try {
+            const s = await stat(fullDir);
+            if (s.isDirectory()) {
+              entries.push(resolve(fullDir, "bird.conf"));
+            }
+          } catch {
+            // skip non-existent
+          }
+        }
+      } catch {
+        // dir doesn't exist, skip
+      }
+    } else {
+      entries.push(resolve(configDir, trimmed, "bird.conf"));
+    }
+  }
+
+  return entries;
+};
+
 const withCommandErrorHandling = <TOptions extends object>(
   action: CommandAction<TOptions>,
 ) => {
@@ -130,11 +181,6 @@ cli
   .action(
     withActionErrorHandling(
       async (file: string | undefined, options: LintOptions) => {
-        const targetFilePath = await resolveTargetFilePath(file);
-        const loadedConfig = await loadBirdProjectConfigForFile(targetFilePath);
-        const configDir = loadedConfig.path
-          ? dirname(loadedConfig.path)
-          : undefined;
         const format = options.format === "json" ? "json" : "text";
         const includeMaxDepth = parseOptionalPositiveInteger(
           "--include-max-depth",
@@ -144,10 +190,51 @@ cli
           "--include-max-files",
           options.includeMaxFiles,
         );
+
+        // Resolve target files: single file OR workspace entries
+        let targetFiles: string[];
+        let loadedConfig;
+
+        if (file) {
+          const targetFilePath = resolve(file);
+          loadedConfig = await loadBirdProjectConfigForFile(targetFilePath);
+          targetFiles = [targetFilePath];
+        } else {
+          const fallbackEntry = resolve(process.cwd(), "bird.conf");
+          loadedConfig = await loadBirdProjectConfigForFile(fallbackEntry);
+
+          if (!loadedConfig.path) {
+            throw new Error(
+              "No target file specified and no bird.config.json found. Pass <file> explicitly or create bird.config.json with 'main'.",
+            );
+          }
+
+          const configDir = dirname(loadedConfig.path);
+
+          if ((loadedConfig.config.workspaces?.length ?? 0) > 0) {
+            // Workspace mode: iterate all workspace entries
+            targetFiles = await resolveWorkspaceEntries(
+              configDir,
+              loadedConfig.config.workspaces!,
+            );
+            if (targetFiles.length === 0) {
+              throw new Error(
+                "bird.config.json defines 'workspaces' but no matching workspace directories were found.",
+              );
+            }
+          } else {
+            const entry = loadedConfig.config.main ?? "bird.conf";
+            targetFiles = [resolve(configDir, entry)];
+          }
+        }
+
+        const configDir = loadedConfig.path
+          ? dirname(loadedConfig.path)
+          : undefined;
         const resolvedIncludePaths = (
           loadedConfig.config.includePaths ?? []
         ).map((pathValue) =>
-          resolve(configDir ?? dirname(resolve(targetFilePath)), pathValue),
+          resolve(configDir ?? dirname(resolve(targetFiles[0])), pathValue),
         );
         const validateCommand =
           options.validateCommand ??
@@ -155,33 +242,40 @@ cli
           (loadedConfig.config.bird?.binaryPath
             ? `${loadedConfig.config.bird.binaryPath} -p -c {file}`
             : undefined);
-        const result = await runLint(targetFilePath, {
-          withBird: Boolean(
-            options.bird || loadedConfig.config.linter?.withBird,
-          ),
-          crossFile:
-            options.crossFile !== false &&
-            loadedConfig.config.crossFile?.enabled !== false,
-          includeMaxDepth:
-            includeMaxDepth ?? loadedConfig.config.crossFile?.maxDepth,
-          includeMaxFiles:
-            includeMaxFiles ?? loadedConfig.config.crossFile?.maxFiles,
-          includePaths: resolvedIncludePaths,
-          allowIncludeOutsideWorkspace:
-            loadedConfig.config.crossFile?.externalIncludes,
-          linterEnabled: loadedConfig.config.linter?.enabled,
-          validateCommand,
-          severityOverrides: loadedConfig.config.linter?.rules,
-        });
+
+        // Run lint on all target files and aggregate
+        const allDiagnostics: Array<import("@birdcc/core").BirdDiagnostic> = [];
+
+        for (const targetFilePath of targetFiles) {
+          const result = await runLint(targetFilePath, {
+            withBird: Boolean(
+              options.bird || loadedConfig.config.linter?.withBird,
+            ),
+            crossFile:
+              options.crossFile !== false &&
+              loadedConfig.config.crossFile?.enabled !== false,
+            includeMaxDepth:
+              includeMaxDepth ?? loadedConfig.config.crossFile?.maxDepth,
+            includeMaxFiles:
+              includeMaxFiles ?? loadedConfig.config.crossFile?.maxFiles,
+            includePaths: resolvedIncludePaths,
+            allowIncludeOutsideWorkspace:
+              loadedConfig.config.crossFile?.externalIncludes,
+            linterEnabled: loadedConfig.config.linter?.enabled,
+            validateCommand,
+            severityOverrides: loadedConfig.config.linter?.rules,
+          });
+          allDiagnostics.push(...result.diagnostics);
+        }
 
         if (format === "json") {
-          console.log(JSON.stringify(result, null, 2));
+          console.log(JSON.stringify({ diagnostics: allDiagnostics }, null, 2));
         } else {
-          if (result.diagnostics.length === 0) {
+          if (allDiagnostics.length === 0) {
             console.log(CLI_MESSAGES.lintNoDiagnostics);
           }
 
-          for (const diagnostic of result.diagnostics) {
+          for (const diagnostic of allDiagnostics) {
             const uriPrefix = diagnostic.uri ? `[${diagnostic.uri}] ` : "";
             console.log(
               `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
@@ -189,7 +283,7 @@ cli
           }
         }
 
-        const hasError = result.diagnostics.some(
+        const hasError = allDiagnostics.some(
           (item) => item.severity === "error",
         );
         if (hasError) {
@@ -269,6 +363,55 @@ cli
 
       await runLspStdio();
     }),
+  );
+
+cli
+  .command("init [root]", "Detect project entry and generate bird.config.json")
+  .option(
+    "--config-name <name>",
+    "Config file name (bird.config.json | birdcc.config.json)",
+    { default: "bird.config.json" },
+  )
+  .option("--dry-run", "Only show detection result, don't write file")
+  .option("--write", "Write config file (default in non-TTY mode)")
+  .option("--force", "Overwrite existing config")
+  .option("--json", "Machine-readable JSON output")
+  .option("--max-depth <n>", "Scan depth limit")
+  .option("--max-files <n>", "File count limit")
+  .option(
+    "--ignore <patterns>",
+    "Additional ignore glob patterns (comma-separated)",
+  )
+  .action(
+    withActionErrorHandling(
+      async (root: string | undefined, options: Record<string, unknown>) => {
+        const resolvedRoot = resolve(root ?? process.cwd());
+        const configName = (options.configName as string) ?? "bird.config.json";
+        const maxDepth = parseOptionalPositiveInteger(
+          "--max-depth",
+          options.maxDepth as string | undefined,
+        );
+        const maxFiles = parseOptionalPositiveInteger(
+          "--max-files",
+          options.maxFiles as string | undefined,
+        );
+        const ignoreRaw = options.ignore as string | undefined;
+        const ignore = ignoreRaw
+          ? ignoreRaw.split(",").map((s) => s.trim())
+          : undefined;
+
+        await runInit(resolvedRoot, {
+          configName,
+          dryRun: Boolean(options.dryRun),
+          write: Boolean(options.write),
+          force: Boolean(options.force),
+          json: Boolean(options.json),
+          maxDepth,
+          maxFiles,
+          ignore,
+        });
+      },
+    ),
   );
 
 cli.help();

@@ -23,6 +23,31 @@
       },
       "examples": [["*/"], ["sites/*", "!sites/legacy"], ["pop-*/**"]]
     },
+    "roles": {
+      "type": "array",
+      "description": "Multi-role definitions for a single-entry project with multiple variable sets (e.g., one main config with per-router vars).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "vars"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable role identifier (e.g., router name)"
+          },
+          "vars": {
+            "type": "string",
+            "description": "Path to the variable file for this role (relative to config file)"
+          }
+        }
+      },
+      "examples": [
+        [
+          { "name": "router1", "vars": "./router1/vars.conf" },
+          { "name": "router2", "vars": "./router2/vars.conf" }
+        ]
+      ]
+    },
     "includePaths": {
       "type": "array",
       "description": "Additional include search directories (-I equivalent). Resolved relative to config file location. Defaults to the config file's directory if not specified.",
