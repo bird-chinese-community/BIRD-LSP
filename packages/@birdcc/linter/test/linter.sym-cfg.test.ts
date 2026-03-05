@@ -204,6 +204,16 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("cfg/missing-router-id");
   });
 
+  it("does not hit cfg/missing-router-id for non-bgp protocol files", async () => {
+    const codes = await codesOf(`
+      protocol static edge_static {
+        route 2001:db8::/32 reject;
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/missing-router-id");
+  });
+
   it("hits cfg/syntax-error", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

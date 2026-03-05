@@ -73,14 +73,15 @@ const cfgMissingRouterIdRule: BirdRule = ({ parsed }) => {
   const bgpProtocols = protocols.filter((declaration) =>
     isProtocolType(declaration, "bgp"),
   );
-  if (
-    bgpProtocols.length > 0 &&
-    bgpProtocols.every((declaration) => declaration.fromTemplate)
-  ) {
+  if (bgpProtocols.length === 0) {
     return [];
   }
 
-  if (hasDefineDeclarations(parsed) && bgpProtocols.length === 0) {
+  if (bgpProtocols.every((declaration) => declaration.fromTemplate)) {
+    return [];
+  }
+
+  if (hasDefineDeclarations(parsed)) {
     return [];
   }
 
