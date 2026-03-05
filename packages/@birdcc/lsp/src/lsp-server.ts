@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
   DEFAULT_CROSS_FILE_MAX_FILES,
+  collectFunctionReturnHints,
   resolveCrossFileReferences,
+  type FunctionReturnHint,
   type SymbolTable,
 } from "@birdcc/core";
 import {
@@ -51,6 +53,7 @@ import { createValidationScheduler } from "./validation.js";
 const VALIDATION_DEBOUNCE_MS = 120;
 const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
 const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
+const TYPE_HINT_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 const PROJECT_CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"];
 
 interface ParsedCacheEntry {
@@ -63,6 +66,11 @@ interface GraphCacheEntry {
   visitedUris: Set<string>;
   symbolTable: SymbolTable;
   byUri: Record<string, LintResult>;
+}
+
+interface TypeHintCacheEntry {
+  version: number;
+  hints: readonly FunctionReturnHint[];
 }
 
 const warmupParserRuntime = async (): Promise<void> => {
@@ -103,6 +111,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const documents = new TextDocuments(TextDocument);
   const parsedByUri = new Map<string, ParsedCacheEntry>();
   const graphByUri = new Map<string, GraphCacheEntry>();
+  const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
@@ -111,6 +120,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let workspaceRootUris: string[] = [];
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
+  const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
 
   // ASN intelligence — loads the bundled database (gracefully degrades if missing)
   const asnIntel: AsnIntel = options?.disableAsnIntel
@@ -436,6 +446,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   documents.onDidClose((event) => {
     parsedByUri.delete(event.document.uri);
     clearEntryTracking(event.document.uri);
+    typeHintsByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
   });
 
@@ -453,6 +464,31 @@ export const startLspServer = (options?: LspServerOptions): void => {
       parsed,
     });
     return parsed;
+  };
+
+  const getTypeHintsForDocument = async (
+    document: TextDocument,
+  ): Promise<readonly FunctionReturnHint[]> => {
+    const cached = typeHintsByUri.get(document.uri);
+    if (cached && cached.version === document.version) {
+      return cached.hints;
+    }
+
+    const text = document.getText();
+    if (Buffer.byteLength(text, "utf8") > typeHintMaxBytes) {
+      typeHintsByUri.set(document.uri, {
+        version: document.version,
+        hints: [],
+      });
+      return [];
+    }
+
+    const hints = await collectFunctionReturnHints(text);
+    typeHintsByUri.set(document.uri, {
+      version: document.version,
+      hints,
+    });
+    return hints;
   };
 
   connection.onDocumentSymbol(async (params) =>
@@ -585,8 +621,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
         // Function return type inlay hints
         try {
-          const typeHints = await createTypeHintInlayHints(text, params.range);
-          results.push(...typeHints);
+          const hints = await getTypeHintsForDocument(document);
+          results.push(...createTypeHintInlayHints(hints, params.range));
         } catch {
           // Type hint inference is best-effort
         }

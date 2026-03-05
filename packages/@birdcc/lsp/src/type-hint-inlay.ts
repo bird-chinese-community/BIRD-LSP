@@ -1,9 +1,6 @@
 import type { InlayHint, Range } from "vscode-languageserver/node.js";
 import { InlayHintKind } from "vscode-languageserver/node.js";
-import {
-  collectFunctionReturnHints,
-  type FunctionReturnHint,
-} from "@birdcc/core";
+import type { FunctionReturnHint } from "@birdcc/core";
 
 const isRangeOverlapping = (
   hint: FunctionReturnHint,
@@ -13,13 +10,11 @@ const isRangeOverlapping = (
   return hintLine >= range.start.line && hintLine <= range.end.line;
 };
 
-export const createTypeHintInlayHints = async (
-  text: string,
+export const createTypeHintInlayHints = (
+  hints: readonly FunctionReturnHint[],
   range: Range,
-): Promise<InlayHint[]> => {
-  const hints = await collectFunctionReturnHints(text);
-
-  return hints
+): InlayHint[] =>
+  hints
     .filter((hint) => {
       const returnType = hint.declaredReturnType ?? hint.inferredReturnType;
       return returnType !== "unknown";
@@ -40,4 +35,3 @@ export const createTypeHintInlayHints = async (
           : "Inferred return type (POC)",
       } satisfies InlayHint;
     });
-};
