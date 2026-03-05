@@ -194,6 +194,7 @@ const collectFunctionLeadingDeclarations = (
     bodyNode.startIndex,
   );
 
+  FUNCTION_LEADING_DECLARATION_PATTERN.lastIndex = 0;
   let current = FUNCTION_LEADING_DECLARATION_PATTERN.exec(declarationHead);
   while (current) {
     const declaredType = (current[1] ?? "").trim().toLowerCase();

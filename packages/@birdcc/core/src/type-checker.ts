@@ -9,12 +9,33 @@ import type {
 import { isValidPrefixLiteral } from "./prefix.js";
 
 const VARIABLE_DECLARE_PATTERN =
-  /^\s*(?:var\s+)?(int|bool|string|ip|prefix)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*(.+?))?\s*;?\s*$/i;
+  /^\s*(?:var\s+)?(int|bool|string|ip|prefix|pair|quad|ec|lc|bgppath|clist|eclist|lclist)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*=\s*(.+?))?\s*;?\s*$/i;
 const VARIABLE_ASSIGN_PATTERN =
   /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$/;
 const MAX_TYPE_INFER_DEPTH = 64;
 const MAX_TYPE_EXPRESSION_LENGTH = 4096;
 const SET_LITERAL_MAX_ITEMS = 256;
+const BUILTIN_ASSIGNABLE_ATTRIBUTES = new Set([
+  "gw",
+  "ifname",
+  "onlink",
+  "dest",
+  "krt_prefsrc",
+]);
+const SUPPORTED_DECLARED_TYPES = new Set<TypeValue>([
+  "int",
+  "bool",
+  "string",
+  "ip",
+  "prefix",
+]);
+
+const normalizeDeclaredType = (value: string): TypeValue => {
+  const lowered = value.toLowerCase();
+  return SUPPORTED_DECLARED_TYPES.has(lowered as TypeValue)
+    ? (lowered as TypeValue)
+    : "unknown";
+};
 
 const trimSingleEnclosingParentheses = (value: string): string => {
   const current = value.trim();
@@ -519,9 +540,7 @@ export const checkTypes = (
       const expression = statement.expressionText.trim();
       const declarationMatch = expression.match(VARIABLE_DECLARE_PATTERN);
       if (declarationMatch) {
-        const declaredType = (
-          declarationMatch[1] ?? "unknown"
-        ).toLowerCase() as TypeValue;
+        const declaredType = normalizeDeclaredType(declarationMatch[1] ?? "");
         const variableName = declarationMatch[2] ?? "";
         const initializer = declarationMatch[3]?.trim();
 
@@ -559,6 +578,10 @@ export const checkTypes = (
       const expectedType = variableTypes.get(variableName);
 
       if (!expectedType) {
+        if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(variableName.toLowerCase())) {
+          continue;
+        }
+
         diagnostics.push({
           code: "type/undefined-variable",
           message: `Assignment to undefined variable '${variableName}'`,
@@ -575,6 +598,10 @@ export const checkTypes = (
       }
 
       const inferredType = inferValueType(assignedValue, variableTypes);
+      if (expectedType === "unknown") {
+        continue;
+      }
+
       if (inferredType !== "unknown" && inferredType !== expectedType) {
         diagnostics.push(
           createTypeMismatchDiagnostic(

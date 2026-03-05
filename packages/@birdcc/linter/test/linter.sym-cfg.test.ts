@@ -146,6 +146,31 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("sym/variable-scope");
   });
 
+  it("does not hit sym/variable-scope for built-in route attributes", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        gw = 192.0.2.1;
+        ifname = "eth0";
+        onlink = true;
+        accept;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/variable-scope");
+  });
+
+  it("does not hit sym/variable-scope for bgppath declarations", async () => {
+    const codes = await codesOf(`
+      function f1() {
+        bgppath temp_path;
+        temp_path = bgp_path;
+        return true;
+      }
+    `);
+
+    expect(codes).not.toContain("sym/variable-scope");
+  });
+
   it("hits cfg/no-protocol and cfg/missing-router-id", async () => {
     const codes = await codesOf(`
       filter only_filter {
