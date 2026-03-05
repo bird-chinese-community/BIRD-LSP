@@ -69,6 +69,13 @@ const parseArgs = () => {
   };
 };
 
+const FORBIDDEN_RELEASE_PACKAGES = new Map([
+  [
+    "@birdcc/intel",
+    "Publish @birdcc/intel via the 'Intel ASN Database Update (Weekly)' workflow instead of the manual NPM Release job.",
+  ],
+]);
+
 const runCommand = (command, args) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -182,6 +189,13 @@ const main = async () => {
 
   if (options.packages.length === 0) {
     throw new Error("No packages selected. Pass --packages <comma-separated-names>.");
+  }
+
+  for (const name of options.packages) {
+    const reason = FORBIDDEN_RELEASE_PACKAGES.get(name);
+    if (reason) {
+      throw new Error(reason);
+    }
   }
 
   if (!options.dryRun && !process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN) {
