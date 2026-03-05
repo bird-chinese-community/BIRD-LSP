@@ -72,7 +72,7 @@ const typeNotIterableRule: BirdRule = ({ parsed }) => {
     for (const match of declaration.matches) {
       const right = normalizeRightExpression(match.right);
       if (
-        (right.startsWith("[") && right.endsWith("]")) ||
+        right.startsWith("[") ||
         isLikelyReference(right) ||
         isLikelyPrefixPattern(right) ||
         scalarTypeOfExpression(right) === "ip" ||

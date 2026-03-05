@@ -129,4 +129,25 @@ describe("@birdcc/linter net+type rules", () => {
 
     expect(codes).toContain("type/set-incompatible");
   });
+
+  it("does not hit type/not-iterable for BIRD path-pattern sets", async () => {
+    const codes = await codesOf(`
+      function f1() {
+        if bgp_path ~ [= * 65001 65001 =] then return true;
+        return false;
+      }
+    `);
+
+    expect(codes).not.toContain("type/not-iterable");
+  });
+
+  it("does not hit type/not-iterable for community tuple sets", async () => {
+    const codes = await codesOf(`
+      filter f1 {
+        if bgp_large_community ~ [(65000, 101, *)] then accept;
+      }
+    `);
+
+    expect(codes).not.toContain("type/not-iterable");
+  });
 });
