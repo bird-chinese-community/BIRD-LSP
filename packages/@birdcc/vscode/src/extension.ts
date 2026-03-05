@@ -4,6 +4,7 @@ import type { ExtensionContext } from "vscode";
 import { createBirdClientLifecycle } from "./client/index.js";
 import { registerBirdCommands } from "./commands/index.js";
 import { createConfigurationManager } from "./config/index.js";
+import { announceProjectConfigGuidance } from "./config/project-config-guidance.js";
 import { EXTENSION_NAME } from "./constants.js";
 import type { ClientLifecycleState } from "./client/index.js";
 import {
@@ -83,6 +84,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   outputChannel.appendLine(
     `[bird2-lsp] activating extension v${String(context.extension.packageJSON.version ?? "unknown")}`,
   );
+  void announceProjectConfigGuidance(outputChannel);
   const configurationManager = createConfigurationManager();
   const statusBarManager = createBirdStatusBarManager();
   let lifecycleState: ClientLifecycleState = "idle";
