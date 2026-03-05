@@ -407,6 +407,115 @@ describe("@birdcc/core boundaries", () => {
     ).toBe(false);
   });
 
+  it("resolves absolute include paths via include search path suffix fallback", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "file:///workspace/project/main.conf",
+      includeSearchPaths: ["file:///workspace/project"],
+      documents: [
+        {
+          uri: "file:///workspace/project/main.conf",
+          text: `
+            include "/etc/bird/functions/common.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "file:///workspace/project/functions/common.conf",
+          text: `
+            template bgp edge_tpl {
+            }
+          `,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain(
+      "file:///workspace/project/functions/common.conf",
+    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(false);
+  });
+
+  it("resolves relative parent include paths via include search path suffix fallback", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "file:///workspace/project/main.conf",
+      includeSearchPaths: ["file:///workspace/project"],
+      documents: [
+        {
+          uri: "file:///workspace/project/main.conf",
+          text: `
+            include "../functions/common.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "file:///workspace/project/functions/common.conf",
+          text: `
+            template bgp edge_tpl {
+            }
+          `,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain(
+      "file:///workspace/project/functions/common.conf",
+    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(false);
+  });
+
+  it("expands wildcard include paths when matching files exist", async () => {
+    const result = await resolveCrossFileReferences({
+      entryUri: "file:///workspace/project/main.conf",
+      includeSearchPaths: ["file:///workspace/project"],
+      documents: [
+        {
+          uri: "file:///workspace/project/main.conf",
+          text: `
+            include "templates/*.conf";
+            protocol bgp edge from edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "file:///workspace/project/templates/a.conf",
+          text: `
+            template bgp edge_tpl {
+            }
+          `,
+        },
+        {
+          uri: "file:///workspace/project/templates/b.conf",
+          text: `
+            template bgp backup_tpl {
+            }
+          `,
+        },
+      ],
+    });
+
+    expect(result.visitedUris).toContain(
+      "file:///workspace/project/templates/a.conf",
+    );
+    expect(result.visitedUris).toContain(
+      "file:///workspace/project/templates/b.conf",
+    );
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/undefined-reference",
+      ),
+    ).toBe(false);
+  });
+
   it("emits include warning when max depth is reached", async () => {
     const result = await resolveCrossFileReferences({
       entryUri: "/workspace/main.conf",

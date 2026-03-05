@@ -1,5 +1,12 @@
-import { readFile } from "node:fs/promises";
-import { dirname, isAbsolute, normalize, relative, resolve } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  normalize,
+  relative,
+  resolve,
+} from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ParsedBirdDocument, SourceRange } from "@birdcc/parser";
 import { parseBirdConfig } from "@birdcc/parser";
@@ -137,26 +144,97 @@ const resolveIncludeUriFromSearchPath = (
   return normalize(resolve(searchPathUri, includePath));
 };
 
+const includePathSuffixes = (includePath: string): string[] => {
+  const normalizedPath = includePath.replace(/^[/\\]+/, "");
+  if (normalizedPath.length === 0) {
+    return [];
+  }
+
+  const segments = normalizedPath.split(/[/\\]+/).filter(Boolean);
+  if (segments.length === 0) {
+    return [];
+  }
+
+  const suffixes: string[] = [];
+  for (let index = 0; index < segments.length; index += 1) {
+    suffixes.push(segments.slice(index).join("/"));
+  }
+
+  const base = basename(includePath);
+  if (base.length > 0 && !suffixes.includes(base)) {
+    suffixes.push(base);
+  }
+
+  return suffixes;
+};
+
 const resolveIncludeCandidateUris = (
   baseUri: string,
   includePath: string,
   includeSearchPaths: string[],
 ): string[] => {
   const directUri = resolveIncludeUri(baseUri, includePath);
-  if (
-    includePath.startsWith("file://") ||
-    isAbsolute(includePath) ||
-    includeSearchPaths.length === 0
-  ) {
+  if (includePath.startsWith("file://") || includeSearchPaths.length === 0) {
     return [directUri];
   }
 
   const uniqueUris = new Set<string>([directUri]);
+  const suffixes = includePathSuffixes(includePath);
+
   for (const searchPath of includeSearchPaths) {
     uniqueUris.add(resolveIncludeUriFromSearchPath(searchPath, includePath));
+    for (const suffix of suffixes) {
+      uniqueUris.add(resolveIncludeUriFromSearchPath(searchPath, suffix));
+    }
   }
 
   return [...uniqueUris];
+};
+
+const wildcardPatternToRegExp = (pattern: string): RegExp => {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped.replace(/\\\*/g, ".*")}$`);
+};
+
+const expandWildcardIncludeUri = async (
+  includeUri: string,
+  knownDocumentUris: Iterable<string>,
+): Promise<string[]> => {
+  const filePath = toFilePath(includeUri);
+  if (!filePath || !filePath.includes("*")) {
+    return [includeUri];
+  }
+
+  const filePattern = basename(filePath);
+  if (!filePattern.includes("*")) {
+    return [includeUri];
+  }
+
+  const includeDir = dirname(filePath);
+  const regex = wildcardPatternToRegExp(filePattern);
+
+  try {
+    const entries = await readdir(includeDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && regex.test(entry.name))
+      .map((entry) => pathToFileURL(resolve(includeDir, entry.name)).toString())
+      .sort((left, right) => left.localeCompare(right));
+  } catch {
+    const hasResolvedPath = (item: {
+      uri: string;
+      path: string | null;
+    }): item is { uri: string; path: string } => item.path !== null;
+
+    const matched = [...knownDocumentUris]
+      .map((uri) => ({ uri, path: toFilePath(uri) }))
+      .filter(hasResolvedPath)
+      .filter((item) => dirname(item.path) === includeDir)
+      .filter((item) => regex.test(basename(item.path)))
+      .map((item) => item.uri)
+      .sort((left, right) => left.localeCompare(right));
+
+    return matched;
+  }
 };
 
 const includeDiagnostic = (
@@ -362,6 +440,7 @@ export const resolveCrossFileReferences = async (
         declaration.path,
         includeSearchPaths,
       );
+      const allowMultipleMatches = declaration.path.includes("*");
       let queuedInclude = false;
       let skippedOutsideWorkspace = false;
 
@@ -378,42 +457,62 @@ export const resolveCrossFileReferences = async (
       }
 
       for (const includeUri of includeCandidates) {
-        if (
-          !allowIncludeOutsideWorkspace &&
-          !isWithinWorkspaceRoot(includeUri, workspaceRootUri)
-        ) {
-          skippedOutsideWorkspace = true;
-          continue;
-        }
-
-        if (visited.has(includeUri) || queued.has(includeUri)) {
-          queuedInclude = true;
-          break;
-        }
-
-        if (visited.size + queue.length >= maxFiles) {
-          stats.skippedByFileLimit += 1;
-          diagnostics.push(
-            includeDiagnostic(
-              current.uri,
-              `Include skipped due to max files limit (${maxFiles}): '${declaration.path}'`,
-              includeRange,
-            ),
-          );
-          queuedInclude = true;
-          break;
-        }
-
         // eslint-disable-next-line no-await-in-loop
-        const loaded = await ensureDocument(includeUri);
-        if (!loaded) {
+        const expandedIncludeUris = await expandWildcardIncludeUri(
+          includeUri,
+          documentMap.keys(),
+        );
+        if (expandedIncludeUris.length === 0) {
           continue;
         }
 
-        queue.push({ uri: includeUri, depth: current.depth + 1 });
-        queued.add(includeUri);
-        queuedInclude = true;
-        break;
+        for (const expandedUri of expandedIncludeUris) {
+          if (
+            !allowIncludeOutsideWorkspace &&
+            !isWithinWorkspaceRoot(expandedUri, workspaceRootUri)
+          ) {
+            skippedOutsideWorkspace = true;
+            continue;
+          }
+
+          if (visited.has(expandedUri) || queued.has(expandedUri)) {
+            queuedInclude = true;
+            if (!allowMultipleMatches) {
+              break;
+            }
+            continue;
+          }
+
+          if (visited.size + queue.length >= maxFiles) {
+            stats.skippedByFileLimit += 1;
+            diagnostics.push(
+              includeDiagnostic(
+                current.uri,
+                `Include skipped due to max files limit (${maxFiles}): '${declaration.path}'`,
+                includeRange,
+              ),
+            );
+            queuedInclude = true;
+            break;
+          }
+
+          // eslint-disable-next-line no-await-in-loop
+          const loaded = await ensureDocument(expandedUri);
+          if (!loaded) {
+            continue;
+          }
+
+          queue.push({ uri: expandedUri, depth: current.depth + 1 });
+          queued.add(expandedUri);
+          queuedInclude = true;
+          if (!allowMultipleMatches) {
+            break;
+          }
+        }
+
+        if (queuedInclude && !allowMultipleMatches) {
+          break;
+        }
       }
 
       if (queuedInclude) {
