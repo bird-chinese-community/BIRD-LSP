@@ -27,11 +27,12 @@ describe.skipIf(!hasDb)("createAsnIntel with real database", () => {
     expect(intel.count).toBeGreaterThan(100_000);
   });
 
-  it("exact lookup for well-known ASNs", () => {
-    const cloudflare = intel.exactLookup(13335);
-    expect(cloudflare).toBeDefined();
-    expect(cloudflare!.name).toContain("Cloudflare");
-    expect(cloudflare!.cc).toBe("US");
+  it("exact lookup returns reserved fallback entries", () => {
+    const reserved = intel.exactLookup(65500);
+    expect(reserved).toBeDefined();
+    expect(reserved!.name).toBe("RFC 6996");
+    expect(reserved!.cls).toBe("Reserved");
+    expect(reserved!.cc).toBe("ZZ");
   });
 
   it("prefix search returns progressive results", () => {
@@ -46,10 +47,16 @@ describe.skipIf(!hasDb)("createAsnIntel with real database", () => {
   });
 
   it("lookupDisplay returns formatted info", () => {
-    const display = intel.lookupDisplay(13335);
+    const display = intel.lookupDisplay(65500);
     expect(display).toBeDefined();
-    expect(display!.inlayLabel).toContain("AS13335");
-    expect(display!.completionDetail).toContain("Cloudflare");
-    expect(display!.hoverMarkdown).toContain("###");
+    expect(display!.inlayLabel).toBe("🏳️ AS65500");
+    expect(display!.completionDetail).toContain("RFC 6996");
+    expect(display!.hoverMarkdown).toContain("Reserved");
+  });
+
+  it("prefix search can surface exact reserved ASN matches", () => {
+    const results = intel.prefixSearch("65500", 5);
+    expect(results[0]?.asn).toBe(65500);
+    expect(results[0]?.name).toBe("RFC 6996");
   });
 });

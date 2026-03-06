@@ -2,12 +2,14 @@ import { countryCodeToFlag } from "./country-flag.js";
 import type { AsnEntry, AsnDisplayInfo } from "./types.js";
 
 const ASN_INLAY_MAX_DIGITS = 6;
+const RESERVED_FLAG = "🏳️";
 
 /**
  * Format an AsnEntry into display strings for LSP features (inlay hints, completion, hover).
  */
 export const formatAsnDisplay = (entry: AsnEntry): AsnDisplayInfo => {
-  const flag = countryCodeToFlag(entry.cc);
+  const flag =
+    entry.cls === "Reserved" ? RESERVED_FLAG : countryCodeToFlag(entry.cc);
   const asnStr = `AS${entry.asn}`;
 
   // Inlay hint: "🇺🇸 AS13335" — truncate ASN string if > 6 digits

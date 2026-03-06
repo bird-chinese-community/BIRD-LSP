@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { loadAsnDatabase } from "./database.js";
 import { formatAsnDisplay } from "./display.js";
+import { getReservedAsnEntry, searchReservedAsnByPrefix } from "./reserved.js";
 import type { AsnDatabase, AsnDisplayInfo, AsnEntry } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -56,16 +57,29 @@ export const createAsnIntel = (dbPath?: string): AsnIntel => {
     return NOOP_INTEL;
   }
 
+  const exactLookup = (asn: number): AsnEntry | undefined =>
+    getReservedAsnEntry(asn) ?? db.exactLookup(asn);
+
+  const prefixSearch = (prefix: string, limit = 10): AsnEntry[] => {
+    const results = db.prefixSearch(prefix, limit);
+    const reservedEntries = searchReservedAsnByPrefix(prefix).filter(
+      (reservedEntry) =>
+        !results.some((result) => result.asn === reservedEntry.asn),
+    );
+
+    return [...reservedEntries, ...results].slice(0, limit);
+  };
+
   const lookupDisplay = (asn: number): AsnDisplayInfo | undefined => {
-    const entry = db.exactLookup(asn);
+    const entry = exactLookup(asn);
     return entry ? formatAsnDisplay(entry) : undefined;
   };
 
   return {
     available: true,
     count: db.count,
-    exactLookup: db.exactLookup,
-    prefixSearch: db.prefixSearch,
+    exactLookup,
+    prefixSearch,
     formatDisplay: formatAsnDisplay,
     lookupDisplay,
   };
