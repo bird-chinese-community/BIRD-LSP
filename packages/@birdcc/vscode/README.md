@@ -270,6 +270,20 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 
 ---
 
+## 🙏 Acknowledgements
+
+<!-- CI START -->
+
+We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:
+
+- [`PoemaIX/IX-BIRD-RS-Generator`](https://github.com/PoemaIX/IX-BIRD-RS-Generator)
+- [`HuJK-Data/JKNET-BIRD`](https://github.com/HuJK-Data/JKNET-BIRD)
+- [`186526/net186-config`](https://github.com/186526/net186-config)
+- [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)
+<!-- CI END -->
+
+---
+
 <p align="center">
   <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
 </p>
