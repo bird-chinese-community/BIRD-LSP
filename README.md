@@ -261,6 +261,7 @@ We gratefully acknowledge these upstream repositories for the real-world BIRD co
 
 - [`PoemaIX/IX-BIRD-RS-Generator`](https://github.com/PoemaIX/IX-BIRD-RS-Generator)
 - [`HuJK-Data/JKNET-BIRD`](https://github.com/HuJK-Data/JKNET-BIRD)
+- [`@LaunchPad-Network`](https://github.com/LaunchPad-Network) *(private feed)*
 - [`186526/net186-config`](https://github.com/186526/net186-config)
 - [`SunyzNET/bird-config`](https://github.com/SunyzNET/bird-config)
 - [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)
