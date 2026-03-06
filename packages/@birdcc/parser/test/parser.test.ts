@@ -75,6 +75,7 @@ describe("@birdcc/parser tree-sitter", () => {
       routing table master;
       ipv4 table edge4;
       vpn4 table core attrs (extended, foo);
+      aspa table aspa_table;
     `;
 
     const parsed = await parseBirdConfig(sample);
@@ -87,7 +88,7 @@ describe("@birdcc/parser tree-sitter", () => {
     );
 
     expect(routerDeclarations).toHaveLength(4);
-    expect(tableDeclarations).toHaveLength(3);
+    expect(tableDeclarations).toHaveLength(4);
 
     const firstRouter = routerDeclarations[0];
     if (firstRouter?.kind === "router-id") {
@@ -113,6 +114,12 @@ describe("@birdcc/parser tree-sitter", () => {
       expect(vpnTable.name).toBe("core");
       expect(vpnTable.attrsText).toContain("extended");
     }
+
+    const aspaTable = tableDeclarations[3];
+    if (aspaTable?.kind === "table") {
+      expect(aspaTable.tableType).toBe("aspa");
+      expect(aspaTable.name).toBe("aspa_table");
+    }
   });
 
   it("recognizes all supported table type declarations", async () => {
@@ -124,6 +131,7 @@ describe("@birdcc/parser tree-sitter", () => {
       vpn6 table t_vpn6;
       roa4 table t_roa4;
       roa6 table t_roa6;
+      aspa table t_aspa;
       flow4 table t_flow4;
       flow6 table t_flow6;
     `;
@@ -145,6 +153,7 @@ describe("@birdcc/parser tree-sitter", () => {
       "vpn6",
       "roa4",
       "roa6",
+      "aspa",
       "flow4",
       "flow6",
     ]);

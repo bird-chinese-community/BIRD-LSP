@@ -49,6 +49,7 @@ export const TABLE_TYPES = new Set([
   "vpn6",
   "roa4",
   "roa6",
+  "aspa",
   "flow4",
   "flow6",
 ]);

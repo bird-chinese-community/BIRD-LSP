@@ -59,6 +59,7 @@ export interface TableDeclaration extends DeclarationBase {
     | "vpn6"
     | "roa4"
     | "roa6"
+    | "aspa"
     | "flow4"
     | "flow6"
     | "unknown";
