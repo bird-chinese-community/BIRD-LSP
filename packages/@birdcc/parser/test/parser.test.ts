@@ -243,6 +243,42 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses chained where expressions in protocol channels", async () => {
+    const sample = `
+      protocol babel edge {
+        ipv4 {
+          export where source != RTS_BGP && is_self_net();
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        const exportEntry = channel.entries.find(
+          (item) => item.kind === "export",
+        );
+        expect(exportEntry?.kind).toBe("export");
+        if (exportEntry?.kind === "export") {
+          expect(exportEntry.mode).toBe("where");
+          expect(exportEntry.whereExpression).toBe(
+            "source != RTS_BGP && is_self_net()",
+          );
+        }
+      }
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {
@@ -595,5 +631,19 @@ describe("@birdcc/parser tree-sitter", () => {
       expect(expressions).toContain("bgppath p");
       expect(expressions).toContain("int remain");
     }
+  });
+
+  it("accepts comma-separated identifiers inside generic blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      log syslog {
+        error,
+        fatal,
+        remote,
+        auth,
+        bug
+      };
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
   });
 });

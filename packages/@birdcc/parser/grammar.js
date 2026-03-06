@@ -21,6 +21,7 @@ export default grammar({
         $.template_declaration,
         $.filter_declaration,
         $.function_declaration,
+        $.log_statement,
         $.top_level_statement,
       ),
 
@@ -40,7 +41,29 @@ export default grammar({
     ipv6_literal: () => token(prec(2, /[0-9A-Fa-f]*:[0-9A-Fa-f:]+/)),
     ip_literal: ($) => choice($.ipv4_literal, $.ipv6_literal),
     prefix_literal: () =>
-      token(/[0-9A-Fa-f:.]+\/[0-9]{1,3}([+-]|\{[0-9]{1,3},[0-9]{1,3}\})?/),
+      token(
+        prec(3, /[0-9A-Fa-f:.]+\/[0-9]{1,3}([+-]|\{[0-9]{1,3},[0-9]{1,3}\})?/),
+      ),
+    prefix_candidate: () =>
+      token(prec(1, /[^{}\s"';#,\[\]\(\)]+\/[^{}\s"';#,\[\]\(\)]+/)),
+    range_literal: () => token(prec(2, /[0-9A-Za-z_.:-]+\.\.[0-9A-Za-z_.:-]+/)),
+    tuple_literal: ($) =>
+      seq(
+        "(",
+        repeat1(
+          choice(
+            $.identifier,
+            $.string,
+            $.number,
+            $.ip_literal,
+            $.prefix_literal,
+            $.range_literal,
+            $.raw_token,
+            ",",
+          ),
+        ),
+        ")",
+      ),
 
     // Generic fallback token used to keep recovery resilient in partial grammar coverage.
     raw_token: () => token(prec(-1, /[^{}\s"';#]+/)),
@@ -63,6 +86,8 @@ export default grammar({
                   $.number,
                   $.ip_literal,
                   $.prefix_literal,
+                  $.prefix_candidate,
+                  $.set_literal,
                   $.identifier,
                   $.raw_token,
                   $.block,
@@ -229,11 +254,22 @@ export default grammar({
         ),
       ),
 
+    log_statement: ($) =>
+      seq(
+        "log",
+        repeat1(choice($.identifier, $.string, $.number, $.raw_token)),
+        optional(field("body", $.log_block)),
+        ";",
+      ),
+
+    log_block: ($) =>
+      seq("{", repeat(seq(choice($.identifier, $.number), optional(","))), "}"),
+
     parameter_list: ($) =>
       seq(
         "(",
         optional(
-          commaSep1(
+          repeat1(
             choice(
               $.identifier,
               $.string,
@@ -241,6 +277,8 @@ export default grammar({
               $.ip_literal,
               $.prefix_literal,
               $.raw_token,
+              ",",
+              ";",
             ),
           ),
         ),
@@ -253,20 +291,7 @@ export default grammar({
     top_level_statement: ($) =>
       prec(
         -1,
-        seq(
-          repeat1(
-            choice(
-              $.string,
-              $.number,
-              $.ip_literal,
-              $.prefix_literal,
-              $.identifier,
-              $.raw_token,
-              $.block,
-            ),
-          ),
-          ";",
-        ),
+        seq(repeat1(choice($._statement_atom, ",")), optional($.block), ";"),
       ),
 
     // Block is intentionally permissive for error recovery (missing brace / incomplete header).
@@ -409,7 +434,9 @@ export default grammar({
         "import",
         "keep",
         "filtered",
-        field("switch_value", choice($.identifier, $.number, $.raw_token)),
+        optional(
+          field("switch_value", choice($.identifier, $.number, $.raw_token)),
+        ),
         ";",
       ),
 
@@ -515,18 +542,23 @@ export default grammar({
         ),
       ),
 
+    phrase_clause: ($) => repeat1(choice($._statement_atom, ",", "(", ")")),
+
     if_statement: ($) =>
-      seq(
-        "if",
-        optional(field("condition", $.simple_expression)),
-        "then",
-        field("consequence", $.inline_statement),
-        optional(seq("else", field("alternative", $.inline_statement))),
+      prec.right(
+        seq(
+          "if",
+          optional(field("condition", $.phrase_clause)),
+          "then",
+          field("consequence", $.inline_statement),
+          optional(seq("else", field("alternative", $.inline_statement))),
+        ),
       ),
 
     inline_statement: ($) =>
       choice(
         $.block,
+        $.if_statement,
         $.accept_statement,
         $.reject_statement,
         $.return_statement,
@@ -538,30 +570,65 @@ export default grammar({
     reject_statement: () => seq("reject", ";"),
 
     return_statement: ($) =>
-      seq("return", optional(field("value", $.simple_expression)), ";"),
+      seq("return", optional(field("value", $.phrase_clause)), ";"),
 
     case_statement: ($) =>
       seq(
         "case",
-        optional(field("subject", $.simple_expression)),
+        optional(field("subject", $.phrase_clause)),
         field("body", $.block),
       ),
 
     expression_statement: ($) =>
-      seq(field("expression", $.simple_expression), ";"),
+      prec.right(
+        choice(
+          seq($.phrase_clause, field("body", $.block), optional(";")),
+          seq($.phrase_clause, ";"),
+        ),
+      ),
+
+    _statement_atom: ($) =>
+      choice(
+        $.string,
+        $.number,
+        $.ip_literal,
+        $.prefix_literal,
+        $.prefix_candidate,
+        $.function_call,
+        $.member_expression,
+        $.set_literal,
+        $.identifier,
+        $.raw_token,
+      ),
 
     simple_expression: ($) =>
       choice($.binary_expression, $.unary_expression, $.expression_atom),
 
     binary_expression: ($) =>
-      prec.left(
-        seq(
-          field("left", $.expression_atom),
-          field(
-            "operator",
-            choice("~", "=", "!=", "<", ">", "<=", ">=", "&&", "||"),
+      choice(
+        prec.left(
+          1,
+          seq(
+            field("left", $.simple_expression),
+            field("operator", "||"),
+            field("right", $.simple_expression),
           ),
-          field("right", $.expression_atom),
+        ),
+        prec.left(
+          2,
+          seq(
+            field("left", $.simple_expression),
+            field("operator", "&&"),
+            field("right", $.simple_expression),
+          ),
+        ),
+        prec.left(
+          3,
+          seq(
+            field("left", $.simple_expression),
+            field("operator", choice("~", "=", "!=", "<", ">", "<=", ">=")),
+            field("right", $.simple_expression),
+          ),
         ),
       ),
 
@@ -580,11 +647,14 @@ export default grammar({
       ),
 
     function_call: ($) =>
-      seq(
-        field("name", $.identifier),
-        "(",
-        optional(commaSep1($.simple_expression)),
-        ")",
+      prec(
+        1,
+        seq(
+          field("name", choice($.identifier, "filter")),
+          "(",
+          optional(commaSep1($.simple_expression)),
+          ")",
+        ),
       ),
 
     member_expression: ($) =>
@@ -599,9 +669,11 @@ export default grammar({
         repeat(
           choice(
             $.string,
+            $.range_literal,
             $.number,
             $.ip_literal,
             $.prefix_literal,
+            $.prefix_candidate,
             $.identifier,
             $.raw_token,
             ",",
@@ -612,6 +684,8 @@ export default grammar({
             "}",
             "*",
             "=",
+            "(",
+            ")",
           ),
         ),
         "]",
