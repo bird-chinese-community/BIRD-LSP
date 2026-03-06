@@ -32,6 +32,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
+    "test:quick": "vitest run --exclude '**/realworld*'",
     "format": "oxfmt .",
     "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
   },

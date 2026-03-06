@@ -54,6 +54,7 @@
     "typecheck": "node -e \"console.log('vscode-pack: no typecheck step required')\"",
     "lint": "node -e \"console.log('vscode-pack: no lint step required')\"",
     "test": "node -e \"console.log('vscode-pack: no test step required')\"",
+    "test:quick": "node -e \"console.log('vscode-pack: no test step required')\"",
     "marketplace:package": "mkdir -p release && pnpm dlx @vscode/vsce package --out ./release/bird2-extension-pack.vsix",
     "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-extension-pack.vsix --pat \"$VSCE_PAT\"",
     "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./release/bird2-extension-pack.vsix -p \"$OVSX_PAT\""

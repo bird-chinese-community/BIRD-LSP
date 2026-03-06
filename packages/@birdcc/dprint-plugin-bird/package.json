@@ -29,6 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src scripts && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings",
     "test": "cargo test",
+    "test:quick": "cargo test",
     "format": "oxfmt ."
   },
   "repository": {

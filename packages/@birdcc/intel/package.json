@@ -37,6 +37,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src",
     "test": "vitest run",
+    "test:quick": "vitest run",
     "format": "oxfmt ."
   },
   "repository": {

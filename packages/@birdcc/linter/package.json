@@ -34,6 +34,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "pnpm run sync:examples && vitest run",
+    "test:quick": "pnpm run sync:examples && vitest run --exclude '**/realworld*'",
     "format": "oxfmt .",
     "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary"
   },

@@ -8,6 +8,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:quick": "turbo run test:quick",
     "typecheck": "turbo run typecheck",
     "format": "turbo run format",
     "coverage": "turbo run coverage",

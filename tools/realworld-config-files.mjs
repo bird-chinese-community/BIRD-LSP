@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, realpath, stat } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
 
 export const allowedConfigExtensions = new Set([
@@ -26,8 +26,9 @@ export const isBirdConfigFile = (path) => {
 };
 
 export const discoverFiles = async (root) => {
+  const resolvedRoot = await realpath(resolve(root));
   const output = [];
-  const stack = [root];
+  const stack = [resolvedRoot];
 
   while (stack.length > 0) {
     const current = stack.pop();
@@ -44,6 +45,19 @@ export const discoverFiles = async (root) => {
 
     for (const entry of entries) {
       const entryPath = resolve(current, entry.name);
+
+      if (entry.isSymbolicLink()) {
+        let target;
+        try {
+          target = await realpath(entryPath);
+        } catch {
+          continue;
+        }
+        if (!target.startsWith(resolvedRoot + "/") && target !== resolvedRoot) {
+          continue;
+        }
+      }
+
       if (entry.isDirectory()) {
         stack.push(entryPath);
         continue;

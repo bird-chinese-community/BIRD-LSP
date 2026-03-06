@@ -17,8 +17,8 @@ repos:
         language: system
         stages: [commit-msg]
       - id: turbo-test
-        name: turbo test
-        entry: pnpm test
+        name: turbo test (quick)
+        entry: pnpm run test:quick
         language: system
         pass_filenames: false
         stages: [pre-push]

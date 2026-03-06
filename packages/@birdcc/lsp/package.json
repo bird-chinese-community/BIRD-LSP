@@ -39,6 +39,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
     "test": "vitest run",
+    "test:quick": "vitest run",
     "hover:coverage": "node scripts/report-hover-coverage.mjs",
     "hover:coverage:check": "node scripts/report-hover-coverage.mjs --check",
     "format": "oxfmt .",
