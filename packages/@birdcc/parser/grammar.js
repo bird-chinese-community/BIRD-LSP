@@ -295,6 +295,23 @@ export default grammar({
     local_as_statement: ($) =>
       seq(
         "local",
+        optional(
+          seq(
+            field(
+              "local_address",
+              choice($.ip_literal, $.identifier, $.string, $.raw_token),
+            ),
+            optional(
+              seq(
+                "port",
+                field(
+                  "local_port",
+                  choice($.number, $.identifier, $.raw_token),
+                ),
+              ),
+            ),
+          ),
+        ),
         "as",
         field("asn", choice($.number, $.identifier, $.raw_token)),
         ";",
@@ -315,9 +332,11 @@ export default grammar({
     neighbor_statement: ($) =>
       seq(
         "neighbor",
-        field(
-          "address",
-          choice($.ip_literal, $.number, $.identifier, $.string, $.raw_token),
+        optional(
+          field(
+            "address",
+            choice($.ip_literal, $.number, $.identifier, $.string, $.raw_token),
+          ),
         ),
         optional(
           seq(
