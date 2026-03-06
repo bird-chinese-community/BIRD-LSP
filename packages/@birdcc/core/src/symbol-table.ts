@@ -34,22 +34,37 @@ const declarationToSymbol = (
   });
 
   if (declaration.kind === "protocol") {
+    if (declaration.name.trim().length === 0) {
+      return null;
+    }
     return toSymbol("protocol", declaration.name, declaration.nameRange);
   }
 
   if (declaration.kind === "template") {
+    if (declaration.name.trim().length === 0) {
+      return null;
+    }
     return toSymbol("template", declaration.name, declaration.nameRange);
   }
 
   if (declaration.kind === "filter") {
+    if (declaration.name.trim().length === 0) {
+      return null;
+    }
     return toSymbol("filter", declaration.name, declaration.nameRange);
   }
 
   if (declaration.kind === "function") {
+    if (declaration.name.trim().length === 0) {
+      return null;
+    }
     return toSymbol("function", declaration.name, declaration.nameRange);
   }
 
   if (declaration.kind === "table") {
+    if (declaration.name.trim().length === 0) {
+      return null;
+    }
     return toSymbol("table", declaration.name, declaration.nameRange);
   }
 
