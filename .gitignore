@@ -34,3 +34,6 @@ target
 packages/@birdcc/vscode/dist/*.vsix
 packages/@birdcc/vscode/release/*.vsix
 packages/@birdcc/vscode-pack/release/*.vsix
+
+refer/config-examples-private/*
+!refer/config-examples-private/.gitkeep
