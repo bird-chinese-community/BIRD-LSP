@@ -40,8 +40,17 @@ const replaceGeneratedBlock = (content, intro) => {
     intro,
     "",
     ...sortedConfigExampleSources.map(
-      (source) =>
-        `- [\`${source.repo}\`](https://github.com/${source.repo})`,
+      (source) => {
+        if (source.visibility === "private" && source.ghUsername) {
+          return `- [\`@${source.ghUsername}\`](https://github.com/${source.ghUsername}) *(private feed)*`;
+        }
+
+        if (!source.repo) {
+          throw new Error(`Missing acknowledgement target for source: ${source.id}`);
+        }
+
+        return `- [\`${source.repo}\`](https://github.com/${source.repo})`;
+      },
     ),
   ];
 
