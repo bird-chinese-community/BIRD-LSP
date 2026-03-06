@@ -22,7 +22,9 @@
     "bump:minor": "bumpp --release minor",
     "bump:major": "bumpp --release major",
     "sync:config-examples": "node tools/sync-config-examples.mjs",
-    "sync:config-examples:check": "node tools/sync-config-examples.mjs --check"
+    "sync:config-examples:check": "node tools/sync-config-examples.mjs --check",
+    "sync:readme-acknowledgements": "node tools/sync-readme-acknowledgements.mjs",
+    "sync:readme-acknowledgements:check": "node tools/sync-readme-acknowledgements.mjs --check"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
