@@ -37,3 +37,5 @@ packages/@birdcc/vscode-pack/release/*.vsix
 
 refer/config-examples-private/*
 !refer/config-examples-private/.gitkeep
+
+.example/
