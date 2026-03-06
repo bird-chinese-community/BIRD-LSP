@@ -27,6 +27,13 @@ export const configExampleSources = [
     repo: "tianshome/bird-configs-output",
     repoGit: "https://github.com/tianshome/bird-configs-output.git",
   },
+  {
+    id: "bird2-sunyznet-bird-config",
+    birdMajor: 2,
+    path: "BIRD2-SunyzNET-bird-config",
+    repo: "SunyzNET/bird-config",
+    repoGit: "https://github.com/SunyzNET/bird-config.git",
+  },
 ];
 
 export const sortedConfigExampleSources = [...configExampleSources].sort((a, b) =>
