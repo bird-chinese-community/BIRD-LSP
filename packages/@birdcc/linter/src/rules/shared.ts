@@ -1,4 +1,7 @@
+import { existsSync } from "node:fs";
 import { isIP } from "node:net";
+import { basename, dirname, extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   BirdDiagnostic,
   BirdDiagnosticSeverity,
@@ -22,6 +25,7 @@ export interface RuleContext {
   text: string;
   parsed: ParsedBirdDocument;
   core: CoreSnapshot;
+  uri?: string;
 }
 
 export type BirdRule = (context: RuleContext) => BirdDiagnostic[];
@@ -133,6 +137,11 @@ export const routerIdDeclarations = (
 ): BirdDeclaration[] =>
   parsed.program.declarations.filter(
     (declaration) => declaration.kind === "router-id",
+  );
+
+export const hasIncludeDeclarations = (parsed: ParsedBirdDocument): boolean =>
+  parsed.program.declarations.some(
+    (declaration) => declaration.kind === "include",
   );
 
 export const isProtocolType = (
@@ -323,6 +332,213 @@ export const findTemplateByName = (
   return templateDeclarations(parsed).find(
     (item) => item.name.toLowerCase() === lowered,
   );
+};
+
+export type LintDocumentRole = "entry" | "fragment" | "library" | "unknown";
+
+const CANONICAL_ENTRY_FILE_NAMES = new Set([
+  "bird.conf",
+  "bird2.conf",
+  "bird3.conf",
+]);
+
+const normalizeUriPath = (uri: string | undefined): string => {
+  if (!uri) {
+    return "";
+  }
+
+  if (!uri.includes("://")) {
+    return uri;
+  }
+
+  if (uri.startsWith("file://")) {
+    try {
+      return fileURLToPath(uri);
+    } catch {
+      return uri;
+    }
+  }
+
+  return uri;
+};
+
+const FRAGMENT_DIR_MARKERS = [
+  "peer",
+  "peers",
+  "pubpeers",
+  "downstream",
+  "upstream",
+  "customer",
+  "transit",
+  "neighbor",
+  "snippet",
+  "snippets",
+  "parts",
+  "routeserver",
+  "route-server",
+  "route_server",
+];
+
+const LIBRARY_DIR_MARKERS = [
+  "lib",
+  "libs",
+  "common",
+  "shared",
+  "function",
+  "functions",
+  "filter",
+  "filters",
+  "macro",
+  "macros",
+];
+
+const FRAGMENT_FILE_MARKERS = [
+  "babel",
+  "bfd",
+  "pipe",
+  "protocol",
+  "route",
+  "router",
+  "static",
+];
+
+const LIBRARY_FILE_MARKERS = [
+  "communities",
+  "filter",
+  "filters",
+  "protocol",
+  "rpki",
+  "table",
+  "templates",
+  "time",
+];
+
+const hasNamedProtocols = (parsed: ParsedBirdDocument): boolean =>
+  protocolDeclarations(parsed).some(
+    (declaration) => declaration.name.length > 0,
+  );
+
+const hasLibraryLikeContent = (parsed: ParsedBirdDocument): boolean =>
+  parsed.program.declarations.some((declaration) =>
+    ["define", "include", "filter", "function", "template", "table"].includes(
+      declaration.kind,
+    ),
+  );
+
+const stemOfPath = (path: string): string => {
+  const fileName = basename(path).toLowerCase();
+  const extension = extname(fileName);
+  return extension.length > 0 ? fileName.slice(0, -extension.length) : fileName;
+};
+
+const hasTimeformatOnlyContent = (text: string): boolean => {
+  const normalizedLines = text
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/#.*$/u, "").trim())
+    .filter((line) => line.length > 0);
+
+  if (normalizedLines.length === 0) {
+    return false;
+  }
+
+  return normalizedLines.every((line) =>
+    /^timeformat\s+[A-Za-z0-9_-]+\s+[A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+)*;$/u.test(
+      line,
+    ),
+  );
+};
+
+const findAncestorEntryFile = (path: string): string | null => {
+  let currentDir = dirname(path);
+
+  for (let depth = 0; depth < 6; depth += 1) {
+    for (const entryFileName of CANONICAL_ENTRY_FILE_NAMES) {
+      const candidate = join(currentDir, entryFileName);
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    const parentDir = dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+    currentDir = parentDir;
+  }
+
+  return null;
+};
+
+export const inferLintDocumentRole = (
+  parsed: ParsedBirdDocument,
+  uri: string | undefined,
+  text = "",
+): LintDocumentRole => {
+  const normalizedPath = normalizeUriPath(uri);
+  if (normalizedPath.length === 0 || normalizedPath.startsWith("memory://")) {
+    return "unknown";
+  }
+
+  const loweredPath = normalizedPath.replace(/\\/g, "/").toLowerCase();
+  const fileName = basename(loweredPath);
+  const fileStem = stemOfPath(loweredPath);
+  const pathParts = loweredPath.split("/").filter(Boolean);
+  const inFragmentDir = pathParts.some((part) =>
+    FRAGMENT_DIR_MARKERS.some((marker) => part.includes(marker)),
+  );
+  const inLibraryDir = pathParts.some((part) =>
+    LIBRARY_DIR_MARKERS.some(
+      (marker) => part === marker || part.includes(marker),
+    ),
+  );
+  const fragmentFile = FRAGMENT_FILE_MARKERS.some((marker) =>
+    fileStem.includes(marker),
+  );
+  const libraryFile = LIBRARY_FILE_MARKERS.some((marker) =>
+    fileStem.includes(marker),
+  );
+  const hasAncestorEntry = findAncestorEntryFile(normalizedPath) !== null;
+
+  if (CANONICAL_ENTRY_FILE_NAMES.has(fileName)) {
+    return "entry";
+  }
+
+  if (hasTimeformatOnlyContent(text)) {
+    return "library";
+  }
+
+  if (
+    routerIdDeclarations(parsed).length > 0 ||
+    hasIncludeDeclarations(parsed)
+  ) {
+    return "entry";
+  }
+
+  if (inLibraryDir && !hasNamedProtocols(parsed)) {
+    return "library";
+  }
+
+  if (inFragmentDir && hasNamedProtocols(parsed)) {
+    return "fragment";
+  }
+
+  if (hasAncestorEntry && hasNamedProtocols(parsed)) {
+    return "fragment";
+  }
+
+  if (hasAncestorEntry && (inLibraryDir || libraryFile || fragmentFile)) {
+    return hasNamedProtocols(parsed) ? "fragment" : "library";
+  }
+
+  if (!hasNamedProtocols(parsed) && hasLibraryLikeContent(parsed)) {
+    return "library";
+  }
+
+  if (inLibraryDir && fileStem.includes("community")) {
+    return "library";
+  }
+
+  return "entry";
 };
 
 export const hasSymbolKind = (

@@ -11,7 +11,11 @@ import { collectNetRuleDiagnostics } from "./rules/net.js";
 import { normalizeBaseDiagnostics } from "./rules/normalize.js";
 import { collectOspfRuleDiagnostics } from "./rules/ospf.js";
 import { collectSymRuleDiagnostics } from "./rules/sym.js";
-import { type RuleContext } from "./rules/shared.js";
+import {
+  hasIncludeDeclarations,
+  inferLintDocumentRole,
+  type RuleContext,
+} from "./rules/shared.js";
 import { collectTypeRuleDiagnostics } from "./rules/type.js";
 
 export interface LintResult {
@@ -73,6 +77,22 @@ const CROSS_FILE_FRAGMENT_ONLY_CODES = new Set([
   "cfg/missing-router-id",
 ]);
 
+const FRAGMENT_OR_LIBRARY_EXTERNAL_CODES = new Set([
+  "sym/undefined",
+  "sym/function-required",
+  "sym/filter-required",
+  "sym/table-required",
+  "cfg/no-protocol",
+  "cfg/missing-router-id",
+]);
+
+const INCLUDE_TOLERANT_EXTERNAL_CODES = new Set([
+  "sym/undefined",
+  "sym/function-required",
+  "sym/filter-required",
+  "sym/table-required",
+]);
+
 const filterCrossFileFragmentDiagnostics = (
   uri: string,
   entryUri: string,
@@ -107,7 +127,8 @@ export const lintBirdConfig = async (
   const core =
     options.core ?? buildCoreSnapshotFromParsed(parsed, { uri: options.uri });
 
-  const context: RuleContext = { text, parsed, core };
+  const context: RuleContext = { text, parsed, core, uri: options.uri };
+  const role = inferLintDocumentRole(parsed, options.uri, text);
 
   const normalizedBaseDiagnostics = normalizeBaseDiagnostics(
     parsed,
@@ -128,12 +149,33 @@ export const lintBirdConfig = async (
     uri: diagnostic.uri ?? options.uri,
   }));
 
+  const filterRoleDiagnostics = (
+    diagnostics: BirdDiagnostic[],
+  ): BirdDiagnostic[] => {
+    let output = diagnostics;
+
+    if (role === "fragment" || role === "library") {
+      output = output.filter(
+        (diagnostic) =>
+          !FRAGMENT_OR_LIBRARY_EXTERNAL_CODES.has(diagnostic.code),
+      );
+    }
+
+    if (hasIncludeDeclarations(parsed)) {
+      output = output.filter(
+        (diagnostic) => !INCLUDE_TOLERANT_EXTERNAL_CODES.has(diagnostic.code),
+      );
+    }
+
+    return output;
+  };
+
   return {
     parsed,
     core,
     diagnostics: dedupeDiagnostics([
-      ...normalizedBaseDiagnostics,
-      ...ruleDiagnostics,
+      ...filterRoleDiagnostics(normalizedBaseDiagnostics),
+      ...filterRoleDiagnostics(ruleDiagnostics),
     ]),
   };
 };

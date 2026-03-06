@@ -295,6 +295,17 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).not.toContain("cfg/missing-router-id");
   });
 
+  it("does not hit sym/function-required for entry files with includes", async () => {
+    const codes = await codesOf(`
+      include "functions/base.conf";
+      function local_policy() {
+        return external_helper();
+      }
+    `);
+
+    expect(codes).not.toContain("sym/function-required");
+  });
+
   it("does not hit cfg/missing-router-id when all bgp sessions inherit templates", async () => {
     const codes = await codesOf(`
       protocol bgp edge from rr_session {
