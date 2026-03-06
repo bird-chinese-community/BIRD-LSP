@@ -273,7 +273,6 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 ## 🙏 Acknowledgements
 
 <!-- CI START -->
-
 We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:
 
 - [`PoemaIX/IX-BIRD-RS-Generator`](https://github.com/PoemaIX/IX-BIRD-RS-Generator)
