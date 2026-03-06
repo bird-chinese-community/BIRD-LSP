@@ -6,9 +6,9 @@
  * - `neighbor ... as <digits>`
  * - `local as <digits>`
  * - `bgp_community.add((<digits>, ...))`
- * - `bgp_path.prepend(<digits>)`
- * - `remote as <digits>`
- * - `define ... = <digits>`
+ * - `bgp_path.prepend(<digits>)` / `bgp_path.delete(<digits>)`
+ * - `bgp_path ~ [<digits>, ...]`
+ * - `define MY_ASN = <digits>`
  */
 
 import {
@@ -16,39 +16,9 @@ import {
   type CompletionItem,
 } from "vscode-languageserver/node.js";
 import type { AsnIntel } from "@birdcc/intel";
+import { extractAsnPrefix } from "./asn-context.js";
 
-/** Context patterns where an integer is likely an ASN. */
-const ASN_CONTEXT_PATTERNS = [
-  // "# AS12345" — comment annotation
-  /(?:^|\s)#\s*AS(\d+)$/i,
-  // "local as 12345"
-  /\blocal\s+as\s+(\d+)$/i,
-  // "neighbor ... as 12345"
-  /\bas\s+(\d+)$/i,
-  // "remote as 12345"
-  /\bremote\s+as\s+(\d+)$/i,
-  // "bgp_community.add((12345" or "bgp_large_community.add((12345"
-  /community\.add\(\(\s*(\d+)$/i,
-  // "bgp_path.prepend(12345"
-  /bgp_path\.prepend\(\s*(\d+)$/i,
-  // "define ASN = 12345" or "define MY_ASN = 12345"
-  /\bdefine\s+\w+\s*=\s*(\d+)$/i,
-];
-
-/**
- * Extract the ASN digit prefix from the current line prefix, if in an ASN-relevant context.
- * Returns the digit string or undefined.
- */
-export const extractAsnPrefix = (linePrefix: string): string | undefined => {
-  for (const pattern of ASN_CONTEXT_PATTERNS) {
-    const match = pattern.exec(linePrefix);
-    if (match) {
-      return match[1];
-    }
-  }
-
-  return undefined;
-};
+export { extractAsnPrefix } from "./asn-context.js";
 
 /**
  * Generate ASN completion items with progressive matching.
