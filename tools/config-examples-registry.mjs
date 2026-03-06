@@ -1,3 +1,5 @@
+const privateRoot = process.env.BIRDCC_PRIVATE_BIRD2_LAUNCHPAD_ROOT?.trim();
+
 const configExampleSourceSort = (left, right) =>
   left.id.localeCompare(right.id);
 
@@ -7,9 +9,9 @@ const assertValidSource = (source) => {
   }
 
   if (source.visibility === "private") {
-    if (!source.localPath || !source.ghUsername) {
+    if (!source.ghUsername) {
       throw new Error(
-        `Private config example source must define localPath and ghUsername: ${source.id}`,
+        `Private config example source must define ghUsername: ${source.id}`,
       );
     }
 
@@ -60,7 +62,7 @@ export const configExampleSources = [
     id: "bird2-launchpad-network-private",
     birdMajor: 2,
     path: "BIRD2-LaunchPad-Network",
-    localPath: "refer/config-examples-private/BIRD2-LaunchPad-Network",
+    localPath: privateRoot,
     ghUsername: "LaunchPad-Network",
     visibility: "private",
   },

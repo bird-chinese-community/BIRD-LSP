@@ -1,9 +1,32 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { lintBirdConfig } from "../src/index.js";
 
-const codesOf = async (text: string): Promise<string[]> => {
-  const result = await lintBirdConfig(text);
+const codesOf = async (
+  text: string,
+  options: { uri?: string } = {},
+): Promise<string[]> => {
+  const result = await lintBirdConfig(text, options);
   return result.diagnostics.map((item) => item.code);
+};
+
+const codesOfWithUri = async (text: string, uri: string): Promise<string[]> => {
+  const result = await lintBirdConfig(text, { uri });
+  return result.diagnostics.map((item) => item.code);
+};
+
+const createTempProjectUri = async (
+  relativePath: string,
+  entryName = "bird.conf",
+): Promise<string> => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-lint-project-"));
+  const targetPath = join(root, relativePath);
+  await mkdir(dirname(targetPath), { recursive: true });
+  await writeFile(join(root, entryName), "# entry\n", "utf8");
+  await writeFile(targetPath, "# fragment\n", "utf8");
+  return new URL(`file://${targetPath}`).href;
 };
 
 describe("@birdcc/linter sym+cfg rules", () => {
@@ -25,6 +48,19 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("sym/undefined");
+  });
+
+  it("does not hit sym/undefined for fragment files that depend on external templates", async () => {
+    const codes = await codesOfWithUri(
+      `
+        protocol bgp edge from pubebgp6 {
+          neighbor 2001:db8::1 as 65002;
+        }
+      `,
+      "/tmp/pubpeers/PEERS.conf",
+    );
+
+    expect(codes).not.toContain("sym/undefined");
   });
 
   it("hits sym/proto-type-mismatch", async () => {
@@ -74,6 +110,20 @@ describe("@birdcc/linter sym+cfg rules", () => {
     expect(codes).toContain("sym/function-required");
   });
 
+  it("does not hit sym/function-required for library files that depend on external helpers", async () => {
+    const codes = await codesOfWithUri(
+      `
+        function direct_peer_import_filter(int ASN) {
+          if !is_valid() then return false;
+          return pub_process_communities(ASN, 0);
+        }
+      `,
+      "/tmp/lib/20-community-peer.conf",
+    );
+
+    expect(codes).not.toContain("sym/function-required");
+  });
+
   it("does not hit sym/function-required for method calls or builtins", async () => {
     const codes = await codesOf(`
       filter f1 {
@@ -119,6 +169,17 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("sym/table-required");
+  });
+
+  it("does not hit sym/table-required for declared aspa tables", async () => {
+    const codes = await codesOf(`
+      aspa table aspa_table;
+      protocol rpki rpki_launchpad {
+        aspa { table aspa_table; };
+      }
+    `);
+
+    expect(codes).not.toContain("sym/table-required");
   });
 
   it("hits sym/variable-scope", async () => {
@@ -189,6 +250,37 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).not.toContain("cfg/no-protocol");
+  });
+
+  it("does not hit cfg/no-protocol for timeformat-only snippets with project entry", async () => {
+    const uri = await createTempProjectUri("time.conf");
+    const codes = await codesOf(
+      `
+        timeformat base iso long;
+        timeformat log iso long;
+      `,
+      { uri },
+    );
+
+    expect(codes).not.toContain("cfg/no-protocol");
+  });
+
+  it("does not hit sym/table-required for nested protocol snippets under a project entry", async () => {
+    const uri = await createTempProjectUri("exchange/pipe.conf");
+    const codes = await codesOf(
+      `
+        protocol pipe pipe_customer_v4 {
+          table master4;
+          peer table table_customer_v4;
+          import all;
+          export all;
+        }
+      `,
+      { uri },
+    );
+
+    expect(codes).not.toContain("sym/table-required");
+    expect(codes).not.toContain("cfg/missing-router-id");
   });
 
   it("does not hit cfg/missing-router-id for configs with includes", async () => {
@@ -295,6 +387,32 @@ describe("@birdcc/linter sym+cfg rules", () => {
     `);
 
     expect(codes).toContain("cfg/switch-value-expected");
+  });
+
+  it("does not hit cfg/switch-value-expected for bfd blocks", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 2001:db8::1 as 65002;
+        bfd {
+          interval 1000 ms;
+          multiplier 3;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/switch-value-expected");
+  });
+
+  it("does not hit sym/duplicate for anonymous protocols", async () => {
+    const codes = await codesOf(`
+      protocol kernel {
+      }
+      protocol kernel {
+      }
+    `);
+
+    expect(codes).not.toContain("sym/duplicate");
   });
 
   it("hits cfg/number-expected", async () => {

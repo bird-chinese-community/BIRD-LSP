@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -12,9 +12,13 @@ import { collectBirdConfigCandidatesFromRoots } from "../../../../tools/realworl
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../");
+const additionalRoots = (process.env.BIRDCC_PRIVATE_CONFIG_EXAMPLE_ROOTS ?? "")
+  .split(delimiter)
+  .map((value) => value.trim())
+  .filter((value) => value.length > 0);
 const examplesRoots = [
   resolve(repoRoot, "refer/config-examples"),
-  resolve(repoRoot, "refer/config-examples-private"),
+  ...additionalRoots,
 ];
 
 const DEFAULT_MAX_BYTES = 128 * 1024;

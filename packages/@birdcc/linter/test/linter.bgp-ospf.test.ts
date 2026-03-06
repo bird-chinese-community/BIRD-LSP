@@ -1,9 +1,27 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { lintBirdConfig } from "../src/index.js";
 
-const codesOf = async (text: string): Promise<string[]> => {
-  const result = await lintBirdConfig(text);
+const codesOf = async (
+  text: string,
+  options: { uri?: string } = {},
+): Promise<string[]> => {
+  const result = await lintBirdConfig(text, options);
   return result.diagnostics.map((item) => item.code);
+};
+
+const createTempProjectUri = async (
+  relativePath: string,
+  entryName = "bird.conf",
+): Promise<string> => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-bgp-project-"));
+  const targetPath = join(root, relativePath);
+  await mkdir(dirname(targetPath), { recursive: true });
+  await writeFile(join(root, entryName), "# entry\n", "utf8");
+  await writeFile(targetPath, "# fragment\n", "utf8");
+  return new URL(`file://${targetPath}`).href;
 };
 
 describe("@birdcc/linter bgp+ospf rules", () => {
@@ -128,6 +146,43 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     `);
 
     expect(codes).not.toContain("bgp/missing-remote-as");
+  });
+
+  it("does not hit bgp/missing-remote-as when ASN is inherited from template chain", async () => {
+    const codes = await codesOf(`
+      template bgp base_tpl {
+        local as 65001;
+        neighbor as internal;
+      }
+
+      template bgp child_tpl from base_tpl {
+      }
+
+      protocol bgp edge from child_tpl {
+        neighbor 2001:db8::1;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
+  });
+
+  it("does not hit cfg/missing-router-id for nested route server fragments", async () => {
+    const uri = await createTempProjectUri("route-server/edge.conf");
+    const codes = await codesOf(
+      `
+        protocol bgp edge_rs_v4_1 {
+          local as 65001;
+          neighbor 203.0.113.1 as 65002;
+          ipv4 {
+            table table_edge_rs_v4;
+          };
+        }
+      `,
+      { uri },
+    );
+
+    expect(codes).not.toContain("cfg/missing-router-id");
+    expect(codes).not.toContain("bgp/missing-local-as");
   });
 
   it("hits bgp/timer-invalid", async () => {
