@@ -17,7 +17,7 @@ import { sortedConfigExampleSources } from "./config-examples-registry.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const configExamplesRoot = resolve(repoRoot, "refer/config-examples");
-const indexFilePath = resolve(configExamplesRoot, "index.json");
+const indexFilePath = resolve(configExamplesRoot, "ci-lock.json");
 const workRoot = resolve(repoRoot, ".tmp/config-examples-sync");
 const cloneRoot = resolve(workRoot, "clones");
 const stageRoot = resolve(workRoot, "stage");
@@ -180,7 +180,9 @@ const syncOneSource = async ({ source, previousEntry }) => {
       : new Date().toISOString();
 
   const allFiles = await collectFiles(cloneDir);
-  const selectedFiles = allFiles.filter((filePath) => isConfigSnapshotFile(filePath));
+  const selectedFiles = allFiles.filter((filePath) =>
+    isConfigSnapshotFile(filePath),
+  );
 
   let confFiles = 0;
   let confBytes = 0;
@@ -203,14 +205,14 @@ const syncOneSource = async ({ source, previousEntry }) => {
       id: source.id,
       birdMajor: source.birdMajor,
       path: source.path,
-    repo: source.repo,
-    repoGit: source.repoGit,
-    ghUsername: metadata.ghUsername,
-    licenseSpdx: metadata.licenseSpdx,
-    defaultBranch: metadata.defaultBranch,
-    commit,
-    confFiles,
-    confBytes,
+      repo: source.repo,
+      repoGit: source.repoGit,
+      ghUsername: metadata.ghUsername,
+      licenseSpdx: metadata.licenseSpdx,
+      defaultBranch: metadata.defaultBranch,
+      commit,
+      confFiles,
+      confBytes,
       syncedAt,
     },
   };
@@ -296,7 +298,7 @@ const main = async () => {
     sources: sourceEntries,
   };
   const indexContent = `${JSON.stringify(index, null, 2)}\n`;
-  await writeFile(resolve(stageRoot, "index.json"), indexContent, "utf8");
+  await writeFile(resolve(stageRoot, "ci-lock.json"), indexContent, "utf8");
 
   const desiredSnapshot = await snapshotFiles(stageRoot);
   const currentSnapshot = await snapshotFiles(configExamplesRoot);

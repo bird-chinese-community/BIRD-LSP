@@ -6,8 +6,21 @@ import { sortedConfigExampleSources } from "./config-examples-registry.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const targets = [
-  resolve(repoRoot, "README.md"),
-  resolve(repoRoot, "packages/@birdcc/vscode/README.md"),
+  {
+    path: resolve(repoRoot, "README.md"),
+    intro:
+      "We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:",
+  },
+  {
+    path: resolve(repoRoot, "README.zh.md"),
+    intro:
+      "我们衷心感谢这些上游仓库提供的真实世界 BIRD 配置示例；它们帮助本项目持续验证解析、格式化、Lint 与编辑器支持能力：",
+  },
+  {
+    path: resolve(repoRoot, "packages/@birdcc/vscode/README.md"),
+    intro:
+      "We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:",
+  },
 ];
 
 const START_MARKER = "<!-- CI START -->";
@@ -15,26 +28,26 @@ const END_MARKER = "<!-- CI END -->";
 const args = new Set(process.argv.slice(2));
 const isCheckMode = args.has("--check");
 
-const acknowledgementLines = [
-  "We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:",
-  "",
-  ...sortedConfigExampleSources.map(
-    (source) =>
-      `- [\`${source.repo}\`](https://github.com/${source.repo})`,
-  ),
-];
-
-const generatedBlock = [START_MARKER, ...acknowledgementLines, END_MARKER].join(
-  "\n",
-);
-
-const replaceGeneratedBlock = (content) => {
+const replaceGeneratedBlock = (content, intro) => {
   const start = content.indexOf(START_MARKER);
   const end = content.indexOf(END_MARKER);
 
   if (start === -1 || end === -1 || end < start) {
     throw new Error("README is missing CI acknowledgement markers.");
   }
+
+  const acknowledgementLines = [
+    intro,
+    "",
+    ...sortedConfigExampleSources.map(
+      (source) =>
+        `- [\`${source.repo}\`](https://github.com/${source.repo})`,
+    ),
+  ];
+
+  const generatedBlock = [START_MARKER, ...acknowledgementLines, END_MARKER].join(
+    "\n",
+  );
 
   return `${content.slice(0, start)}${generatedBlock}${content.slice(
     end + END_MARKER.length,
@@ -44,8 +57,8 @@ const replaceGeneratedBlock = (content) => {
 let changed = false;
 
 for (const target of targets) {
-  const original = await readFile(target, "utf8");
-  const next = replaceGeneratedBlock(original);
+  const original = await readFile(target.path, "utf8");
+  const next = replaceGeneratedBlock(original, target.intro);
 
   if (next === original) {
     continue;
@@ -54,7 +67,7 @@ for (const target of targets) {
   changed = true;
 
   if (!isCheckMode) {
-    await writeFile(target, next);
+    await writeFile(target.path, next);
   }
 }
 
