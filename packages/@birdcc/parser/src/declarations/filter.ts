@@ -111,7 +111,8 @@ const parseControlStatements = (
   }
 
   if (
-    tokenTexts.includes("accept") &&
+    (tokenTexts.includes("accept") ||
+      /\baccept\b/.test(bodyText.toLowerCase())) &&
     !statements.some((item) => item.kind === "accept")
   ) {
     statements.push({
@@ -121,7 +122,8 @@ const parseControlStatements = (
   }
 
   if (
-    tokenTexts.includes("reject") &&
+    (tokenTexts.includes("reject") ||
+      /\breject\b/.test(bodyText.toLowerCase())) &&
     !statements.some((item) => item.kind === "reject")
   ) {
     statements.push({

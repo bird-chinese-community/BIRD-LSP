@@ -330,6 +330,33 @@ const parseChannelEntries = (
   return entries;
 };
 
+const findFirstField = (
+  node: SyntaxNode,
+  fieldName: string,
+): SyntaxNode | null => {
+  const direct = node.childForFieldName(fieldName);
+  if (isPresentNode(direct)) {
+    return direct;
+  }
+
+  const stack = [...node.namedChildren];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+
+    const nested = current.childForFieldName(fieldName);
+    if (isPresentNode(nested)) {
+      return nested;
+    }
+
+    stack.push(...current.namedChildren);
+  }
+
+  return null;
+};
+
 const isRangeImmediatelyAfter = (
   previous: SourceRange,
   next: SourceRange,
@@ -528,12 +555,12 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "neighbor_statement") {
-      const addressNode = statementNode.childForFieldName("address");
-      const interfaceNode = statementNode.childForFieldName("interface");
-      const asnNode = statementNode.childForFieldName("asn");
-      const portNode = statementNode.childForFieldName("port");
+      const addressNode = findFirstField(statementNode, "address");
+      const interfaceNode = findFirstField(statementNode, "interface");
+      const asnNode = findFirstField(statementNode, "asn");
+      const portNode = findFirstField(statementNode, "port");
 
-      if (!isPresentNode(addressNode)) {
+      if (!isPresentNode(addressNode) && !isPresentNode(asnNode)) {
         pushMissingFieldIssue(
           issues,
           statementNode,

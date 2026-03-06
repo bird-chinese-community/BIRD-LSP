@@ -164,6 +164,7 @@ const FUNCTION_PARAM_WITH_SEMICOLON =
 const LOCAL_ADDRESS_WITH_AS =
   /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
+const CASE_ARM_STATEMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -191,6 +192,10 @@ const isRecoverableSyntaxIssue = (
   issue: ParseIssue,
   lines: string[],
 ): boolean => {
+  if (issue.code === "syntax/missing-semicolon") {
+    return CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line));
+  }
+
   if (issue.code !== "parser/syntax-error") {
     return false;
   }
