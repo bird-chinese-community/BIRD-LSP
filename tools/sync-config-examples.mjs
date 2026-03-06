@@ -13,7 +13,7 @@ import {
 import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { sortedConfigExampleSources } from "./config-examples-registry.mjs";
+import { sortedPublicConfigExampleSources } from "./config-examples-registry.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const configExamplesRoot = resolve(repoRoot, "refer/config-examples");
@@ -75,6 +75,20 @@ const runCommand = async ({ cmd, args: commandArgs, cwd }) => {
     stdout: Buffer.concat(stdoutChunks).toString("utf8").trim(),
     stderr: Buffer.concat(stderrChunks).toString("utf8").trim(),
   };
+};
+
+const assertPublicSyncSource = (source) => {
+  if (source.visibility !== "public") {
+    throw new Error(
+      `Private config example source cannot be synced by CI: ${source.id}`,
+    );
+  }
+
+  if (!source.repo || !source.repoGit) {
+    throw new Error(
+      `Public config example source is missing repo metadata: ${source.id}`,
+    );
+  }
 };
 
 const isConfigSnapshotFile = (filePath) => {
@@ -149,6 +163,7 @@ const fetchRepoMetadata = async (repo) => {
 };
 
 const syncOneSource = async ({ source, previousEntry }) => {
+  assertPublicSyncSource(source);
   const metadata = await fetchRepoMetadata(source.repo);
   const cloneDir = resolve(cloneRoot, source.id);
   const stageDir = resolve(stageRoot, source.path);
@@ -277,7 +292,7 @@ const main = async () => {
 
   const sourceEntries = [];
   let hasSourceChanges = false;
-  for (const source of sortedConfigExampleSources) {
+  for (const source of sortedPublicConfigExampleSources) {
     // eslint-disable-next-line no-await-in-loop
     const result = await syncOneSource({
       source,
@@ -319,7 +334,7 @@ const main = async () => {
   await cp(stageRoot, configExamplesRoot, { recursive: true });
 
   console.log(
-    `Synced ${sourceEntries.length} config-example sources to refer/config-examples`,
+    `Synced ${sourceEntries.length} public config-example sources to refer/config-examples`,
   );
 };
 
