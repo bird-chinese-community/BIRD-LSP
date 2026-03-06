@@ -254,6 +254,20 @@ pnpm test
 
 ---
 
+## 🙏 鸣谢
+
+<!-- CI START -->
+我们衷心感谢这些上游仓库提供的真实世界 BIRD 配置示例；它们帮助本项目持续验证解析、格式化、Lint 与编辑器支持能力：
+
+- [`PoemaIX/IX-BIRD-RS-Generator`](https://github.com/PoemaIX/IX-BIRD-RS-Generator)
+- [`HuJK-Data/JKNET-BIRD`](https://github.com/HuJK-Data/JKNET-BIRD)
+- [`186526/net186-config`](https://github.com/186526/net186-config)
+- [`SunyzNET/bird-config`](https://github.com/SunyzNET/bird-config)
+- [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)
+<!-- CI END -->
+
+---
+
 <p align="center">
   <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
 </p>
