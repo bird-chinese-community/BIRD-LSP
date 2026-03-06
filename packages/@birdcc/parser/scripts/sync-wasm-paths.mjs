@@ -5,12 +5,19 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const pkgDir = dirname(scriptDir);
 
-const rootWasm = join(pkgDir, "tree-sitter-birdcc.wasm");
+const generatedRootWasmCandidates = [
+  join(pkgDir, "tree-sitter-birdcc.wasm"),
+  join(pkgDir, "tree-sitter-bird.wasm"),
+];
 const srcWasm = join(pkgDir, "src", "tree-sitter-birdcc.wasm");
 const distWasm = join(pkgDir, "dist", "tree-sitter-birdcc.wasm");
 
-if (existsSync(rootWasm)) {
-  renameSync(rootWasm, srcWasm);
+const generatedRootWasm = generatedRootWasmCandidates.find((path) =>
+  existsSync(path),
+);
+
+if (generatedRootWasm && generatedRootWasm !== srcWasm) {
+  renameSync(generatedRootWasm, srcWasm);
 }
 
 if (!existsSync(srcWasm)) {
