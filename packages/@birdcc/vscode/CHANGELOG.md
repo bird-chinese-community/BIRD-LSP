@@ -1,6 +1,36 @@
 # Changelog 🕊️
 
+<!-- markdownlint-disable MD024 -->
+
 All notable changes to `@birdcc/vscode` will be documented in this file.
+
+## [0.5.0] - 2026-03-07
+
+### ✨ Added
+
+#### 🛰️ ASN Intelligence
+
+![ASN Intelligence Screenshot](https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/refs/heads/main/.github/assets/screenshots/asn-hint-hover.png)
+
+Added ASN-aware autocompletion, hover, and inlay hints using the bundled `@birdcc/intel` dataset. Improved ASN recognition in BGP contexts, with fallback for reserved/private ASNs, and new `bird2-lsp.intel.*` settings to toggle features.
+
+- 🧭 **`bird.config.json`-Aware Project Analysis** — Language server now understands `bird.config.json` / `birdcc.config.json`, auto-detects entry files in monorepos, and suggests config files when beneficial.
+- ⏳ **Project Analysis Progress Notifications** — Long-running analysis shows progress, so you know it’s working.
+- 🌍 **Broader Real‑World Coverage** — Expanded parser, core, and linter support for production BIRD syntax: `local as`, more `neighbor` forms, ASPA tables, richer filter/log grammar, and resilient wildcard `include` resolution.
+
+### 🐛 Fixed
+
+- 🧠 **Large‑File Type Hint Stalls** — Fixed stalls in type-hint inference on large files.
+- 🔗 **Workspace Entry Detection** — Reliable workspace entry initialization across nested workspaces and mixed path styles.
+- 🗺️ **Deep Project Fallback** — Retained full-scan fallback to ensure no project root is missed.
+- 🩺 **Reduced False Positives** — Squashed linter edge cases: include-only fragments, router ID checks, function symbols, iterable inference, template BGP sessions, symbolic AS variants, and route-limit validation.
+- 🧩 **Parser Recovery Improvements** — Better recovery from anonymous protocols, split IPv6 neighbor tails, interface/port scoping, and anonymous declarations.
+
+### ⚡ Performance
+
+- 🚀 **Workspace‑Scoped Includes** — Include expansion limited to workspace boundaries, avoiding forbidden system roots.
+- 🎯 **Smarter Cross‑File Detection** — Improved entry‑point auto-detection for more targeted analysis.
+- 🪶 **Tighter ASN Filtering** — Narrowed ASN lookups to relevant contexts, reducing noise.
 
 ## [0.3.2] - 2026-03-04
 
@@ -117,6 +147,9 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 
 ---
 
+[0.5.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.2...vscode-v0.5.0
+[0.3.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.1...vscode-v0.3.2
+[0.3.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.0...vscode-v0.3.1
 [0.3.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.2.0...vscode-v0.3.0
 [0.2.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.1.6...vscode-v0.2.0
 [0.0.1-alpha.0]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/vscode-v0.0.1-alpha.0
