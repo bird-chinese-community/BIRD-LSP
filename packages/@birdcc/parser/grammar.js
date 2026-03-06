@@ -37,7 +37,7 @@ export default grammar({
     identifier: () => /[A-Za-z_][A-Za-z0-9_-]*/,
     number: () => /[0-9][0-9A-Za-z_]*/,
     ipv4_literal: () => token(/[0-9]{1,3}(\.[0-9]{1,3}){3}/),
-    ipv6_literal: () => token(/[0-9A-Fa-f]*:[0-9A-Fa-f:]+/),
+    ipv6_literal: () => token(prec(2, /[0-9A-Fa-f]*:[0-9A-Fa-f:]+/)),
     ip_literal: ($) => choice($.ipv4_literal, $.ipv6_literal),
     prefix_literal: () =>
       token(/[0-9A-Fa-f:.]+\/[0-9]{1,3}([+-]|\{[0-9]{1,3},[0-9]{1,3}\})?/),
@@ -183,6 +183,7 @@ export default grammar({
             "template",
             field("template_type", $.identifier),
             field("name", $.identifier),
+            optional(seq("from", field("from_template", $.identifier))),
             field("body", $.block),
             optional(";"),
           ),

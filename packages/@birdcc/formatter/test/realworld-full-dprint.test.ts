@@ -6,16 +6,19 @@ import { describe, expect, it } from "vitest";
 
 import { formatBirdConfig } from "../src/index.js";
 
-import { collectBirdConfigCandidates } from "../../../../tools/realworld-config-files.mjs";
+import { collectBirdConfigCandidatesFromRoots } from "../../../../tools/realworld-config-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../");
-const examplesRoot = resolve(repoRoot, "refer/config-examples");
+const examplesRoots = [
+  resolve(repoRoot, "refer/config-examples"),
+  resolve(repoRoot, "refer/config-examples-private"),
+];
 
 describe("real-world config examples (full dprint formatter)", () => {
   it("formats all discovered config examples with dprint engine", async () => {
-    const candidates = await collectBirdConfigCandidates({
-      root: examplesRoot,
+    const candidates = await collectBirdConfigCandidatesFromRoots({
+      roots: examplesRoots,
       maxBytes: Number.MAX_SAFE_INTEGER,
     });
 

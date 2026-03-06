@@ -179,6 +179,29 @@ describe("@birdcc/formatter", () => {
     expect(lines[5]).toBe("}");
   });
 
+  it("indents multiline define lists with builtin formatter", async () => {
+    const input = ["define LIST = [", "1,", "2,", "];", ""].join("\n");
+
+    const result = await formatBirdConfig(input, { engine: "builtin" });
+
+    expect(result.text).toBe("define LIST = [\n  1,\n  2,\n];\n");
+  });
+
+  it("indents multiline define lists with dprint formatter", async () => {
+    formatTextMock.mockImplementation(({ fileText }: { fileText: string }) =>
+      fileText.replace(
+        "define LIST = [\n1,\n2,\n];\n",
+        "define LIST = [\n  1,\n  2,\n];\n",
+      ),
+    );
+
+    const input = ["define LIST = [", "1,", "2,", "];", ""].join("\n");
+
+    const result = await formatBirdConfig(input, { engine: "dprint" });
+
+    expect(result.text).toBe("define LIST = [\n  1,\n  2,\n];\n");
+  });
+
   it("rejects semantic changes in safe mode", async () => {
     formatTextMock.mockReturnValueOnce("router id 1;\n");
 

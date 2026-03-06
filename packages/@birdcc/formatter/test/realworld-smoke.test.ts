@@ -8,11 +8,14 @@ import { parseBirdConfig } from "@birdcc/parser";
 
 import { __formatBirdConfigBuiltinForTest } from "../src/index.js";
 
-import { collectBirdConfigCandidates } from "../../../../tools/realworld-config-files.mjs";
+import { collectBirdConfigCandidatesFromRoots } from "../../../../tools/realworld-config-files.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../../../");
-const examplesRoot = resolve(repoRoot, "refer/config-examples");
+const examplesRoots = [
+  resolve(repoRoot, "refer/config-examples"),
+  resolve(repoRoot, "refer/config-examples-private"),
+];
 
 const DEFAULT_MAX_BYTES = 128 * 1024;
 const DEFAULT_LIMIT = 15;
@@ -24,8 +27,8 @@ describe("real-world config examples (formatter smoke)", () => {
     );
     const limit = Number(process.env.BIRDCC_REALWORLD_LIMIT ?? DEFAULT_LIMIT);
 
-    const candidates = await collectBirdConfigCandidates({
-      root: examplesRoot,
+    const candidates = await collectBirdConfigCandidatesFromRoots({
+      roots: examplesRoots,
       maxBytes,
     });
 

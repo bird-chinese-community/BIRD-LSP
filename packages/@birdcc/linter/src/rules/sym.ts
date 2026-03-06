@@ -43,6 +43,7 @@ const BUILTIN_FUNCTION_NAMES = new Set([
   "route_source",
   "roa_check",
   "delete",
+  "filter",
   "prefix",
   "ip",
   "int",
@@ -55,6 +56,8 @@ const BUILTIN_TABLE_NAMES = new Set([
   "main4",
   "main6",
 ]);
+const isNumericTableReference = (value: string): boolean =>
+  /^-?\d+$/u.test(value.trim());
 
 const isImportOrExportFilterClause = (
   value: unknown,
@@ -342,7 +345,7 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
       }
 
       const text = statement.text;
-      const matched = text.match(/\btable\b(?:\s+([A-Za-z_][A-Za-z0-9_]*))?/i);
+      const matched = text.match(/\btable\b(?:\s+([^;#\s]+))?/i);
       if (!matched) {
         continue;
       }
@@ -362,6 +365,7 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
       }
 
       if (
+        !isNumericTableReference(tableName) &&
         !tableNames.has(tableName.toLowerCase()) &&
         !hasSymbolKind(core, "table", tableName) &&
         !BUILTIN_TABLE_NAMES.has(tableName.toLowerCase())

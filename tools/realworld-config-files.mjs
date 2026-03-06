@@ -82,3 +82,14 @@ export const collectBirdConfigCandidates = async ({ root, maxBytes }) => {
 
   return candidates;
 };
+
+export const collectBirdConfigCandidatesFromRoots = async ({
+  roots,
+  maxBytes,
+}) => {
+  const allCandidates = await Promise.all(
+    roots.map((root) => collectBirdConfigCandidates({ root, maxBytes })),
+  );
+
+  return allCandidates.flat();
+};

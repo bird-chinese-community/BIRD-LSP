@@ -7,9 +7,15 @@ fn count_token(text: &str, token: char) -> usize {
     text.chars().filter(|character| *character == token).count()
 }
 
-fn count_leading_close_braces(text: &str) -> usize {
+fn count_structural_tokens(text: &str) -> (usize, usize) {
+    let opens = count_token(text, '{') + count_token(text, '[');
+    let closes = count_token(text, '}') + count_token(text, ']');
+    (opens, closes)
+}
+
+fn count_leading_close_tokens(text: &str) -> usize {
     text.chars()
-        .take_while(|character| *character == '}')
+        .take_while(|character| *character == '}' || *character == ']')
         .count()
 }
 
@@ -121,9 +127,8 @@ fn normalize_text_with_builtin(text: &str, config: &Configuration) -> String {
             .map(|(before_comment, _)| before_comment.trim_end())
             .unwrap_or(line);
 
-        let open_count = count_token(structural_line, '{');
-        let close_count = count_token(structural_line, '}');
-        let leading_close = count_leading_close_braces(structural_line).min(indent_level);
+        let (open_count, close_count) = count_structural_tokens(structural_line);
+        let leading_close = count_leading_close_tokens(structural_line).min(indent_level);
         indent_level = indent_level.saturating_sub(leading_close);
 
         let high_risk_line = is_high_risk_expression_line(line);
@@ -252,5 +257,15 @@ mod tests {
             output,
             "protocol bgp edge {\n  neighbor 192.0.2.2 as 65002; # open brace in comment {\n  router id 192.0.2.1;\n}\n"
         );
+    }
+
+    #[test]
+    fn indents_multiline_list_literals() {
+        let input = "define LIST = [\n1,\n2,\n];\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .expect("format should succeed")
+            .expect("format should change text");
+
+        assert_eq!(output, "define LIST = [\n  1,\n  2,\n];\n");
     }
 }

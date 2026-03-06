@@ -32,13 +32,25 @@ const hasIncludeDeclarations = (
   parsed.program.declarations.some(
     (declaration) => declaration.kind === "include",
   );
+const hasLibraryStyleDeclarations = (
+  parsed: Parameters<BirdRule>[0]["parsed"],
+): boolean =>
+  parsed.program.declarations.some((declaration) =>
+    ["define", "include", "function", "template", "table"].includes(
+      declaration.kind,
+    ),
+  );
 
 const cfgNoProtocolRule: BirdRule = ({ parsed }) => {
   if (protocolDeclarations(parsed).length > 0) {
     return [];
   }
 
-  if (hasDefineDeclarations(parsed) || hasIncludeDeclarations(parsed)) {
+  if (
+    hasDefineDeclarations(parsed) ||
+    hasIncludeDeclarations(parsed) ||
+    hasLibraryStyleDeclarations(parsed)
+  ) {
     return [];
   }
 

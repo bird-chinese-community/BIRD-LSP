@@ -18,9 +18,25 @@ const countToken = (text: string, token: string): number => {
   return count;
 };
 
-const countLeadingCloseBraces = (text: string): number => {
-  const matched = text.match(/^}+/);
-  return matched?.[0]?.length ?? 0;
+const countStructuralTokens = (
+  text: string,
+): { opens: number; closes: number } => ({
+  opens: countToken(text, "{") + countToken(text, "["),
+  closes: countToken(text, "}") + countToken(text, "]"),
+});
+
+const countLeadingCloseTokens = (text: string): number => {
+  let count = 0;
+  for (const char of text) {
+    if (char === "}" || char === "]") {
+      count += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return count;
 };
 
 const extractStructuralSegment = (line: string): string => {
@@ -80,11 +96,11 @@ export const normalizeTextWithBuiltin = async (
     blankStreak = 0;
 
     const structuralLine = extractStructuralSegment(line);
-    const openCount = countToken(structuralLine, "{");
-    const closeCount = countToken(structuralLine, "}");
+    const { opens: openCount, closes: closeCount } =
+      countStructuralTokens(structuralLine);
     const leadingCloseCount = Math.min(
       indentLevel,
-      countLeadingCloseBraces(structuralLine),
+      countLeadingCloseTokens(structuralLine),
     );
     indentLevel = Math.max(0, indentLevel - leadingCloseCount);
 

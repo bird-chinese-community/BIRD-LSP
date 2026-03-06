@@ -64,6 +64,15 @@ const isLikelyReference = (value: string): boolean =>
 const isLikelyPrefixPattern = (value: string): boolean =>
   /^[0-9A-Fa-f:.]+\/\d+(?:\+|\{\d+,\d+\})?$/u.test(value.trim());
 
+const isLikelyTupleLiteral = (value: string): boolean => {
+  const normalized = value.trim();
+  return (
+    normalized.startsWith("(") &&
+    normalized.endsWith(")") &&
+    normalized.includes(",")
+  );
+};
+
 const typeNotIterableRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
@@ -73,6 +82,7 @@ const typeNotIterableRule: BirdRule = ({ parsed }) => {
       const right = normalizeRightExpression(match.right);
       if (
         right.startsWith("[") ||
+        isLikelyTupleLiteral(right) ||
         isLikelyReference(right) ||
         isLikelyPrefixPattern(right) ||
         scalarTypeOfExpression(right) === "ip" ||

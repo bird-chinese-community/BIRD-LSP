@@ -21,6 +21,11 @@ const BUILTIN_ASSIGNABLE_ATTRIBUTES = new Set([
   "onlink",
   "dest",
   "krt_prefsrc",
+  "bgp_local_pref",
+  "bgp_next_hop",
+  "bgp_next_hop_ll",
+  "preference",
+  "validated",
 ]);
 const SUPPORTED_DECLARED_TYPES = new Set<TypeValue>([
   "int",

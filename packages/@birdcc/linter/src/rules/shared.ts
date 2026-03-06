@@ -220,7 +220,7 @@ export const extractFirstNumberAfterKeyword = (
   text: string,
   keyword: string,
 ): number | null => {
-  const pattern = new RegExp(`${keyword}\\s+(-?\\d+)`, "i");
+  const pattern = new RegExp(`${keyword}(?:\\s+time)?\\s+(-?\\d+)`, "i");
   const matched = text.match(pattern);
   return numericValue(matched?.[1]);
 };

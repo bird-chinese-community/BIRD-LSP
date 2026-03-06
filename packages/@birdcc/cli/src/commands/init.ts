@@ -5,6 +5,7 @@
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
+import { detectIndentSizeFromFiles } from "./init-indent.js";
 
 const SCHEMA_URL =
   "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json";
@@ -45,7 +46,24 @@ const existingConfigHasEntry = async (configPath: string): Promise<boolean> => {
 /**
  * Generate config object from detection result.
  */
-const buildConfig = (result: DetectionResult): Record<string, unknown> => {
+const collectIndentProbePaths = (result: DetectionResult): string[] => {
+  if (result.kind === "monorepo-multi-entry") {
+    return result.candidates
+      .filter(
+        (candidate) =>
+          candidate.role === "entry" || candidate.role === "unknown",
+      )
+      .slice(0, 5)
+      .map((candidate) => candidate.path);
+  }
+
+  return result.primary ? [result.primary.path] : [];
+};
+
+const buildConfig = async (
+  root: string,
+  result: DetectionResult,
+): Promise<Record<string, unknown>> => {
   const config: Record<string, unknown> = {
     $schema: SCHEMA_URL,
   };
@@ -70,13 +88,29 @@ const buildConfig = (result: DetectionResult): Record<string, unknown> => {
     config.main = `./${result.primary.path}`;
   }
 
+  const indentProbePaths = collectIndentProbePaths(result);
+  if (indentProbePaths.length > 0) {
+    const indentResult = await detectIndentSizeFromFiles(
+      root,
+      indentProbePaths,
+    );
+    if (indentResult.indentSize !== undefined) {
+      config.formatter = {
+        indentSize: indentResult.indentSize,
+      };
+    }
+  }
+
   return config;
 };
 
 /**
  * Format detection result for human-readable dry-run output.
  */
-const formatDryRunOutput = (result: DetectionResult): string => {
+const formatDryRunOutput = async (
+  root: string,
+  result: DetectionResult,
+): Promise<string> => {
   const lines: string[] = [];
 
   lines.push("Detected candidates:");
@@ -94,7 +128,7 @@ const formatDryRunOutput = (result: DetectionResult): string => {
   lines.push(`Conclusion: ${result.kind} (confidence: ${result.confidence}%)`);
 
   if (result.primary) {
-    const config = buildConfig(result);
+    const config = await buildConfig(root, result);
     lines.push(`→ Will write: ${JSON.stringify(config)}`);
   }
 
@@ -150,7 +184,7 @@ export const runInit = async (
     console.log(JSON.stringify(result, null, 2));
 
     if (!options.dryRun && options.write && result.primary) {
-      const config = buildConfig(result);
+      const config = await buildConfig(root, result);
       await writeFile(
         configPath,
         JSON.stringify(config, null, 2) + "\n",
@@ -162,7 +196,7 @@ export const runInit = async (
 
   // Dry-run mode
   if (options.dryRun) {
-    console.log(formatDryRunOutput(result));
+    console.log(await formatDryRunOutput(root, result));
     return;
   }
 
@@ -183,7 +217,7 @@ export const runInit = async (
       return;
     }
 
-    const config = buildConfig(result);
+    const config = await buildConfig(root, result);
     const configContent = JSON.stringify(config, null, 2) + "\n";
 
     if (!options.force && (await fileExists(configPath))) {
@@ -203,7 +237,7 @@ export const runInit = async (
   }
 
   // Interactive TTY mode — show result and ask for confirmation
-  console.log(formatDryRunOutput(result));
+  console.log(await formatDryRunOutput(root, result));
 
   if (result.kind === "single-ambiguous") {
     console.log(
