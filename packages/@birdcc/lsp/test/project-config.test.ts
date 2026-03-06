@@ -117,9 +117,36 @@ describe("resolveProjectAnalysisOptions", () => {
       expect(resolved.mode).toBe("document");
       expect(resolved.entryUri).toBe(toUri(documentPath));
       expect(resolved.workspaceRootUri).toBe(toUri(root));
-      expect(resolved.includeSearchPathUris).toEqual([]);
+      expect(resolved.includeSearchPathUris).toEqual([toUri(root)]);
       expect(resolved.maxDepth).toBe(16);
       expect(resolved.maxFiles).toBe(256);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("auto-detects workspace entry when no project config exists", async () => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-lsp-detect-"));
+    try {
+      await mkdir(join(root, "peers"), { recursive: true });
+      await writeFile(
+        join(root, "bird.conf"),
+        ['include "peers/*.conf";', ""].join("\n"),
+        "utf8",
+      );
+      const documentPath = join(root, "peers", "upstream.conf");
+      await writeFile(documentPath, "protocol device {}\n", "utf8");
+
+      const resolved = await resolveProjectAnalysisOptions({
+        documentUri: toUri(documentPath),
+        workspaceRootUris: [toUri(root)],
+        defaults: { maxDepth: 16, maxFiles: 256 },
+      });
+
+      expect(resolved.mode).toBe("workspace");
+      expect(resolved.entryUri).toBe(toUri(join(root, "bird.conf")));
+      expect(resolved.workspaceRootUri).toBe(toUri(root));
+      expect(resolved.includeSearchPathUris).toContain(toUri(root));
     } finally {
       await rm(root, { recursive: true, force: true });
     }

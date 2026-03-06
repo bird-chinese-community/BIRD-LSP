@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   resolveCrossFileReferences,
+  sniffProjectEntrypoints,
   type BirdDiagnostic,
   type BirdDiagnosticSeverity,
 } from "@birdcc/core";
@@ -463,21 +464,106 @@ const applySeverityOverrides = (
   return output;
 };
 
+const collectAncestorDirs = (filePath: string, maxDepth = 5): string[] => {
+  const output: string[] = [];
+  let current = resolve(dirname(filePath));
+
+  for (let depth = 0; depth < maxDepth; depth += 1) {
+    output.push(current);
+    const parent = dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+
+  return output;
+};
+
+const resolveAutoProjectContext = async (
+  filePath: string,
+): Promise<{
+  entryUri: string;
+  workspaceRootUri: string;
+  includeSearchPaths: string[];
+}> => {
+  const currentDocumentUri = toFileUri(filePath);
+  const ancestors = collectAncestorDirs(filePath);
+  let best:
+    | {
+        rootPath: string;
+        entryPath: string;
+        score: number;
+      }
+    | undefined;
+
+  for (const rootPath of ancestors) {
+    const detection = await sniffProjectEntrypoints(rootPath, {
+      maxDepth: 8,
+      maxFiles: 2_000,
+    });
+    if (!detection.primary) {
+      continue;
+    }
+
+    const entryPath = resolve(rootPath, detection.primary.path);
+    const score = detection.primary.score;
+    if (!best || score > best.score) {
+      best = {
+        rootPath,
+        entryPath,
+        score,
+      };
+    }
+
+    if (score >= 80) {
+      break;
+    }
+  }
+
+  if (!best) {
+    const workspaceRootUri = toFileUri(dirname(resolve(filePath)));
+    return {
+      entryUri: currentDocumentUri,
+      workspaceRootUri,
+      includeSearchPaths: [workspaceRootUri],
+    };
+  }
+
+  const workspaceRootUri = toFileUri(best.rootPath);
+  return {
+    entryUri: toFileUri(best.entryPath),
+    workspaceRootUri,
+    includeSearchPaths: [workspaceRootUri, toFileUri(dirname(best.entryPath))],
+  };
+};
+
 const runCrossFileLint = async (
   filePath: string,
   options: LintOptions,
 ): Promise<BirdccLintOutput> => {
   const entryText = await readUtf8File(filePath);
-  const entryUri = toFileUri(filePath);
-  const includeSearchPaths = (options.includePaths ?? []).map((path) =>
-    toFileUri(path),
-  );
+  const currentDocumentUri = toFileUri(filePath);
+  const workspaceRootUri = toFileUri(dirname(resolve(filePath)));
+  const currentFileLooksLikeEntry = /^\s*include\s+/mu.test(entryText);
+  const autoProjectContext = currentFileLooksLikeEntry
+    ? {
+        entryUri: currentDocumentUri,
+        workspaceRootUri,
+        includeSearchPaths: [workspaceRootUri],
+      }
+    : await resolveAutoProjectContext(filePath);
+  const entryUri = autoProjectContext.entryUri;
+  const includeSearchPaths = [
+    ...autoProjectContext.includeSearchPaths,
+    ...(options.includePaths ?? []).map((path) => toFileUri(path)),
+  ];
   const crossFile = await resolveCrossFileReferences({
     entryUri,
-    documents: [{ uri: entryUri, text: entryText }],
+    documents: [{ uri: currentDocumentUri, text: entryText }],
     maxDepth: options.includeMaxDepth,
     maxFiles: options.includeMaxFiles,
-    workspaceRootUri: toFileUri(dirname(resolve(filePath))),
+    workspaceRootUri: autoProjectContext.workspaceRootUri,
     allowIncludeOutsideWorkspace: options.allowIncludeOutsideWorkspace,
     includeSearchPaths,
     loadFromFileSystem: true,

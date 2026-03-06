@@ -68,6 +68,25 @@ const createMergedCoreSnapshot = (
   diagnostics: scopedDiagnostics,
 });
 
+const CROSS_FILE_FRAGMENT_ONLY_CODES = new Set([
+  "cfg/no-protocol",
+  "cfg/missing-router-id",
+]);
+
+const filterCrossFileFragmentDiagnostics = (
+  uri: string,
+  entryUri: string,
+  diagnostics: BirdDiagnostic[],
+): BirdDiagnostic[] => {
+  if (uri === entryUri) {
+    return diagnostics;
+  }
+
+  return diagnostics.filter(
+    (diagnostic) => !CROSS_FILE_FRAGMENT_ONLY_CODES.has(diagnostic.code),
+  );
+};
+
 export interface LintBirdConfigOptions {
   parsed?: ParsedBirdDocument;
   core?: CoreSnapshot;
@@ -156,8 +175,16 @@ export const lintResolvedCrossFileGraph = async (
   );
 
   for (const { uri, lintResult } of results) {
-    byUri[uri] = lintResult;
-    diagnostics.push(...lintResult.diagnostics);
+    const scopedDiagnostics = filterCrossFileFragmentDiagnostics(
+      uri,
+      resolution.entryUri,
+      lintResult.diagnostics,
+    );
+    byUri[uri] = {
+      ...lintResult,
+      diagnostics: scopedDiagnostics,
+    };
+    diagnostics.push(...scopedDiagnostics);
   }
 
   return {

@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { sniffProjectEntrypoints } from "@birdcc/core";
 
 const CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"] as const;
 const DEFAULT_WORKSPACE_ENTRY_FILE = "bird.conf";
@@ -305,12 +306,42 @@ export const resolveProjectAnalysisOptions = async (
   const documentPathResolved = resolve(documentPath);
   const nearestConfigPath = await findNearestConfigPath(documentPathResolved);
   if (!nearestConfigPath) {
+    const workspaceRootUri = resolveContainingWorkspaceRootUri(
+      documentPathResolved,
+      input.workspaceRootUris,
+    );
+    const workspaceRootPath =
+      workspaceRootUri && isFileUri(workspaceRootUri)
+        ? toFilePath(workspaceRootUri)
+        : null;
+
+    if (workspaceRootPath) {
+      const resolvedWorkspaceRootUri = toFileUri(workspaceRootPath);
+      const detection = await sniffProjectEntrypoints(workspaceRootPath, {
+        maxDepth: 8,
+        maxFiles: 20_000,
+      });
+      if (detection.primary) {
+        const entryPath = resolve(workspaceRootPath, detection.primary.path);
+        return {
+          entryUri: toFileUri(entryPath),
+          workspaceRootUri: resolvedWorkspaceRootUri,
+          includeSearchPathUris: dedupeUris([
+            resolvedWorkspaceRootUri,
+            toFileUri(dirname(entryPath)),
+          ]),
+          maxDepth: input.defaults.maxDepth,
+          maxFiles: input.defaults.maxFiles,
+          allowIncludeOutsideWorkspace: false,
+          crossFileEnabled: true,
+          mode: entryPath === documentPathResolved ? "document" : "workspace",
+        };
+      }
+    }
+
     return {
       entryUri: input.documentUri,
-      workspaceRootUri: resolveContainingWorkspaceRootUri(
-        documentPathResolved,
-        input.workspaceRootUris,
-      ),
+      workspaceRootUri,
       includeSearchPathUris: [],
       maxDepth: input.defaults.maxDepth,
       maxFiles: input.defaults.maxFiles,

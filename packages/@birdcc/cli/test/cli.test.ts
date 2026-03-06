@@ -192,6 +192,65 @@ describe("@birdcc/cli bird parser", () => {
     expect(
       result.diagnostics.some((item) => item.code === "sym/filter-required"),
     ).toBe(false);
+    expect(
+      result.diagnostics.some((item) => item.code === "cfg/missing-router-id"),
+    ).toBe(false);
+  });
+
+  it("auto-detects project root for cross-file lint without explicit include paths", async () => {
+    const workspaceDir = await mkdtemp(
+      join(tmpdir(), "birdcc-cli-auto-project-"),
+    );
+    const peersDir = join(workspaceDir, "peers");
+    const entryFile = join(workspaceDir, "bird.conf");
+    const fragmentFile = join(peersDir, "upstream.conf");
+
+    await mkdir(peersDir, { recursive: true });
+    await writeFile(
+      join(workspaceDir, "vars.conf"),
+      "filter shared_in { accept; }\n",
+      "utf8",
+    );
+    await writeFile(
+      join(workspaceDir, "neighbor.conf"),
+      "protocol device {}\n",
+      "utf8",
+    );
+    await writeFile(
+      entryFile,
+      [
+        'include "/etc/bird/vars.conf";',
+        'include "../neighbor.conf";',
+        'include "peers/*.conf";',
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      fragmentFile,
+      [
+        "protocol bgp edge {",
+        "  local as 65000;",
+        "  neighbor 192.0.2.1 as 65001;",
+        "  import filter shared_in;",
+        "}",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const result = await runLint(fragmentFile);
+
+    expect(
+      result.diagnostics.some(
+        (item) =>
+          item.code === "sym/undefined" &&
+          item.message.includes("missing-include"),
+      ),
+    ).toBe(false);
+    expect(
+      result.diagnostics.some((item) => item.code === "sym/filter-required"),
+    ).toBe(false);
   });
 
   it("returns no diagnostics when linter is disabled and bird validation is off", async () => {
