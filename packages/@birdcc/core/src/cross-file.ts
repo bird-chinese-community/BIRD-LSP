@@ -199,6 +199,7 @@ const wildcardPatternToRegExp = (pattern: string): RegExp => {
 const expandWildcardIncludeUri = async (
   includeUri: string,
   knownDocumentUris: Iterable<string>,
+  workspaceRootUri?: string,
 ): Promise<string[]> => {
   const filePath = toFilePath(includeUri);
   if (!filePath || !filePath.includes("*")) {
@@ -212,6 +213,25 @@ const expandWildcardIncludeUri = async (
 
   const includeDir = dirname(filePath);
   const regex = wildcardPatternToRegExp(filePattern);
+
+  const includeDirUri = pathToFileURL(includeDir).toString();
+  if (
+    workspaceRootUri &&
+    !isWithinWorkspaceRoot(includeDirUri, workspaceRootUri)
+  ) {
+    const hasResolvedPath = (item: {
+      uri: string;
+      path: string | null;
+    }): item is { uri: string; path: string } => item.path !== null;
+
+    return [...knownDocumentUris]
+      .map((uri) => ({ uri, path: toFilePath(uri) }))
+      .filter(hasResolvedPath)
+      .filter((item) => dirname(item.path) === includeDir)
+      .filter((item) => regex.test(basename(item.path)))
+      .map((item) => item.uri)
+      .sort((left, right) => left.localeCompare(right));
+  }
 
   try {
     const entries = await readdir(includeDir, { withFileTypes: true });
@@ -385,11 +405,10 @@ export const resolveCrossFileReferences = async (
     };
   }
 
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      break;
-    }
+  let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex];
+    queueIndex += 1;
 
     if (visited.has(current.uri)) {
       continue;
@@ -461,6 +480,7 @@ export const resolveCrossFileReferences = async (
         const expandedIncludeUris = await expandWildcardIncludeUri(
           includeUri,
           documentMap.keys(),
+          allowIncludeOutsideWorkspace ? undefined : workspaceRootUri,
         );
         if (expandedIncludeUris.length === 0) {
           continue;
@@ -483,7 +503,7 @@ export const resolveCrossFileReferences = async (
             continue;
           }
 
-          if (visited.size + queue.length >= maxFiles) {
+          if (visited.size + (queue.length - queueIndex) >= maxFiles) {
             stats.skippedByFileLimit += 1;
             diagnostics.push(
               includeDiagnostic(
