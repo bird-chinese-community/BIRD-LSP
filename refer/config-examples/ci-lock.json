@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-06T03:11:18.404Z",
+  "generatedAt": "2026-03-06T07:31:37.924Z",
   "ranked": false,
   "sources": [
     {
@@ -14,7 +14,7 @@
       "commit": "587a2815e559fcc9c3d7bcf447c72f3e3cd001a4",
       "confFiles": 2,
       "confBytes": 51010272,
-      "syncedAt": "2026-03-06T03:11:16.007Z"
+      "syncedAt": "2026-03-06T07:31:31.131Z"
     },
     {
       "id": "bird2-jknet-bird",
@@ -28,7 +28,7 @@
       "commit": "75c1c735ad0c64c5928f62356481205e1feb5a4b",
       "confFiles": 48,
       "confBytes": 85272,
-      "syncedAt": "2026-03-03T16:17:54.867Z"
+      "syncedAt": "2026-03-06T07:31:32.838Z"
     },
     {
       "id": "bird2-net186-config",
@@ -42,7 +42,21 @@
       "commit": "9b02a517159531f77ef87caea814095c184247e0",
       "confFiles": 17,
       "confBytes": 17053,
-      "syncedAt": "2026-03-03T16:17:56.666Z"
+      "syncedAt": "2026-03-06T07:31:34.761Z"
+    },
+    {
+      "id": "bird2-sunyznet-bird-config",
+      "birdMajor": 2,
+      "path": "BIRD2-SunyzNET-bird-config",
+      "repo": "SunyzNET/bird-config",
+      "repoGit": "https://github.com/SunyzNET/bird-config.git",
+      "ghUsername": "SunyzNET",
+      "licenseSpdx": "MIT",
+      "defaultBranch": "main",
+      "commit": "6a3b9310798acb8bc4fe18949ac30f4ab278f7ef",
+      "confFiles": 12,
+      "confBytes": 18168,
+      "syncedAt": "2026-03-06T07:31:36.319Z"
     },
     {
       "id": "bird3-bird-configs-output",
@@ -56,7 +70,7 @@
       "commit": "013acfa1bbb66e1541c634ed6706c5a6d69aea14",
       "confFiles": 16,
       "confBytes": 135860,
-      "syncedAt": "2026-03-03T16:17:58.429Z"
+      "syncedAt": "2026-03-06T07:31:37.920Z"
     }
   ]
 }
