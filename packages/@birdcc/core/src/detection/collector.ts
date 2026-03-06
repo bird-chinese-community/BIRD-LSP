@@ -10,6 +10,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join, relative, basename } from "node:path";
 import type { Dirent } from "node:fs";
 import type { DetectionOptions, DetectionWarning } from "./types.js";
+import { isForbiddenRoot } from "./fs-safety.js";
 
 /** Default directories to ignore during scanning */
 const DEFAULT_IGNORE_DIRS = new Set([
@@ -64,6 +65,20 @@ export const collectCandidateFiles = async (
   root: string,
   opts?: DetectionOptions,
 ): Promise<CollectorResult> => {
+  // Safety check: prevent scanning forbidden system directories
+  if (isForbiddenRoot(root)) {
+    return {
+      files: [],
+      warnings: [
+        {
+          code: "detection/forbidden-root",
+          message: `Refused to scan forbidden root directory: ${root}`,
+        },
+      ],
+      truncated: false,
+    };
+  }
+
   const maxDepth = opts?.maxDepth ?? 8;
   const maxFiles = opts?.maxFiles ?? 20_000;
   const followSymlinks = opts?.followSymlinks ?? false;

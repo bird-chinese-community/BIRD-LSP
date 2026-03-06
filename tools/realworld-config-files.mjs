@@ -1,5 +1,6 @@
 import { readdir, realpath, stat } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
+import { isForbiddenRoot } from "./fs-safety.mjs";
 
 export const allowedConfigExtensions = new Set([
   ".conf",
@@ -27,6 +28,15 @@ export const isBirdConfigFile = (path) => {
 
 export const discoverFiles = async (root) => {
   const resolvedRoot = await realpath(resolve(root));
+
+  // Safety check: prevent scanning forbidden directories
+  if (isForbiddenRoot(resolvedRoot)) {
+    console.warn(
+      `[realworld-config-files] Skipping forbidden root: ${resolvedRoot}`,
+    );
+    return [];
+  }
+
   const output = [];
   const stack = [resolvedRoot];
 

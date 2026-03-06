@@ -61,3 +61,4 @@ export type {
   IncludeGraphExtras,
   SignalRecord,
 } from "./detection/index.js";
+export { isForbiddenRoot } from "./detection/fs-safety.js";

@@ -1,5 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import { isForbiddenRoot } from "@birdcc/core";
 
 const DEFAULT_WORKSPACE_ENTRY_FILE = "bird.conf";
 const IGNORED_DIR_NAMES = new Set([
@@ -84,7 +85,17 @@ const matchesWorkspacePatterns = (
 const listWorkspaceCandidateDirectories = async (
   configDir: string,
 ): Promise<string[]> => {
-  const queue: string[] = [resolve(configDir)];
+  const resolvedConfigDir = resolve(configDir);
+
+  // Safety check: prevent scanning forbidden system directories
+  if (isForbiddenRoot(resolvedConfigDir)) {
+    console.warn(
+      `[workspace-patterns] Refusing to scan forbidden root: ${resolvedConfigDir}`,
+    );
+    return [];
+  }
+
+  const queue: string[] = [resolvedConfigDir];
   const candidates: string[] = [];
 
   while (queue.length > 0) {
