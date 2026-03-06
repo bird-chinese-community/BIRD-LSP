@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MUST DO: 每次回答前都应该自行在 ./.agents/skills/INDEX.md 中查找相关技能/最佳实践，以便在需要时调用它们来完成特定任务。
 
+MUST DO: 带有 `<!-- CI START -->` / `<!-- CI END -->` 标记的 README 区块只能由 CI 自动更新。除非用户明确要求临时手动改动，否则本地修改时应只更新源数据或同步脚本（如 registry / workflow / sync script），不要直接手改这些区块内容。
+
 MUST DO: 每个 PR 合并前都需要等待至少 120s 的时间 (建议分为 4 次，每次 30s)，以便让 CI 系统和 Auto Reviewer 有足够的时间检测到潜在的问题，如果门卫期间有 review 出现，应立即修复问题，在修复问题后应立即回复 review 并再次等待至少 120s。
 
 如果是来自 Gemini 的 review，你修复并回复后应该再开一条评论：
