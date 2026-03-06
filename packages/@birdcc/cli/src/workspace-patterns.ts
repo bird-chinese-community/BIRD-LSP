@@ -113,6 +113,9 @@ const listWorkspaceCandidateDirectories = async (
     }
 
     for (const entry of entries) {
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
       if (!entry.isDirectory()) {
         continue;
       }
