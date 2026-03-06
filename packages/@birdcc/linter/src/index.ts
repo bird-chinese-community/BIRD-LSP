@@ -11,11 +11,7 @@ import { collectNetRuleDiagnostics } from "./rules/net.js";
 import { normalizeBaseDiagnostics } from "./rules/normalize.js";
 import { collectOspfRuleDiagnostics } from "./rules/ospf.js";
 import { collectSymRuleDiagnostics } from "./rules/sym.js";
-import {
-  hasIncludeDeclarations,
-  inferLintDocumentRole,
-  type RuleContext,
-} from "./rules/shared.js";
+import { inferLintDocumentRole, type RuleContext } from "./rules/shared.js";
 import { collectTypeRuleDiagnostics } from "./rules/type.js";
 
 export interface LintResult {
@@ -86,13 +82,6 @@ const FRAGMENT_OR_LIBRARY_EXTERNAL_CODES = new Set([
   "cfg/missing-router-id",
 ]);
 
-const INCLUDE_TOLERANT_EXTERNAL_CODES = new Set([
-  "sym/undefined",
-  "sym/function-required",
-  "sym/filter-required",
-  "sym/table-required",
-]);
-
 const filterCrossFileFragmentDiagnostics = (
   uri: string,
   entryUri: string,
@@ -152,22 +141,14 @@ export const lintBirdConfig = async (
   const filterRoleDiagnostics = (
     diagnostics: BirdDiagnostic[],
   ): BirdDiagnostic[] => {
-    let output = diagnostics;
-
     if (role === "fragment" || role === "library") {
-      output = output.filter(
+      return diagnostics.filter(
         (diagnostic) =>
           !FRAGMENT_OR_LIBRARY_EXTERNAL_CODES.has(diagnostic.code),
       );
     }
 
-    if (hasIncludeDeclarations(parsed)) {
-      output = output.filter(
-        (diagnostic) => !INCLUDE_TOLERANT_EXTERNAL_CODES.has(diagnostic.code),
-      );
-    }
-
-    return output;
+    return diagnostics;
   };
 
   return {
