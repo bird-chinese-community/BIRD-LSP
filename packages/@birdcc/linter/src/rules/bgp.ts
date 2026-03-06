@@ -67,6 +67,10 @@ const bgpMissingNeighborRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
+    if (declaration.fromTemplate) {
+      continue;
+    }
+
     diagnostics.push(
       createProtocolDiagnostic(
         "bgp/missing-neighbor",
@@ -100,6 +104,10 @@ const bgpMissingRemoteAsRule: BirdRule = ({ parsed }) => {
       }
 
       if ((statement.asn?.trim().length ?? 0) > 0) {
+        continue;
+      }
+
+      if (declaration.fromTemplate) {
         continue;
       }
 

@@ -370,6 +370,10 @@ const cfgSwitchValueExpectedRule: BirdRule = ({ parsed }) => {
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
       if (statement.kind === "other") {
+        if (/\bbfd\s*\{/i.test(statement.text)) {
+          continue;
+        }
+
         const matched = statement.text.match(switchPattern);
         if (matched) {
           const token = matched[2] ?? "";
