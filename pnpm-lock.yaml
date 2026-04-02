@@ -51,16 +51,16 @@ importers:
   packages/@birdcc/cli:
     dependencies:
       '@birdcc/core':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../core
       '@birdcc/formatter':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../formatter
       '@birdcc/linter':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../linter
       '@birdcc/lsp':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../lsp
       cac:
         specifier: ^6.7.14
@@ -72,7 +72,7 @@ importers:
   packages/@birdcc/core:
     dependencies:
       '@birdcc/parser':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../parser
       fast-cidr-tools:
         specifier: ^0.3.4
@@ -87,10 +87,10 @@ importers:
   packages/@birdcc/formatter:
     dependencies:
       '@birdcc/dprint-plugin-bird':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../dprint-plugin-bird
       '@birdcc/parser':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../parser
       '@dprint/formatter':
         specifier: ^0.5.1
@@ -112,28 +112,28 @@ importers:
   packages/@birdcc/linter:
     dependencies:
       '@birdcc/core':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../core
       '@birdcc/parser':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../parser
 
   packages/@birdcc/lsp:
     dependencies:
       '@birdcc/core':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../core
       '@birdcc/formatter':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../formatter
       '@birdcc/intel':
-        specifier: workspace:*
-        version: link:../intel
+        specifier: ^0.0.1-2026-03-05.2
+        version: 0.0.1-2026-03-30.6
       '@birdcc/linter':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../linter
       '@birdcc/parser':
-        specifier: workspace:*
+        specifier: 0.1.0-beta.0
         version: link:../parser
       vscode-languageserver:
         specifier: ^9.0.1
@@ -222,6 +222,9 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@birdcc/intel@0.0.1-2026-03-30.6':
+    resolution: {integrity: sha512-g5iVJQg26YT3MRJQsXKLyJKJGGawBSsIiKEqi0aiwl3CNyz0s6zYmYS7w6rYftdwpixgJVMmENkA1LMg+bmnKw==}
 
   '@changesets/apply-release-plan@7.1.0':
     resolution: {integrity: sha512-yq8ML3YS7koKQ/9bk1PqO0HMzApIFNwjlwCnwFEXMzNe8NpzeeYYKCmnhWJGkN8g7E51MnWaSbqRcTcdIxUgnQ==}
@@ -2335,6 +2338,10 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@birdcc/intel@0.0.1-2026-03-30.6':
+    dependencies:
+      '@msgpack/msgpack': 3.1.3
 
   '@changesets/apply-release-plan@7.1.0':
     dependencies:
