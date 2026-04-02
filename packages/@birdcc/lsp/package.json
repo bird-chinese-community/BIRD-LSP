@@ -1,7 +1,6 @@
 {
   "name": "@birdcc/lsp",
-  "version": "0.0.1-alpha.5",
-  "private": true,
+  "version": "0.1.0-beta.0",
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {
@@ -25,11 +24,11 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/core": "workspace:*",
-    "@birdcc/formatter": "workspace:*",
-    "@birdcc/intel": "workspace:*",
-    "@birdcc/linter": "workspace:*",
-    "@birdcc/parser": "workspace:*",
+    "@birdcc/core": "0.1.0-beta.0",
+    "@birdcc/formatter": "0.1.0-beta.0",
+    "@birdcc/intel": "^0.0.1-2026-03-05.2",
+    "@birdcc/linter": "0.1.0-beta.0",
+    "@birdcc/parser": "0.1.0-beta.0",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12",
     "yaml": "^2.8.2"

@@ -1,7 +1,6 @@
 {
   "name": "@birdcc/cli",
-  "version": "0.0.1-alpha.5",
-  "private": true,
+  "version": "0.1.0-beta.0",
   "license": "GPL-3.0-only",
   "author": {
     "name": "BIRD Chinese Community",
@@ -27,10 +26,10 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/core": "workspace:*",
-    "@birdcc/formatter": "workspace:*",
-    "@birdcc/linter": "workspace:*",
-    "@birdcc/lsp": "workspace:*",
+    "@birdcc/core": "0.1.0-beta.0",
+    "@birdcc/formatter": "0.1.0-beta.0",
+    "@birdcc/linter": "0.1.0-beta.0",
+    "@birdcc/lsp": "0.1.0-beta.0",
     "cac": "^6.7.14",
     "zod": "^4.3.6"
   },

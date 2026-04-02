@@ -1,7 +1,6 @@
 {
   "name": "@birdcc/core",
-  "version": "0.0.1-alpha.5",
-  "private": true,
+  "version": "0.1.0-beta.0",
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {
@@ -25,7 +24,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/parser": "workspace:*",
+    "@birdcc/parser": "0.1.0-beta.0",
     "fast-cidr-tools": "^0.3.4"
   },
   "scripts": {

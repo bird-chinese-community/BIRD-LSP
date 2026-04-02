@@ -1,7 +1,6 @@
 {
   "name": "@birdcc/formatter",
-  "version": "0.0.1-alpha.5",
-  "private": true,
+  "version": "0.1.0-beta.0",
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {
@@ -25,8 +24,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/dprint-plugin-bird": "workspace:*",
-    "@birdcc/parser": "workspace:*",
+    "@birdcc/dprint-plugin-bird": "0.1.0-beta.0",
+    "@birdcc/parser": "0.1.0-beta.0",
     "@dprint/formatter": "^0.5.1"
   },
   "scripts": {
