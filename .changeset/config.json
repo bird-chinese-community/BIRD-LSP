@@ -12,7 +12,8 @@
       "@birdcc/linter",
       "@birdcc/lsp",
       "@birdcc/formatter",
-      "@birdcc/cli"
+      "@birdcc/cli",
+      "@birdcc/dprint-plugin-bird"
     ]
   ],
   "linked": [],
@@ -20,10 +21,8 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@birdcc/intel",
     "@birdcc/vscode",
-    "bird2-extension-pack",
-    "@birdcc/dprint-plugin-bird"
+    "bird2-extension-pack"
   ],
   "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
     "onlyUpdatePeerDependentsWhenOutOfRange": true
