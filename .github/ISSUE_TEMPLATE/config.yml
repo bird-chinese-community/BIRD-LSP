@@ -6,6 +6,10 @@ contact_links:
   - name: BIRD-LSP Epic
     url: https://github.com/bird-chinese-community/BIRD-LSP/issues/61
     about: Review epic-level progress and cross-phase context.
+  - name: Security Policy
+    url: https://github.com/bird-chinese-community/BIRD-LSP/security/policy
+    about: Report vulnerabilities privately; do not disclose exploit details in
+      public issues.
   - name: Discussions
     url: https://github.com/bird-chinese-community/BIRD-LSP/discussions
     about: Ask questions and share ideas in GitHub Discussions.
