@@ -56,6 +56,7 @@ jobs:
           echo "✓ Database verified"
 
       - name: Update version to today's date
+        id: version
         working-directory: packages/@birdcc/intel
         run: |
           # npm requires semver. Use prerelease calendar versioning:
@@ -70,6 +71,8 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
             console.log('Updated version to ${VERSION}');
           "
+          echo "package_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=intel-v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build package
         run: pnpm --filter @birdcc/intel build
@@ -94,6 +97,21 @@ jobs:
             git commit -m "chore(intel): update ASN database to ${TODAY}"
             git push
           fi
+
+      - name: Create GitHub Release
+        if: ${{ inputs.dry_run != true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: "@birdcc/intel ${{ steps.version.outputs.package_version }}"
+          files: packages/@birdcc/intel/db/asn-db.bin.gz
+          body: |
+            Weekly ASN intelligence database update.
+
+            - npm package: `@birdcc/intel@${{ steps.version.outputs.package_version }}`
+            - npm dist-tag: `latest`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
