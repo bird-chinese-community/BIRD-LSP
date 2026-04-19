@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T03:33:59.294Z",
+  "generatedAt": "2026-04-19T03:53:16.857Z",
   "ranked": false,
   "sources": [
     {
@@ -9,12 +9,12 @@
       "repo": "PoemaIX/IX-BIRD-RS-Generator",
       "repoGit": "https://github.com/PoemaIX/IX-BIRD-RS-Generator.git",
       "ghUsername": "PoemaIX",
-      "licenseSpdx": "NOASSERTION",
+      "licenseSpdx": "MIT",
       "defaultBranch": "master",
-      "commit": "2d73ea42229474d919c714005e5a188362d2ea71",
+      "commit": "12a2c37aa588bde54d6e721a96a2bd5f8ad935b9",
       "confFiles": 2,
-      "confBytes": 53335035,
-      "syncedAt": "2026-04-18T03:33:57.908Z"
+      "confBytes": 53364241,
+      "syncedAt": "2026-04-19T03:53:14.934Z"
     },
     {
       "id": "bird2-jknet-bird",
