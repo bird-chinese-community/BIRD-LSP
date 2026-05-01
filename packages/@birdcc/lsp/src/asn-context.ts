@@ -14,12 +14,17 @@ const COMMENT_ASN_CONTEXT = /(?:^|\s)#\s*AS(\d+)$/i;
 const SHORT_ASN_EXEMPTIONS = new Set([42]);
 const MIN_REGULAR_ASN = 100;
 
-const COMPLETION_CONTEXT_PATTERNS = [
+// Guaranteed ASN contexts for completion — accept any positive integer
+const GUARANTEED_COMPLETION_PATTERNS = [
   /\blocal\s+as\s+(\d+)$/i,
-  /\b(?:bgp_)?community\.add\(\(\s*(\d+)$/i,
-  /\b(?:bgp_)?large_community\.add\(\(\s*(\d+)$/i,
   /\bbgp_path\.(?:prepend|delete)\(\s*(\d+)$/i,
   /\bbgp_path\s*~\s*\[[^\]]*?(\d+)$/i,
+];
+
+// Heuristic ASN contexts for completion — require isLikelyAsn filter
+const HEURISTIC_COMPLETION_PATTERNS = [
+  /\b(?:bgp_)?community\.add\(\(\s*(\d+)$/i,
+  /\b(?:bgp_)?large_community\.add\(\(\s*(\d+)$/i,
 ];
 
 /**
@@ -252,12 +257,26 @@ export const extractAsnPrefix = (linePrefix: string): string | undefined => {
     return commentMatch[1];
   }
 
+  // neighbor ... as is a guaranteed ASN context — accept any positive integer
   const neighborMatch = /\bneighbor\b[^\n;#{}]*\bas\s+(\d+)$/i.exec(linePrefix);
-  if (neighborMatch && isLikelyAsn(Number.parseInt(neighborMatch[1], 10))) {
-    return neighborMatch[1];
+  if (neighborMatch) {
+    const asn = Number.parseInt(neighborMatch[1], 10);
+    if (asn > 0) {
+      return neighborMatch[1];
+    }
   }
 
-  for (const pattern of COMPLETION_CONTEXT_PATTERNS) {
+  for (const pattern of GUARANTEED_COMPLETION_PATTERNS) {
+    const match = pattern.exec(linePrefix);
+    if (match) {
+      const asn = Number.parseInt(match[1], 10);
+      if (asn > 0) {
+        return match[1];
+      }
+    }
+  }
+
+  for (const pattern of HEURISTIC_COMPLETION_PATTERNS) {
     const match = pattern.exec(linePrefix);
     if (match && isLikelyAsn(Number.parseInt(match[1], 10))) {
       return match[1];
