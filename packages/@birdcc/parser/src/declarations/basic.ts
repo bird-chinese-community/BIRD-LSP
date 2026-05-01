@@ -1,5 +1,5 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
-import type { ParseIssue } from "../types.js";
+import type { ParseIssue, SourceRange } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
 import { isPresentNode, stripQuotes, textOf, toRange } from "../tree.js";
 import {
@@ -39,7 +39,7 @@ export const parseIncludeDeclaration = (
   };
 };
 
-const DEFINE_VALUE_EXTRACTOR = /^define\s+\S+\s*=\s*(.+?)\s*;$/s;
+const DEFINE_VALUE_PATTERN = /^define\s+\S+\s*=\s*(.+?)\s*;$/s;
 
 export const parseDefineDeclaration = (
   declarationNode: SyntaxNode,
@@ -62,15 +62,36 @@ export const parseDefineDeclaration = (
     ? toRange(nameNode, source)
     : declarationRange;
 
+  // Extract value via regex — the grammar lacks a named field for the value,
+  // and WASM rebuild (which requires Docker) is needed before adding one.
   const fullText = textOf(declarationNode, source);
-  const valueMatch = fullText.match(DEFINE_VALUE_EXTRACTOR);
+  const valueMatch = fullText.match(DEFINE_VALUE_PATTERN);
   const value = valueMatch?.[1]?.trim();
+
+  // Compute valueRange from the regex match position within the line
+  let valueRange: SourceRange | undefined;
+  if (
+    valueMatch?.[1] !== undefined &&
+    value !== undefined &&
+    value.length > 0
+  ) {
+    const matchOffset = valueMatch[0].indexOf(valueMatch[1]);
+    const valueStart = declarationRange.column + matchOffset;
+    valueRange = {
+      line: declarationRange.line,
+      column: valueStart,
+      endLine: declarationRange.line,
+      endColumn: valueStart + value.length,
+    };
+  }
 
   return {
     kind: "define",
     name,
     nameRange,
-    ...(value !== undefined && value.length > 0 ? { value } : {}),
+    ...(value !== undefined && value.length > 0
+      ? { value, ...(valueRange ? { valueRange } : {}) }
+      : {}),
     ...declarationRange,
   };
 };

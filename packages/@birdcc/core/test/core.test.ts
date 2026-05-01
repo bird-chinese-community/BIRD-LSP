@@ -197,6 +197,21 @@ describe("@birdcc/core boundaries", () => {
     ).toBe(true);
   });
 
+  it("resolves chained define constants for router id", async () => {
+    const sample = `
+      define A = B;
+      define B = 192.0.2.1;
+      router id A;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    const errorCodes = result.diagnostics
+      .filter((item) => item.severity === "error")
+      .map((item) => item.code);
+
+    expect(errorCodes).not.toContain("semantic/invalid-router-id");
+  });
+
   it("emits type diagnostics for assignment mismatch and undefined variable", async () => {
     const sample = `
       filter export_policy {
