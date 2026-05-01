@@ -187,6 +187,22 @@ describe("@birdcc/formatter", () => {
     expect(result.text).toBe("define LIST = [\n  1,\n  2,\n];\n");
   });
 
+  it("indents multiline [= ... =] set literals with builtin formatter", async () => {
+    const input = [
+      "define AS_PATH_FILTER = [=",
+      "65001",
+      "65002",
+      "=];",
+      "",
+    ].join("\n");
+
+    const result = await __formatBirdConfigBuiltinForTest(input);
+
+    expect(result.text).toBe(
+      "define AS_PATH_FILTER = [=\n  65001\n  65002\n=];\n",
+    );
+  });
+
   it("indents multiline define lists with dprint formatter", async () => {
     formatTextMock.mockImplementation(({ fileText }: { fileText: string }) =>
       fileText.replace(

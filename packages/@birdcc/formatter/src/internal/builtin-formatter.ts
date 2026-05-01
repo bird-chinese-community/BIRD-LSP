@@ -27,9 +27,17 @@ const countStructuralTokens = (
 
 const countLeadingCloseTokens = (text: string): number => {
   let count = 0;
-  for (const char of text) {
+  for (let idx = 0; idx < text.length; idx++) {
+    const char = text[idx];
     if (char === "}" || char === "]") {
       count += 1;
+      continue;
+    }
+
+    // BIRD `[= ... =]` set literal closing — `=]` signals close
+    if (char === "=" && text[idx + 1] === "]") {
+      count += 1;
+      idx += 1; // consume the "]"
       continue;
     }
 
