@@ -139,7 +139,10 @@ describe("createAsnHover", () => {
     expect(hover).toBeNull();
   });
 
-  it("returns null for short non-exempt ASNs", () => {
+  it("returns null for short ASNs not in intel database (even though context matches)", () => {
+    // `local as <n>` is a guaranteed ASN context — the engine now recognizes
+    // any positive integer, but the mock intel has no entry for ASN 44,
+    // so no hover content is produced.
     const line = "local as 44;";
     const hover = createAsnHover(mockIntel, line, {
       line: 0,

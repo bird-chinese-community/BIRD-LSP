@@ -22,8 +22,25 @@ const COMPLETION_CONTEXT_PATTERNS = [
   /\bbgp_path\s*~\s*\[[^\]]*?(\d+)$/i,
 ];
 
+/**
+ * CODE_ASN_PATTERNS — regex patterns for detecting ASN values in BIRD config lines.
+ *
+ * Patterns in the "guaranteed" group match contexts where BIRD grammar
+ * guarantees the value is an ASN (e.g. `local as <n>`, `bgp_path.prepend(<n>)`).
+ * These accept any positive integer, including historical short ASNs (< 100).
+ *
+ * Patterns in the "heuristic" group match contexts where the numeric value
+ * might not be an ASN (e.g. `define`, `community.add`). These use `isLikelyAsn`
+ * to filter out values unlikely to be AS numbers.
+ */
 const CODE_ASN_PATTERNS: Array<[RegExp, PatternMatchConfig?]> = [
-  [/\blocal\s+as\s+(\d+)\b/gi],
+  // --- guaranteed ASN contexts ---
+  [/\blocal\s+as\s+(\d+)\b/gi, { isAllowed: (_match, asn) => asn > 0 }],
+  [
+    /\bbgp_path\.(?:prepend|delete)\(\s*(\d+)\b/gi,
+    { isAllowed: (_match, asn) => asn > 0 },
+  ],
+  // --- heuristic ASN contexts ---
   [
     /\bdefine\s+([A-Za-z_]\w*)\s*=\s*(\d+)\b/gi,
     {
@@ -50,12 +67,6 @@ const CODE_ASN_PATTERNS: Array<[RegExp, PatternMatchConfig?]> = [
     {
       isAllowed: (_match, asn) =>
         asn !== 0 && asn !== 65535 && isLikelyAsn(asn),
-    },
-  ],
-  [
-    /\bbgp_path\.(?:prepend|delete)\(\s*(\d+)\b/gi,
-    {
-      isAllowed: (_match, asn) => isLikelyAsn(asn),
     },
   ],
 ];
@@ -94,7 +105,7 @@ const collectNeighborAsMatches = (lineText: string): AsnMatch[] => {
   if (!match) return matches;
 
   const asn = Number.parseInt(match.digits, 10);
-  if (!isLikelyAsn(asn)) return matches;
+  if (Number.isNaN(asn) || asn <= 0) return matches;
 
   matches.push({
     asn,
@@ -196,8 +207,8 @@ const collectBgpPathArrayMatches = (lineText: string): AsnMatch[] => {
     ) {
       const digits = numberMatch[0];
       const asn = Number.parseInt(digits, 10);
+      // bgp_path arrays semantically only contain ASNs — accept any positive integer
       if (Number.isNaN(asn) || asn <= 0) continue;
-      if (!isLikelyAsn(asn)) continue;
 
       const start = bodyOffset + numberMatch.index;
       matches.push({
