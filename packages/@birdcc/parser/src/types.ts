@@ -39,6 +39,8 @@ export interface DefineDeclaration extends DeclarationBase {
   kind: "define";
   name: string;
   nameRange: SourceRange;
+  value?: string;
+  valueRange?: SourceRange;
 }
 
 export interface RouterIdDeclaration extends DeclarationBase {

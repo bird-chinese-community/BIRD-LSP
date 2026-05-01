@@ -39,6 +39,8 @@ export const parseIncludeDeclaration = (
   };
 };
 
+const DEFINE_VALUE_EXTRACTOR = /^define\s+\S+\s*=\s*(.+?)\s*;$/s;
+
 export const parseDefineDeclaration = (
   declarationNode: SyntaxNode,
   source: string,
@@ -55,12 +57,20 @@ export const parseDefineDeclaration = (
     );
   }
 
+  const name = isPresentNode(nameNode) ? textOf(nameNode, source) : "";
+  const nameRange = isPresentNode(nameNode)
+    ? toRange(nameNode, source)
+    : declarationRange;
+
+  const fullText = textOf(declarationNode, source);
+  const valueMatch = fullText.match(DEFINE_VALUE_EXTRACTOR);
+  const value = valueMatch?.[1]?.trim();
+
   return {
     kind: "define",
-    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
-    nameRange: isPresentNode(nameNode)
-      ? toRange(nameNode, source)
-      : declarationRange,
+    name,
+    nameRange,
+    ...(value !== undefined && value.length > 0 ? { value } : {}),
     ...declarationRange,
   };
 };

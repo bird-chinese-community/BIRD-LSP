@@ -3,10 +3,55 @@ import type { ParsedBirdDocument } from "@birdcc/parser";
 import type { BirdDiagnostic } from "./types.js";
 import { isValidPrefixLiteral } from "./prefix.js";
 
+const buildDefinesMap = (
+  declarations: ParsedBirdDocument["program"]["declarations"],
+): Map<string, string> => {
+  const defines = new Map<string, string>();
+  for (const decl of declarations) {
+    if (
+      decl.kind === "define" &&
+      decl.name.length > 0 &&
+      decl.value !== undefined
+    ) {
+      defines.set(decl.name, decl.value);
+    }
+  }
+  return defines;
+};
+
+const RESOLVED_RID_KEYWORDS = new Set(["from routing", "from dynamic"]);
+
+const validateRouterIdValue = (
+  value: string,
+  range: { line: number; column: number; endLine: number; endColumn: number },
+  diagnostics: BirdDiagnostic[],
+): void => {
+  if (isIPv4(value)) {
+    return;
+  }
+
+  if (RESOLVED_RID_KEYWORDS.has(value.toLowerCase())) {
+    return;
+  }
+
+  if (/^\d+$/.test(value)) {
+    return;
+  }
+
+  diagnostics.push({
+    code: "semantic/invalid-router-id",
+    message: `Invalid router id value '${value}'${isIP(value) !== 0 ? " (expected IPv4 address)" : ""}`,
+    severity: "error",
+    source: "core",
+    range,
+  });
+};
+
 export const collectSemanticDiagnostics = (
   parsed: ParsedBirdDocument,
 ): BirdDiagnostic[] => {
   const diagnostics: BirdDiagnostic[] = [];
+  const defines = buildDefinesMap(parsed.program.declarations);
 
   for (const declaration of parsed.program.declarations) {
     if (declaration.kind === "router-id") {
@@ -23,12 +68,19 @@ export const collectSemanticDiagnostics = (
         continue;
       }
 
-      if (
-        declaration.valueKind === "unknown" &&
-        declaration.value.length > 0 &&
-        declaration.value.toLowerCase() !== "from routing" &&
-        declaration.value.toLowerCase() !== "from dynamic"
-      ) {
+      if (declaration.valueKind === "unknown" && declaration.value.length > 0) {
+        const lowered = declaration.value.toLowerCase();
+        if (RESOLVED_RID_KEYWORDS.has(lowered)) {
+          continue;
+        }
+
+        // Resolve the identifier against defined constants
+        const definedValue = defines.get(declaration.value);
+        if (definedValue !== undefined) {
+          validateRouterIdValue(definedValue, range, diagnostics);
+          continue;
+        }
+
         diagnostics.push({
           code: "semantic/invalid-router-id",
           message: `Invalid router id value '${declaration.value}'`,
