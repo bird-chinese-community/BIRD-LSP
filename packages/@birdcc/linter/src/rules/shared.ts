@@ -507,19 +507,22 @@ export const inferLintDocumentRole = (
     return "library";
   }
 
-  if (
-    routerIdDeclarations(parsed).length > 0 ||
-    hasIncludeDeclarations(parsed)
-  ) {
-    return "entry";
-  }
-
+  // Check directory-based roles before content-based entry detection.
+  // A file in a fragment/library directory with includes should still be
+  // classified as fragment/library, not forced to "entry".
   if (inLibraryDir && !hasNamedProtocols(parsed)) {
     return "library";
   }
 
   if (inFragmentDir && hasNamedProtocols(parsed)) {
     return "fragment";
+  }
+
+  if (
+    routerIdDeclarations(parsed).length > 0 ||
+    hasIncludeDeclarations(parsed)
+  ) {
+    return "entry";
   }
 
   if (hasAncestorEntry && hasNamedProtocols(parsed)) {
