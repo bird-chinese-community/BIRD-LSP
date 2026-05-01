@@ -35,10 +35,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @birdcc/formatter lint
-      - run: pnpm --filter @birdcc/formatter typecheck
       - run: pnpm --filter @birdcc/cli... build
+      - run: pnpm --filter @birdcc/formatter typecheck
       - run: pnpm --filter @birdcc/formatter test
-      - run: pnpm --filter @birdcc/formatter build
       - run: node tools/ci/smoke-cli-lint-fmt.mjs
 
   bird-parse-docker:
