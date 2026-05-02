@@ -234,7 +234,7 @@ const runCommand = (
     encoding: "utf8",
     timeout: COMMAND_TIMEOUT_MS,
     killSignal: "SIGTERM",
-    ...(cwd ? { cwd } : {}),
+    cwd,
   });
 
   if (result.error) {
@@ -310,6 +310,9 @@ export const runBirdValidation = (
   filePath: string,
   validateCommand?: string,
 ): BirdValidateResult => {
+  // Resolve to absolute so cwd and {file} replacement stay consistent
+  // even when filePath is a relative path with directory components.
+  const resolvedFilePath = resolve(filePath);
   const validateTemplate = resolveValidateTemplate(validateCommand);
   const commandTokens = parseCommandTokens(validateTemplate);
   if (!commandTokens || commandTokens.length === 0) {
@@ -333,7 +336,10 @@ export const runBirdValidation = (
     };
   }
 
-  const expandedCommand = expandValidateCommandArgs(commandTokens, filePath);
+  const expandedCommand = expandValidateCommandArgs(
+    commandTokens,
+    resolvedFilePath,
+  );
   if (!expandedCommand) {
     const message = createBirdRunnerErrorMessage(
       "invalid bird command template or unsafe file path for command execution",
@@ -358,7 +364,7 @@ export const runBirdValidation = (
   const execResult = runCommand(
     expandedCommand.executable,
     expandedCommand.args,
-    dirname(filePath),
+    dirname(resolvedFilePath),
   );
 
   if (execResult.errorReason) {
