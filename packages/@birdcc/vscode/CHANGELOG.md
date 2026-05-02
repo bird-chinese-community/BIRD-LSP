@@ -10,35 +10,35 @@ All notable changes to `@birdcc/vscode` will be documented in this file.
 
 - 🧩 **ASN 上下文误报修复** / **ASN Context False Positives** (#134, PR #136)
 
-  将 ASN 正则模式分类为「确保上下文」（`local as`、`neighbor as`、`bgp_path` 操作及数组）和「启发式上下文」（`define`、`community.add`）。确保上下文接受任意正整数——BIRD 语法保证这些位置一定是 ASN 值。短 ASN（如 `local as 44`）不再被错误过滤，补全、hover、inlay hints 行为保持一致。
+将 ASN 正则模式分类为「确保上下文」（`local as`、`neighbor as`、`bgp_path` 操作及数组）和「启发式上下文」（`define`、`community.add`）。确保上下文接受任意正整数——BIRD 语法保证这些位置一定是 ASN 值。短 ASN（如 `local as 44`）不再被错误过滤，补全、hover、inlay hints 行为保持一致。
 
-  Categorized ASN regex patterns into **guaranteed** contexts (`local as`, `neighbor as`, `bgp_path` operations/arrays) and **heuristic** contexts (`define`, `community.add`). Guaranteed contexts now accept any positive integer, since BIRD grammar ensures these positions are ASNs. Short ASNs (e.g. `local as 44`) are no longer incorrectly excluded from completions, hovers, and inlay hints.
+Categorized ASN regex patterns into **guaranteed** contexts (`local as`, `neighbor as`, `bgp_path` operations/arrays) and **heuristic** contexts (`define`, `community.add`). Guaranteed contexts now accept any positive integer, since BIRD grammar ensures these positions are ASNs. Short ASNs (e.g. `local as 44`) are no longer incorrectly excluded from completions, hovers, and inlay hints.
 
 - 🩺 **Fragment / Include 文件误报修复** / **Fragment/Include False Positives** (#132, PR #137)
 
-  `inferLintDocumentRole` 的目录检测逻辑调整至内容检测之前执行。位于 `peers/`、`snippets/` 等 fragment 目录下、同时包含 `include` 指令的文件，不再被误判为 entry 文件，消除 `sym/*` 系列规则的误报。
+`inferLintDocumentRole` 的目录检测逻辑调整至内容检测之前执行。位于 `peers/`、`snippets/` 等 fragment 目录下、同时包含 `include` 指令的文件，不再被误判为 entry 文件，消除 `sym/*` 系列规则的误报。
 
-  Reordered `inferLintDocumentRole` so directory-based role detection runs **before** content-based entry detection. Fragment files with `include` directives are now correctly classified instead of being forced to `"entry"`, eliminating `sym/*` false positives.
+Reordered `inferLintDocumentRole` so directory-based role detection runs **before** content-based entry detection. Fragment files with `include` directives are now correctly classified instead of being forced to `"entry"`, eliminating `sym/*` false positives.
 
 - 📐 **Formatter `[= ... =]` 缩进修复** / **Set Literal Indentation** (#132, PR #137)
 
-  `countLeadingCloseTokens` 新增识别 BIRD `[= ... =]` set literal 语法中的 `=]` 闭合符，多行 AS-path filter 等 set literal 内容现在正确缩进。Builtin 和 dprint 引擎同步修复。
+`countLeadingCloseTokens` 新增识别 BIRD `[= ... =]` set literal 语法中的 `=]` 闭合符，多行 AS-path filter 等 set literal 内容现在正确缩进。Builtin 和 dprint 引擎同步修复。
 
-  `countLeadingCloseTokens` now recognizes `=]` as a structural close token for BIRD's `[= ... =]` set literal syntax. Multiline set literal bodies are properly indented in both the builtin and dprint formatter engines.
+`countLeadingCloseTokens` now recognizes `=]` as a structural close token for BIRD's `[= ... =]` set literal syntax. Multiline set literal bodies are properly indented in both the builtin and dprint formatter engines.
 
 - 🐦 **`bird -p` 相对路径修复** / **Relative Include Resolution** (PR #138)
 
-  `runBirdValidation` 将 `bird -p` 的工作目录设为配置文件所在目录，相对 `include` 路径正确解析。`filePath` 自动 resolve 为绝对路径，避免相对路径双前缀问题。
+`runBirdValidation` 将 `bird -p` 的工作目录设为配置文件所在目录，相对 `include` 路径正确解析。`filePath` 自动 resolve 为绝对路径，避免相对路径双前缀问题。
 
-  The working directory for `bird -p` validation is now set to the config file's directory so that relative `include` paths resolve correctly. The file path is automatically resolved to absolute to prevent double-prefix issues.
+The working directory for `bird -p` validation is now set to the config file's directory so that relative `include` paths resolve correctly. The file path is automatically resolved to absolute to prevent double-prefix issues.
 
 ### ✨ Added / 新增
 
 - 🏷️ **`router id` 支持 define 常量** / **Router ID Constant Resolution** (#133, PR #135)
 
-  `router id <IDENTIFIER>` 先尝试从 `define` 常量表中查找再验证值合法性（IPv4 地址 / AS 号码 / `from routing` / `from dynamic`）。链式定义（`define A = B; define B = 192.0.2.1; router id A;`）迭代解析，最大深度 64 层。
+`router id <IDENTIFIER>` 先尝试从 `define` 常量表中查找再验证值合法性（IPv4 地址 / AS 号码 / `from routing` / `from dynamic`）。链式定义（`define A = B; define B = 192.0.2.1; router id A;`）迭代解析，最大深度 64 层。
 
-  `router id <IDENTIFIER>` now resolves against `define`d constants before validating the resolved value. Chained definitions (`define A = B; define B = 192.0.2.1; router id A;`) are resolved iteratively up to a depth of 64.
+`router id <IDENTIFIER>` now resolves against `define`d constants before validating the resolved value. Chained definitions (`define A = B; define B = 192.0.2.1; router id A;`) are resolved iteratively up to a depth of 64.
 
 ### 📖 Documentation / 文档
 
