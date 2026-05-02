@@ -14,9 +14,22 @@ fn count_structural_tokens(text: &str) -> (usize, usize) {
 }
 
 fn count_leading_close_tokens(text: &str) -> usize {
-    text.chars()
-        .take_while(|character| *character == '}' || *character == ']')
-        .count()
+    let mut count = 0;
+    let mut chars = text.chars().peekable();
+    while let Some(current) = chars.next() {
+        if current == '}' || current == ']' {
+            count += 1;
+            continue;
+        }
+        // BIRD `[= ... =]` set literal closing — `=]` signals close
+        if current == '=' && chars.peek() == Some(&']') {
+            chars.next(); // consume the ']'
+            count += 1;
+            continue;
+        }
+        break;
+    }
+    count
 }
 
 fn is_comment_line(line: &str) -> bool {
@@ -267,5 +280,18 @@ mod tests {
             .expect("format should change text");
 
         assert_eq!(output, "define LIST = [\n  1,\n  2,\n];\n");
+    }
+
+    #[test]
+    fn indents_multiline_eq_bracket_set_literals() {
+        let input = "define AS_PATH_FILTER = [=\n65001\n65002\n=];\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .expect("format should succeed")
+            .expect("format should change text");
+
+        assert_eq!(
+            output,
+            "define AS_PATH_FILTER = [=\n  65001\n  65002\n=];\n"
+        );
     }
 }
