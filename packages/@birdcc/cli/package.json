@@ -30,7 +30,8 @@
     "@birdcc/formatter": "0.1.0-beta.0",
     "@birdcc/linter": "0.1.0-beta.0",
     "@birdcc/lsp": "0.1.0-beta.0",
-    "cac": "^6.7.14",
+    "cac": "^7.0.0",
+    "yoctocolors": "^2.1.2",
     "zod": "^4.3.6"
   },
   "scripts": {
