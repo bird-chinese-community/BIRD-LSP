@@ -18,6 +18,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./output-types": {
+      "types": "./dist/output-types.d.ts"
+    },
+    "./output-schemas": {
+      "types": "./dist/output-schemas.d.ts"
     }
   },
   "files": [

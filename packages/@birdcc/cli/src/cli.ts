@@ -25,6 +25,7 @@ import {
 interface LintOptions {
   format?: string;
   json?: boolean;
+  debugJson?: boolean;
   verbose?: boolean;
   bird?: boolean;
   crossFile?: boolean;
@@ -36,6 +37,8 @@ interface LintOptions {
 interface FmtOptions {
   check?: boolean;
   write?: boolean;
+  json?: boolean;
+  debugJson?: boolean;
   engine?: string;
   verbose?: boolean;
 }
@@ -47,6 +50,7 @@ interface LspOptions {
 
 const cli = cac("birdcc");
 cli.option("--verbose, -v", "Enable verbose output");
+cli.option("--debug-json", "Include debug-level fields in JSON output");
 
 cli
   .command("lint [file]", "Lint BIRD config file")
@@ -185,7 +189,40 @@ cli
         }
 
         if (format === "json") {
-          console.log(JSON.stringify({ diagnostics: allDiagnostics }, null, 2));
+          const errors = allDiagnostics.filter(
+            (d) => d.severity === "error",
+          ).length;
+          const warnings = allDiagnostics.filter(
+            (d) => d.severity === "warning",
+          ).length;
+          const output: Record<string, unknown> = {
+            diagnostics: allDiagnostics.map((d) => ({
+              ...d,
+              causes: [],
+              related: [],
+              labels: [],
+              url:
+                d.code && d.code.includes("/")
+                  ? `https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/rules/${d.code}.md`
+                  : undefined,
+              help: d.message,
+            })),
+            files: targetFiles.length,
+            rules: Object.keys(loadedConfig.config.linter?.rules ?? {}).length,
+            errors,
+            warnings,
+            elapsedMs: Date.now() - lintStartTime,
+          };
+          if (options.debugJson) {
+            output.debug = {
+              configPath: loadedConfig.path,
+              targetFiles,
+              includeMaxDepth,
+              includeMaxFiles,
+              validateCommand,
+            };
+          }
+          console.log(JSON.stringify(output, null, format === "json" ? 2 : 0));
         } else {
           if (allDiagnostics.length === 0) {
             console.log(CLI_MESSAGES.lintNoDiagnostics);
@@ -218,6 +255,7 @@ cli
   .option("--check", "Only check formatting")
   .option("--write", "Write formatted output to file")
   .option("--engine <engine>", "Formatter engine: dprint | builtin")
+  .option("--json", "Output format result as JSON")
   .action(
     withActionErrorHandling(
       async (file: string | undefined, options: FmtOptions) => {
@@ -254,6 +292,24 @@ cli
           lineWidth: loadedConfig.config.formatter?.lineWidth,
           safeMode: loadedConfig.config.formatter?.safeMode,
         });
+
+        // JSON output
+        if (options.json) {
+          const jsonOutput: Record<string, unknown> = {
+            changed: result.changed,
+            filePath: targetFilePath,
+          };
+          if (options.debugJson) {
+            jsonOutput.elapsedMs = Date.now() - fmtStartTime;
+            jsonOutput.engine = engine ?? "default";
+            if (loadedConfig.config.formatter?.indentSize)
+              jsonOutput.indentSize = loadedConfig.config.formatter.indentSize;
+            if (loadedConfig.config.formatter?.lineWidth)
+              jsonOutput.lineWidth = loadedConfig.config.formatter.lineWidth;
+          }
+          console.log(JSON.stringify(jsonOutput, null, 2));
+          return;
+        }
 
         const logFmtTime = () => {
           if (options.verbose) vtime("Format", Date.now() - fmtStartTime);
