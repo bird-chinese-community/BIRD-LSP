@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -157,8 +157,23 @@ const formatSpawnError = (error: NodeJS.ErrnoException): string => {
   return error.message;
 };
 
-const formatIoError = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+const ERRNO_MESSAGES: Record<string, string> = {
+  EISDIR: "is a directory, expected a file",
+  EACCES: "permission denied",
+  ENOENT: "no such file or directory",
+  ENOTDIR: "not a directory",
+};
+
+const formatIoError = (error: unknown): string => {
+  if (error instanceof Error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code && code in ERRNO_MESSAGES) {
+      return ERRNO_MESSAGES[code];
+    }
+    return error.message;
+  }
+  return String(error);
+};
 
 const readUtf8File = async (filePath: string): Promise<string> => {
   try {
@@ -673,6 +688,21 @@ export const runFmt = async (
   filePath: string,
   options: FmtOptions = {},
 ): Promise<FmtResult> => {
+  // Detect if path is a directory and give a friendly error
+  try {
+    const fileStat = await stat(filePath);
+    if (fileStat.isDirectory()) {
+      throw new Error(
+        `'${filePath}' is a directory, not a file. Use a specific .conf file like 'bird.conf'.`,
+      );
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("'")) {
+      throw error;
+    }
+    // If stat fails (e.g., file doesn't exist), let readUtf8File handle it
+  }
+
   const text = await readUtf8File(filePath);
   let result: FmtResult;
 

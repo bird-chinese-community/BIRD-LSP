@@ -7,11 +7,25 @@ import { runInit } from "./commands/init.js";
 import { resolveWorkspaceEntries } from "./workspace-patterns.js";
 import {
   CLI_MESSAGES,
-  createInvalidPositiveIntegerOptionMessage,
+  boldSeverity,
+  createInvalidFormatOptionMessage,
+  severityColor,
+  vlog,
+  vtime,
 } from "./messages.js";
+import {
+  isCliFormatterEngine,
+  parseOptionalPositiveInteger,
+  resolveTargetFilePath,
+  withActionErrorHandling,
+  withCommandErrorHandling,
+  type CliFormatterEngine,
+} from "./cli-helpers.js";
 
 interface LintOptions {
-  format?: "json" | "text";
+  format?: string;
+  json?: boolean;
+  verbose?: boolean;
   bird?: boolean;
   crossFile?: boolean;
   includeMaxDepth?: string;
@@ -23,102 +37,26 @@ interface FmtOptions {
   check?: boolean;
   write?: boolean;
   engine?: string;
+  verbose?: boolean;
 }
 
 interface LspOptions {
   stdio?: boolean;
+  verbose?: boolean;
 }
 
-type FileAction<TOptions extends object> = (
-  file: string | undefined,
-  options: TOptions,
-) => Promise<void>;
-type CommandAction<TOptions extends object> = (
-  options: TOptions,
-) => Promise<void>;
-
-const withActionErrorHandling = <TOptions extends object>(
-  action: FileAction<TOptions>,
-) => {
-  return async (file: string | undefined, options: TOptions): Promise<void> => {
-    try {
-      await action(file, options);
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
-    }
-  };
-};
-
-const resolveTargetFilePath = async (
-  file: string | undefined,
-): Promise<string> => {
-  if (file) {
-    return resolve(file);
-  }
-
-  const fallbackEntry = resolve(process.cwd(), "bird.conf");
-  const loadedConfig = await loadBirdProjectConfigForFile(fallbackEntry);
-  if (!loadedConfig.path) {
-    throw new Error(
-      "No target file specified and no bird.config.json found. Pass <file> explicitly or create bird.config.json with 'main'.",
-    );
-  }
-
-  if ((loadedConfig.config.workspaces?.length ?? 0) > 0) {
-    throw new Error(
-      "bird.config.json defines 'workspaces'. Please pass a concrete <file> path for lint/fmt.",
-    );
-  }
-
-  const configDir = dirname(loadedConfig.path);
-  const entry = loadedConfig.config.main ?? "bird.conf";
-  return resolve(configDir, entry);
-};
-
-const withCommandErrorHandling = <TOptions extends object>(
-  action: CommandAction<TOptions>,
-) => {
-  return async (options: TOptions): Promise<void> => {
-    try {
-      await action(options);
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
-    }
-  };
-};
-
 const cli = cac("birdcc");
-const FMT_ENGINES = ["dprint", "builtin"] as const;
-type CliFormatterEngine = (typeof FMT_ENGINES)[number];
-const FMT_ENGINE_SET = new Set<string>(FMT_ENGINES);
-const isCliFormatterEngine = (value: string): value is CliFormatterEngine =>
-  FMT_ENGINE_SET.has(value);
-
-const parseOptionalPositiveInteger = (
-  optionName: string,
-  rawValue: string | undefined,
-): number | undefined => {
-  if (!rawValue) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(rawValue, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(
-      createInvalidPositiveIntegerOptionMessage(optionName, rawValue),
-    );
-  }
-
-  return parsed;
-};
+cli.option("--verbose, -v", "Enable verbose output");
 
 cli
   .command("lint [file]", "Lint BIRD config file")
   .option("--format <format>", "Output format: json | text", {
     default: "text",
   })
+  .option(
+    "--json",
+    "Output diagnostics in JSON format (shorthand for --format json)",
+  )
   .option("--bird", "Run bird -p validation")
   .option("--cross-file", "Enable cross-file include analysis", {
     default: true,
@@ -132,7 +70,17 @@ cli
   .action(
     withActionErrorHandling(
       async (file: string | undefined, options: LintOptions) => {
-        const format = options.format === "json" ? "json" : "text";
+        const lintStartTime = Date.now();
+
+        // Resolve format: --json flag overrides --format option
+        const rawFormat = options.json ? "json" : (options.format ?? "text");
+        if (rawFormat !== "json" && rawFormat !== "text") {
+          throw new Error(createInvalidFormatOptionMessage(rawFormat));
+        }
+        const format = rawFormat;
+
+        if (options.verbose) vlog("Resolving targets...");
+
         const includeMaxDepth = parseOptionalPositiveInteger(
           "--include-max-depth",
           options.includeMaxDepth,
@@ -197,7 +145,16 @@ cli
         // Run lint on all target files and aggregate
         const allDiagnostics: Array<import("@birdcc/core").BirdDiagnostic> = [];
 
+        if (options.verbose) {
+          vlog(
+            `Linting ${targetFiles.length} file(s):`,
+            ...targetFiles.map((tf) => `  ${tf}`),
+          );
+        }
+
         for (const targetFilePath of targetFiles) {
+          const fileStartTime = options.verbose ? Date.now() : 0;
+
           const result = await runLint(targetFilePath, {
             withBird: Boolean(
               options.bird || loadedConfig.config.linter?.withBird,
@@ -217,6 +174,14 @@ cli
             severityOverrides: loadedConfig.config.linter?.rules,
           });
           allDiagnostics.push(...result.diagnostics);
+
+          if (options.verbose) {
+            const diagCount = result.diagnostics.length;
+            const elapsed = Date.now() - fileStartTime;
+            vlog(
+              `  ${targetFilePath}: ${diagCount} diagnostic(s) in ${elapsed}ms`,
+            );
+          }
         }
 
         if (format === "json") {
@@ -228,11 +193,15 @@ cli
 
           for (const diagnostic of allDiagnostics) {
             const uriPrefix = diagnostic.uri ? `[${diagnostic.uri}] ` : "";
+            const sev = boldSeverity(diagnostic.severity);
+            const msg = severityColor(diagnostic.severity, diagnostic.message);
             console.log(
-              `${diagnostic.severity.toUpperCase()} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${diagnostic.message}`,
+              `${sev} ${diagnostic.code} ${uriPrefix}${diagnostic.range.line}:${diagnostic.range.column} ${msg}`,
             );
           }
         }
+
+        if (options.verbose) vtime("Lint", Date.now() - lintStartTime);
 
         const hasError = allDiagnostics.some(
           (item) => item.severity === "error",
@@ -252,7 +221,12 @@ cli
   .action(
     withActionErrorHandling(
       async (file: string | undefined, options: FmtOptions) => {
+        const fmtStartTime = Date.now();
+
         const targetFilePath = await resolveTargetFilePath(file);
+
+        if (options.verbose) vlog(`Formatting ${targetFilePath}`);
+
         const loadedConfig = await loadBirdProjectConfigForFile(targetFilePath);
         if (options.check && options.write) {
           console.error(CLI_MESSAGES.fmtCheckWriteConflict);
@@ -281,22 +255,29 @@ cli
           safeMode: loadedConfig.config.formatter?.safeMode,
         });
 
+        const logFmtTime = () => {
+          if (options.verbose) vtime("Format", Date.now() - fmtStartTime);
+        };
+
         if (writeMode) {
           console.log(
             result.changed
               ? CLI_MESSAGES.fmtWritten
               : CLI_MESSAGES.fmtAlreadyFormatted,
           );
+          logFmtTime();
           return;
         }
 
         if (result.changed) {
           console.error(CLI_MESSAGES.fmtCheckFailed);
           process.exitCode = 1;
+          logFmtTime();
           return;
         }
 
         console.log(CLI_MESSAGES.fmtCheckPassed);
+        logFmtTime();
       },
     ),
   );
@@ -311,6 +292,8 @@ cli
         process.exitCode = 1;
         return;
       }
+
+      if (options.verbose) vlog("Starting LSP server over stdio...");
 
       await runLspStdio();
     }),
@@ -336,8 +319,14 @@ cli
   .action(
     withActionErrorHandling(
       async (root: string | undefined, options: Record<string, unknown>) => {
+        const initStartTime = Date.now();
+        const isVerbose = Boolean(options.verbose);
+
         const resolvedRoot = resolve(root ?? process.cwd());
         const configName = (options.configName as string) ?? "bird.config.json";
+
+        if (isVerbose)
+          vlog(`Scanning ${resolvedRoot} for BIRD config files...`);
         const maxDepth = parseOptionalPositiveInteger(
           "--max-depth",
           options.maxDepth as string | undefined,
@@ -361,6 +350,8 @@ cli
           maxFiles,
           ignore,
         });
+
+        if (isVerbose) vtime("Init", Date.now() - initStartTime);
       },
     ),
   );
