@@ -1,5 +1,5 @@
 import { readdir, realpath, stat } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { basename, extname, resolve, sep } from "node:path";
 import { isForbiddenRoot } from "./fs-safety.mjs";
 
 export const allowedConfigExtensions = new Set([
@@ -63,7 +63,7 @@ export const discoverFiles = async (root) => {
         } catch {
           continue;
         }
-        if (!target.startsWith(resolvedRoot + "/") && target !== resolvedRoot) {
+        if (!target.startsWith(resolvedRoot + sep) && target !== resolvedRoot) {
           continue;
         }
       }

@@ -113,6 +113,105 @@ describe("@birdcc/core boundaries", () => {
     expect(errorCodes).not.toContain("semantic/invalid-cidr");
   });
 
+  it("resolves router id from defined IPv4 constant", async () => {
+    const sample = `
+      define MY_RID = 192.0.2.1;
+      router id MY_RID;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    const errorCodes = result.diagnostics
+      .filter((item) => item.severity === "error")
+      .map((item) => item.code);
+
+    expect(errorCodes).not.toContain("semantic/invalid-router-id");
+  });
+
+  it("resolves router id from defined numeric constant", async () => {
+    const sample = `
+      define MY_ASN = 65001;
+      router id MY_ASN;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    const errorCodes = result.diagnostics
+      .filter((item) => item.severity === "error")
+      .map((item) => item.code);
+
+    expect(errorCodes).not.toContain("semantic/invalid-router-id");
+  });
+
+  it("resolves router id from multi-line define block", async () => {
+    const sample = `
+      define MY_RID = 203.0.113.1;
+      define OTHER_VAL = "hello";
+      router id MY_RID;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    const errorCodes = result.diagnostics
+      .filter((item) => item.severity === "error")
+      .map((item) => item.code);
+
+    expect(errorCodes).not.toContain("semantic/invalid-router-id");
+  });
+
+  it("rejects router id referencing an undefined identifier", async () => {
+    const sample = `
+      router id UNDEFINED_VAR;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/invalid-router-id",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects router id referencing a define with non-IPv4 IP value", async () => {
+    const sample = `
+      define BAD_RID = 2001:db8::1;
+      router id BAD_RID;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/invalid-router-id",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects router id referencing a define with string value", async () => {
+    const sample = `
+      define BAD_RID = "not-an-ip";
+      router id BAD_RID;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    expect(
+      result.diagnostics.some(
+        (item) => item.code === "semantic/invalid-router-id",
+      ),
+    ).toBe(true);
+  });
+
+  it("resolves chained define constants for router id", async () => {
+    const sample = `
+      define A = B;
+      define B = 192.0.2.1;
+      router id A;
+    `;
+
+    const result = await buildCoreSnapshot(sample);
+    const errorCodes = result.diagnostics
+      .filter((item) => item.severity === "error")
+      .map((item) => item.code);
+
+    expect(errorCodes).not.toContain("semantic/invalid-router-id");
+  });
+
   it("emits type diagnostics for assignment mismatch and undefined variable", async () => {
     const sample = `
       filter export_policy {

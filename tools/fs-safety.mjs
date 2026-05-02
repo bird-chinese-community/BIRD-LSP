@@ -8,7 +8,7 @@
  */
 export const isForbiddenRoot = (path) => {
   // Count path segments: "/" = 0, "/Users" = 1, "/Users/name" = 2
-  const segments = path.split("/").filter(Boolean);
+  const segments = path.split(/[/\\]/).filter(Boolean);
   // Block / and /* level paths, only allow /*/*+
   return segments.length < 2;
 };
