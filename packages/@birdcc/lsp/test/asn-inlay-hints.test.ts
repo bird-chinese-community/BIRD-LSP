@@ -125,7 +125,9 @@ describe("createAsnInlayHints", () => {
     expect(hints).toHaveLength(0);
   });
 
-  it("skips short non-exempt ASNs", () => {
+  it("skips short ASNs not in intel database (even though context matches)", () => {
+    // `local as <n>` is a guaranteed ASN context — the engine now recognizes
+    // any positive integer, but the mock intel has no entry for ASN 44.
     const text = "local as 44;";
     const hints = createAsnInlayHints(mockIntel, text, {
       start: { line: 0, character: 0 },

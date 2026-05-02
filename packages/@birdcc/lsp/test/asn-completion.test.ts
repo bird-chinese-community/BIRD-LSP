@@ -49,13 +49,18 @@ describe("extractAsnPrefix", () => {
   });
 
   it("returns undefined for non-ASN context", () => {
-    expect(extractAsnPrefix("  local as 44")).toBeUndefined();
     expect(extractAsnPrefix("  remote as 4")).toBeUndefined();
     expect(extractAsnPrefix("define MY_ASN = 44")).toBeUndefined();
     expect(extractAsnPrefix("define PUB_REGION = 44")).toBeUndefined();
     expect(extractAsnPrefix("protocol bgp edge")).toBeUndefined();
     expect(extractAsnPrefix("  import filter")).toBeUndefined();
     expect(extractAsnPrefix("")).toBeUndefined();
+  });
+
+  it("recognizes short ASNs in guaranteed completion contexts", () => {
+    // `local as` is a guaranteed ASN context — any positive integer is accepted
+    expect(extractAsnPrefix("  local as 44")).toBe("44");
+    expect(extractAsnPrefix("  local as 1")).toBe("1");
   });
 });
 
