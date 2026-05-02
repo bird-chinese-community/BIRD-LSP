@@ -76,12 +76,17 @@ const buildConfig = async (
         const dir = candidate.path.split("/").slice(0, -1).join("/");
         if (dir) {
           entryDirs.add(dir + "/");
+        } else {
+          // Root-level entry — include "." as a workspace dir
+          entryDirs.add(".");
         }
       }
     }
     if (entryDirs.size > 0) {
       config.workspaces = [...entryDirs].sort();
-    } else if (result.primary) {
+    }
+    // Also set main to the primary entry for clarity
+    if (result.primary) {
       config.main = `./${result.primary.path}`;
     }
   } else if (result.primary) {

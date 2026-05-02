@@ -65,8 +65,15 @@ export const classifyFileRole = (
     return "unknown";
   }
 
+  // Canonical root-level bird.conf with router id is never a "library"
+  const isCanonicalRootEntry =
+    signals.hasGlobalRouterId &&
+    (fileName === "bird" || fileName === "bird6") &&
+    dir === ".";
+
   // Library: has define/global router id but no protocol block
   if (
+    !isCanonicalRootEntry &&
     (signals.hasDefine || signals.hasGlobalRouterId) &&
     !signals.hasProtocolBlock
   ) {
