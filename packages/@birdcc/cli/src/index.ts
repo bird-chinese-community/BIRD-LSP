@@ -215,7 +215,11 @@ interface CommandExecResult {
   errorReason?: string;
 }
 
-const runCommand = (executable: string, args: string[]): CommandExecResult => {
+const runCommand = (
+  executable: string,
+  args: string[],
+  cwd?: string,
+): CommandExecResult => {
   if (!executable) {
     return {
       command: "",
@@ -230,6 +234,7 @@ const runCommand = (executable: string, args: string[]): CommandExecResult => {
     encoding: "utf8",
     timeout: COMMAND_TIMEOUT_MS,
     killSignal: "SIGTERM",
+    ...(cwd ? { cwd } : {}),
   });
 
   if (result.error) {
@@ -353,6 +358,7 @@ export const runBirdValidation = (
   const execResult = runCommand(
     expandedCommand.executable,
     expandedCommand.args,
+    dirname(filePath),
   );
 
   if (execResult.errorReason) {
