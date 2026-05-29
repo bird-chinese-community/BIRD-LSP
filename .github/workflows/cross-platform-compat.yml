@@ -19,7 +19,7 @@ jobs:
           - name: linux-amd64
             runs_on: ubuntu-latest
           - name: linux-arm64
-            runs_on: ubuntu-24.04-arm
+            runs_on: blacksmith-4vcpu-ubuntu-2404-arm
           - name: macos-arm64
             runs_on: macos-14
           - name: windows-amd64
@@ -42,7 +42,7 @@ jobs:
 
   bird-parse-docker:
     name: Bird Parse Docker (${{ matrix.platform_tag }})
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +64,8 @@ jobs:
       - run: pnpm --filter @birdcc/cli... build
       - run: node tools/ci/smoke-cli-lint-fmt.mjs
       - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - name: Setup Blacksmith Builder
+        uses: useblacksmith/setup-docker-builder@v1
       - name: Build BIRD2 image
         run: |
           docker buildx build \

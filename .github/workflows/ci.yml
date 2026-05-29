@@ -17,7 +17,7 @@ env:
 jobs:
   prek:
     name: Pre-check
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -34,7 +34,7 @@ jobs:
 
   parser:
     name: Parser (grammar verification)
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - name: Initialize required submodules
@@ -60,7 +60,7 @@ jobs:
 
   turbo:
     name: Full build & test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,7 +103,7 @@ jobs:
   coverage:
     name: Coverage
     needs: turbo
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - name: Initialize required submodules
@@ -129,7 +129,7 @@ jobs:
   vscode-e2e-smoke:
     name: VS Code E2E smoke
     needs: turbo
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - name: Initialize required submodules
@@ -149,7 +149,7 @@ jobs:
 
   vscode-pack-smoke:
     name: VS Code pack smoke
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -167,7 +167,7 @@ jobs:
     name: CI OK
     if: always()
     needs: [prek, parser, turbo, coverage, vscode-e2e-smoke, vscode-pack-smoke]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Check all jobs
         run: |
