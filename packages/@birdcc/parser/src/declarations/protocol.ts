@@ -102,37 +102,147 @@ const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
   return startsBefore && endsAfter;
 };
 
-const parseFallbackChannelTableEntries = (
+const fallbackEntryRange = (
+  source: string,
+  lineStarts: number[],
+  bodyStartIndex: number,
+  matchIndex: number,
+  matchText: string,
+): SourceRange =>
+  indexToRange(
+    source,
+    lineStarts,
+    bodyStartIndex + matchIndex,
+    bodyStartIndex + matchIndex + matchText.length,
+  );
+
+const fallbackTokenRange = (
+  source: string,
+  lineStarts: number[],
+  entryStartIndex: number,
+  token: string,
+): SourceRange => {
+  const tokenStart = source.indexOf(token, entryStartIndex);
+  return indexToRange(
+    source,
+    lineStarts,
+    tokenStart,
+    tokenStart + token.length,
+  );
+};
+
+const parseFallbackChannelEntries = (
   source: string,
   lineStarts: number[],
   openBraceIndex: number,
   closeBraceIndex: number,
 ): ChannelEntry[] => {
   const bodyText = source.slice(openBraceIndex + 1, closeBraceIndex);
-  const tableMatch = bodyText.match(/\btable\s+([A-Za-z_][A-Za-z0-9_-]*)\s*;/i);
-  const tableName = tableMatch?.[1];
-  if (!tableMatch || !tableName || tableMatch.index === undefined) {
-    return [];
+  const bodyStartIndex = openBraceIndex + 1;
+  const entries: ChannelEntry[] = [];
+  const entryPattern =
+    /\b(?:(domain)\s+([A-Za-z_][A-Za-z0-9_-]*)|(table)\s+([A-Za-z_][A-Za-z0-9_-]*)|(label)\s+(range)\s+([A-Za-z_][A-Za-z0-9_-]*)|(label)\s+(policy)\s+([A-Za-z_][A-Za-z0-9_-]*))\s*;/gi;
+
+  for (const match of bodyText.matchAll(entryPattern)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    const entryStart = bodyStartIndex + match.index;
+    const entryRange = fallbackEntryRange(
+      source,
+      lineStarts,
+      bodyStartIndex,
+      match.index,
+      match[0],
+    );
+
+    const domainName = match[2];
+    if (domainName) {
+      entries.push({
+        kind: "domain",
+        domainName,
+        domainNameRange: fallbackTokenRange(
+          source,
+          lineStarts,
+          entryStart,
+          domainName,
+        ),
+        ...entryRange,
+      });
+      continue;
+    }
+
+    const tableName = match[4];
+    if (tableName) {
+      entries.push({
+        kind: "table",
+        tableName,
+        tableNameRange: fallbackTokenRange(
+          source,
+          lineStarts,
+          entryStart,
+          tableName,
+        ),
+        ...entryRange,
+      });
+      continue;
+    }
+
+    const labelRange = match[7];
+    if (labelRange) {
+      entries.push({
+        kind: "label-range",
+        range: labelRange,
+        rangeRange: fallbackTokenRange(
+          source,
+          lineStarts,
+          entryStart,
+          labelRange,
+        ),
+        ...entryRange,
+      });
+      continue;
+    }
+
+    const labelPolicy = match[10];
+    if (labelPolicy) {
+      const policy = labelPolicy.toLowerCase();
+      entries.push({
+        kind: "label-policy",
+        policy:
+          policy === "static" ||
+          policy === "prefix" ||
+          policy === "aggregate" ||
+          policy === "vrf"
+            ? policy
+            : "other",
+        policyRange: fallbackTokenRange(
+          source,
+          lineStarts,
+          entryStart,
+          labelPolicy,
+        ),
+        ...entryRange,
+      });
+    }
   }
 
-  const entryStart = openBraceIndex + 1 + tableMatch.index;
-  const entryEnd = entryStart + tableMatch[0].length;
-  const nameStart = source.indexOf(tableName, entryStart);
-
-  return [
-    {
-      kind: "table",
-      tableName,
-      tableNameRange: indexToRange(
-        source,
-        lineStarts,
-        nameStart,
-        nameStart + tableName.length,
-      ),
-      ...indexToRange(source, lineStarts, entryStart, entryEnd),
-    },
-  ];
+  return entries;
 };
+
+const parseFallbackCompoundChannelEntries = (
+  source: string,
+  lineStarts: number[],
+  openBraceIndex: number,
+  closeBraceIndex: number,
+): ChannelEntry[] =>
+  parseFallbackChannelEntries(
+    source,
+    lineStarts,
+    openBraceIndex,
+    closeBraceIndex,
+  );
 
 // Keep API near parseProtocolStatements and channel fallback behavior.
 const parseImportExportNode = (
@@ -651,7 +761,7 @@ const collectCompoundChannelFallbacks = (
         headerStart,
         headerStart + headerText.length,
       ),
-      entries: parseFallbackChannelTableEntries(
+      entries: parseFallbackCompoundChannelEntries(
         source,
         lineStarts,
         openBraceIndex,

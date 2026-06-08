@@ -396,6 +396,39 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses MPLS entries in compound MPLS channels", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        ipv4 mpls {
+          domain mdom;
+          table t_ipv4_mpls;
+          label range bgprange;
+          label policy aggregate;
+        };
+      }
+    `);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        expect(channel.channelType).toBe("ipv4-mpls");
+        expect(channel.entries).toMatchObject([
+          { kind: "domain", domainName: "mdom" },
+          { kind: "table", tableName: "t_ipv4_mpls" },
+          { kind: "label-range", range: "bgprange" },
+          { kind: "label-policy", policy: "aggregate" },
+        ]);
+      }
+    }
+  });
+
   it("parses static route statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol static static_routes {
