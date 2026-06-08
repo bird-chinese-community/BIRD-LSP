@@ -170,6 +170,8 @@ const IPV6_SADR_TABLE_DECLARATION =
 const MPLS_DOMAIN_HEADER =
   /^\s*mpls\s+domain\s+[A-Za-z_][A-Za-z0-9_-]*\s*\{?\s*$/i;
 const MPLS_DOMAIN_BLOCK_END = /^\s*}\s*;?\s*$/;
+const COMPOUND_CHANNEL_PHRASE =
+  /\b(?:ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/i;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -234,7 +236,8 @@ const isRecoverableSyntaxIssue = (
   if (
     LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
     ALLOW_LOCAL_AS.test(currentLineText) ||
-    IPV6_SADR_TABLE_DECLARATION.test(currentLineText)
+    IPV6_SADR_TABLE_DECLARATION.test(currentLineText) ||
+    COMPOUND_CHANNEL_PHRASE.test(issue.message)
   ) {
     return true;
   }

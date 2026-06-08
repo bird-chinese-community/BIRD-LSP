@@ -310,6 +310,58 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses compound channel type phrases", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        ipv6 sadr {
+          table t_ipv6_sadr;
+        };
+        ipv4 mpls {
+          table t_ipv4_mpls;
+        };
+        ipv6 mpls {
+          table t_ipv6_mpls;
+        };
+        vpn4 mpls {
+          table t_vpn4_mpls;
+        };
+        vpn6 mpls {
+          table t_vpn6_mpls;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channels = protocol.statements.filter(
+        (item) => item.kind === "channel",
+      );
+      expect(channels.map((item) => item.channelType)).toEqual([
+        "ipv6-sadr",
+        "ipv4-mpls",
+        "ipv6-mpls",
+        "vpn4-mpls",
+        "vpn6-mpls",
+      ]);
+      expect(
+        channels.map((item) =>
+          item.entries.find((entry) => entry.kind === "table"),
+        ),
+      ).toMatchObject([
+        { kind: "table", tableName: "t_ipv6_sadr" },
+        { kind: "table", tableName: "t_ipv4_mpls" },
+        { kind: "table", tableName: "t_ipv6_mpls" },
+        { kind: "table", tableName: "t_vpn4_mpls" },
+        { kind: "table", tableName: "t_vpn6_mpls" },
+      ]);
+    }
+  });
+
   it("parses chained where expressions in protocol channels", async () => {
     const sample = `
       protocol babel edge {

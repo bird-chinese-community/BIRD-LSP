@@ -82,6 +82,7 @@ const CHANNEL_TYPES = new Set([
   "vpn6-mpls",
   "roa4",
   "roa6",
+  "ipv6-sadr",
   "flow4",
   "flow6",
   "mpls",
@@ -221,7 +222,7 @@ export const normalizeTableType = (
 export const normalizeChannelType = (
   value: string,
 ): ChannelStatement["channelType"] => {
-  const lowered = value.toLowerCase();
+  const lowered = value.toLowerCase().replace(/\s+/g, "-");
   return CHANNEL_TYPES.has(lowered)
     ? (lowered as ChannelStatement["channelType"])
     : "unknown";

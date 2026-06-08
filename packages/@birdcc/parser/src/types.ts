@@ -226,6 +226,7 @@ export interface ChannelStatement extends StatementBase {
     | "vpn6-mpls"
     | "roa4"
     | "roa6"
+    | "ipv6-sadr"
     | "flow4"
     | "flow6"
     | "mpls"

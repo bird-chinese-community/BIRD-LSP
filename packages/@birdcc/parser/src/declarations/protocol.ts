@@ -1,6 +1,7 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type {
   ChannelEntry,
+  ChannelStatement,
   ExportStatement,
   ImportStatement,
   ParseIssue,
@@ -18,6 +19,119 @@ import {
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
 } from "./shared.js";
+
+const COMPOUND_CHANNEL_HEADER =
+  /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
+
+const lineStartsOf = (source: string): number[] => {
+  const starts = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      starts.push(index + 1);
+    }
+  }
+  return starts;
+};
+
+const indexToRange = (
+  source: string,
+  lineStarts: number[],
+  startIndex: number,
+  endIndex: number,
+): SourceRange => {
+  const positionOf = (index: number): { line: number; column: number } => {
+    let lineIndex = 0;
+    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
+      const start = lineStarts[cursor] ?? 0;
+      if (start > index) {
+        break;
+      }
+      lineIndex = cursor;
+    }
+
+    const lineStart = lineStarts[lineIndex] ?? 0;
+    return {
+      line: lineIndex + 1,
+      column: index - lineStart + 1,
+    };
+  };
+
+  const start = positionOf(startIndex);
+  const end = positionOf(endIndex);
+  return {
+    line: start.line,
+    column: start.column,
+    endLine: end.line,
+    endColumn: end.column,
+  };
+};
+
+const findMatchingBraceIndex = (
+  source: string,
+  openBraceIndex: number,
+): number => {
+  let balance = 0;
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      balance += 1;
+      continue;
+    }
+
+    if (char !== "}") {
+      continue;
+    }
+
+    balance -= 1;
+    if (balance === 0) {
+      return index;
+    }
+  }
+
+  return -1;
+};
+
+const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
+  const startsBefore =
+    outer.line < inner.line ||
+    (outer.line === inner.line && outer.column <= inner.column);
+  const endsAfter =
+    outer.endLine > inner.endLine ||
+    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
+  return startsBefore && endsAfter;
+};
+
+const parseFallbackChannelTableEntries = (
+  source: string,
+  lineStarts: number[],
+  openBraceIndex: number,
+  closeBraceIndex: number,
+): ChannelEntry[] => {
+  const bodyText = source.slice(openBraceIndex + 1, closeBraceIndex);
+  const tableMatch = bodyText.match(/\btable\s+([A-Za-z_][A-Za-z0-9_-]*)\s*;/i);
+  const tableName = tableMatch?.[1];
+  if (!tableMatch || !tableName || tableMatch.index === undefined) {
+    return [];
+  }
+
+  const entryStart = openBraceIndex + 1 + tableMatch.index;
+  const entryEnd = entryStart + tableMatch[0].length;
+  const nameStart = source.indexOf(tableName, entryStart);
+
+  return [
+    {
+      kind: "table",
+      tableName,
+      tableNameRange: indexToRange(
+        source,
+        lineStarts,
+        nameStart,
+        nameStart + tableName.length,
+      ),
+      ...indexToRange(source, lineStarts, entryStart, entryEnd),
+    },
+  ];
+};
 
 // Keep API near parseProtocolStatements and channel fallback behavior.
 const parseImportExportNode = (
@@ -330,6 +444,69 @@ const parseChannelEntries = (
   return entries;
 };
 
+const collectCompoundChannelFallbacks = (
+  blockNode: SyntaxNode,
+  source: string,
+): ChannelStatement[] => {
+  const blockText = textOf(blockNode, source);
+  const blockStart = blockNode.startIndex;
+  const lineStarts = lineStartsOf(source);
+  const channels: ChannelStatement[] = [];
+
+  for (const match of blockText.matchAll(COMPOUND_CHANNEL_HEADER)) {
+    const headerText = match[1];
+    if (!headerText || match.index === undefined) {
+      continue;
+    }
+
+    const headerStart = blockStart + match.index;
+    const openBraceIndex = source.indexOf("{", headerStart + headerText.length);
+    if (openBraceIndex === -1) {
+      continue;
+    }
+
+    const closeBraceIndex = findMatchingBraceIndex(source, openBraceIndex);
+    if (closeBraceIndex === -1) {
+      continue;
+    }
+
+    const semicolonIndex =
+      source[closeBraceIndex + 1] === ";"
+        ? closeBraceIndex + 2
+        : closeBraceIndex + 1;
+    const channelRange = indexToRange(
+      source,
+      lineStarts,
+      headerStart,
+      semicolonIndex,
+    );
+    const channelType = normalizeChannelType(headerText);
+    if (channelType === "unknown") {
+      continue;
+    }
+
+    channels.push({
+      kind: "channel",
+      channelType,
+      channelTypeRange: indexToRange(
+        source,
+        lineStarts,
+        headerStart,
+        headerStart + headerText.length,
+      ),
+      entries: parseFallbackChannelTableEntries(
+        source,
+        lineStarts,
+        openBraceIndex,
+        closeBraceIndex,
+      ),
+      ...channelRange,
+    });
+  }
+
+  return channels;
+};
+
 const findFirstField = (
   node: SyntaxNode,
   fieldName: string,
@@ -528,6 +705,10 @@ export const parseProtocolStatements = (
   const nodes = protocolStatementNodesOf(blockNode);
   const childNodes = blockNode.namedChildren;
   const fallbackChannelIndices = new Set<number>();
+  const compoundChannelFallbacks = collectCompoundChannelFallbacks(
+    blockNode,
+    source,
+  );
 
   for (const statementNode of nodes) {
     const statementRange = toRange(statementNode, source);
@@ -716,7 +897,20 @@ export const parseProtocolStatements = (
     index = endIndex;
   }
 
-  return mergeNeighborTailStatements(statements, issues);
+  const mergedStatements = [
+    ...statements.filter((statement) => {
+      if (statement.kind !== "other" && statement.kind !== "channel") {
+        return true;
+      }
+
+      return !compoundChannelFallbacks.some((channel) =>
+        rangeContains(channel, statement),
+      );
+    }),
+    ...compoundChannelFallbacks,
+  ];
+
+  return mergeNeighborTailStatements(mergedStatements, issues);
 };
 
 export const parseProtocolDeclaration = (
