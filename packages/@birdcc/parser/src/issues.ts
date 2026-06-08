@@ -167,6 +167,9 @@ const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
 const CASE_ARM_STATEMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
 const IPV6_SADR_TABLE_DECLARATION =
   /^\s*ipv6\s+sadr\s+table\s+[A-Za-z_][A-Za-z0-9_-]*(?:\s+.*)?;\s*$/i;
+const MPLS_DOMAIN_HEADER =
+  /^\s*mpls\s+domain\s+[A-Za-z_][A-Za-z0-9_-]*\s*\{?\s*$/i;
+const MPLS_DOMAIN_BLOCK_END = /^\s*}\s*;?\s*$/;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -190,12 +193,37 @@ const isTypedDeclarationRange = (
   return true;
 };
 
+const isMplsDomainBlockEndIssue = (
+  issue: ParseIssue,
+  lines: string[],
+): boolean => {
+  if (!MPLS_DOMAIN_BLOCK_END.test(lineTextAt(lines, issue.line))) {
+    return false;
+  }
+
+  let balance = 0;
+  for (let line = issue.line; line >= 1; line -= 1) {
+    const text = lineTextAt(lines, line);
+    balance += (text.match(/}/g) ?? []).length;
+    balance -= (text.match(/{/g) ?? []).length;
+
+    if (MPLS_DOMAIN_HEADER.test(text)) {
+      return balance <= 0;
+    }
+  }
+
+  return false;
+};
+
 const isRecoverableSyntaxIssue = (
   issue: ParseIssue,
   lines: string[],
 ): boolean => {
   if (issue.code === "syntax/missing-semicolon") {
-    return CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line));
+    return (
+      CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line)) ||
+      isMplsDomainBlockEndIssue(issue, lines)
+    );
   }
 
   if (issue.code !== "parser/syntax-error") {

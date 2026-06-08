@@ -204,6 +204,29 @@ describe("@birdcc/parser tree-sitter", () => {
     ]);
   });
 
+  it("parses MPLS domain declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      mpls domain mdom {
+        label range static {
+          start 1000;
+          length 100;
+        };
+      }
+      mpls domain backup;
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const domains = parsed.program.declarations.filter(
+      (item) => item.kind === "mpls-domain",
+    );
+
+    expect(domains).toHaveLength(2);
+    expect(domains.map((item) => item.name)).toEqual(["mdom", "backup"]);
+    expect(domains[0]?.bodyText).toContain("label range static");
+    expect(domains[1]?.bodyText).toBeUndefined();
+  });
+
   it("extracts protocol common statements and channel entries", async () => {
     const sample = `
       protocol bgp edge_peer {

@@ -6,6 +6,7 @@ import {
   type AttributeDeclaration,
   type DefineDeclaration,
   type IncludeDeclaration,
+  type MplsDomainDeclaration,
   type RouterIdDeclaration,
   type TableDeclaration,
   type TemplateDeclaration,
@@ -267,6 +268,36 @@ export const parseTableDeclaration = (
     attrsRange: isPresentNode(attrsNode)
       ? toRange(attrsNode, source)
       : undefined,
+    ...declarationRange,
+  };
+};
+
+export const parseMplsDomainDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): MplsDomainDeclaration => {
+  const declarationRange = toRange(declarationNode, source);
+  const nameNode = declarationNode.childForFieldName("name");
+  const bodyNode = declarationNode.childForFieldName("body");
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for MPLS domain declaration",
+      source,
+    );
+  }
+
+  return {
+    kind: "mpls-domain",
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
+    bodyText: isPresentNode(bodyNode) ? textOf(bodyNode, source) : undefined,
+    bodyRange: isPresentNode(bodyNode) ? toRange(bodyNode, source) : undefined,
     ...declarationRange,
   };
 };

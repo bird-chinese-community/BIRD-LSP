@@ -37,6 +37,7 @@ export type {
   IncludeDeclaration,
   LocalAsStatement,
   MatchExpression,
+  MplsDomainDeclaration,
   NeighborStatement,
   OtherProtocolStatement,
   OtherStatement,

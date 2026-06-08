@@ -2,6 +2,7 @@ import type { Node as SyntaxNode } from "web-tree-sitter";
 import type {
   AttributeDeclaration,
   BirdDeclaration,
+  MplsDomainDeclaration,
   ParseIssue,
   SourceRange,
   TableDeclaration,
@@ -10,6 +11,7 @@ import {
   parseAttributeDeclaration,
   parseDefineDeclaration,
   parseIncludeDeclaration,
+  parseMplsDomainDeclaration,
   parseRouterIdDeclaration,
   parseTableDeclaration,
   parseTemplateDeclaration,
@@ -25,6 +27,7 @@ const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
 const ATTRIBUTE_DECLARATION_LINE =
   /^(\s*)attribute\s+([A-Za-z_][A-Za-z0-9_-]*(?:\s+set)?)\s+([A-Za-z_][A-Za-z0-9_-]*)\s*;\s*$/i;
+const MPLS_DOMAIN_HEADER = /^(\s*)mpls\s+domain\s+([A-Za-z_][A-Za-z0-9_-]*)\b/i;
 
 const sourceRangeForLineSlice = (
   line: number,
@@ -36,6 +39,119 @@ const sourceRangeForLineSlice = (
   endLine: line,
   endColumn: startColumn + text.length,
 });
+
+const countChar = (text: string, char: string): number => {
+  let count = 0;
+  for (const current of text) {
+    if (current === char) {
+      count += 1;
+    }
+  }
+  return count;
+};
+
+const collectFallbackMplsDomainDeclarations = (
+  source: string,
+  declarations: BirdDeclaration[],
+): MplsDomainDeclaration[] => {
+  const existingDomains = new Set(
+    declarations
+      .filter(
+        (item): item is MplsDomainDeclaration => item.kind === "mpls-domain",
+      )
+      .map((item) => `${item.name}:${item.line}`),
+  );
+  const fallbackDeclarations: MplsDomainDeclaration[] = [];
+  const lines = source.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineText = lines[index] ?? "";
+    const match = lineText.match(MPLS_DOMAIN_HEADER);
+    const name = match?.[2];
+    if (!match || !name) {
+      continue;
+    }
+
+    const line = index + 1;
+    const key = `${name}:${line}`;
+    if (existingDomains.has(key)) {
+      continue;
+    }
+
+    const indent = match[1]?.length ?? 0;
+    const startColumn = indent + 1;
+    const nameColumn = lineText.indexOf(name) + 1;
+    let endLineIndex = index;
+    let braceBalance = 0;
+    let sawBody = false;
+
+    for (let cursor = index; cursor < lines.length; cursor += 1) {
+      const currentLine = lines[cursor] ?? "";
+      braceBalance += countChar(currentLine, "{");
+      braceBalance -= countChar(currentLine, "}");
+      sawBody ||= currentLine.includes("{");
+
+      if (sawBody) {
+        if (braceBalance <= 0) {
+          endLineIndex = cursor;
+          break;
+        }
+        continue;
+      }
+
+      if (currentLine.includes(";")) {
+        endLineIndex = cursor;
+        break;
+      }
+    }
+
+    const endLineText = lines[endLineIndex] ?? "";
+    const declarationRange: SourceRange = {
+      line,
+      column: startColumn,
+      endLine: endLineIndex + 1,
+      endColumn: endLineText.trimEnd().length + 1,
+    };
+
+    let bodyText: string | undefined;
+    let bodyRange: SourceRange | undefined;
+    const joinedText = lines.slice(index, endLineIndex + 1).join("\n");
+    const bodyStartOffset = joinedText.indexOf("{");
+    const bodyEndOffset = joinedText.lastIndexOf("}");
+    if (bodyStartOffset !== -1 && bodyEndOffset > bodyStartOffset) {
+      bodyText = joinedText.slice(bodyStartOffset, bodyEndOffset + 1);
+      const bodyLinesBefore = joinedText.slice(0, bodyStartOffset).split("\n");
+      const bodyEndLinesBefore = joinedText
+        .slice(0, bodyEndOffset + 1)
+        .split("\n");
+      const bodyStartLine = line + bodyLinesBefore.length - 1;
+      const bodyEndLine = line + bodyEndLinesBefore.length - 1;
+      const bodyStartColumn =
+        bodyLinesBefore.length === 1
+          ? startColumn + bodyStartOffset
+          : (bodyLinesBefore.at(-1)?.length ?? 0) + 1;
+      const bodyEndColumn = bodyEndLinesBefore.at(-1)?.length ?? 0;
+      bodyRange = {
+        line: bodyStartLine,
+        column: bodyStartColumn,
+        endLine: bodyEndLine,
+        endColumn: bodyEndColumn + 1,
+      };
+    }
+
+    fallbackDeclarations.push({
+      kind: "mpls-domain",
+      name,
+      nameRange: sourceRangeForLineSlice(line, nameColumn, name),
+      bodyText,
+      bodyRange,
+      ...declarationRange,
+    });
+    existingDomains.add(key);
+  }
+
+  return fallbackDeclarations;
+};
 
 const collectFallbackAttributeDeclarations = (
   source: string,
@@ -176,6 +292,11 @@ export const parseDeclarations = (
       continue;
     }
 
+    if (child.type === "mpls_domain_declaration") {
+      declarations.push(parseMplsDomainDeclaration(child, source, issues));
+      continue;
+    }
+
     if (child.type === "protocol_declaration") {
       declarations.push(parseProtocolDeclaration(child, source, issues));
       continue;
@@ -216,6 +337,7 @@ export const parseDeclarations = (
 
   return [
     ...declarations,
+    ...collectFallbackMplsDomainDeclarations(source, declarations),
     ...collectFallbackAttributeDeclarations(source, declarations),
     ...collectFallbackTableDeclarations(source, declarations),
   ].sort((left, right) => left.line - right.line || left.column - right.column);

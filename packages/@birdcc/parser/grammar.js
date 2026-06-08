@@ -18,6 +18,7 @@ export default grammar({
         $.router_id_declaration,
         $.attribute_declaration,
         $.table_declaration,
+        $.mpls_domain_declaration,
         $.protocol_declaration,
         $.template_declaration,
         $.filter_declaration,
@@ -181,6 +182,18 @@ export default grammar({
             ),
             "}",
           ),
+        ),
+      ),
+
+    mpls_domain_declaration: ($) =>
+      choice(
+        seq("mpls", "domain", optional(field("name", $.identifier)), ";"),
+        seq(
+          "mpls",
+          "domain",
+          optional(field("name", $.identifier)),
+          field("body", $.block),
+          optional(";"),
         ),
       ),
 

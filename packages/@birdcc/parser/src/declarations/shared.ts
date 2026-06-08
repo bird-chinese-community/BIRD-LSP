@@ -18,6 +18,10 @@ export type AttributeDeclaration = Extract<
   { kind: "attribute" }
 >;
 export type TableDeclaration = Extract<BirdDeclaration, { kind: "table" }>;
+export type MplsDomainDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "mpls-domain" }
+>;
 export type ProtocolDeclaration = Extract<
   BirdDeclaration,
   { kind: "protocol" }

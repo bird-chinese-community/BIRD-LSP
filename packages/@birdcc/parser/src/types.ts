@@ -24,6 +24,7 @@ interface DeclarationBase extends SourceRange {
     | "router-id"
     | "attribute"
     | "table"
+    | "mpls-domain"
     | "protocol"
     | "template"
     | "filter"
@@ -88,6 +89,14 @@ export interface TableDeclaration extends DeclarationBase {
   nameRange: SourceRange;
   attrsText?: string;
   attrsRange?: SourceRange;
+}
+
+export interface MplsDomainDeclaration extends DeclarationBase {
+  kind: "mpls-domain";
+  name: string;
+  nameRange: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
 }
 
 interface StatementBase extends SourceRange {
@@ -342,6 +351,7 @@ export type BirdDeclaration =
   | RouterIdDeclaration
   | AttributeDeclaration
   | TableDeclaration
+  | MplsDomainDeclaration
   | ProtocolDeclaration
   | TemplateDeclaration
   | FilterDeclaration
