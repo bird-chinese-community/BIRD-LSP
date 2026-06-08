@@ -554,6 +554,32 @@ const parseChannelEntries = (
         textOf(node, source).toLowerCase(),
       );
 
+      if (phraseTexts[0] === "preference" && isPresentNode(phraseNodes[1])) {
+        const valueNode = phraseNodes[1];
+        entries.push({
+          kind: "preference",
+          value: textOf(valueNode, source),
+          valueRange: toRange(valueNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "rpki" &&
+        phraseTexts[1] === "reload" &&
+        isPresentNode(phraseNodes[2])
+      ) {
+        const valueNode = phraseNodes[2];
+        entries.push({
+          kind: "rpki-reload",
+          value: textOf(valueNode, source),
+          valueRange: toRange(valueNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
       if (phraseTexts[0] === "domain" && isPresentNode(phraseNodes[1])) {
         const domainNameNode = phraseNodes[1];
         entries.push({

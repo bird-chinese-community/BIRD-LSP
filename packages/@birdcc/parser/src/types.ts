@@ -156,6 +156,8 @@ interface ChannelEntryBase extends SourceRange {
     | "limit"
     | "debug"
     | "keep-filtered"
+    | "preference"
+    | "rpki-reload"
     | "domain"
     | "label-range"
     | "label-policy"
@@ -208,6 +210,18 @@ export interface ChannelKeepFilteredEntry extends ChannelEntryBase {
   valueRange: SourceRange;
 }
 
+export interface ChannelPreferenceEntry extends ChannelEntryBase {
+  kind: "preference";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface ChannelRpkiReloadEntry extends ChannelEntryBase {
+  kind: "rpki-reload";
+  value: string;
+  valueRange: SourceRange;
+}
+
 export interface ChannelDomainEntry extends ChannelEntryBase {
   kind: "domain";
   domainName: string;
@@ -238,6 +252,8 @@ export type ChannelEntry =
   | ChannelLimitEntry
   | ChannelDebugEntry
   | ChannelKeepFilteredEntry
+  | ChannelPreferenceEntry
+  | ChannelRpkiReloadEntry
   | ChannelDomainEntry
   | ChannelLabelRangeEntry
   | ChannelLabelPolicyEntry

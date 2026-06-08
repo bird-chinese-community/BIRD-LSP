@@ -239,6 +239,8 @@ describe("@birdcc/parser tree-sitter", () => {
           import none;
           export where net.len <= 24;
           import limit 1000 action block;
+          preference 120;
+          rpki reload yes;
           debug all;
           import keep filtered on;
         };
@@ -300,6 +302,16 @@ describe("@birdcc/parser tree-sitter", () => {
         expect(channel.entries.some((item) => item.kind === "limit")).toBe(
           true,
         );
+        expect(
+          channel.entries.some(
+            (item) => item.kind === "preference" && item.value === "120",
+          ),
+        ).toBe(true);
+        expect(
+          channel.entries.some(
+            (item) => item.kind === "rpki-reload" && item.value === "yes",
+          ),
+        ).toBe(true);
         expect(channel.entries.some((item) => item.kind === "debug")).toBe(
           true,
         );

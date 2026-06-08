@@ -26,6 +26,8 @@ export type {
   ChannelLabelRangeEntry,
   ChannelLimitEntry,
   ChannelOtherEntry,
+  ChannelPreferenceEntry,
+  ChannelRpkiReloadEntry,
   ChannelStatement,
   ChannelTableEntry,
   DefineDeclaration,
