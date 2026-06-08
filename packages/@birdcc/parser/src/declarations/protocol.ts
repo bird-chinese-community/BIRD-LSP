@@ -654,6 +654,114 @@ const STATIC_ROUTE_DESTINATIONS = new Set([
 const isNode = (node: SyntaxNode | undefined): node is SyntaxNode =>
   node !== undefined;
 
+const stripQuotedText = (value: string): string =>
+  (value.startsWith('"') && value.endsWith('"')) ||
+  (value.startsWith("'") && value.endsWith("'"))
+    ? value.slice(1, -1)
+    : value;
+
+const parseBoolToken = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) {
+    return true;
+  }
+
+  const lowered = value.toLowerCase();
+  if (lowered === "on" || lowered === "yes" || lowered === "true") {
+    return true;
+  }
+
+  if (lowered === "off" || lowered === "no" || lowered === "false") {
+    return false;
+  }
+
+  return undefined;
+};
+
+const phraseNodesOf = (statementNode: SyntaxNode): SyntaxNode[] => {
+  const phraseNode = statementNode.namedChildren.find(
+    (child) => child.type === "phrase_clause",
+  );
+  return phraseNode?.namedChildren ?? [];
+};
+
+const parseProtocolOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const optionNode = phraseNodes[0];
+  if (!isNode(optionNode)) {
+    return undefined;
+  }
+
+  const statementRange = toRange(statementNode, source);
+  const optionText = textOf(optionNode, source).toLowerCase();
+
+  if (optionText === "disabled") {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "disabled",
+      value,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (
+    (optionText === "description" || optionText === "hostname") &&
+    isNode(phraseNodes[1]) &&
+    phraseNodes[1].type === "string"
+  ) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: optionText,
+      value: stripQuotedText(valueText),
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "vrf" && isNode(phraseNodes[1])) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    if (valueText.toLowerCase() === "default") {
+      return {
+        kind: "vrf",
+        mode: "default",
+        nameText: valueText,
+        nameRange: toRange(valueNode, source),
+        ...statementRange,
+      };
+    }
+
+    if (valueNode.type === "string") {
+      return {
+        kind: "vrf",
+        mode: "named",
+        name: stripQuotedText(valueText),
+        nameText: valueText,
+        nameRange: toRange(valueNode, source),
+        ...statementRange,
+      };
+    }
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -662,10 +770,7 @@ const parseStaticRouteStatement = (
     return undefined;
   }
 
-  const phraseNode = statementNode.namedChildren.find(
-    (child) => child.type === "phrase_clause",
-  );
-  const phraseNodes = phraseNode?.namedChildren ?? [];
+  const phraseNodes = phraseNodesOf(statementNode);
   if (
     textOf(phraseNodes[0], source).toLowerCase() !== "route" ||
     !isPresentNode(phraseNodes[1])
@@ -1105,6 +1210,15 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "expression_statement") {
+      const protocolOption = parseProtocolOptionStatement(
+        statementNode,
+        source,
+      );
+      if (protocolOption) {
+        statements.push(protocolOption);
+        continue;
+      }
+
       const staticRoute = parseStaticRouteStatement(statementNode, source);
       if (staticRoute) {
         statements.push(staticRoute);

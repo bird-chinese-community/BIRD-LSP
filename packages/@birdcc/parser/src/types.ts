@@ -106,7 +106,11 @@ interface StatementBase extends SourceRange {
     | "import"
     | "export"
     | "channel"
-    | "static-route";
+    | "static-route"
+    | "disabled"
+    | "description"
+    | "hostname"
+    | "vrf";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -303,6 +307,28 @@ export interface StaticRouteStatement extends StatementBase {
   optionsText?: string;
 }
 
+export interface DisabledStatement extends StatementBase {
+  kind: "disabled";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface ProtocolTextStatement extends StatementBase {
+  kind: "description" | "hostname";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface VrfStatement extends StatementBase {
+  kind: "vrf";
+  mode: "default" | "named";
+  name?: string;
+  nameText?: string;
+  nameRange?: SourceRange;
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -315,6 +341,9 @@ export type ProtocolStatement =
   | ExportStatement
   | ChannelStatement
   | StaticRouteStatement
+  | DisabledStatement
+  | ProtocolTextStatement
+  | VrfStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {

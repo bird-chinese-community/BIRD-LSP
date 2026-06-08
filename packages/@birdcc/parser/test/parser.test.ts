@@ -322,6 +322,44 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses protocol metadata and VRF statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        disabled;
+        disabled off;
+        description "edge transit peer";
+        hostname "router-a";
+        vrf "blue";
+        vrf default;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "disabled", value: true },
+        { kind: "disabled", value: false, valueText: "off" },
+        { kind: "description", value: "edge transit peer" },
+        { kind: "hostname", value: "router-a" },
+        { kind: "vrf", mode: "named", name: "blue" },
+        { kind: "vrf", mode: "default" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(disabled|description|hostname|vrf)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

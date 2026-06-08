@@ -31,6 +31,7 @@ export type {
   ChannelStatement,
   ChannelTableEntry,
   DefineDeclaration,
+  DisabledStatement,
   ExpressionStatement,
   ExtractedLiteral,
   ExportStatement,
@@ -49,6 +50,7 @@ export type {
   ParseIssue,
   ParsedBirdDocument,
   ProtocolDeclaration,
+  ProtocolTextStatement,
   ProtocolStatement,
   RejectStatement,
   ReturnStatement,
@@ -57,6 +59,7 @@ export type {
   StaticRouteStatement,
   TableDeclaration,
   TemplateDeclaration,
+  VrfStatement,
 } from "./types.js";
 
 /**
