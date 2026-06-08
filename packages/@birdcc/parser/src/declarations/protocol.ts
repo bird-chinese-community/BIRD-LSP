@@ -7,6 +7,7 @@ import type {
   ParseIssue,
   ProtocolStatement,
   SourceRange,
+  StaticRouteStatement,
 } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
 import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
@@ -502,6 +503,104 @@ const parseChannelEntries = (
   return entries;
 };
 
+const STATIC_ROUTE_DESTINATIONS = new Set([
+  "via",
+  "recursive",
+  "drop",
+  "reject",
+  "blackhole",
+  "unreachable",
+  "prohibit",
+  "providers",
+  "transit",
+]);
+
+const isNode = (node: SyntaxNode | undefined): node is SyntaxNode =>
+  node !== undefined;
+
+const parseStaticRouteStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): StaticRouteStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNode = statementNode.namedChildren.find(
+    (child) => child.type === "phrase_clause",
+  );
+  const phraseNodes = phraseNode?.namedChildren ?? [];
+  if (
+    textOf(phraseNodes[0], source).toLowerCase() !== "route" ||
+    !isPresentNode(phraseNodes[1])
+  ) {
+    return undefined;
+  }
+
+  let destinationIndex = -1;
+  for (let index = 2; index < phraseNodes.length; index += 1) {
+    const tokenText = textOf(phraseNodes[index], source).toLowerCase();
+    if (STATIC_ROUTE_DESTINATIONS.has(tokenText)) {
+      destinationIndex = index;
+      break;
+    }
+  }
+
+  const routeTargetNodes =
+    destinationIndex === -1
+      ? phraseNodes.slice(1)
+      : phraseNodes.slice(1, destinationIndex);
+  const routeTargetStart = routeTargetNodes[0];
+  const routeTargetEnd = routeTargetNodes.at(-1);
+  if (!isNode(routeTargetStart) || !isNode(routeTargetEnd)) {
+    return undefined;
+  }
+
+  const routeTarget = routeTargetNodes
+    .map((node) => textOf(node, source))
+    .join(" ");
+  const destinationNode =
+    destinationIndex === -1 ? undefined : phraseNodes[destinationIndex];
+  const destinationText = isNode(destinationNode)
+    ? textOf(destinationNode, source).toLowerCase()
+    : "none";
+  const destinationType = STATIC_ROUTE_DESTINATIONS.has(destinationText)
+    ? (destinationText as StaticRouteStatement["destinationType"])
+    : "other";
+  const nextHopNode =
+    destinationType === "via" || destinationType === "recursive"
+      ? phraseNodes[destinationIndex + 1]
+      : undefined;
+  const optionsStartIndex =
+    destinationType === "via" || destinationType === "recursive"
+      ? destinationIndex + 2
+      : destinationIndex + 1;
+  const optionNodes =
+    destinationIndex === -1 ? [] : phraseNodes.slice(optionsStartIndex);
+
+  return {
+    kind: "static-route",
+    routeTarget,
+    routeTargetRange: mergeRanges(
+      toRange(routeTargetStart, source),
+      toRange(routeTargetEnd, source),
+    ),
+    destinationType,
+    destinationTypeRange: isNode(destinationNode)
+      ? toRange(destinationNode, source)
+      : undefined,
+    nextHop: isNode(nextHopNode) ? textOf(nextHopNode, source) : undefined,
+    nextHopRange: isNode(nextHopNode)
+      ? toRange(nextHopNode, source)
+      : undefined,
+    optionsText:
+      optionNodes.length > 0
+        ? optionNodes.map((node) => textOf(node, source)).join(" ")
+        : undefined,
+    ...toRange(statementNode, source),
+  };
+};
+
 const collectCompoundChannelFallbacks = (
   blockNode: SyntaxNode,
   source: string,
@@ -870,6 +969,12 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "expression_statement") {
+      const staticRoute = parseStaticRouteStatement(statementNode, source);
+      if (staticRoute) {
+        statements.push(staticRoute);
+        continue;
+      }
+
       statements.push({
         kind: "other",
         text: textOf(statementNode, source),

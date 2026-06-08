@@ -52,6 +52,7 @@ export type {
   ReturnStatement,
   RouterIdDeclaration,
   SourceRange,
+  StaticRouteStatement,
   TableDeclaration,
   TemplateDeclaration,
 } from "./types.js";

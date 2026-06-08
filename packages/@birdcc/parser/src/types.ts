@@ -100,7 +100,13 @@ export interface MplsDomainDeclaration extends DeclarationBase {
 }
 
 interface StatementBase extends SourceRange {
-  kind: "local-as" | "neighbor" | "import" | "export" | "channel";
+  kind:
+    | "local-as"
+    | "neighbor"
+    | "import"
+    | "export"
+    | "channel"
+    | "static-route";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -259,6 +265,28 @@ export interface ChannelStatement extends StatementBase {
   entries: ChannelEntry[];
 }
 
+export interface StaticRouteStatement extends StatementBase {
+  kind: "static-route";
+  routeTarget: string;
+  routeTargetRange: SourceRange;
+  destinationType:
+    | "via"
+    | "recursive"
+    | "drop"
+    | "reject"
+    | "blackhole"
+    | "unreachable"
+    | "prohibit"
+    | "providers"
+    | "transit"
+    | "none"
+    | "other";
+  destinationTypeRange?: SourceRange;
+  nextHop?: string;
+  nextHopRange?: SourceRange;
+  optionsText?: string;
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -270,6 +298,7 @@ export type ProtocolStatement =
   | ImportStatement
   | ExportStatement
   | ChannelStatement
+  | StaticRouteStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {

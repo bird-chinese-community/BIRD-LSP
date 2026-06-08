@@ -396,6 +396,56 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses static route statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol static static_routes {
+        ipv4;
+        route 192.0.2.0/24 via 198.51.100.1;
+        route 198.51.100.0/24 blackhole;
+        route 203.0.113.0/24 recursive 192.0.2.254;
+        route aspa 65000 providers 64496, 64497;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const routes = protocol.statements.filter(
+        (item) => item.kind === "static-route",
+      );
+
+      expect(routes).toMatchObject([
+        {
+          kind: "static-route",
+          routeTarget: "192.0.2.0/24",
+          destinationType: "via",
+          nextHop: "198.51.100.1",
+        },
+        {
+          kind: "static-route",
+          routeTarget: "198.51.100.0/24",
+          destinationType: "blackhole",
+        },
+        {
+          kind: "static-route",
+          routeTarget: "203.0.113.0/24",
+          destinationType: "recursive",
+          nextHop: "192.0.2.254",
+        },
+        {
+          kind: "static-route",
+          routeTarget: "aspa 65000",
+          destinationType: "providers",
+          optionsText: "64496 64497",
+        },
+      ]);
+    }
+  });
+
   it("parses chained where expressions in protocol channels", async () => {
     const sample = `
       protocol babel edge {
