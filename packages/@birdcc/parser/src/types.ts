@@ -150,6 +150,9 @@ interface ChannelEntryBase extends SourceRange {
     | "limit"
     | "debug"
     | "keep-filtered"
+    | "domain"
+    | "label-range"
+    | "label-policy"
     | "other";
 }
 
@@ -199,6 +202,24 @@ export interface ChannelKeepFilteredEntry extends ChannelEntryBase {
   valueRange: SourceRange;
 }
 
+export interface ChannelDomainEntry extends ChannelEntryBase {
+  kind: "domain";
+  domainName: string;
+  domainNameRange: SourceRange;
+}
+
+export interface ChannelLabelRangeEntry extends ChannelEntryBase {
+  kind: "label-range";
+  range: string;
+  rangeRange: SourceRange;
+}
+
+export interface ChannelLabelPolicyEntry extends ChannelEntryBase {
+  kind: "label-policy";
+  policy: "static" | "prefix" | "aggregate" | "vrf" | "other";
+  policyRange: SourceRange;
+}
+
 export interface ChannelOtherEntry extends ChannelEntryBase {
   kind: "other";
   text: string;
@@ -211,6 +232,9 @@ export type ChannelEntry =
   | ChannelLimitEntry
   | ChannelDebugEntry
   | ChannelKeepFilteredEntry
+  | ChannelDomainEntry
+  | ChannelLabelRangeEntry
+  | ChannelLabelPolicyEntry
   | ChannelOtherEntry;
 
 export interface ChannelStatement extends StatementBase {

@@ -434,6 +434,64 @@ const parseChannelEntries = (
       continue;
     }
 
+    if (entryNode.type === "expression_statement") {
+      const phraseNode = entryNode.namedChildren.find(
+        (child) => child.type === "phrase_clause",
+      );
+      const phraseNodes = phraseNode?.namedChildren ?? [];
+      const phraseTexts = phraseNodes.map((node) =>
+        textOf(node, source).toLowerCase(),
+      );
+
+      if (phraseTexts[0] === "domain" && isPresentNode(phraseNodes[1])) {
+        const domainNameNode = phraseNodes[1];
+        entries.push({
+          kind: "domain",
+          domainName: textOf(domainNameNode, source),
+          domainNameRange: toRange(domainNameNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "label" &&
+        phraseTexts[1] === "range" &&
+        isPresentNode(phraseNodes[2])
+      ) {
+        const rangeNode = phraseNodes[2];
+        entries.push({
+          kind: "label-range",
+          range: textOf(rangeNode, source),
+          rangeRange: toRange(rangeNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "label" &&
+        phraseTexts[1] === "policy" &&
+        isPresentNode(phraseNodes[2])
+      ) {
+        const policyNode = phraseNodes[2];
+        const policyText = textOf(policyNode, source).toLowerCase();
+        entries.push({
+          kind: "label-policy",
+          policy:
+            policyText === "static" ||
+            policyText === "prefix" ||
+            policyText === "aggregate" ||
+            policyText === "vrf"
+              ? policyText
+              : "other",
+          policyRange: toRange(policyNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+    }
+
     entries.push({
       kind: "other",
       text: textOf(entryNode, source),

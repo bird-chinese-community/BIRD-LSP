@@ -362,6 +362,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses MPLS channel entries", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        mpls {
+          domain mdom;
+          table mtab;
+          label range bgprange;
+          label policy aggregate;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        expect(channel.entries).toMatchObject([
+          { kind: "domain", domainName: "mdom" },
+          { kind: "table", tableName: "mtab" },
+          { kind: "label-range", range: "bgprange" },
+          { kind: "label-policy", policy: "aggregate" },
+        ]);
+      }
+    }
+  });
+
   it("parses chained where expressions in protocol channels", async () => {
     const sample = `
       protocol babel edge {
