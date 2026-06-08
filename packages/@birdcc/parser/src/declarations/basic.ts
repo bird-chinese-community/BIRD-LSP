@@ -3,6 +3,7 @@ import type { ParseIssue, SourceRange } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
 import { isPresentNode, stripQuotes, textOf, toRange } from "../tree.js";
 import {
+  type AttributeDeclaration,
   type DefineDeclaration,
   type IncludeDeclaration,
   type RouterIdDeclaration,
@@ -176,6 +177,49 @@ export const parseRouterIdDeclaration = (
     value: textOf(valueNode, source),
     valueKind: "unknown",
     valueRange: toRange(valueNode, source),
+    ...declarationRange,
+  };
+};
+
+export const parseAttributeDeclaration = (
+  declarationNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): AttributeDeclaration => {
+  const declarationRange = toRange(declarationNode, source);
+  const attributeTypeNode = declarationNode.childForFieldName("attribute_type");
+  const nameNode = declarationNode.childForFieldName("name");
+
+  if (!isPresentNode(attributeTypeNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing type for attribute declaration",
+      source,
+    );
+  }
+
+  if (!isPresentNode(nameNode)) {
+    pushMissingFieldIssue(
+      issues,
+      declarationNode,
+      "Missing name for attribute declaration",
+      source,
+    );
+  }
+
+  return {
+    kind: "attribute",
+    attributeType: isPresentNode(attributeTypeNode)
+      ? textOf(attributeTypeNode, source)
+      : "",
+    attributeTypeRange: isPresentNode(attributeTypeNode)
+      ? toRange(attributeTypeNode, source)
+      : declarationRange,
+    name: isPresentNode(nameNode) ? textOf(nameNode, source) : "",
+    nameRange: isPresentNode(nameNode)
+      ? toRange(nameNode, source)
+      : declarationRange,
     ...declarationRange,
   };
 };

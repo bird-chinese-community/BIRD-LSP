@@ -22,6 +22,7 @@ interface DeclarationBase extends SourceRange {
     | "include"
     | "define"
     | "router-id"
+    | "attribute"
     | "table"
     | "protocol"
     | "template"
@@ -49,6 +50,14 @@ export interface RouterIdDeclaration extends DeclarationBase {
   valueKind: "ip" | "number" | "from" | "unknown";
   valueRange: SourceRange;
   fromSource?: "routing" | "dynamic";
+}
+
+export interface AttributeDeclaration extends DeclarationBase {
+  kind: "attribute";
+  attributeType: string;
+  attributeTypeRange: SourceRange;
+  name: string;
+  nameRange: SourceRange;
 }
 
 export interface TableDeclaration extends DeclarationBase {
@@ -331,6 +340,7 @@ export type BirdDeclaration =
   | IncludeDeclaration
   | DefineDeclaration
   | RouterIdDeclaration
+  | AttributeDeclaration
   | TableDeclaration
   | ProtocolDeclaration
   | TemplateDeclaration

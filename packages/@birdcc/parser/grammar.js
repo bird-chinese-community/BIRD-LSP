@@ -16,6 +16,7 @@ export default grammar({
         $.include_declaration,
         $.define_declaration,
         $.router_id_declaration,
+        $.attribute_declaration,
         $.table_declaration,
         $.protocol_declaration,
         $.template_declaration,
@@ -114,6 +115,16 @@ export default grammar({
 
     router_id_from_clause: ($) =>
       seq("from", field("from_source", choice("routing", "dynamic"))),
+
+    attribute_declaration: ($) =>
+      seq(
+        "attribute",
+        field("attribute_type", $.attribute_type),
+        field("name", $.identifier),
+        ";",
+      ),
+
+    attribute_type: ($) => seq($.identifier, optional("set")),
 
     table_declaration: ($) =>
       choice(

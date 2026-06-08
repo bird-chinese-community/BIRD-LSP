@@ -1,11 +1,13 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type {
+  AttributeDeclaration,
   BirdDeclaration,
   ParseIssue,
   SourceRange,
   TableDeclaration,
 } from "../types.js";
 import {
+  parseAttributeDeclaration,
   parseDefineDeclaration,
   parseIncludeDeclaration,
   parseRouterIdDeclaration,
@@ -21,6 +23,8 @@ import {
 
 const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
+const ATTRIBUTE_DECLARATION_LINE =
+  /^(\s*)attribute\s+([A-Za-z_][A-Za-z0-9_-]*(?:\s+set)?)\s+([A-Za-z_][A-Za-z0-9_-]*)\s*;\s*$/i;
 
 const sourceRangeForLineSlice = (
   line: number,
@@ -32,6 +36,62 @@ const sourceRangeForLineSlice = (
   endLine: line,
   endColumn: startColumn + text.length,
 });
+
+const collectFallbackAttributeDeclarations = (
+  source: string,
+  declarations: BirdDeclaration[],
+): AttributeDeclaration[] => {
+  const existingAttributes = new Set(
+    declarations
+      .filter((item): item is AttributeDeclaration => item.kind === "attribute")
+      .map((item) => `${item.attributeType}:${item.name}:${item.line}`),
+  );
+  const fallbackDeclarations: AttributeDeclaration[] = [];
+  const lines = source.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineText = lines[index] ?? "";
+    const match = lineText.match(ATTRIBUTE_DECLARATION_LINE);
+    const attributeType = match?.[2];
+    const name = match?.[3];
+    if (!match || !attributeType || !name) {
+      continue;
+    }
+
+    const line = index + 1;
+    const key = `${attributeType}:${name}:${line}`;
+    if (existingAttributes.has(key)) {
+      continue;
+    }
+
+    const indent = match[1]?.length ?? 0;
+    const startColumn = indent + 1;
+    const statementText = lineText.trimEnd().slice(indent);
+    const declarationRange = sourceRangeForLineSlice(
+      line,
+      startColumn,
+      statementText,
+    );
+    const attributeTypeColumn = lineText.indexOf(attributeType) + 1;
+    const nameColumn = lineText.indexOf(name, attributeTypeColumn) + 1;
+
+    fallbackDeclarations.push({
+      kind: "attribute",
+      attributeType,
+      attributeTypeRange: sourceRangeForLineSlice(
+        line,
+        attributeTypeColumn,
+        attributeType,
+      ),
+      name,
+      nameRange: sourceRangeForLineSlice(line, nameColumn, name),
+      ...declarationRange,
+    });
+    existingAttributes.add(key);
+  }
+
+  return fallbackDeclarations;
+};
 
 const collectFallbackTableDeclarations = (
   source: string,
@@ -106,6 +166,11 @@ export const parseDeclarations = (
       continue;
     }
 
+    if (child.type === "attribute_declaration") {
+      declarations.push(parseAttributeDeclaration(child, source, issues));
+      continue;
+    }
+
     if (child.type === "table_declaration") {
       declarations.push(parseTableDeclaration(child, source, issues));
       continue;
@@ -151,6 +216,7 @@ export const parseDeclarations = (
 
   return [
     ...declarations,
+    ...collectFallbackAttributeDeclarations(source, declarations),
     ...collectFallbackTableDeclarations(source, declarations),
   ].sort((left, right) => left.line - right.line || left.column - right.column);
 };

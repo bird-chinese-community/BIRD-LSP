@@ -13,6 +13,10 @@ export type RouterIdDeclaration = Extract<
   BirdDeclaration,
   { kind: "router-id" }
 >;
+export type AttributeDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "attribute" }
+>;
 export type TableDeclaration = Extract<BirdDeclaration, { kind: "table" }>;
 export type ProtocolDeclaration = Extract<
   BirdDeclaration,

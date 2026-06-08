@@ -178,6 +178,32 @@ describe("@birdcc/parser tree-sitter", () => {
     expect(tableTypes).not.toContain("unknown");
   });
 
+  it("parses custom route attribute declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      attribute int valid_roa;
+      attribute bgppath seen_path;
+      attribute prefix set reachable_prefixes;
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const attributes = parsed.program.declarations.filter(
+      (item) => item.kind === "attribute",
+    );
+
+    expect(attributes).toHaveLength(3);
+    expect(attributes.map((item) => item.attributeType)).toEqual([
+      "int",
+      "bgppath",
+      "prefix set",
+    ]);
+    expect(attributes.map((item) => item.name)).toEqual([
+      "valid_roa",
+      "seen_path",
+      "reachable_prefixes",
+    ]);
+  });
+
   it("extracts protocol common statements and channel entries", async () => {
     const sample = `
       protocol bgp edge_peer {

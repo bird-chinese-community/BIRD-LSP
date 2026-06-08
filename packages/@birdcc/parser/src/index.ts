@@ -12,6 +12,7 @@ import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 
 export type {
   AcceptStatement,
+  AttributeDeclaration,
   BirdDeclaration,
   BirdProgram,
   CaseStatement,
