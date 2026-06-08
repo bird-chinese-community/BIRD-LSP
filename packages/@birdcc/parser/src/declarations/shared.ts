@@ -45,11 +45,20 @@ export const TABLE_TYPES = new Set([
   "routing",
   "ipv4",
   "ipv6",
+  "ipv4-mpls",
+  "ipv6-mpls",
   "vpn4",
   "vpn6",
+  "vpn4-mpls",
+  "vpn6-mpls",
   "roa4",
   "roa6",
   "aspa",
+  "mpls",
+  "eth",
+  "evpn",
+  "neighbor",
+  "ipv6-sadr",
   "flow4",
   "flow6",
 ]);
@@ -57,8 +66,12 @@ export const TABLE_TYPES = new Set([
 const CHANNEL_TYPES = new Set([
   "ipv4",
   "ipv6",
+  "ipv4-mpls",
+  "ipv6-mpls",
   "vpn4",
   "vpn6",
+  "vpn4-mpls",
+  "vpn6-mpls",
   "roa4",
   "roa6",
   "flow4",
@@ -191,7 +204,7 @@ export const protocolTypeTextAndRange = (
 export const normalizeTableType = (
   value: string,
 ): TableDeclaration["tableType"] => {
-  const lowered = value.toLowerCase();
+  const lowered = value.toLowerCase().replace(/\s+/g, "-");
   return TABLE_TYPES.has(lowered)
     ? (lowered as TableDeclaration["tableType"])
     : "unknown";

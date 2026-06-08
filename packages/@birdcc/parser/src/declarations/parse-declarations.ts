@@ -1,5 +1,10 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
-import type { BirdDeclaration, ParseIssue } from "../types.js";
+import type {
+  BirdDeclaration,
+  ParseIssue,
+  SourceRange,
+  TableDeclaration,
+} from "../types.js";
 import {
   parseDefineDeclaration,
   parseIncludeDeclaration,
@@ -13,6 +18,70 @@ import {
   parseRouterIdFromStatement,
   parseTableFromStatement,
 } from "./top-level.js";
+
+const IPV6_SADR_TABLE_LINE =
+  /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
+
+const sourceRangeForLineSlice = (
+  line: number,
+  startColumn: number,
+  text: string,
+): SourceRange => ({
+  line,
+  column: startColumn,
+  endLine: line,
+  endColumn: startColumn + text.length,
+});
+
+const collectFallbackTableDeclarations = (
+  source: string,
+  declarations: BirdDeclaration[],
+): TableDeclaration[] => {
+  const existingTables = new Set(
+    declarations
+      .filter((item): item is TableDeclaration => item.kind === "table")
+      .map((item) => `${item.tableType}:${item.name}:${item.line}`),
+  );
+  const fallbackDeclarations: TableDeclaration[] = [];
+  const lines = source.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const lineText = lines[index] ?? "";
+    const match = lineText.match(IPV6_SADR_TABLE_LINE);
+    const name = match?.[2];
+    if (!match || !name) {
+      continue;
+    }
+
+    const line = index + 1;
+    const key = `ipv6-sadr:${name}:${line}`;
+    if (existingTables.has(key)) {
+      continue;
+    }
+
+    const indent = match[1]?.length ?? 0;
+    const startColumn = indent + 1;
+    const statementText = lineText.trimEnd().slice(indent);
+    const declarationRange = sourceRangeForLineSlice(
+      line,
+      startColumn,
+      statementText,
+    );
+    const nameColumn = lineText.indexOf(name) + 1;
+
+    fallbackDeclarations.push({
+      kind: "table",
+      tableType: "ipv6-sadr",
+      tableTypeRange: sourceRangeForLineSlice(line, startColumn, "ipv6 sadr"),
+      name,
+      nameRange: sourceRangeForLineSlice(line, nameColumn, name),
+      ...declarationRange,
+    });
+    existingTables.add(key);
+  }
+
+  return fallbackDeclarations;
+};
 
 export const parseDeclarations = (
   rootNode: SyntaxNode,
@@ -80,5 +149,8 @@ export const parseDeclarations = (
     }
   }
 
-  return declarations;
+  return [
+    ...declarations,
+    ...collectFallbackTableDeclarations(source, declarations),
+  ].sort((left, right) => left.line - right.line || left.column - right.column);
 };

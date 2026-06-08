@@ -130,6 +130,16 @@ export const parseTableFromStatement = (
     nameTokenIndex = 2;
     attrsStartIndex = 3;
   } else if (
+    tokens[0]?.lowered === "ipv6" &&
+    tokens[1]?.lowered === "sadr" &&
+    tokens[2]?.lowered === "table"
+  ) {
+    tableType = "ipv6-sadr";
+    tableTypeRange = mergedTokenRange(declarationRange, tokens, 0, 1);
+    name = tokens[3]?.text ?? "";
+    nameTokenIndex = 3;
+    attrsStartIndex = 4;
+  } else if (
     TABLE_TYPES.has(tokens[0]?.lowered ?? "") &&
     tokens[1]?.lowered === "table"
   ) {

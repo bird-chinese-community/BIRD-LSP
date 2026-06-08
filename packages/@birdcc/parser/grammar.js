@@ -135,7 +135,27 @@ export default grammar({
       ),
 
     table_type: () =>
-      choice("ipv4", "ipv6", "vpn4", "vpn6", "roa4", "roa6", "flow4", "flow6"),
+      choice(
+        "ipv4",
+        "ipv6",
+        "ipv4-mpls",
+        "ipv6-mpls",
+        "vpn4",
+        "vpn6",
+        "vpn4-mpls",
+        "vpn6-mpls",
+        "roa4",
+        "roa6",
+        "aspa",
+        "mpls",
+        "eth",
+        "evpn",
+        "neighbor",
+        "ipv6-sadr",
+        seq("ipv6", "sadr"),
+        "flow4",
+        "flow6",
+      ),
 
     table_attrs: ($) =>
       seq(
@@ -397,8 +417,12 @@ export default grammar({
       choice(
         "ipv4",
         "ipv6",
+        "ipv4-mpls",
+        "ipv6-mpls",
         "vpn4",
         "vpn6",
+        "vpn4-mpls",
+        "vpn6-mpls",
         "roa4",
         "roa6",
         "flow4",

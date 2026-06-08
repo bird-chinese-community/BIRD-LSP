@@ -165,6 +165,8 @@ const LOCAL_ADDRESS_WITH_AS =
   /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
 const CASE_ARM_STATEMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
+const IPV6_SADR_TABLE_DECLARATION =
+  /^\s*ipv6\s+sadr\s+table\s+[A-Za-z_][A-Za-z0-9_-]*(?:\s+.*)?;\s*$/i;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -203,7 +205,8 @@ const isRecoverableSyntaxIssue = (
   const currentLineText = lineTextAt(lines, issue.line);
   if (
     LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
-    ALLOW_LOCAL_AS.test(currentLineText)
+    ALLOW_LOCAL_AS.test(currentLineText) ||
+    IPV6_SADR_TABLE_DECLARATION.test(currentLineText)
   ) {
     return true;
   }

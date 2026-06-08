@@ -127,11 +127,20 @@ describe("@birdcc/parser tree-sitter", () => {
       routing table t_routing;
       ipv4 table t_ipv4;
       ipv6 table t_ipv6;
+      ipv4-mpls table t_ipv4_mpls;
+      ipv6-mpls table t_ipv6_mpls;
       vpn4 table t_vpn4;
       vpn6 table t_vpn6;
+      vpn4-mpls table t_vpn4_mpls;
+      vpn6-mpls table t_vpn6_mpls;
       roa4 table t_roa4;
       roa6 table t_roa6;
       aspa table t_aspa;
+      mpls table t_mpls;
+      eth table t_eth;
+      evpn table t_evpn;
+      neighbor table t_neighbor;
+      ipv6 sadr table t_ipv6_sadr;
       flow4 table t_flow4;
       flow6 table t_flow6;
     `;
@@ -149,11 +158,20 @@ describe("@birdcc/parser tree-sitter", () => {
       "routing",
       "ipv4",
       "ipv6",
+      "ipv4-mpls",
+      "ipv6-mpls",
       "vpn4",
       "vpn6",
+      "vpn4-mpls",
+      "vpn6-mpls",
       "roa4",
       "roa6",
       "aspa",
+      "mpls",
+      "eth",
+      "evpn",
+      "neighbor",
+      "ipv6-sadr",
       "flow4",
       "flow6",
     ]);

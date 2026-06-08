@@ -40,6 +40,7 @@ export const parseIncludeDeclaration = (
 };
 
 const DEFINE_VALUE_PATTERN = /^define\s+\S+\s*=\s*(.+?)\s*;$/s;
+const IPV6_SADR_TABLE_PATTERN = /^\s*ipv6\s+sadr\s+table\b/i;
 
 export const parseDefineDeclaration = (
   declarationNode: SyntaxNode,
@@ -199,11 +200,14 @@ export const parseTableDeclaration = (
   }
 
   const firstToken = declarationNode.children[0];
-  const tableTypeText = isPresentNode(tableTypeNode)
-    ? textOf(tableTypeNode, source)
-    : firstToken
-      ? textOf(firstToken, source)
-      : "unknown";
+  const declarationText = textOf(declarationNode, source);
+  const tableTypeText = IPV6_SADR_TABLE_PATTERN.test(declarationText)
+    ? "ipv6-sadr"
+    : isPresentNode(tableTypeNode)
+      ? textOf(tableTypeNode, source)
+      : firstToken
+        ? textOf(firstToken, source)
+        : "unknown";
 
   return {
     kind: "table",
