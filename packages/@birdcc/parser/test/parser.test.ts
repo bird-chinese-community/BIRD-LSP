@@ -360,6 +360,46 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP timing and source address statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        hold time 90;
+        connect retry time 30;
+        keepalive time 30;
+        source address 192.0.2.10;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "bgp-timer", option: "hold-time", value: "90" },
+        { kind: "bgp-timer", option: "connect-retry-time", value: "30" },
+        { kind: "bgp-timer", option: "keepalive-time", value: "30" },
+        {
+          kind: "source-address",
+          address: "192.0.2.10",
+          addressKind: "ip",
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(hold time|connect retry time|keepalive time|source address)\b/.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

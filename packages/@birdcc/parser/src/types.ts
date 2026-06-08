@@ -110,7 +110,9 @@ interface StatementBase extends SourceRange {
     | "disabled"
     | "description"
     | "hostname"
-    | "vrf";
+    | "vrf"
+    | "bgp-timer"
+    | "source-address";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -329,6 +331,20 @@ export interface VrfStatement extends StatementBase {
   nameRange?: SourceRange;
 }
 
+export interface BgpTimerStatement extends StatementBase {
+  kind: "bgp-timer";
+  option: "hold-time" | "connect-retry-time" | "keepalive-time";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface SourceAddressStatement extends StatementBase {
+  kind: "source-address";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -344,6 +360,8 @@ export type ProtocolStatement =
   | DisabledStatement
   | ProtocolTextStatement
   | VrfStatement
+  | BgpTimerStatement
+  | SourceAddressStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {

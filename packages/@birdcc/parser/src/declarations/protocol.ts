@@ -684,6 +684,15 @@ const phraseNodesOf = (statementNode: SyntaxNode): SyntaxNode[] => {
   return phraseNode?.namedChildren ?? [];
 };
 
+const phraseTextAt = (
+  phraseNodes: SyntaxNode[],
+  index: number,
+  source: string,
+): string | undefined => {
+  const node = phraseNodes[index];
+  return isNode(node) ? textOf(node, source).toLowerCase() : undefined;
+};
+
 const parseProtocolOptionStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -757,6 +766,69 @@ const parseProtocolOptionStatement = (
         ...statementRange,
       };
     }
+  }
+
+  const valueNode = phraseNodes.at(-1);
+  if (
+    optionText === "hold" &&
+    phraseTextAt(phraseNodes, 1, source) === "time" &&
+    phraseNodes.length === 3 &&
+    isNode(valueNode)
+  ) {
+    return {
+      kind: "bgp-timer",
+      option: "hold-time",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "connect" &&
+    phraseTextAt(phraseNodes, 1, source) === "retry" &&
+    phraseTextAt(phraseNodes, 2, source) === "time" &&
+    phraseNodes.length === 4 &&
+    isNode(valueNode)
+  ) {
+    return {
+      kind: "bgp-timer",
+      option: "connect-retry-time",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "keepalive" &&
+    phraseTextAt(phraseNodes, 1, source) === "time" &&
+    phraseNodes.length === 3 &&
+    isNode(valueNode)
+  ) {
+    return {
+      kind: "bgp-timer",
+      option: "keepalive-time",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "source" &&
+    phraseTextAt(phraseNodes, 1, source) === "address" &&
+    isNode(phraseNodes[2])
+  ) {
+    const addressNode = phraseNodes[2];
+    const address = textOf(addressNode, source);
+    return {
+      kind: "source-address",
+      address,
+      addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+      addressRange: toRange(addressNode, source),
+      ...statementRange,
+    };
   }
 
   return undefined;
