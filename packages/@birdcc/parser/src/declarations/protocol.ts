@@ -693,6 +693,29 @@ const phraseTextAt = (
   return isNode(node) ? textOf(node, source).toLowerCase() : undefined;
 };
 
+const parseBgpBoolOption = (
+  phraseNodes: SyntaxNode[],
+  source: string,
+  option: Extract<ProtocolStatement, { kind: "bgp-option" }>["option"],
+  statementRange: SourceRange,
+): ProtocolStatement | undefined => {
+  const valueNode = phraseNodes.at(-1);
+  const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+  const value = parseBoolToken(valueText);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return {
+    kind: "bgp-option",
+    option,
+    value,
+    valueText,
+    valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+    ...statementRange,
+  };
+};
+
 const parseProtocolOptionStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -827,6 +850,63 @@ const parseProtocolOptionStatement = (
       address,
       addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
       addressRange: toRange(addressNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "rr" &&
+    phraseTextAt(phraseNodes, 1, source) === "client" &&
+    phraseNodes.length <= 3
+  ) {
+    return parseBgpBoolOption(phraseNodes, source, "rr-client", statementRange);
+  }
+
+  if (
+    optionText === "strict" &&
+    phraseTextAt(phraseNodes, 1, source) === "bind" &&
+    phraseNodes.length <= 3
+  ) {
+    return parseBgpBoolOption(
+      phraseNodes,
+      source,
+      "strict-bind",
+      statementRange,
+    );
+  }
+
+  if (optionText === "passive" && phraseNodes.length <= 2) {
+    return parseBgpBoolOption(phraseNodes, source, "passive", statementRange);
+  }
+
+  if (
+    optionText === "allow" &&
+    phraseTextAt(phraseNodes, 1, source) === "local" &&
+    phraseTextAt(phraseNodes, 2, source) === "as" &&
+    phraseNodes.length <= 4
+  ) {
+    const valueNode = phraseNodes[3];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    return {
+      kind: "bgp-option",
+      option: "allow-local-as",
+      value: valueText,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "bfd" && phraseNodes.length <= 2) {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const boolValue = parseBoolToken(valueText);
+    return {
+      kind: "bgp-option",
+      option: "bfd",
+      value: boolValue ?? valueText,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
       ...statementRange,
     };
   }

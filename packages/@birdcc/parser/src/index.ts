@@ -13,6 +13,7 @@ import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 export type {
   AcceptStatement,
   AttributeDeclaration,
+  BgpOptionStatement,
   BgpTimerStatement,
   BirdDeclaration,
   BirdProgram,

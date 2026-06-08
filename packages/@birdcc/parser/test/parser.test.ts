@@ -400,6 +400,44 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses common BGP session option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        rr client yes;
+        strict bind yes;
+        passive no;
+        allow local as 2;
+        bfd graceful;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "bgp-option", option: "rr-client", value: true },
+        { kind: "bgp-option", option: "strict-bind", value: true },
+        { kind: "bgp-option", option: "passive", value: false },
+        { kind: "bgp-option", option: "allow-local-as", value: "2" },
+        { kind: "bgp-option", option: "bfd", value: "graceful" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(rr client|strict bind|passive|allow local as|bfd graceful)\b/.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
