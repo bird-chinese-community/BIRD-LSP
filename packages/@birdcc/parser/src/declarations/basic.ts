@@ -268,6 +268,7 @@ export const parseTableDeclaration = (
     attrsRange: isPresentNode(attrsNode)
       ? toRange(attrsNode, source)
       : undefined,
+    entries: [],
     ...declarationRange,
   };
 };

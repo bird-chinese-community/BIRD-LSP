@@ -6,6 +6,7 @@ import type {
   ParseIssue,
   SourceRange,
   TableDeclaration,
+  TableOptionEntry,
 } from "../types.js";
 import {
   parseAttributeDeclaration,
@@ -22,9 +23,12 @@ import {
   parseRouterIdFromStatement,
   parseTableFromStatement,
 } from "./top-level.js";
+import { normalizeTableType } from "./shared.js";
 
 const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
+const TABLE_BLOCK_HEADER =
+  /\b((?:ipv6\s+sadr|ipv4-mpls|ipv6-mpls|vpn4-mpls|vpn6-mpls|routing|ipv4|ipv6|vpn4|vpn6|roa4|roa6|aspa|mpls|eth|evpn|neighbor|flow4|flow6)?)\s*table\s+([A-Za-z_][A-Za-z0-9_-]*)\s*\{/gi;
 const ATTRIBUTE_DECLARATION_LINE =
   /^(\s*)attribute\s+([A-Za-z_][A-Za-z0-9_-]*(?:\s+set)?)\s+([A-Za-z_][A-Za-z0-9_-]*)\s*;\s*$/i;
 const MPLS_DOMAIN_HEADER = /^(\s*)mpls\s+domain\s+([A-Za-z_][A-Za-z0-9_-]*)\b/i;
@@ -48,6 +52,210 @@ const countChar = (text: string, char: string): number => {
     }
   }
   return count;
+};
+
+const lineStartsOf = (source: string): number[] => {
+  const starts = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      starts.push(index + 1);
+    }
+  }
+  return starts;
+};
+
+const indexToRange = (
+  source: string,
+  lineStarts: number[],
+  startIndex: number,
+  endIndex: number,
+): SourceRange => {
+  const positionOf = (index: number): { line: number; column: number } => {
+    let lineIndex = 0;
+    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
+      const start = lineStarts[cursor] ?? 0;
+      if (start > index) {
+        break;
+      }
+      lineIndex = cursor;
+    }
+
+    const lineStart = lineStarts[lineIndex] ?? 0;
+    return {
+      line: lineIndex + 1,
+      column: index - lineStart + 1,
+    };
+  };
+
+  const start = positionOf(startIndex);
+  const end = positionOf(endIndex);
+  return {
+    line: start.line,
+    column: start.column,
+    endLine: end.line,
+    endColumn: end.column,
+  };
+};
+
+const findMatchingBraceIndex = (
+  source: string,
+  openBraceIndex: number,
+): number => {
+  let balance = 0;
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      balance += 1;
+      continue;
+    }
+
+    if (char !== "}") {
+      continue;
+    }
+
+    balance -= 1;
+    if (balance === 0) {
+      return index;
+    }
+  }
+
+  return -1;
+};
+
+const valueRangeInStatement = (
+  source: string,
+  lineStarts: number[],
+  statementStartIndex: number,
+  statementText: string,
+  value: string,
+): SourceRange => {
+  const relativeIndex = statementText.indexOf(value);
+  const startIndex =
+    relativeIndex === -1
+      ? statementStartIndex
+      : statementStartIndex + relativeIndex;
+  return indexToRange(
+    source,
+    lineStarts,
+    startIndex,
+    startIndex + value.length,
+  );
+};
+
+const parseTableOptionEntries = (
+  source: string,
+  lineStarts: number[],
+  bodyStartIndex: number,
+  bodyText: string,
+): TableOptionEntry[] => {
+  const entries: TableOptionEntry[] = [];
+  const statements = bodyText.matchAll(/([^;{}]+);/gu);
+
+  for (const statementMatch of statements) {
+    if (statementMatch.index === undefined) {
+      continue;
+    }
+
+    const rawStatement = statementMatch[1] ?? "";
+    const statementText = rawStatement.trim();
+    if (statementText.length === 0) {
+      continue;
+    }
+
+    const statementStartIndex =
+      bodyStartIndex +
+      statementMatch.index +
+      rawStatement.indexOf(statementText);
+    const statementRange = indexToRange(
+      source,
+      lineStarts,
+      statementStartIndex,
+      statementStartIndex + statementText.length,
+    );
+    const lowered = statementText.toLowerCase();
+
+    const trieMatch = lowered.match(/^trie(?:\s+(\S+))?$/u);
+    if (trieMatch) {
+      const valueText = trieMatch[1];
+      entries.push({
+        kind: "trie",
+        value:
+          valueText === undefined ||
+          valueText === "yes" ||
+          valueText === "on" ||
+          valueText === "true",
+        valueText,
+        valueRange: valueText
+          ? valueRangeInStatement(
+              source,
+              lineStarts,
+              statementStartIndex,
+              statementText,
+              valueText,
+            )
+          : undefined,
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const gcMatch = statementText.match(/^gc\s+(threshold|period)\s+(.+)$/iu);
+    if (gcMatch?.[1] && gcMatch[2]) {
+      const value = gcMatch[2].trim();
+      entries.push({
+        kind:
+          gcMatch[1].toLowerCase() === "period" ? "gc-period" : "gc-threshold",
+        value,
+        valueRange: valueRangeInStatement(
+          source,
+          lineStarts,
+          statementStartIndex,
+          statementText,
+          value,
+        ),
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const settleMatch = statementText.match(
+      /^(?:(min|max|export|digest)\s+settle\s+time|route\s+refresh\s+export\s+settle\s+time)\s+(.+)$/iu,
+    );
+    if (settleMatch) {
+      const option = lowered.startsWith("route refresh export")
+        ? "route-refresh-export"
+        : (settleMatch[1]?.toLowerCase() as
+            | "min"
+            | "max"
+            | "export"
+            | "digest");
+      const value = (settleMatch[2] ?? "").trim();
+      if (option && value) {
+        entries.push({
+          kind: "settle-time",
+          option,
+          value,
+          valueRange: valueRangeInStatement(
+            source,
+            lineStarts,
+            statementStartIndex,
+            statementText,
+            value,
+          ),
+          ...statementRange,
+        });
+        continue;
+      }
+    }
+
+    entries.push({
+      kind: "other",
+      text: statementText,
+      ...statementRange,
+    });
+  }
+
+  return entries;
 };
 
 const collectFallbackMplsDomainDeclarations = (
@@ -251,12 +459,159 @@ const collectFallbackTableDeclarations = (
       tableTypeRange: sourceRangeForLineSlice(line, startColumn, "ipv6 sadr"),
       name,
       nameRange: sourceRangeForLineSlice(line, nameColumn, name),
+      entries: [],
       ...declarationRange,
     });
     existingTables.add(key);
   }
 
   return fallbackDeclarations;
+};
+
+const collectTableBlockDeclarations = (
+  source: string,
+  declarations: BirdDeclaration[],
+): TableDeclaration[] => {
+  const tableDeclarations = declarations.filter(
+    (item): item is TableDeclaration => item.kind === "table",
+  );
+  const declarationsByKey = new Map(
+    tableDeclarations.map((item) => [`${item.name}:${item.line}`, item]),
+  );
+  const existingKeys = new Set(
+    tableDeclarations.map((item) => `${item.name}:${item.line}`),
+  );
+  const blockDeclarations: TableDeclaration[] = [];
+  const lineStarts = lineStartsOf(source);
+
+  for (const match of source.matchAll(TABLE_BLOCK_HEADER)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    const tableTypeText = (match[1] ?? "").trim() || "unknown";
+    const name = match[2];
+    if (!name) {
+      continue;
+    }
+
+    const openBraceIndex = source.indexOf(
+      "{",
+      match.index + match[0].length - 1,
+    );
+    if (openBraceIndex === -1) {
+      continue;
+    }
+
+    const closeBraceIndex = findMatchingBraceIndex(source, openBraceIndex);
+    if (closeBraceIndex === -1) {
+      continue;
+    }
+
+    const declarationEndIndex =
+      source[closeBraceIndex + 1] === ";"
+        ? closeBraceIndex + 2
+        : closeBraceIndex + 1;
+    const declarationRange = indexToRange(
+      source,
+      lineStarts,
+      match.index,
+      declarationEndIndex,
+    );
+    const bodyText = source.slice(openBraceIndex, closeBraceIndex + 1);
+    const bodyRange = indexToRange(
+      source,
+      lineStarts,
+      openBraceIndex,
+      closeBraceIndex + 1,
+    );
+    const bodyInnerText = source.slice(openBraceIndex + 1, closeBraceIndex);
+    const entries = parseTableOptionEntries(
+      source,
+      lineStarts,
+      openBraceIndex + 1,
+      bodyInnerText,
+    );
+    const existing = declarationsByKey.get(`${name}:${declarationRange.line}`);
+
+    if (existing) {
+      existing.bodyText = bodyText;
+      existing.bodyRange = bodyRange;
+      existing.entries = entries;
+      existing.endLine = declarationRange.endLine;
+      existing.endColumn = declarationRange.endColumn;
+      continue;
+    }
+
+    const tableTypeStart = match.index;
+    const tableTypeEnd = tableTypeStart + tableTypeText.length;
+    const nameStart = source.indexOf(name, match.index);
+    const key = `${name}:${declarationRange.line}`;
+    if (existingKeys.has(key)) {
+      continue;
+    }
+
+    blockDeclarations.push({
+      kind: "table",
+      tableType: normalizeTableType(tableTypeText),
+      tableTypeRange: indexToRange(
+        source,
+        lineStarts,
+        tableTypeStart,
+        tableTypeEnd,
+      ),
+      name,
+      nameRange: indexToRange(
+        source,
+        lineStarts,
+        nameStart,
+        nameStart + name.length,
+      ),
+      bodyText,
+      bodyRange,
+      entries,
+      ...declarationRange,
+    });
+    existingKeys.add(key);
+  }
+
+  return blockDeclarations;
+};
+
+const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
+  const startsBefore =
+    outer.line < inner.line ||
+    (outer.line === inner.line && outer.column <= inner.column);
+  const endsAfter =
+    outer.endLine > inner.endLine ||
+    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
+  return startsBefore && endsAfter;
+};
+
+const removeTablesCoveredByBlockTables = (
+  declarations: BirdDeclaration[],
+): BirdDeclaration[] => {
+  const blockTables = declarations.filter(
+    (item): item is TableDeclaration =>
+      item.kind === "table" && item.bodyRange !== undefined,
+  );
+
+  if (blockTables.length === 0) {
+    return declarations;
+  }
+
+  return declarations.filter((item) => {
+    if (item.kind !== "table" || item.bodyRange !== undefined) {
+      return true;
+    }
+
+    return !blockTables.some(
+      (table) =>
+        table !== item &&
+        rangeContains(table, item) &&
+        table.tableType === item.tableType,
+    );
+  });
 };
 
 export const parseDeclarations = (
@@ -335,10 +690,17 @@ export const parseDeclarations = (
     }
   }
 
-  return [
+  const allDeclarations = [
     ...declarations,
     ...collectFallbackMplsDomainDeclarations(source, declarations),
     ...collectFallbackAttributeDeclarations(source, declarations),
     ...collectFallbackTableDeclarations(source, declarations),
-  ].sort((left, right) => left.line - right.line || left.column - right.column);
+  ];
+
+  return removeTablesCoveredByBlockTables([
+    ...allDeclarations,
+    ...collectTableBlockDeclarations(source, allDeclarations),
+  ]).sort(
+    (left, right) => left.line - right.line || left.column - right.column,
+  );
 };

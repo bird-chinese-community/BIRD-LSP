@@ -122,6 +122,67 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses table option blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      roa4 table roa4_opts {
+        trie yes;
+        gc threshold 10000;
+        gc period 300 s;
+      };
+
+      roa6 table roa6_opts {
+        trie on;
+        min settle time 1 s;
+        max settle time 5 s;
+      };
+
+      ipv4 table bird3_opts {
+        export settle time 2 s;
+        route refresh export settle time 3 s;
+        digest settle time 4 s;
+      };
+    `);
+
+    const tables = parsed.program.declarations.filter(
+      (item) => item.kind === "table",
+    );
+
+    expect(tables).toHaveLength(3);
+    const [roa4, roa6, bird3] = tables;
+
+    expect(roa4).toBeDefined();
+    if (roa4?.kind === "table") {
+      expect(roa4.bodyText).toContain("trie yes");
+      expect(roa4.entries).toMatchObject([
+        { kind: "trie", value: true, valueText: "yes" },
+        { kind: "gc-threshold", value: "10000" },
+        { kind: "gc-period", value: "300 s" },
+      ]);
+    }
+
+    expect(roa6).toBeDefined();
+    if (roa6?.kind === "table") {
+      expect(roa6.entries).toMatchObject([
+        { kind: "trie", value: true, valueText: "on" },
+        { kind: "settle-time", option: "min", value: "1 s" },
+        { kind: "settle-time", option: "max", value: "5 s" },
+      ]);
+    }
+
+    expect(bird3).toBeDefined();
+    if (bird3?.kind === "table") {
+      expect(bird3.entries).toMatchObject([
+        { kind: "settle-time", option: "export", value: "2 s" },
+        {
+          kind: "settle-time",
+          option: "route-refresh-export",
+          value: "3 s",
+        },
+        { kind: "settle-time", option: "digest", value: "4 s" },
+      ]);
+    }
+  });
+
   it("recognizes all supported table type declarations", async () => {
     const sample = `
       routing table t_routing;

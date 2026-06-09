@@ -190,6 +190,7 @@ export const parseTableFromStatement = (
     nameRange,
     attrsText,
     attrsRange,
+    entries: [],
     ...declarationRange,
   };
 };

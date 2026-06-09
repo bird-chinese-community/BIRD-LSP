@@ -61,6 +61,41 @@ export interface AttributeDeclaration extends DeclarationBase {
   nameRange: SourceRange;
 }
 
+interface TableOptionEntryBase extends SourceRange {
+  kind: "trie" | "gc-threshold" | "gc-period" | "settle-time" | "other";
+}
+
+export interface TableTrieEntry extends TableOptionEntryBase {
+  kind: "trie";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface TableGcEntry extends TableOptionEntryBase {
+  kind: "gc-threshold" | "gc-period";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface TableSettleTimeEntry extends TableOptionEntryBase {
+  kind: "settle-time";
+  option: "min" | "max" | "export" | "route-refresh-export" | "digest";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface TableOtherEntry extends TableOptionEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type TableOptionEntry =
+  | TableTrieEntry
+  | TableGcEntry
+  | TableSettleTimeEntry
+  | TableOtherEntry;
+
 export interface TableDeclaration extends DeclarationBase {
   kind: "table";
   tableType:
@@ -89,6 +124,9 @@ export interface TableDeclaration extends DeclarationBase {
   nameRange: SourceRange;
   attrsText?: string;
   attrsRange?: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
+  entries: TableOptionEntry[];
 }
 
 export interface MplsDomainDeclaration extends DeclarationBase {
