@@ -1575,6 +1575,81 @@ const parseAggregatorOptionStatement = (
   return undefined;
 };
 
+const parsePipeImportInStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  const statementText = textOf(statementNode, source)
+    .trim()
+    .replace(/;\s*$/u, "");
+  const importInMatch = statementText.match(
+    /^import\s+in\s+(\S+)(?:\s+(.+))?$/iu,
+  );
+  if (!importInMatch?.[1]) {
+    return undefined;
+  }
+
+  const network = importInMatch[1];
+  const clauseText = importInMatch[2]?.trim() ?? "";
+  const modeText = clauseText.split(/\s+/u)[0]?.toLowerCase() ?? "other";
+  const mode =
+    modeText === "all" ||
+    modeText === "none" ||
+    modeText === "filter" ||
+    modeText === "where"
+      ? modeText
+      : "other";
+
+  return {
+    kind: "pipe-import-in",
+    network,
+    networkRange: rangeForStatementToken(source, statementNode, network),
+    mode,
+    clauseText,
+    ...toRange(statementNode, source),
+  };
+};
+
+const parsePipeOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  const phraseNodes = phraseNodesOf(statementNode);
+  const statementRange = toRange(statementNode, source);
+
+  if (
+    phraseTextAt(phraseNodes, 0, source) === "peer" &&
+    phraseTextAt(phraseNodes, 1, source) === "table" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    return {
+      kind: "pipe-option",
+      option: "peer-table",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    phraseTextAt(phraseNodes, 0, source) === "max" &&
+    phraseTextAt(phraseNodes, 1, source) === "generation" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    return {
+      kind: "pipe-option",
+      option: "max-generation",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseBmpOptionStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -3508,6 +3583,14 @@ export const parseProtocolStatements = (
       statementNode.type === "import_statement" ||
       statementNode.type === "export_statement"
     ) {
+      if (protocolType === "pipe") {
+        const pipeImportIn = parsePipeImportInStatement(statementNode, source);
+        if (pipeImportIn) {
+          statements.push(pipeImportIn);
+          continue;
+        }
+      }
+
       if (protocolType === "l3vpn" || protocolType === "evpn") {
         const vpnOption = parseVpnOptionTextStatement(
           textOf(statementNode, source),
@@ -3597,6 +3680,14 @@ export const parseProtocolStatements = (
         );
         if (aggregatorOption) {
           statements.push(aggregatorOption);
+          continue;
+        }
+      }
+
+      if (protocolType === "pipe") {
+        const pipeOption = parsePipeOptionStatement(statementNode, source);
+        if (pipeOption) {
+          statements.push(pipeOption);
           continue;
         }
       }

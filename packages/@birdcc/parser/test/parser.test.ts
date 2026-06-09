@@ -719,6 +719,43 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses pipe protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol pipe pipe_refresh {
+        peer table master4;
+        max generation 32;
+        import in 192.0.2.0/24 all;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("pipe");
+      expect(protocol.statements).toMatchObject([
+        { kind: "pipe-option", option: "peer-table", value: "master4" },
+        { kind: "pipe-option", option: "max-generation", value: "32" },
+        {
+          kind: "pipe-import-in",
+          network: "192.0.2.0/24",
+          mode: "all",
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(peer table|max generation|import in)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BMP protocol option statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bmp collector {

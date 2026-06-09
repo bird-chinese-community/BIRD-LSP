@@ -203,6 +203,8 @@ interface StatementBase extends SourceRange {
     | "thread-group"
     | "bgp-timer"
     | "source-address"
+    | "pipe-option"
+    | "pipe-import-in"
     | "static-option"
     | "static-igp-table"
     | "bgp-option"
@@ -535,6 +537,21 @@ export interface SourceAddressStatement extends StatementBase {
   address: string;
   addressKind: "ip" | "other";
   addressRange: SourceRange;
+}
+
+export interface PipeOptionStatement extends StatementBase {
+  kind: "pipe-option";
+  option: "peer-table" | "max-generation";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface PipeImportInStatement extends StatementBase {
+  kind: "pipe-import-in";
+  network: string;
+  networkRange: SourceRange;
+  mode: "all" | "none" | "filter" | "where" | "other";
+  clauseText?: string;
 }
 
 export interface StaticOptionStatement extends StatementBase {
@@ -1131,6 +1148,8 @@ export type ProtocolStatement =
   | ProtocolThreadGroupStatement
   | BgpTimerStatement
   | SourceAddressStatement
+  | PipeOptionStatement
+  | PipeImportInStatement
   | StaticOptionStatement
   | StaticIgpTableStatement
   | BgpOptionStatement
