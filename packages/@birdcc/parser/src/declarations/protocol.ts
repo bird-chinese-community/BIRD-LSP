@@ -6,6 +6,7 @@ import type {
   ImportStatement,
   ParseIssue,
   ProtocolStatement,
+  RpkiTransportEntry,
   SourceRange,
   StaticRouteOption,
   StaticRouteStatement,
@@ -4762,7 +4763,11 @@ const parseRpkiOtherTextStatement = (
   const transportMatch = trimmed.match(/^transport\s+(\S+)(?:\s+(.+))?$/isu);
   if (transportMatch?.[1]) {
     const transportText = transportMatch[1].toLowerCase();
-    const bodyText = transportMatch[2]?.trim();
+    const bodyText = normalizeRpkiTransportBody(transportMatch[2]);
+    const entries =
+      bodyText === undefined
+        ? undefined
+        : parseRpkiTransportEntries(bodyText, tokenRange);
     return {
       kind: "rpki-transport",
       transport:
@@ -4770,6 +4775,7 @@ const parseRpkiOtherTextStatement = (
           ? transportText
           : "other",
       transportRange: tokenRange(transportMatch[1]),
+      entries: entries && entries.length > 0 ? entries : undefined,
       bodyText,
       bodyRange: bodyText ? tokenRange(bodyText) : undefined,
       ...statementRange,
@@ -4816,6 +4822,94 @@ const parseRpkiOtherTextStatement = (
   }
 
   return undefined;
+};
+
+const normalizeRpkiTransportBody = (
+  bodyText: string | undefined,
+): string | undefined => {
+  const trimmed = bodyText?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+};
+
+const parseRpkiTransportEntries = (
+  bodyText: string,
+  tokenRange: (token: string) => SourceRange,
+): RpkiTransportEntry[] =>
+  splitTopLevelStatements(bodyText).map((statementText) =>
+    parseRpkiTransportEntry(statementText, tokenRange),
+  );
+
+const parseRpkiTransportEntry = (
+  statementText: string,
+  tokenRange: (token: string) => SourceRange,
+): RpkiTransportEntry => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const authenticationMatch = trimmed.match(/^authentication\s+(\S+)$/iu);
+  if (authenticationMatch?.[1]) {
+    const valueText = authenticationMatch[1];
+    const value = valueText.toLowerCase();
+    return {
+      kind: "authentication",
+      value: value === "none" || value === "md5" ? value : "other",
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...tokenRange(trimmed),
+    };
+  }
+
+  const textEntryPatterns = [
+    {
+      kind: "bird-private-key",
+      pattern: new RegExp(
+        `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
+        "iu",
+      ),
+    },
+    {
+      kind: "remote-public-key",
+      pattern: new RegExp(
+        `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
+        "iu",
+      ),
+    },
+    {
+      kind: "password",
+      pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
+    },
+    {
+      kind: "user",
+      pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
+    },
+  ] as const;
+
+  for (const entryPattern of textEntryPatterns) {
+    const match = trimmed.match(entryPattern.pattern);
+    if (!match?.[1]) {
+      continue;
+    }
+
+    return {
+      kind: entryPattern.kind,
+      value: unquoteProtocolToken(match[1]),
+      valueText: match[1],
+      valueRange: tokenRange(match[1]),
+      ...tokenRange(trimmed),
+    };
+  }
+
+  return {
+    kind: "other",
+    text: trimmed,
+    ...tokenRange(trimmed),
+  };
 };
 
 const parseRpkiStatement = (

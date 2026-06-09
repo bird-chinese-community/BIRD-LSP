@@ -2153,7 +2153,15 @@ describe("@birdcc/parser tree-sitter", () => {
           (item) =>
             item.kind === "rpki-transport" &&
             item.transport === "tcp" &&
-            item.bodyText?.includes("authentication md5"),
+            item.bodyText?.includes("authentication md5") &&
+            item.entries?.some(
+              (entry) =>
+                entry.kind === "authentication" && entry.value === "md5",
+            ) &&
+            item.entries?.some(
+              (entry) =>
+                entry.kind === "password" && entry.value === "shared-secret",
+            ),
         ),
       ).toBe(true);
       expect(
@@ -2226,7 +2234,22 @@ describe("@birdcc/parser tree-sitter", () => {
       ).toBe(true);
       expect(
         ssh.statements.some(
-          (item) => item.kind === "rpki-transport" && item.transport === "ssh",
+          (item) =>
+            item.kind === "rpki-transport" &&
+            item.transport === "ssh" &&
+            item.entries?.some(
+              (entry) => entry.kind === "user" && entry.value === "bird",
+            ) &&
+            item.entries?.some(
+              (entry) =>
+                entry.kind === "bird-private-key" &&
+                entry.value === "/etc/bird/rpki_key",
+            ) &&
+            item.entries?.some(
+              (entry) =>
+                entry.kind === "remote-public-key" &&
+                entry.value === "/etc/bird/rpki_cache.pub",
+            ),
         ),
       ).toBe(true);
       expect(

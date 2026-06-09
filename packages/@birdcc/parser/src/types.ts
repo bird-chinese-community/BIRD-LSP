@@ -1746,8 +1746,33 @@ export interface RpkiTransportStatement extends StatementBase {
   kind: "rpki-transport";
   transport: "tcp" | "ssh" | "other";
   transportRange: SourceRange;
+  entries?: RpkiTransportEntry[];
   bodyText?: string;
   bodyRange?: SourceRange;
+}
+
+export type RpkiTransportEntry =
+  | RpkiTransportAuthenticationEntry
+  | RpkiTransportTextEntry
+  | RpkiTransportOtherEntry;
+
+export interface RpkiTransportAuthenticationEntry extends SourceRange {
+  kind: "authentication";
+  value: "none" | "md5" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface RpkiTransportTextEntry extends SourceRange {
+  kind: "password" | "bird-private-key" | "remote-public-key" | "user";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface RpkiTransportOtherEntry extends SourceRange {
+  kind: "other";
+  text: string;
 }
 
 export interface RpkiTimerStatement extends StatementBase {
