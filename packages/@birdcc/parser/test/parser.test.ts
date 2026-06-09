@@ -2528,7 +2528,9 @@ describe("@birdcc/parser tree-sitter", () => {
         propagate routes yes;
 
         interface "eth0" {
+          min ra interval 3;
           max ra interval 30;
+          min delay 1;
           rdnss local yes;
           dnssl local no;
           custom option local yes;
@@ -2578,6 +2580,16 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "timer",
               option: "max-ra-interval",
               value: "30",
+            }),
+            expect.objectContaining({
+              kind: "timer",
+              option: "min-ra-interval",
+              value: "3",
+            }),
+            expect.objectContaining({
+              kind: "timer",
+              option: "min-delay",
+              value: "1",
             }),
             expect.objectContaining({
               kind: "local",

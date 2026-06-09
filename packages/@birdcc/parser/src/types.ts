@@ -1473,7 +1473,7 @@ interface RadvInterfaceEntryBase extends SourceRange {
 
 export interface RadvInterfaceTimerEntry extends RadvInterfaceEntryBase {
   kind: "timer";
-  option: "max-ra-interval";
+  option: "min-ra-interval" | "max-ra-interval" | "min-delay";
   value: string;
   valueRange: SourceRange;
 }

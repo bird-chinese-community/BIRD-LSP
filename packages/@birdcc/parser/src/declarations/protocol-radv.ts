@@ -230,12 +230,17 @@ const parseRadvInterfaceEntries = (
         };
       }
 
-      const maxRaIntervalMatch = item.match(/^max\s+ra\s+interval\s+(.+)$/iu);
-      if (maxRaIntervalMatch?.[1]) {
-        const value = maxRaIntervalMatch[1].trim();
+      const timerMatch = item.match(
+        /^(min\s+ra\s+interval|max\s+ra\s+interval|min\s+delay)\s+(.+)$/iu,
+      );
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const value = timerMatch[2].trim();
         return {
           kind: "timer",
-          option: "max-ra-interval",
+          option: timerMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "min-ra-interval"
+            | "max-ra-interval"
+            | "min-delay",
           value,
           valueRange: tokenRange(value),
           ...bodyRange,
