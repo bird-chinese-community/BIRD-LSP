@@ -22,6 +22,7 @@
     "bump:patch": "bumpp --release patch",
     "bump:minor": "bumpp --release minor",
     "bump:major": "bumpp --release major",
+    "build:parser-wasm:remote": "node tools/build-parser-wasm-remote.mjs",
     "sync:config-examples": "node tools/sync-config-examples.mjs",
     "sync:config-examples:check": "node tools/sync-config-examples.mjs --check",
     "sync:readme-acknowledgements": "node tools/sync-readme-acknowledgements.mjs",
