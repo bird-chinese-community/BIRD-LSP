@@ -308,6 +308,7 @@ interface ChannelEntryBase extends SourceRange {
     | "igp-table"
     | "bgp-channel-option"
     | "bgp-channel-require"
+    | "bgp-channel-graceful-restart"
     | "bgp-link-local-next-hop-format"
     | "bgp-next-hop-address"
     | "bgp-next-hop-prefer"
@@ -435,6 +436,13 @@ export interface ChannelBgpRequireEntry extends ChannelEntryBase {
   valueRange?: SourceRange;
 }
 
+export interface ChannelBgpGracefulRestartEntry extends ChannelEntryBase {
+  kind: "bgp-channel-graceful-restart";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
 export interface ChannelBgpLinkLocalNextHopFormatEntry extends ChannelEntryBase {
   kind: "bgp-link-local-next-hop-format";
   format: "native" | "single" | "double";
@@ -503,6 +511,7 @@ export type ChannelEntry =
   | ChannelIgpTableEntry
   | ChannelBgpOptionEntry
   | ChannelBgpRequireEntry
+  | ChannelBgpGracefulRestartEntry
   | ChannelBgpLinkLocalNextHopFormatEntry
   | ChannelBgpNextHopAddressEntry
   | ChannelBgpNextHopPreferEntry

@@ -871,6 +871,30 @@ const parseChannelEntries = (
       }
 
       if (
+        phraseTexts[0] === "graceful" &&
+        phraseTexts[1] === "restart" &&
+        phraseNodes.length <= 3
+      ) {
+        const valueNode = phraseNodes[2];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-graceful-restart",
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
+      if (
         phraseTexts[0] === "extended" &&
         phraseTexts[1] === "next" &&
         phraseTexts[2] === "hop" &&

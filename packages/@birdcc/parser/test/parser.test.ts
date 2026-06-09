@@ -1707,6 +1707,7 @@ describe("@birdcc/parser tree-sitter", () => {
           aigp on;
           aigp originate;
           cost MY_COST;
+          graceful restart yes;
         };
         flow4 {
           validate on;
@@ -1759,12 +1760,15 @@ describe("@birdcc/parser tree-sitter", () => {
           { kind: "bgp-aigp", enabled: true, valueText: "on" },
           { kind: "bgp-aigp", enabled: true, originate: true },
           { kind: "bgp-channel-cost", value: "MY_COST" },
+          { kind: "bgp-channel-graceful-restart", value: true },
         ]);
         expect(
           ipv4Channel.entries.some(
             (item) =>
               item.kind === "other" &&
-              /\b(next hop|mandatory|aigp|cost)\b/.test(item.text),
+              /\b(next hop|mandatory|aigp|cost|graceful restart)\b/.test(
+                item.text,
+              ),
           ),
         ).toBe(false);
       }
