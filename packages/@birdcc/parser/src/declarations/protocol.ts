@@ -1694,6 +1694,281 @@ const parseBmpOptionStatement = (
   return undefined;
 };
 
+const parseBfdOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  const acceptMatch = trimmed.match(/^accept(?:\s+(.+))?$/iu);
+  if (acceptMatch) {
+    const tokens = (acceptMatch[1] ?? "")
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean)
+      .map((token) => token.toLowerCase());
+    const families = tokens.filter(
+      (token): token is "ipv4" | "ipv6" => token === "ipv4" || token === "ipv6",
+    );
+    const sessionTypes = tokens.filter(
+      (token): token is "direct" | "multihop" =>
+        token === "direct" || token === "multihop",
+    );
+
+    return {
+      kind: "bfd-option",
+      option: "accept",
+      families,
+      sessionTypes,
+      ...statementRange,
+    };
+  }
+
+  const strictBindMatch = trimmed.match(/^strict\s+bind(?:\s+(\S+))?$/iu);
+  if (strictBindMatch) {
+    const valueText = strictBindMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "bfd-option",
+      option: "strict-bind",
+      value,
+      valueText,
+      valueRange: valueText ? tokenRange(valueText) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const checksumMatch = trimmed.match(
+    /^zero\s+udp6\s+checksum\s+rx(?:\s+(\S+))?$/iu,
+  );
+  if (checksumMatch) {
+    const valueText = checksumMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "bfd-option",
+      option: "zero-udp6-checksum-rx",
+      value,
+      valueText,
+      valueRange: valueText ? tokenRange(valueText) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const expressThreadMatch = trimmed.match(
+    /^express\s+thread\s+group\s+([A-Za-z_][A-Za-z0-9_-]*)$/iu,
+  );
+  if (expressThreadMatch?.[1]) {
+    return {
+      kind: "bfd-option",
+      option: "express-thread-group",
+      name: expressThreadMatch[1],
+      nameRange: tokenRange(expressThreadMatch[1]),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
+const parseBfdProfileEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "bfd-profile" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return body
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const timerMatch = item.match(
+        /^(interval|min\s+rx\s+interval|min\s+tx\s+interval|idle\s+tx\s+interval)\s+(.+)$/iu,
+      );
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const optionText = timerMatch[1].toLowerCase().replace(/\s+/gu, "-");
+        return {
+          kind: "timer",
+          option:
+            optionText === "min-rx-interval" ||
+            optionText === "min-tx-interval" ||
+            optionText === "idle-tx-interval"
+              ? optionText
+              : "interval",
+          value: timerMatch[2].trim(),
+          valueRange: tokenRange(timerMatch[2].trim()),
+          ...bodyRange,
+        };
+      }
+
+      const multiplierMatch = item.match(/^multiplier\s+(.+)$/iu);
+      if (multiplierMatch?.[1]) {
+        const value = multiplierMatch[1].trim();
+        return {
+          kind: "multiplier",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const passiveMatch = item.match(/^passive(?:\s+(\S+))?$/iu);
+      if (passiveMatch) {
+        const valueText = passiveMatch[1];
+        return {
+          kind: "passive",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      if (/^graceful$/iu.test(item)) {
+        return {
+          kind: "graceful",
+          ...bodyRange,
+        };
+      }
+
+      const authenticationMatch = item.match(/^authentication\s+(.+)$/iu);
+      if (authenticationMatch?.[1]) {
+        const authType = authenticationMatch[1].trim();
+        return {
+          kind: "authentication",
+          authType,
+          authTypeRange: tokenRange(authType),
+          ...bodyRange,
+        };
+      }
+
+      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      if (passwordMatch?.[1]) {
+        const valueText = passwordMatch[1].trim();
+        return {
+          kind: "password",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseBfdProfileTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const profileMatch = trimmed.match(/^(interface|multihop)\b(.*)$/isu);
+  if (!profileMatch?.[1] || !profileMatch[2]) {
+    return undefined;
+  }
+
+  const profileType = profileMatch[1].toLowerCase() as "interface" | "multihop";
+  const rest = profileMatch[2].trim();
+  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
+  const bodyText = bodyMatch?.[0];
+  if (!bodyText) {
+    return undefined;
+  }
+
+  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
+  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
+  const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
+  const bodyRange = tokenRange(bodyText);
+
+  return {
+    kind: "bfd-profile",
+    profileType,
+    patterns: profileType === "interface" ? patterns : undefined,
+    patternRanges: profileType === "interface" ? patternRanges : undefined,
+    entries: parseBfdProfileEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
+const parseBfdNeighborTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const neighborMatch = trimmed.match(/^neighbor\s+(\S+)(?:\s+(.+))?$/iu);
+  if (!neighborMatch?.[1]) {
+    return undefined;
+  }
+
+  const address = neighborMatch[1];
+  const tail = neighborMatch[2] ?? "";
+  const interfaceMatch =
+    tail.match(/(?:^|\s)dev\s+("[^"]+"|'[^']+'|\S+)/iu) ??
+    tail.match(/(?:^|\s)%\s+("[^"]+"|'[^']+'|\S+)/iu);
+  const localMatch = tail.match(/(?:^|\s)local\s+(\S+)/iu);
+  const multihopMatch = tail.match(/(?:^|\s)multihop(?:\s+(\S+))?/iu);
+  const multihopText = multihopMatch?.[1];
+  const interfaceText = interfaceMatch?.[1];
+  const localAddress = localMatch?.[1];
+
+  return {
+    kind: "bfd-neighbor",
+    address,
+    addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+    addressRange: tokenRange(address),
+    interface: interfaceText ? stripQuotedText(interfaceText) : undefined,
+    interfaceSyntax: interfaceMatch
+      ? interfaceMatch[0].trim().startsWith("%")
+        ? "percent"
+        : "dev"
+      : undefined,
+    interfaceRange: interfaceText ? tokenRange(interfaceText) : undefined,
+    localAddress,
+    localAddressKind: localAddress
+      ? isIpLiteralCandidate(localAddress)
+        ? "ip"
+        : "other"
+      : undefined,
+    localAddressRange: localAddress ? tokenRange(localAddress) : undefined,
+    multihop: multihopMatch
+      ? (parseBoolToken(multihopText) ?? true)
+      : undefined,
+    multihopText,
+    multihopRange: multihopText ? tokenRange(multihopText) : undefined,
+    ...statementRange,
+  };
+};
+
+const parseBfdTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined =>
+  parseBfdOptionTextStatement(statementText, statementRange, tokenRange) ??
+  parseBfdProfileTextStatement(statementText, statementRange, tokenRange) ??
+  parseBfdNeighborTextStatement(statementText, statementRange, tokenRange);
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -1794,6 +2069,33 @@ const rangeForStatementToken = (
     lineStartsOf(source),
     tokenIndex,
     tokenIndex + token.length,
+  );
+};
+
+const rangeForTextToken = (
+  source: string,
+  statementRange: SourceRange,
+  token: string,
+): SourceRange => {
+  const lineStarts = lineStartsOf(source);
+  const statementStartIndex = source.indexOf(
+    token,
+    lineStarts[statementRange.line - 1] ?? 0,
+  );
+  if (statementStartIndex === -1) {
+    return statementRange;
+  }
+
+  const tokenStart = source.indexOf(token, statementStartIndex);
+  if (tokenStart === -1) {
+    return statementRange;
+  }
+
+  return indexToRange(
+    source,
+    lineStarts,
+    tokenStart,
+    tokenStart + token.length,
   );
 };
 
@@ -2265,6 +2567,94 @@ const mergeBmpLocalAddressStatements = (
   return statements.filter((_, index) => !consumed.has(index));
 };
 
+const mergeBfdAcceptHopStatements = (
+  statements: ProtocolStatement[],
+): ProtocolStatement[] => {
+  const consumed = new Set<number>();
+
+  for (let index = 0; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (
+      statement?.kind !== "bfd-option" ||
+      statement.option !== "accept" ||
+      statement.sessionTypes?.length !== 0
+    ) {
+      continue;
+    }
+
+    const nextIndex = statements.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index &&
+        candidate.kind === "bgp-hop-mode" &&
+        candidate.line === statement.line &&
+        candidate.column === statement.endColumn + 1,
+    );
+    const next = statements[nextIndex];
+    if (next?.kind !== "bgp-hop-mode") {
+      continue;
+    }
+
+    statements[index] = {
+      ...statement,
+      sessionTypes: [next.mode],
+      ...mergeRanges(statement, next),
+    };
+    consumed.add(nextIndex);
+  }
+
+  return statements.filter((_, index) => !consumed.has(index));
+};
+
+const mergeBfdNeighborTailStatements = (
+  statements: ProtocolStatement[],
+): ProtocolStatement[] => {
+  const consumed = new Set<number>();
+
+  for (let index = 0; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (statement?.kind !== "neighbor") {
+      continue;
+    }
+
+    const nextIndex = statements.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index &&
+        candidate.kind === "other" &&
+        candidate.line === statement.line &&
+        candidate.column === statement.endColumn + 1,
+    );
+    const next = statements[nextIndex];
+    const text =
+      next?.kind === "other"
+        ? `neighbor ${statement.address} ${next.text}`
+        : `neighbor ${statement.address}`;
+    const range =
+      next?.kind === "other" ? mergeRanges(statement, next) : statement;
+    const bfdNeighbor = parseBfdNeighborTextStatement(text, range, (token) => {
+      if (token === statement.address) {
+        return statement.addressRange;
+      }
+
+      if (next?.kind === "other") {
+        return next;
+      }
+
+      return range;
+    });
+
+    if (!bfdNeighbor) {
+      continue;
+    }
+
+    statements[index] = bfdNeighbor;
+    if (next?.kind === "other") {
+      consumed.add(nextIndex);
+    }
+  }
+
+  return statements.filter((_, index) => !consumed.has(index));
+};
+
 export const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
@@ -2417,6 +2807,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "bfd") {
+        const bfdStatement = parseBfdTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (bfdStatement) {
+          statements.push(bfdStatement);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -2513,10 +2915,22 @@ export const parseProtocolStatements = (
     const text = source.slice(currentNode.startIndex, lastNode.endIndex).trim();
 
     if (text.length > 0) {
+      const fallbackRange = mergeRanges(
+        toRange(currentNode, source),
+        toRange(lastNode, source),
+      );
+      const bfdStatement =
+        protocolType === "bfd"
+          ? parseBfdTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       statements.push({
-        kind: "other",
-        text,
-        ...mergeRanges(toRange(currentNode, source), toRange(lastNode, source)),
+        ...(bfdStatement ?? {
+          kind: "other",
+          text,
+          ...fallbackRange,
+        }),
       });
     }
 
@@ -2541,7 +2955,11 @@ export const parseProtocolStatements = (
       ? mergeRpkiLocalAddressStatements(mergedStatements)
       : protocolType === "bmp"
         ? mergeBmpLocalAddressStatements(mergedStatements)
-        : mergedStatements;
+        : protocolType === "bfd"
+          ? mergeBfdNeighborTailStatements(
+              mergeBfdAcceptHopStatements(mergedStatements),
+            )
+          : mergedStatements;
 
   return mergeNeighborTailStatements(protocolMergedStatements, issues).sort(
     (left, right) => {

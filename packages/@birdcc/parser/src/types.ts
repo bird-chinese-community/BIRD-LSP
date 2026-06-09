@@ -193,6 +193,9 @@ interface StatementBase extends SourceRange {
     | "mrt-option"
     | "aggregator-option"
     | "bmp-option"
+    | "bfd-option"
+    | "bfd-profile"
+    | "bfd-neighbor"
     | "scan-time"
     | "learn"
     | "interface"
@@ -572,6 +575,114 @@ export interface BmpOptionStatement extends StatementBase {
   portRange?: SourceRange;
 }
 
+export interface BfdOptionStatement extends StatementBase {
+  kind: "bfd-option";
+  option:
+    | "accept"
+    | "strict-bind"
+    | "zero-udp6-checksum-rx"
+    | "express-thread-group";
+  families?: ("ipv4" | "ipv6")[];
+  sessionTypes?: ("direct" | "multihop")[];
+  value?: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+  name?: string;
+  nameRange?: SourceRange;
+}
+
+interface BfdProfileEntryBase extends SourceRange {
+  kind:
+    | "timer"
+    | "multiplier"
+    | "passive"
+    | "graceful"
+    | "authentication"
+    | "password"
+    | "other";
+}
+
+export interface BfdTimerEntry extends BfdProfileEntryBase {
+  kind: "timer";
+  option:
+    | "interval"
+    | "min-rx-interval"
+    | "min-tx-interval"
+    | "idle-tx-interval";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BfdMultiplierEntry extends BfdProfileEntryBase {
+  kind: "multiplier";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BfdPassiveEntry extends BfdProfileEntryBase {
+  kind: "passive";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface BfdGracefulEntry extends BfdProfileEntryBase {
+  kind: "graceful";
+}
+
+export interface BfdAuthenticationEntry extends BfdProfileEntryBase {
+  kind: "authentication";
+  authType: string;
+  authTypeRange: SourceRange;
+}
+
+export interface BfdPasswordEntry extends BfdProfileEntryBase {
+  kind: "password";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface BfdOtherEntry extends BfdProfileEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type BfdProfileEntry =
+  | BfdTimerEntry
+  | BfdMultiplierEntry
+  | BfdPassiveEntry
+  | BfdGracefulEntry
+  | BfdAuthenticationEntry
+  | BfdPasswordEntry
+  | BfdOtherEntry;
+
+export interface BfdProfileStatement extends StatementBase {
+  kind: "bfd-profile";
+  profileType: "interface" | "multihop";
+  patterns?: string[];
+  patternRanges?: SourceRange[];
+  entries: BfdProfileEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface BfdNeighborStatement extends StatementBase {
+  kind: "bfd-neighbor";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+  interface?: string;
+  interfaceSyntax?: "percent" | "dev";
+  interfaceRange?: SourceRange;
+  localAddress?: string;
+  localAddressKind?: "ip" | "other";
+  localAddressRange?: SourceRange;
+  multihop?: boolean;
+  multihopText?: string;
+  multihopRange?: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -671,6 +782,9 @@ export type ProtocolStatement =
   | MrtOptionStatement
   | AggregatorOptionStatement
   | BmpOptionStatement
+  | BfdOptionStatement
+  | BfdProfileStatement
+  | BfdNeighborStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

@@ -165,6 +165,12 @@ const LOCAL_ADDRESS_WITH_AS =
   /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
 const RPKI_LOCAL_ADDRESS = /^\s*local\s+address\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
+const BFD_ACCEPT = /^\s*accept(?:\s+(?:ipv4|ipv6|direct|multihop))*\s*;\s*$/i;
+const BFD_NEIGHBOR =
+  /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;\s*$/i;
+const BFD_PROFILE_HEADER = /^\s*(?:interface\b.+|multihop\s*)\{\s*$/i;
+const BFD_PROFILE_ITEM =
+  /^\s*(?:interval|min\s+rx\s+interval|min\s+tx\s+interval|idle\s+tx\s+interval|multiplier|passive|authentication|password|graceful)\b.*;\s*$/i;
 const CASE_ARM_STATEMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
 const IPV6_SADR_TABLE_DECLARATION =
   /^\s*ipv6\s+sadr\s+table\s+[A-Za-z_][A-Za-z0-9_-]*(?:\s+.*)?;\s*$/i;
@@ -226,7 +232,8 @@ const isRecoverableSyntaxIssue = (
   if (issue.code === "syntax/missing-semicolon") {
     return (
       CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line)) ||
-      isMplsDomainBlockEndIssue(issue, lines)
+      isMplsDomainBlockEndIssue(issue, lines) ||
+      BFD_NEIGHBOR.test(lineTextAt(lines, issue.line))
     );
   }
 
@@ -247,6 +254,10 @@ const isRecoverableSyntaxIssue = (
     LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
     RPKI_LOCAL_ADDRESS.test(currentLineText) ||
     ALLOW_LOCAL_AS.test(currentLineText) ||
+    BFD_ACCEPT.test(currentLineText) ||
+    BFD_NEIGHBOR.test(currentLineText) ||
+    BFD_PROFILE_HEADER.test(currentLineText) ||
+    BFD_PROFILE_ITEM.test(currentLineText) ||
     IPV6_SADR_TABLE_DECLARATION.test(currentLineText) ||
     COMPOUND_CHANNEL_PHRASE.test(issue.message)
   ) {

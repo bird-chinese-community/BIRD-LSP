@@ -749,6 +749,140 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BFD protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bfd edge_bfd {
+        accept ipv4 direct;
+        accept ipv6 multihop;
+        strict bind yes;
+        zero udp6 checksum rx on;
+        express thread group fast;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("bfd");
+      expect(protocol.statements).toMatchObject([
+        {
+          kind: "bfd-option",
+          option: "accept",
+          families: ["ipv4"],
+          sessionTypes: ["direct"],
+        },
+        {
+          kind: "bfd-option",
+          option: "accept",
+          families: ["ipv6"],
+          sessionTypes: ["multihop"],
+        },
+        { kind: "bfd-option", option: "strict-bind", value: true },
+        {
+          kind: "bfd-option",
+          option: "zero-udp6-checksum-rx",
+          value: true,
+        },
+        { kind: "bfd-option", option: "express-thread-group", name: "fast" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "bgp-option" ||
+            item.kind === "bgp-hop-mode" ||
+            (item.kind === "other" &&
+              /\b(accept|strict bind|zero udp6 checksum rx|express thread group)\b/.test(
+                item.text,
+              )),
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("parses BFD neighbor and profile statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bfd edge_bfd {
+        interface "eth*" {
+          interval 50 ms;
+          min rx interval 20 ms;
+          min tx interval 30 ms;
+          idle tx interval 1 s;
+          multiplier 5;
+          passive no;
+          authentication keyed md5;
+          password "secret";
+        };
+        multihop {
+          graceful;
+          passive yes;
+        };
+        neighbor 192.0.2.1 dev "eth0";
+        neighbor 203.0.113.1 local 192.0.2.2 multihop on;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("bfd");
+      expect(protocol.statements).toMatchObject([
+        {
+          kind: "bfd-profile",
+          profileType: "interface",
+          patterns: ["eth*"],
+          entries: [
+            { kind: "timer", option: "interval", value: "50 ms" },
+            { kind: "timer", option: "min-rx-interval", value: "20 ms" },
+            { kind: "timer", option: "min-tx-interval", value: "30 ms" },
+            { kind: "timer", option: "idle-tx-interval", value: "1 s" },
+            { kind: "multiplier", value: "5" },
+            { kind: "passive", value: false },
+            { kind: "authentication", authType: "keyed md5" },
+            { kind: "password", value: "secret" },
+          ],
+        },
+        {
+          kind: "bfd-profile",
+          profileType: "multihop",
+          entries: [{ kind: "graceful" }, { kind: "passive", value: true }],
+        },
+        {
+          kind: "bfd-neighbor",
+          address: "192.0.2.1",
+          interface: "eth0",
+          interfaceSyntax: "dev",
+        },
+        {
+          kind: "bfd-neighbor",
+          address: "203.0.113.1",
+          localAddress: "192.0.2.2",
+          multihop: true,
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "neighbor" ||
+            item.kind === "bgp-hop-mode" ||
+            (item.kind === "other" &&
+              /\b(interface|multihop|neighbor|interval|authentication|password)\b/.test(
+                item.text,
+              )),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
