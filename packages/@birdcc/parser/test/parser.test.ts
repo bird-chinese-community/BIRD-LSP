@@ -2678,6 +2678,44 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV protocol prefix blocks", async () => {
+    const sample = `
+      protocol radv ra1 {
+        prefix 2001:db8:2::/64 {
+          skip no;
+          valid lifetime 3600 sensitive yes;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-prefix",
+            prefix: "2001:db8:2::/64",
+            entries: expect.arrayContaining([
+              expect.objectContaining({ kind: "skip", value: false }),
+              expect.objectContaining({
+                kind: "lifetime",
+                option: "valid-lifetime",
+                value: "3600",
+                sensitive: true,
+              }),
+            ]),
+          }),
+        ]),
+      );
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {

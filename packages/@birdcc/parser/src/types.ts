@@ -232,6 +232,7 @@ interface StatementBase extends SourceRange {
     | "babel-interface"
     | "radv-option"
     | "radv-trigger"
+    | "radv-prefix"
     | "radv-interface"
     | "rip-option"
     | "rip-interface"
@@ -1575,6 +1576,15 @@ export interface RadvTriggerStatement extends StatementBase {
   prefixRange: SourceRange;
 }
 
+export interface RadvPrefixStatement extends StatementBase {
+  kind: "radv-prefix";
+  prefix: string;
+  prefixRange: SourceRange;
+  entries: RadvPrefixEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface RipEcmpOptionStatement extends StatementBase {
   kind: "rip-option";
   option: "ecmp";
@@ -1903,6 +1913,7 @@ export type ProtocolStatement =
   | BabelInterfaceStatement
   | RadvOptionStatement
   | RadvTriggerStatement
+  | RadvPrefixStatement
   | RadvInterfaceStatement
   | RipOptionStatement
   | RipInterfaceStatement

@@ -4244,6 +4244,33 @@ const parseRadvTextStatement = (
   return undefined;
 };
 
+const parseRadvPrefixTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const prefixMatch = trimmed.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
+  if (!prefixMatch?.[1]) {
+    return undefined;
+  }
+
+  const prefix = prefixMatch[1];
+  const bodyText = prefixMatch[2];
+  const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
+  return {
+    kind: "radv-prefix",
+    prefix,
+    prefixRange: tokenRange(prefix),
+    entries: bodyText
+      ? parseRadvPrefixEntries(bodyText, statementRange, tokenRange)
+      : [],
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseRipOptionTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -5788,6 +5815,9 @@ export const parseProtocolStatements = (
             statementRange,
             (token) => rangeForStatementToken(source, statementNode, token),
           ) ??
+          parseRadvPrefixTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          ) ??
           parseRadvTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           );
@@ -5994,6 +6024,9 @@ export const parseProtocolStatements = (
       const radvStatement =
         protocolType === "radv"
           ? (parseRadvInterfaceTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ) ??
+            parseRadvPrefixTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
             ) ??
             parseRadvTextStatement(text, fallbackRange, (token) =>
