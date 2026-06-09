@@ -168,6 +168,9 @@ interface ChannelEntryBase extends SourceRange {
     | "domain"
     | "label-range"
     | "label-policy"
+    | "gateway"
+    | "add-paths"
+    | "igp-table"
     | "other";
 }
 
@@ -247,6 +250,25 @@ export interface ChannelLabelPolicyEntry extends ChannelEntryBase {
   policyRange: SourceRange;
 }
 
+export interface ChannelGatewayEntry extends ChannelEntryBase {
+  kind: "gateway";
+  mode: "direct" | "recursive" | "other";
+  modeRange: SourceRange;
+}
+
+export interface ChannelAddPathsEntry extends ChannelEntryBase {
+  kind: "add-paths";
+  mode: "rx" | "tx" | "on" | "off" | "other";
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface ChannelIgpTableEntry extends ChannelEntryBase {
+  kind: "igp-table";
+  tableName: string;
+  tableNameRange: SourceRange;
+}
+
 export interface ChannelOtherEntry extends ChannelEntryBase {
   kind: "other";
   text: string;
@@ -264,6 +286,9 @@ export type ChannelEntry =
   | ChannelDomainEntry
   | ChannelLabelRangeEntry
   | ChannelLabelPolicyEntry
+  | ChannelGatewayEntry
+  | ChannelAddPathsEntry
+  | ChannelIgpTableEntry
   | ChannelOtherEntry;
 
 export interface ChannelStatement extends StatementBase {

@@ -524,6 +524,50 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP-specific channel entries", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        ipv4 {
+          gateway recursive;
+          add paths rx;
+          add paths tx;
+          add paths off;
+          igp table master4;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        expect(channel.entries).toMatchObject([
+          { kind: "gateway", mode: "recursive" },
+          { kind: "add-paths", mode: "rx" },
+          { kind: "add-paths", mode: "tx" },
+          { kind: "add-paths", mode: "off" },
+          { kind: "igp-table", tableName: "master4" },
+        ]);
+        expect(
+          channel.entries.some(
+            (item) =>
+              item.kind === "other" &&
+              /\b(gateway|add paths|igp table)\b/.test(item.text),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it("parses MPLS entries in compound MPLS channels", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

@@ -580,6 +580,64 @@ const parseChannelEntries = (
         continue;
       }
 
+      if (phraseTexts[0] === "gateway" && isPresentNode(phraseNodes[1])) {
+        const modeNode = phraseNodes[1];
+        const modeText = textOf(modeNode, source).toLowerCase();
+        entries.push({
+          kind: "gateway",
+          mode:
+            modeText === "direct" || modeText === "recursive"
+              ? modeText
+              : "other",
+          modeRange: toRange(modeNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (phraseTexts[0] === "add" && phraseTexts[1] === "paths") {
+        const valueNode = phraseNodes[2];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        const loweredValue = valueText?.toLowerCase();
+        entries.push({
+          kind: "add-paths",
+          mode:
+            loweredValue === "rx" || loweredValue === "tx"
+              ? loweredValue
+              : boolValue === true
+                ? "on"
+                : boolValue === false
+                  ? "off"
+                  : valueText === undefined
+                    ? "on"
+                    : "other",
+          valueText,
+          valueRange: isPresentNode(valueNode)
+            ? toRange(valueNode, source)
+            : undefined,
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "igp" &&
+        phraseTexts[1] === "table" &&
+        isPresentNode(phraseNodes[2])
+      ) {
+        const tableNameNode = phraseNodes[2];
+        entries.push({
+          kind: "igp-table",
+          tableName: textOf(tableNameNode, source),
+          tableNameRange: toRange(tableNameNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
       if (phraseTexts[0] === "domain" && isPresentNode(phraseNodes[1])) {
         const domainNameNode = phraseNodes[1];
         entries.push({
