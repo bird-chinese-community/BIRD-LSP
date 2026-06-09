@@ -682,6 +682,7 @@ describe("@birdcc/parser tree-sitter", () => {
         rr client yes;
         strict bind yes;
         passive no;
+        onlink yes;
         allow local as 2;
         bfd graceful;
         ttl security on;
@@ -711,6 +712,7 @@ describe("@birdcc/parser tree-sitter", () => {
         { kind: "bgp-option", option: "rr-client", value: true },
         { kind: "bgp-option", option: "strict-bind", value: true },
         { kind: "bgp-option", option: "passive", value: false },
+        { kind: "bgp-option", option: "onlink", value: true },
         { kind: "bgp-option", option: "allow-local-as", value: "2" },
         { kind: "bgp-option", option: "bfd", value: "graceful" },
         { kind: "bgp-option", option: "ttl-security", value: true },
@@ -730,7 +732,7 @@ describe("@birdcc/parser tree-sitter", () => {
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(rr client|strict bind|passive|allow local as|bfd graceful|ttl security|check link|enforce first as|local role|require roles|disable rx|disable after cease|confederation|tx size warning|interface)\b/.test(
+            /\b(rr client|strict bind|passive|onlink|allow local as|bfd graceful|ttl security|check link|enforce first as|local role|require roles|disable rx|disable after cease|confederation|tx size warning|interface)\b/.test(
               item.text,
             ),
         ),

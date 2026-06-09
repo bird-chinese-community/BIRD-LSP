@@ -1732,6 +1732,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["confederation", "member"],
       "confederation-member",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["onlink"],
+      "onlink",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;

@@ -717,6 +717,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "rr-client"
     | "strict-bind"
     | "passive"
+    | "onlink"
     | "allow-local-as"
     | "bfd"
     | "ttl-security"
