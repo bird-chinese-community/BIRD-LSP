@@ -219,6 +219,7 @@ interface StatementBase extends SourceRange {
     | "evpn-encapsulation"
     | "evpn-vlan"
     | "bridge-option"
+    | "ospf-option"
     | "babel-option"
     | "babel-interface"
     | "radv-interface"
@@ -875,6 +876,27 @@ export interface BridgeOptionStatement extends StatementBase {
   valueRange: SourceRange;
 }
 
+export interface OspfOptionStatement extends StatementBase {
+  kind: "ospf-option";
+  option:
+    | "rfc1583compat"
+    | "rfc5838"
+    | "vpn-pe"
+    | "stub-router"
+    | "graceful-restart"
+    | "graceful-restart-aware"
+    | "graceful-restart-time"
+    | "ecmp"
+    | "merge-external"
+    | "tick"
+    | "instance-id";
+  value?: boolean | string;
+  valueText?: string;
+  valueRange?: SourceRange;
+  limit?: string;
+  limitRange?: SourceRange;
+}
+
 export interface BabelOptionStatement extends StatementBase {
   kind: "babel-option";
   option: "randomize-router-id";
@@ -1206,6 +1228,7 @@ export type ProtocolStatement =
   | EvpnEncapsulationStatement
   | EvpnVlanStatement
   | BridgeOptionStatement
+  | OspfOptionStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
   | RadvInterfaceStatement

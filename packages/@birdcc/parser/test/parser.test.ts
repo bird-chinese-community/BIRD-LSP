@@ -2123,6 +2123,63 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses OSPF protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf v3 core {
+        rfc5838 yes;
+        vpn pe no;
+        stub router yes;
+        graceful restart aware;
+        graceful restart time 120;
+        ecmp yes limit 8;
+        merge external no;
+        tick 2;
+        instance id 64;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "ospf-option", option: "rfc5838", value: true },
+        { kind: "ospf-option", option: "vpn-pe", value: false },
+        { kind: "ospf-option", option: "stub-router", value: true },
+        {
+          kind: "ospf-option",
+          option: "graceful-restart-aware",
+        },
+        {
+          kind: "ospf-option",
+          option: "graceful-restart-time",
+          value: "120",
+        },
+        {
+          kind: "ospf-option",
+          option: "ecmp",
+          value: true,
+          limit: "8",
+        },
+        { kind: "ospf-option", option: "merge-external", value: false },
+        { kind: "ospf-option", option: "tick", value: "2" },
+        { kind: "ospf-option", option: "instance-id", value: "64" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(rfc5838|vpn pe|stub router|graceful restart|ecmp|merge external|tick|instance id)\b/.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("preserves multi-line protocol statements as a single other entry", async () => {
     const sample = `
       protocol ospf core {

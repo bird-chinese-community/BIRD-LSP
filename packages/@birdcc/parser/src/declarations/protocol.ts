@@ -2396,6 +2396,106 @@ const parseBridgeOptionTextStatement = (
   return undefined;
 };
 
+const parseOspfOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  if (/^graceful\s+restart\s+aware$/iu.test(trimmed)) {
+    return {
+      kind: "ospf-option",
+      option: "graceful-restart-aware",
+      ...statementRange,
+    };
+  }
+
+  const boolOptionMatch = trimmed.match(
+    /^(rfc1583compat|rfc5838|stub\s+router|graceful\s+restart|merge\s+external)\s+(\S+)$/iu,
+  );
+  if (boolOptionMatch?.[1] && boolOptionMatch[2]) {
+    const option = boolOptionMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+      | "rfc1583compat"
+      | "rfc5838"
+      | "stub-router"
+      | "graceful-restart"
+      | "merge-external";
+    const valueText = boolOptionMatch[2];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "ospf-option",
+      option,
+      value,
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...statementRange,
+    };
+  }
+
+  const vpnPeMatch = trimmed.match(/^vpn\s+pe\s+(\S+)$/iu);
+  if (vpnPeMatch?.[1]) {
+    const valueText = vpnPeMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "ospf-option",
+      option: "vpn-pe",
+      value,
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...statementRange,
+    };
+  }
+
+  const valueOptionMatch = trimmed.match(
+    /^(graceful\s+restart\s+time|tick|instance\s+id)\s+(.+)$/iu,
+  );
+  if (valueOptionMatch?.[1] && valueOptionMatch[2]) {
+    const value = valueOptionMatch[2].trim();
+    return {
+      kind: "ospf-option",
+      option: valueOptionMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+        | "graceful-restart-time"
+        | "tick"
+        | "instance-id",
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  const ecmpMatch = trimmed.match(/^ecmp\s+(\S+)(?:\s+limit\s+(.+))?$/iu);
+  if (ecmpMatch?.[1]) {
+    const valueText = ecmpMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const limit = ecmpMatch[2]?.trim();
+    return {
+      kind: "ospf-option",
+      option: "ecmp",
+      value,
+      valueText,
+      valueRange: tokenRange(valueText),
+      limit,
+      limitRange: limit ? tokenRange(limit) : undefined,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseBabelTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -3846,6 +3946,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType.toLowerCase().startsWith("ospf")) {
+        const ospfStatement = parseOspfOptionTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (ospfStatement) {
+          statements.push(ospfStatement);
+          continue;
+        }
+      }
+
       if (protocolType === "radv") {
         const radvStatement = parseRadvInterfaceTextStatement(
           textOf(statementNode, source),
@@ -3984,6 +4096,11 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             )
           : undefined;
+      const ospfStatement = protocolType.toLowerCase().startsWith("ospf")
+        ? parseOspfOptionTextStatement(text, fallbackRange, (token) =>
+            rangeForTextToken(source, fallbackRange, token),
+          )
+        : undefined;
       const bfdStatement =
         protocolType === "bfd"
           ? parseBfdTextStatement(text, fallbackRange, (token) =>
@@ -4009,6 +4126,7 @@ export const parseProtocolStatements = (
         vpnOption ??
           evpnStatement ??
           bridgeStatement ??
+          ospfStatement ??
           bfdStatement ??
           babelStatement ??
           radvStatement ?? {
