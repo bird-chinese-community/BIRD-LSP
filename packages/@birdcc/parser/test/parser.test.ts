@@ -1157,6 +1157,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP min graceful restart time option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        min graceful restart time 60;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "min-graceful-restart-time",
+            value: "60",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\bmin graceful restart time\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP authentication statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
