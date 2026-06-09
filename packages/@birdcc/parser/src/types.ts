@@ -216,6 +216,7 @@ interface StatementBase extends SourceRange {
     | "bgp-tcp-ao-keys"
     | "bgp-hop-mode"
     | "mrt-option"
+    | "perf-option"
     | "aggregator-option"
     | "bmp-option"
     | "bfd-option"
@@ -732,6 +733,22 @@ export interface MrtOptionStatement extends StatementBase {
   kind: "mrt-option";
   option: "table" | "filename" | "period" | "always-add-path";
   value?: boolean | string;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface PerfOptionStatement extends StatementBase {
+  kind: "perf-option";
+  option:
+    | "mode"
+    | "repeat"
+    | "exp-from"
+    | "exp-to"
+    | "threshold-min"
+    | "threshold-max"
+    | "attributes"
+    | "keep";
+  value: boolean | string;
   valueText?: string;
   valueRange?: SourceRange;
 }
@@ -1772,6 +1789,7 @@ export type ProtocolStatement =
   | BgpTcpAoKeysStatement
   | BgpHopModeStatement
   | MrtOptionStatement
+  | PerfOptionStatement
   | AggregatorOptionStatement
   | BmpOptionStatement
   | BfdOptionStatement

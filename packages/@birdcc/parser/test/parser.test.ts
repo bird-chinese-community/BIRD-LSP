@@ -1011,6 +1011,49 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BIRD2 Perf protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol perf perf_import {
+        mode export;
+        repeat 4;
+        exp from 10;
+        exp to 20;
+        threshold min 1 ms;
+        threshold max 500 ms;
+        attributes 3;
+        keep yes;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("perf");
+      expect(protocol.statements).toMatchObject([
+        { kind: "perf-option", option: "mode", value: "export" },
+        { kind: "perf-option", option: "repeat", value: "4" },
+        { kind: "perf-option", option: "exp-from", value: "10" },
+        { kind: "perf-option", option: "exp-to", value: "20" },
+        { kind: "perf-option", option: "threshold-min", value: "1 ms" },
+        { kind: "perf-option", option: "threshold-max", value: "500 ms" },
+        { kind: "perf-option", option: "attributes", value: "3" },
+        { kind: "perf-option", option: "keep", value: true },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(mode|repeat|exp|threshold|attributes|keep)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses aggregator protocol option statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol aggregator agr_sample {

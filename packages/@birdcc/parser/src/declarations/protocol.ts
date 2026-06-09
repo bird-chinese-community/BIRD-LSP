@@ -2023,6 +2023,93 @@ const parseMrtOptionStatement = (
   return undefined;
 };
 
+const parsePerfOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const statementRange = toRange(statementNode, source);
+  const first = phraseTextAt(phraseNodes, 0, source);
+  const second = phraseTextAt(phraseNodes, 1, source);
+
+  if (first === "mode" && (second === "import" || second === "export")) {
+    const valueNode = phraseNodes[1];
+    return {
+      kind: "perf-option",
+      option: "mode",
+      value: second,
+      valueText: second,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (
+    (first === "repeat" || first === "attributes" || first === "keep") &&
+    isNode(phraseNodes[1]) &&
+    phraseNodes.length === 2
+  ) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    const value = first === "keep" ? parseBoolToken(valueText) : valueText;
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "perf-option",
+      option: first,
+      value,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    first === "exp" &&
+    (second === "from" || second === "to") &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "perf-option",
+      option: second === "from" ? "exp-from" : "exp-to",
+      value: valueText,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    first === "threshold" &&
+    (second === "min" || second === "max") &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNodes = phraseNodes.slice(2);
+    const valueText = valueNodes.map((node) => textOf(node, source)).join(" ");
+    return {
+      kind: "perf-option",
+      option: second === "min" ? "threshold-min" : "threshold-max",
+      value: valueText,
+      valueText,
+      valueRange: mergeRanges(
+        toRange(valueNodes[0] ?? phraseNodes[2], source),
+        toRange(valueNodes[valueNodes.length - 1] ?? phraseNodes[2], source),
+      ),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseAggregatorOptionStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -5305,6 +5392,14 @@ export const parseProtocolStatements = (
         const mrtOption = parseMrtOptionStatement(statementNode, source);
         if (mrtOption) {
           statements.push(mrtOption);
+          continue;
+        }
+      }
+
+      if (protocolType === "perf") {
+        const perfOption = parsePerfOptionStatement(statementNode, source);
+        if (perfOption) {
+          statements.push(perfOption);
           continue;
         }
       }

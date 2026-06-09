@@ -61,6 +61,7 @@ export type {
   OtherStatement,
   ParseIssue,
   ParsedBirdDocument,
+  PerfOptionStatement,
   ProtocolDeclaration,
   ProtocolDebugStatement,
   ProtocolInterfaceEntry,
