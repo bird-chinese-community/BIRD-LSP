@@ -1112,6 +1112,49 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("extracts filter and function calls", async () => {
+    const parsed = await parseBirdConfig(`
+      roa4 table rpki_roa4;
+
+      filter rpki_guard {
+        if roa_check(rpki_roa4) = ROA_VALID then accept;
+        if roa_check(rpki_roa4, net, bgp_path.last) = ROA_INVALID then reject;
+        accept;
+      }
+
+      function assert_roa() {
+        bt_assert(roa_check(rpki_roa4, net, bgp_path.last) = ROA_VALID);
+        return true;
+      }
+    `);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+    const fn = parsed.program.declarations.find(
+      (item) => item.kind === "function",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(filter.calls).toMatchObject([
+        { name: "roa_check", argumentsText: "rpki_roa4" },
+        { name: "roa_check", argumentsText: "rpki_roa4, net, bgp_path.last" },
+      ]);
+    }
+
+    expect(fn).toBeDefined();
+    if (fn?.kind === "function") {
+      expect(fn.calls).toMatchObject([
+        {
+          name: "bt_assert",
+          argumentsText: "roa_check(rpki_roa4, net, bgp_path.last) = ROA_VALID",
+        },
+        { name: "roa_check", argumentsText: "rpki_roa4, net, bgp_path.last" },
+      ]);
+    }
+  });
+
   it("extracts filter print, unset and assignment statements", async () => {
     const sample = `
       filter export_policy

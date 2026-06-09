@@ -580,6 +580,12 @@ export interface MatchExpression extends SourceRange {
   right: string;
 }
 
+export interface FunctionCallExpression extends SourceRange {
+  name: string;
+  nameRange: SourceRange;
+  argumentsText: string;
+}
+
 interface ControlStatementBase extends SourceRange {
   kind:
     | "if"
@@ -665,6 +671,7 @@ export interface FilterDeclaration extends DeclarationBase {
   statements: FilterBodyStatement[];
   literals: ExtractedLiteral[];
   matches: MatchExpression[];
+  calls: FunctionCallExpression[];
 }
 
 export interface FunctionDeclaration extends DeclarationBase {
@@ -674,6 +681,7 @@ export interface FunctionDeclaration extends DeclarationBase {
   statements: FilterBodyStatement[];
   literals: ExtractedLiteral[];
   matches: MatchExpression[];
+  calls: FunctionCallExpression[];
 }
 
 export type BirdDeclaration =

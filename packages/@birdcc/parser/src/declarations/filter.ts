@@ -1,5 +1,9 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
-import type { FilterBodyStatement, ParseIssue } from "../types.js";
+import type {
+  FilterBodyStatement,
+  FunctionCallExpression,
+  ParseIssue,
+} from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
 import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
 import {
@@ -280,9 +284,14 @@ const collectFunctionLeadingDeclarations = (
 const collectLiteralsAndMatches = (
   bodyNode: SyntaxNode,
   source: string,
-): { literals: ExtractedLiteral[]; matches: MatchExpression[] } => {
+): {
+  literals: ExtractedLiteral[];
+  matches: MatchExpression[];
+  calls: FunctionCallExpression[];
+} => {
   const literals: ExtractedLiteral[] = [];
   const matches: MatchExpression[] = [];
+  const calls: FunctionCallExpression[] = [];
   const isIpLike = (token: string): boolean => isStrictIpLiteral(token);
 
   const extractPrefixSuffix = (token: string): string | null => {
@@ -380,6 +389,34 @@ const collectLiteralsAndMatches = (
         }
       }
 
+      if (current.type === "function_call") {
+        const callText = textOf(current, source);
+        const nameMatch = callText.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/u);
+        const openParenIndex = callText.indexOf("(");
+        const closeParenIndex = callText.lastIndexOf(")");
+        if (
+          nameMatch?.[1] &&
+          openParenIndex !== -1 &&
+          closeParenIndex > openParenIndex
+        ) {
+          const name = nameMatch[1];
+          calls.push({
+            name,
+            nameRange: {
+              line: currentRange.line,
+              column: currentRange.column + callText.indexOf(name),
+              endLine: currentRange.line,
+              endColumn:
+                currentRange.column + callText.indexOf(name) + name.length,
+            },
+            argumentsText: callText
+              .slice(openParenIndex + 1, closeParenIndex)
+              .trim(),
+            ...currentRange,
+          });
+        }
+      }
+
       if (currentText.trim() === "~") {
         const leftNode = namedChildren[index - 1];
         const immediateRightNode = namedChildren[index + 1];
@@ -438,9 +475,22 @@ const collectLiteralsAndMatches = (
     uniqueMatches.push(match);
   }
 
+  const callKeys = new Set<string>();
+  const uniqueCalls: FunctionCallExpression[] = [];
+  for (const call of calls) {
+    const key = `${call.name}:${call.argumentsText}:${call.line}:${call.column}:${call.endLine}:${call.endColumn}`;
+    if (callKeys.has(key)) {
+      continue;
+    }
+
+    callKeys.add(key);
+    uniqueCalls.push(call);
+  }
+
   return {
     literals: uniqueLiterals,
     matches: uniqueMatches,
+    calls: uniqueCalls,
   };
 };
 
@@ -472,7 +522,7 @@ export const parseFilterDeclaration = (
 
   const extracted = isPresentNode(bodyNode)
     ? collectLiteralsAndMatches(bodyNode, source)
-    : { literals: [], matches: [] };
+    : { literals: [], matches: [], calls: [] };
 
   return {
     kind: "filter",
@@ -485,6 +535,7 @@ export const parseFilterDeclaration = (
       : [],
     literals: extracted.literals,
     matches: extracted.matches,
+    calls: extracted.calls,
     ...declarationRange,
   };
 };
@@ -517,7 +568,7 @@ export const parseFunctionDeclaration = (
 
   const extracted = isPresentNode(bodyNode)
     ? collectLiteralsAndMatches(bodyNode, source)
-    : { literals: [], matches: [] };
+    : { literals: [], matches: [], calls: [] };
   const leadingDeclarations = isPresentNode(bodyNode)
     ? collectFunctionLeadingDeclarations(declarationNode, bodyNode, source)
     : [];
@@ -534,6 +585,7 @@ export const parseFunctionDeclaration = (
     statements: [...leadingDeclarations, ...bodyStatements],
     literals: extracted.literals,
     matches: extracted.matches,
+    calls: extracted.calls,
     ...declarationRange,
   };
 };
