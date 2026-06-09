@@ -1883,6 +1883,10 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(`
       protocol device {
         scan time 5;
+        interface "eth0" {
+          preferred 192.0.2.10;
+          preferred 2001:db8::10;
+        };
       }
 
       protocol kernel {
@@ -1910,6 +1914,23 @@ describe("@birdcc/parser tree-sitter", () => {
 
     expect(statements).toMatchObject([
       { kind: "scan-time", value: "5" },
+      {
+        kind: "interface",
+        mode: "single",
+        patterns: ["eth0"],
+        entries: [
+          {
+            kind: "preferred",
+            address: "192.0.2.10",
+            addressKind: "ip",
+          },
+          {
+            kind: "preferred",
+            address: "2001:db8::10",
+            addressKind: "ip",
+          },
+        ],
+      },
       { kind: "scan-time", value: "20" },
       { kind: "learn", mode: "on" },
       { kind: "learn", mode: "off" },
@@ -1930,7 +1951,7 @@ describe("@birdcc/parser tree-sitter", () => {
       statements.some(
         (item) =>
           item.kind === "other" &&
-          /\b(scan time|learn|persist|graceful restart|merge paths|kernel table|metric|netlink rx buffer)\b/.test(
+          /\b(scan time|preferred|learn|persist|graceful restart|merge paths|kernel table|metric|netlink rx buffer)\b/.test(
             item.text,
           ),
       ),

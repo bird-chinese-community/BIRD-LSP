@@ -4294,6 +4294,78 @@ const parseRipInterfaceTextStatement = (
   };
 };
 
+const parseProtocolInterfaceEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "interface" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const preferredMatch = item.match(/^preferred\s+(\S+)$/iu);
+      if (preferredMatch?.[1]) {
+        const address = preferredMatch[1];
+        return {
+          kind: "preferred",
+          address,
+          addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+          addressRange: tokenRange(address),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseProtocolInterfaceTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const interfaceMatch = trimmed.match(
+    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+  );
+  if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
+    return undefined;
+  }
+
+  const patternText = interfaceMatch[1].trim();
+  const isRange = /^range\b/iu.test(patternText);
+  const patternSource = isRange
+    ? patternText.replace(/^range\b/iu, "").trim()
+    : patternText;
+  const patternMatches = [...patternSource.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const bodyText = interfaceMatch[2];
+  const bodyRange = tokenRange(bodyText);
+
+  if (patternMatches.length === 0) {
+    return undefined;
+  }
+
+  return {
+    kind: "interface",
+    mode: isRange ? "range" : "single",
+    patterns: patternMatches.map((match) => stripQuotedText(match[0])),
+    patternRanges: patternMatches.map((match) => tokenRange(match[0])),
+    entries: parseProtocolInterfaceEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -5326,6 +5398,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "device") {
+        const deviceStatement = parseProtocolInterfaceTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (deviceStatement) {
+          statements.push(deviceStatement);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -5481,6 +5565,12 @@ export const parseProtocolStatements = (
             rangeForTextToken(source, fallbackRange, token),
           ))
         : undefined;
+      const deviceStatement =
+        protocolType === "device"
+          ? parseProtocolInterfaceTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       statements.push(
         vpnOption ??
           evpnStatement ??
@@ -5489,7 +5579,8 @@ export const parseProtocolStatements = (
           bfdStatement ??
           babelStatement ??
           radvStatement ??
-          ripStatement ?? {
+          ripStatement ??
+          deviceStatement ?? {
             kind: "other",
             text,
             ...fallbackRange,

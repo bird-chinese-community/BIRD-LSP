@@ -1646,11 +1646,34 @@ export interface KernelOptionStatement extends StatementBase {
   limitRange?: SourceRange;
 }
 
+interface ProtocolInterfaceEntryBase extends SourceRange {
+  kind: "preferred" | "other";
+}
+
+export interface ProtocolInterfacePreferredEntry extends ProtocolInterfaceEntryBase {
+  kind: "preferred";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+}
+
+export interface ProtocolInterfaceOtherEntry extends ProtocolInterfaceEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type ProtocolInterfaceEntry =
+  | ProtocolInterfacePreferredEntry
+  | ProtocolInterfaceOtherEntry;
+
 export interface ProtocolInterfaceStatement extends StatementBase {
   kind: "interface";
   mode: "single" | "range";
   patterns: string[];
   patternRanges: SourceRange[];
+  entries?: ProtocolInterfaceEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
 }
 
 export interface RpkiRemoteStatement extends StatementBase {

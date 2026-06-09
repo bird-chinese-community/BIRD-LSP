@@ -62,6 +62,7 @@ export type {
   ParsedBirdDocument,
   ProtocolDeclaration,
   ProtocolDebugStatement,
+  ProtocolInterfaceEntry,
   ProtocolInterfaceStatement,
   ProtocolMrtdumpStatement,
   ProtocolRestartTimeStatement,
