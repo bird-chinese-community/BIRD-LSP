@@ -1622,8 +1622,8 @@ export interface RadvInterfaceStatement extends StatementBase {
   patterns: string[];
   patternRanges: SourceRange[];
   entries: RadvInterfaceEntry[];
-  bodyText: string;
-  bodyRange: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
 }
 
 export interface RadvOptionStatement extends StatementBase {

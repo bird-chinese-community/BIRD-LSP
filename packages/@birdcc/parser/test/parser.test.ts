@@ -2746,6 +2746,33 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV interface declarations without option blocks", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0";
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-interface",
+            patterns: ["eth0"],
+            entries: [],
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses RADV prefix blocks", async () => {
     const sample = `
       protocol radv ra1 {

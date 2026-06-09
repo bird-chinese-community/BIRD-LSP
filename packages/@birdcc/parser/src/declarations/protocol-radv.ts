@@ -442,21 +442,22 @@ export const parseRadvInterfaceTextStatement = (
 
   const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
-  if (!bodyText) {
-    return undefined;
-  }
-
-  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
+  const patternText = bodyText
+    ? rest.slice(0, rest.indexOf(bodyText)).trim()
+    : rest;
   const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
-  const bodyRange = tokenRange(bodyText);
+  const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
 
   return {
     kind: "radv-interface",
     patterns,
     patternRanges,
-    entries: parseRadvInterfaceEntries(bodyText, bodyRange, tokenRange),
+    entries:
+      bodyText && bodyRange
+        ? parseRadvInterfaceEntries(bodyText, bodyRange, tokenRange)
+        : [],
     bodyText,
     bodyRange,
     ...statementRange,
