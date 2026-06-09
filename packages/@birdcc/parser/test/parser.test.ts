@@ -2716,6 +2716,65 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV protocol DNS blocks", async () => {
+    const sample = `
+      protocol radv ra1 {
+        rdnss {
+          ns 2001:db8::53;
+          lifetime mult 3;
+        };
+        dnssl {
+          domain "example.net";
+          lifetime 600;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-dns",
+            block: "rdnss",
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "ns",
+                value: "2001:db8::53",
+              }),
+              expect.objectContaining({
+                kind: "lifetime",
+                value: "3",
+                multiplier: true,
+              }),
+            ]),
+          }),
+          expect.objectContaining({
+            kind: "radv-dns",
+            block: "dnssl",
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "domain",
+                value: "example.net",
+              }),
+              expect.objectContaining({
+                kind: "lifetime",
+                value: "600",
+                multiplier: false,
+              }),
+            ]),
+          }),
+        ]),
+      );
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {

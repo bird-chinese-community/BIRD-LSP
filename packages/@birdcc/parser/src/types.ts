@@ -233,6 +233,7 @@ interface StatementBase extends SourceRange {
     | "radv-option"
     | "radv-trigger"
     | "radv-prefix"
+    | "radv-dns"
     | "radv-interface"
     | "rip-option"
     | "rip-interface"
@@ -1585,6 +1586,14 @@ export interface RadvPrefixStatement extends StatementBase {
   bodyRange?: SourceRange;
 }
 
+export interface RadvDnsStatement extends StatementBase {
+  kind: "radv-dns";
+  block: "rdnss" | "dnssl";
+  entries: RadvDnsBlockEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface RipEcmpOptionStatement extends StatementBase {
   kind: "rip-option";
   option: "ecmp";
@@ -1914,6 +1923,7 @@ export type ProtocolStatement =
   | RadvOptionStatement
   | RadvTriggerStatement
   | RadvPrefixStatement
+  | RadvDnsStatement
   | RadvInterfaceStatement
   | RipOptionStatement
   | RipInterfaceStatement

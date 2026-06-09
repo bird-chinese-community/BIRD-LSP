@@ -4271,6 +4271,29 @@ const parseRadvPrefixTextStatement = (
   };
 };
 
+const parseRadvDnsTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
+  if (!dnsBlockMatch?.[1] || !dnsBlockMatch[2]) {
+    return undefined;
+  }
+
+  const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
+  const bodyText = dnsBlockMatch[2];
+  return {
+    kind: "radv-dns",
+    block,
+    entries: parseRadvDnsBlockEntries(block, bodyText, tokenRange),
+    bodyText,
+    bodyRange: tokenRange(bodyText),
+    ...statementRange,
+  };
+};
+
 const parseRipOptionTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -5818,6 +5841,9 @@ export const parseProtocolStatements = (
           parseRadvPrefixTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           ) ??
+          parseRadvDnsTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          ) ??
           parseRadvTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           );
@@ -6027,6 +6053,9 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             ) ??
             parseRadvPrefixTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ) ??
+            parseRadvDnsTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
             ) ??
             parseRadvTextStatement(text, fallbackRange, (token) =>
