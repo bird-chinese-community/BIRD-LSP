@@ -4008,10 +4008,79 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const dnsBlockMatch = item.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
+      if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
+        const kind = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
+        const dnsBodyText = dnsBlockMatch[2];
+        return {
+          kind,
+          entries: parseRadvDnsBlockEntries(kind, dnsBodyText, tokenRange),
+          bodyText: dnsBodyText,
+          bodyRange: tokenRange(dnsBodyText),
+          ...bodyRange,
+        };
+      }
+
       return {
         kind: "other",
         text: item,
         ...bodyRange,
+      };
+    });
+};
+
+const parseRadvDnsBlockEntries = (
+  blockKind: "rdnss" | "dnssl",
+  bodyText: string,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"][number],
+  { kind: "rdnss" | "dnssl" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const dnsEntryMatch = item.match(
+        /^(ns|domain)\s+(\S+|"[^"]+"|'[^']+')$/iu,
+      );
+      if (dnsEntryMatch?.[1] && dnsEntryMatch[2]) {
+        const entryKind = dnsEntryMatch[1].toLowerCase();
+        const valueText = dnsEntryMatch[2];
+        return {
+          kind: entryKind === "ns" ? "ns" : "domain",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...tokenRange(item),
+        };
+      }
+
+      const lifetimeMatch = item.match(/^lifetime\s+(?:(mult)\s+)?(\S+)$/iu);
+      if (lifetimeMatch?.[2]) {
+        const multiplierText = lifetimeMatch[1];
+        const value = lifetimeMatch[2];
+        return {
+          kind: "lifetime",
+          value,
+          valueRange: tokenRange(value),
+          multiplier: Boolean(multiplierText),
+          multiplierRange: multiplierText
+            ? tokenRange(multiplierText)
+            : undefined,
+          ...tokenRange(item),
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...tokenRange(item),
       };
     });
 };

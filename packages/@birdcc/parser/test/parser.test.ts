@@ -2527,6 +2527,14 @@ describe("@birdcc/parser tree-sitter", () => {
         interface "eth0" {
           max ra interval 30;
           rdnss local yes;
+          rdnss {
+            ns 2001:db8::53;
+            lifetime mult 3;
+          };
+          dnssl {
+            domain "example.net";
+            lifetime 600;
+          };
         };
       }
     `;
@@ -2556,6 +2564,34 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "local",
               option: "rdnss-local",
               value: true,
+            }),
+            expect.objectContaining({
+              kind: "rdnss",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "ns",
+                  value: "2001:db8::53",
+                }),
+                expect.objectContaining({
+                  kind: "lifetime",
+                  value: "3",
+                  multiplier: true,
+                }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "dnssl",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "domain",
+                  value: "example.net",
+                }),
+                expect.objectContaining({
+                  kind: "lifetime",
+                  value: "600",
+                  multiplier: false,
+                }),
+              ]),
             }),
           ]),
         }),

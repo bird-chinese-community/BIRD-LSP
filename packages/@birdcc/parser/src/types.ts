@@ -1458,6 +1458,10 @@ interface RadvInterfaceEntryBase extends SourceRange {
     | "autonomous"
     | "pd-preferred"
     | "lifetime"
+    | "rdnss"
+    | "dnssl"
+    | "ns"
+    | "domain"
     | "other";
 }
 
@@ -1507,6 +1511,33 @@ export interface RadvInterfacePrefixEntry extends RadvInterfaceEntryBase {
   bodyRange?: SourceRange;
 }
 
+export interface RadvDnsEntry extends RadvInterfaceEntryBase {
+  kind: "ns" | "domain";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface RadvDnsLifetimeEntry extends RadvInterfaceEntryBase {
+  kind: "lifetime";
+  value: string;
+  valueRange: SourceRange;
+  multiplier: boolean;
+  multiplierRange?: SourceRange;
+}
+
+export type RadvDnsBlockEntry =
+  | RadvDnsEntry
+  | RadvDnsLifetimeEntry
+  | RadvInterfaceOtherEntry;
+
+export interface RadvDnsBlock extends RadvInterfaceEntryBase {
+  kind: "rdnss" | "dnssl";
+  entries: RadvDnsBlockEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface RadvInterfaceOtherEntry extends RadvInterfaceEntryBase {
   kind: "other";
   text: string;
@@ -1516,6 +1547,7 @@ export type RadvInterfaceEntry =
   | RadvInterfaceTimerEntry
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
+  | RadvDnsBlock
   | RadvInterfaceOtherEntry;
 
 export interface RadvInterfaceStatement extends StatementBase {
