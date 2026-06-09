@@ -762,6 +762,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "disable-after-cease"
     | "confederation"
     | "confederation-member"
+    | "graceful-restart-time"
     | "default-bgp-med"
     | "default-bgp-local-pref"
     | "tx-size-warning";
