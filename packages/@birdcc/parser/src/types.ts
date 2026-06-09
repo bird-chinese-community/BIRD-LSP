@@ -477,7 +477,17 @@ export interface MatchExpression extends SourceRange {
 }
 
 interface ControlStatementBase extends SourceRange {
-  kind: "if" | "accept" | "reject" | "return" | "case" | "expression" | "other";
+  kind:
+    | "if"
+    | "accept"
+    | "reject"
+    | "return"
+    | "case"
+    | "print"
+    | "unset"
+    | "assignment"
+    | "expression"
+    | "other";
 }
 
 export interface IfStatement extends ControlStatementBase {
@@ -505,6 +515,23 @@ export interface CaseStatement extends ControlStatementBase {
   subjectText?: string;
 }
 
+export interface PrintStatement extends ControlStatementBase {
+  kind: "print";
+  newline: boolean;
+  argumentsText: string;
+}
+
+export interface UnsetStatement extends ControlStatementBase {
+  kind: "unset";
+  attributeText: string;
+}
+
+export interface AssignmentStatement extends ControlStatementBase {
+  kind: "assignment";
+  targetText: string;
+  valueText: string;
+}
+
 export interface ExpressionStatement extends ControlStatementBase {
   kind: "expression";
   expressionText: string;
@@ -521,6 +548,9 @@ export type FilterBodyStatement =
   | RejectStatement
   | ReturnStatement
   | CaseStatement
+  | PrintStatement
+  | UnsetStatement
+  | AssignmentStatement
   | ExpressionStatement
   | OtherStatement;
 

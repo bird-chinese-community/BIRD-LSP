@@ -10,6 +10,45 @@ import {
   isStrictIpLiteral,
 } from "./shared.js";
 
+const parseFilterSegmentStatement = (
+  segment: string,
+  range: ReturnType<typeof toRange>,
+): FilterBodyStatement | undefined => {
+  const normalizedSegment = segment.trim().replace(/;\s*$/u, "");
+  const normalizedPrintMatch = normalizedSegment.match(/^print(n)?\s+(.+)$/iu);
+  if (normalizedPrintMatch) {
+    return {
+      kind: "print",
+      newline: normalizedPrintMatch[1] !== "n",
+      argumentsText: (normalizedPrintMatch[2] ?? "").trim(),
+      ...range,
+    };
+  }
+
+  const unsetMatch = normalizedSegment.match(/^unset\s*\(\s*([^)]+?)\s*\)$/iu);
+  if (unsetMatch) {
+    return {
+      kind: "unset",
+      attributeText: (unsetMatch[1] ?? "").trim(),
+      ...range,
+    };
+  }
+
+  const assignmentMatch = normalizedSegment.match(
+    /^([A-Za-z_][A-Za-z0-9_.]*(?:\[[^\]]+\])?)\s*=\s*(.+)$/u,
+  );
+  if (assignmentMatch) {
+    return {
+      kind: "assignment",
+      targetText: (assignmentMatch[1] ?? "").trim(),
+      valueText: (assignmentMatch[2] ?? "").trim(),
+      ...range,
+    };
+  }
+
+  return undefined;
+};
+
 const parseControlStatements = (
   bodyNode: SyntaxNode,
   source: string,
@@ -76,11 +115,21 @@ const parseControlStatements = (
 
     if (statementNode.type === "expression_statement") {
       const expressionNode = statementNode.childForFieldName("expression");
+      const expressionText = isPresentNode(expressionNode)
+        ? textOf(expressionNode, source)
+        : textOf(statementNode, source);
+      const parsedStatement = parseFilterSegmentStatement(
+        expressionText,
+        statementRange,
+      );
+      if (parsedStatement) {
+        statements.push(parsedStatement);
+        continue;
+      }
+
       statements.push({
         kind: "expression",
-        expressionText: isPresentNode(expressionNode)
-          ? textOf(expressionNode, source)
-          : textOf(statementNode, source),
+        expressionText,
         ...statementRange,
       });
       continue;
@@ -167,6 +216,15 @@ const parseControlStatements = (
         normalizedSegment === "reject" ||
         normalizedSegment.startsWith("return")
       ) {
+        continue;
+      }
+
+      const parsedStatement = parseFilterSegmentStatement(
+        normalizedSegment,
+        bodyRange,
+      );
+      if (parsedStatement) {
+        statements.push(parsedStatement);
         continue;
       }
 

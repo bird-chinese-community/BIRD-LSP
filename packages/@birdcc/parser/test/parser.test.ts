@@ -895,6 +895,68 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("extracts filter print, unset and assignment statements", async () => {
+    const sample = `
+      filter export_policy
+      int metric;
+      {
+        print "route ", net, " source ", source;
+        printn "metric ", rip_metric;
+        metric = 7;
+        rip_metric = 14;
+        unset(rip_metric);
+        accept;
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "print" &&
+            item.newline === true &&
+            item.argumentsText === '"route ", net, " source ", source',
+        ),
+      ).toBe(true);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "print" &&
+            item.newline === false &&
+            item.argumentsText === '"metric ", rip_metric',
+        ),
+      ).toBe(true);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" &&
+            item.targetText === "metric" &&
+            item.valueText === "7",
+        ),
+      ).toBe(true);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" &&
+            item.targetText === "rip_metric" &&
+            item.valueText === "14",
+        ),
+      ).toBe(true);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "unset" && item.attributeText === "rip_metric",
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("does not collect nested protocol statements inside inline filter blocks", async () => {
     const sample = `
       protocol bgp edge_peer {
