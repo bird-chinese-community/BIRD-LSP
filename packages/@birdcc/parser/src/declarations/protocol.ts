@@ -817,6 +817,64 @@ const phraseTextAt = (
   return isNode(node) ? textOf(node, source).toLowerCase() : undefined;
 };
 
+const phraseTailFrom = (
+  phraseNodes: SyntaxNode[],
+  startIndex: number,
+  source: string,
+): { text: string; range: SourceRange } | undefined => {
+  const startNode = phraseNodes[startIndex];
+  const endNode = phraseNodes.at(-1);
+  if (
+    !isNode(startNode) ||
+    !isNode(endNode) ||
+    startIndex >= phraseNodes.length
+  ) {
+    return undefined;
+  }
+
+  return {
+    text: phraseNodes
+      .slice(startIndex)
+      .map((node) => textOf(node, source))
+      .join(" "),
+    range: mergeRanges(toRange(startNode, source), toRange(endNode, source)),
+  };
+};
+
+const statementTailAfterNode = (
+  statementNode: SyntaxNode,
+  optionNode: SyntaxNode,
+  source: string,
+): { text: string; range: SourceRange } | undefined => {
+  let startIndex = optionNode.endIndex;
+  let endIndex = statementNode.endIndex;
+
+  while (startIndex < endIndex && /\s/u.test(source[startIndex] ?? "")) {
+    startIndex += 1;
+  }
+
+  while (endIndex > startIndex && /\s/u.test(source[endIndex - 1] ?? "")) {
+    endIndex -= 1;
+  }
+
+  if (source[endIndex - 1] === ";") {
+    endIndex -= 1;
+  }
+
+  while (endIndex > startIndex && /\s/u.test(source[endIndex - 1] ?? "")) {
+    endIndex -= 1;
+  }
+
+  if (startIndex >= endIndex) {
+    return undefined;
+  }
+
+  return {
+    text: source.slice(startIndex, endIndex),
+    range: indexToRange(source, lineStartsOf(source), startIndex, endIndex),
+  };
+};
+
 const parseBgpBoolOption = (
   phraseNodes: SyntaxNode[],
   source: string,
@@ -988,6 +1046,74 @@ const parseProtocolOptionStatement = (
         ...statementRange,
       };
     }
+  }
+
+  if (
+    optionText === "restart" &&
+    phraseTextAt(phraseNodes, 1, source) === "time"
+  ) {
+    const value = phraseTailFrom(phraseNodes, 2, source);
+    if (value) {
+      return {
+        kind: "restart-time",
+        value: value.text,
+        valueRange: value.range,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (optionText === "debug") {
+    const clause = statementTailAfterNode(statementNode, optionNode, source);
+    if (clause) {
+      return {
+        kind: "debug",
+        clauseText: clause.text,
+        clauseRange: clause.range,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (optionText === "mrtdump") {
+    const mask = statementTailAfterNode(statementNode, optionNode, source);
+    if (mask) {
+      return {
+        kind: "mrtdump",
+        maskText: mask.text,
+        maskRange: mask.range,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (
+    optionText === "router" &&
+    phraseTextAt(phraseNodes, 1, source) === "id"
+  ) {
+    const value = phraseTailFrom(phraseNodes, 2, source);
+    if (value) {
+      return {
+        kind: "protocol-router-id",
+        value: value.text,
+        valueRange: value.range,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (
+    optionText === "thread" &&
+    phraseTextAt(phraseNodes, 1, source) === "group" &&
+    isNode(phraseNodes[2])
+  ) {
+    const nameNode = phraseNodes[2];
+    return {
+      kind: "thread-group",
+      name: stripQuotedText(textOf(nameNode, source)),
+      nameRange: toRange(nameNode, source),
+      ...statementRange,
+    };
   }
 
   const timerStatement = parseBgpTimerOption(

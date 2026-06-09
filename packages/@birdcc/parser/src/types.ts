@@ -181,6 +181,11 @@ interface StatementBase extends SourceRange {
     | "description"
     | "hostname"
     | "vrf"
+    | "restart-time"
+    | "debug"
+    | "mrtdump"
+    | "protocol-router-id"
+    | "thread-group"
     | "bgp-timer"
     | "source-address"
     | "bgp-option"
@@ -448,6 +453,36 @@ export interface VrfStatement extends StatementBase {
   nameRange?: SourceRange;
 }
 
+export interface ProtocolRestartTimeStatement extends StatementBase {
+  kind: "restart-time";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface ProtocolDebugStatement extends StatementBase {
+  kind: "debug";
+  clauseText: string;
+  clauseRange: SourceRange;
+}
+
+export interface ProtocolMrtdumpStatement extends StatementBase {
+  kind: "mrtdump";
+  maskText: string;
+  maskRange: SourceRange;
+}
+
+export interface ProtocolRouterIdStatement extends StatementBase {
+  kind: "protocol-router-id";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface ProtocolThreadGroupStatement extends StatementBase {
+  kind: "thread-group";
+  name: string;
+  nameRange: SourceRange;
+}
+
 export interface BgpTimerStatement extends StatementBase {
   kind: "bgp-timer";
   option:
@@ -574,6 +609,11 @@ export type ProtocolStatement =
   | DisabledStatement
   | ProtocolTextStatement
   | VrfStatement
+  | ProtocolRestartTimeStatement
+  | ProtocolDebugStatement
+  | ProtocolMrtdumpStatement
+  | ProtocolRouterIdStatement
+  | ProtocolThreadGroupStatement
   | BgpTimerStatement
   | SourceAddressStatement
   | BgpOptionStatement

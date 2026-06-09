@@ -407,6 +407,11 @@ describe("@birdcc/parser tree-sitter", () => {
         hostname "router-a";
         vrf "blue";
         vrf default;
+        restart time 30 s;
+        debug all;
+        mrtdump messages;
+        router id 192.0.2.1;
+        thread group worker;
       }
     `);
 
@@ -425,12 +430,19 @@ describe("@birdcc/parser tree-sitter", () => {
         { kind: "hostname", value: "router-a" },
         { kind: "vrf", mode: "named", name: "blue" },
         { kind: "vrf", mode: "default" },
+        { kind: "restart-time", value: "30 s" },
+        { kind: "debug", clauseText: "all" },
+        { kind: "mrtdump", maskText: "messages" },
+        { kind: "protocol-router-id", value: "192.0.2.1" },
+        { kind: "thread-group", name: "worker" },
       ]);
       expect(
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(disabled|description|hostname|vrf)\b/.test(item.text),
+            /\b(disabled|description|hostname|vrf|restart time|debug|mrtdump|router id|thread group)\b/.test(
+              item.text,
+            ),
         ),
       ).toBe(false);
     }
