@@ -1340,6 +1340,41 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses static protocol options without BGP option fallback", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol static static_routes {
+        check link yes;
+        igp table master4;
+        route 192.0.2.0/24 via 198.51.100.1 dev "eth0" onlink yes weight 2 bfd no mpls 16000;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "static-option", option: "check-link", value: true },
+        { kind: "static-igp-table", tableName: "master4" },
+        {
+          kind: "static-route",
+          routeTarget: "192.0.2.0/24",
+          destinationType: "via",
+          nextHop: "198.51.100.1",
+          optionsText: 'dev "eth0" onlink yes weight 2 bfd no mpls 16000',
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) => item.kind === "bgp-option" && item.option === "check-link",
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses scan time and kernel learn statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol device {

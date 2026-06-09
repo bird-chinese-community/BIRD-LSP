@@ -2762,6 +2762,47 @@ const parseStaticRouteStatement = (
   };
 };
 
+const parseStaticOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  const phraseNodes = phraseNodesOf(statementNode);
+  const statementRange = toRange(statementNode, source);
+
+  if (
+    phraseTextAt(phraseNodes, 0, source) === "check" &&
+    phraseTextAt(phraseNodes, 1, source) === "link" &&
+    phraseNodes.length <= 3
+  ) {
+    const valueNode = phraseNodes[2];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    return {
+      kind: "static-option",
+      option: "check-link",
+      value: parseBoolToken(valueText) ?? true,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (
+    phraseTextAt(phraseNodes, 0, source) === "igp" &&
+    phraseTextAt(phraseNodes, 1, source) === "table" &&
+    isNode(phraseNodes[2])
+  ) {
+    const tableNameNode = phraseNodes[2];
+    return {
+      kind: "static-igp-table",
+      tableName: textOf(tableNameNode, source),
+      tableNameRange: toRange(tableNameNode, source),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const unquoteProtocolToken = (value: string): string =>
   stripQuotedText(value.trim());
 
@@ -3605,6 +3646,14 @@ export const parseProtocolStatements = (
         );
         if (radvStatement) {
           statements.push(radvStatement);
+          continue;
+        }
+      }
+
+      if (protocolType === "static") {
+        const staticOption = parseStaticOptionStatement(statementNode, source);
+        if (staticOption) {
+          statements.push(staticOption);
           continue;
         }
       }

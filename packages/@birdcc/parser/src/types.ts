@@ -203,6 +203,8 @@ interface StatementBase extends SourceRange {
     | "thread-group"
     | "bgp-timer"
     | "source-address"
+    | "static-option"
+    | "static-igp-table"
     | "bgp-option"
     | "bgp-hop-mode"
     | "mrt-option"
@@ -533,6 +535,20 @@ export interface SourceAddressStatement extends StatementBase {
   address: string;
   addressKind: "ip" | "other";
   addressRange: SourceRange;
+}
+
+export interface StaticOptionStatement extends StatementBase {
+  kind: "static-option";
+  option: "check-link";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface StaticIgpTableStatement extends StatementBase {
+  kind: "static-igp-table";
+  tableName: string;
+  tableNameRange: SourceRange;
 }
 
 export interface BgpOptionStatement extends StatementBase {
@@ -1115,6 +1131,8 @@ export type ProtocolStatement =
   | ProtocolThreadGroupStatement
   | BgpTimerStatement
   | SourceAddressStatement
+  | StaticOptionStatement
+  | StaticIgpTableStatement
   | BgpOptionStatement
   | BgpHopModeStatement
   | MrtOptionStatement
