@@ -524,7 +524,25 @@ export interface StaticRouteStatement extends StatementBase {
   destinationTypeRange?: SourceRange;
   nextHop?: string;
   nextHopRange?: SourceRange;
+  options?: StaticRouteOption[];
   optionsText?: string;
+}
+
+export type StaticRouteOption =
+  | StaticRouteTextOption
+  | StaticRouteBooleanOption;
+
+export interface StaticRouteTextOption extends SourceRange {
+  kind: "dev" | "weight" | "mpls";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface StaticRouteBooleanOption extends SourceRange {
+  kind: "onlink" | "bfd";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
 }
 
 export interface DisabledStatement extends StatementBase {

@@ -1912,6 +1912,13 @@ describe("@birdcc/parser tree-sitter", () => {
           destinationType: "via",
           nextHop: "198.51.100.1",
           optionsText: 'dev "eth0" onlink yes weight 2 bfd no mpls 16000',
+          options: [
+            { kind: "dev", value: "eth0" },
+            { kind: "onlink", value: true },
+            { kind: "weight", value: "2" },
+            { kind: "bfd", value: false },
+            { kind: "mpls", value: "16000" },
+          ],
         },
       ]);
       expect(

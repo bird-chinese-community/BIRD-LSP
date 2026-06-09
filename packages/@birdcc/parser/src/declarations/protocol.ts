@@ -7,6 +7,7 @@ import type {
   ParseIssue,
   ProtocolStatement,
   SourceRange,
+  StaticRouteOption,
   StaticRouteStatement,
 } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
@@ -4509,6 +4510,7 @@ const parseStaticRouteStatement = (
       : destinationIndex + 1;
   const optionNodes =
     destinationIndex === -1 ? [] : phraseNodes.slice(optionsStartIndex);
+  const options = parseStaticRouteOptions(optionNodes, source);
 
   return {
     kind: "static-route",
@@ -4529,8 +4531,60 @@ const parseStaticRouteStatement = (
       optionNodes.length > 0
         ? optionNodes.map((node) => textOf(node, source)).join(" ")
         : undefined,
+    options: options.length > 0 ? options : undefined,
     ...toRange(statementNode, source),
   };
+};
+
+const parseStaticRouteOptions = (
+  optionNodes: SyntaxNode[],
+  source: string,
+): StaticRouteOption[] => {
+  const options: StaticRouteOption[] = [];
+
+  for (let index = 0; index < optionNodes.length; index += 1) {
+    const optionNode = optionNodes[index];
+    if (!isNode(optionNode)) {
+      continue;
+    }
+
+    const optionText = textOf(optionNode, source).toLowerCase();
+    const valueNode = optionNodes[index + 1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+
+    if (
+      (optionText === "dev" ||
+        optionText === "weight" ||
+        optionText === "mpls") &&
+      isNode(valueNode)
+    ) {
+      options.push({
+        kind: optionText,
+        value: stripQuotedText(valueText ?? ""),
+        valueRange: toRange(valueNode, source),
+        ...mergeRanges(toRange(optionNode, source), toRange(valueNode, source)),
+      });
+      index += 1;
+      continue;
+    }
+
+    if (optionText === "onlink" || optionText === "bfd") {
+      options.push({
+        kind: optionText,
+        value: parseBoolToken(valueText) ?? true,
+        valueText,
+        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+        ...(isNode(valueNode)
+          ? mergeRanges(toRange(optionNode, source), toRange(valueNode, source))
+          : toRange(optionNode, source)),
+      });
+      if (isNode(valueNode) && parseBoolToken(valueText) !== undefined) {
+        index += 1;
+      }
+    }
+  }
+
+  return options;
 };
 
 const parseStaticOptionStatement = (
