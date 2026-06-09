@@ -1457,6 +1457,7 @@ interface RadvInterfaceEntryBase extends SourceRange {
   kind:
     | "timer"
     | "bool"
+    | "scalar"
     | "local"
     | "prefix"
     | "skip"
@@ -1485,6 +1486,13 @@ export interface RadvInterfaceBoolEntry extends RadvInterfaceEntryBase {
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
+}
+
+export interface RadvInterfaceScalarEntry extends RadvInterfaceEntryBase {
+  kind: "scalar";
+  option: "link-mtu" | "reachable-time" | "retrans-timer" | "current-hop-limit";
+  value: string;
+  valueRange: SourceRange;
 }
 
 export interface RadvInterfaceLocalEntry extends RadvInterfaceEntryBase {
@@ -1569,6 +1577,7 @@ export interface RadvInterfaceOtherEntry extends RadvInterfaceEntryBase {
 export type RadvInterfaceEntry =
   | RadvInterfaceTimerEntry
   | RadvInterfaceBoolEntry
+  | RadvInterfaceScalarEntry
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
   | RadvDnsBlock

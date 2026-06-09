@@ -2534,6 +2534,10 @@ describe("@birdcc/parser tree-sitter", () => {
           solicited ra unicast yes;
           managed on;
           other config no;
+          link mtu 1500;
+          reachable time 30000;
+          retrans timer 1000;
+          current hop limit 64;
           rdnss local yes;
           dnssl local no;
           custom option local yes;
@@ -2608,6 +2612,26 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "bool",
               option: "other-config",
               value: false,
+            }),
+            expect.objectContaining({
+              kind: "scalar",
+              option: "link-mtu",
+              value: "1500",
+            }),
+            expect.objectContaining({
+              kind: "scalar",
+              option: "reachable-time",
+              value: "30000",
+            }),
+            expect.objectContaining({
+              kind: "scalar",
+              option: "retrans-timer",
+              value: "1000",
+            }),
+            expect.objectContaining({
+              kind: "scalar",
+              option: "current-hop-limit",
+              value: "64",
             }),
             expect.objectContaining({
               kind: "local",

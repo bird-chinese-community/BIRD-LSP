@@ -265,6 +265,24 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const scalarMatch = item.match(
+        /^(link\s+mtu|reachable\s+time|retrans\s+timer|current\s+hop\s+limit)\s+(.+)$/iu,
+      );
+      if (scalarMatch?.[1] && scalarMatch[2]) {
+        const value = scalarMatch[2].trim();
+        return {
+          kind: "scalar",
+          option: scalarMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "link-mtu"
+            | "reachable-time"
+            | "retrans-timer"
+            | "current-hop-limit",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
       const localMatch = item.match(
         /^(rdnss|dnssl|custom\s+option)\s+local(?:\s+(\S+))?$/iu,
       );
