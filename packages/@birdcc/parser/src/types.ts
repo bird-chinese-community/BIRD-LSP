@@ -306,6 +306,7 @@ interface ChannelEntryBase extends SourceRange {
     | "gateway"
     | "add-paths"
     | "igp-table"
+    | "base-table"
     | "bgp-channel-option"
     | "bgp-channel-require"
     | "bgp-channel-graceful-restart"
@@ -414,6 +415,12 @@ export interface ChannelIgpTableEntry extends ChannelEntryBase {
   tableNameRange: SourceRange;
 }
 
+export interface ChannelBaseTableEntry extends ChannelEntryBase {
+  kind: "base-table";
+  tableName: string;
+  tableNameRange: SourceRange;
+}
+
 export interface ChannelBgpOptionEntry extends ChannelEntryBase {
   kind: "bgp-channel-option";
   option:
@@ -509,6 +516,7 @@ export type ChannelEntry =
   | ChannelGatewayEntry
   | ChannelAddPathsEntry
   | ChannelIgpTableEntry
+  | ChannelBaseTableEntry
   | ChannelBgpOptionEntry
   | ChannelBgpRequireEntry
   | ChannelBgpGracefulRestartEntry

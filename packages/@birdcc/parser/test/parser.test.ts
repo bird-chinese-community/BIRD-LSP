@@ -1640,6 +1640,9 @@ describe("@birdcc/parser tree-sitter", () => {
           import table yes;
           export table off;
         };
+        flow4 {
+          base table master4;
+        };
       }
     `);
 
@@ -1650,13 +1653,14 @@ describe("@birdcc/parser tree-sitter", () => {
     );
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
-      const channel = protocol.statements.find(
+      const channels = protocol.statements.filter(
         (item) => item.kind === "channel",
       );
+      const [ipv4Channel, flow4Channel] = channels;
 
-      expect(channel?.kind).toBe("channel");
-      if (channel?.kind === "channel") {
-        expect(channel.entries).toMatchObject([
+      expect(ipv4Channel?.kind).toBe("channel");
+      if (ipv4Channel?.kind === "channel") {
+        expect(ipv4Channel.entries).toMatchObject([
           { kind: "gateway", mode: "recursive" },
           { kind: "add-paths", mode: "rx" },
           { kind: "add-paths", mode: "tx" },
@@ -1682,12 +1686,24 @@ describe("@birdcc/parser tree-sitter", () => {
           { kind: "bgp-channel-option", option: "export-table", value: false },
         ]);
         expect(
-          channel.entries.some(
+          ipv4Channel.entries.some(
             (item) =>
               item.kind === "other" &&
               /\b(gateway|add paths|require extended next hop|require add paths|igp table|secondary|extended next hop|import table|export table)\b/.test(
                 item.text,
               ),
+          ),
+        ).toBe(false);
+      }
+
+      expect(flow4Channel?.kind).toBe("channel");
+      if (flow4Channel?.kind === "channel") {
+        expect(flow4Channel.entries).toMatchObject([
+          { kind: "base-table", tableName: "master4" },
+        ]);
+        expect(
+          flow4Channel.entries.some(
+            (item) => item.kind === "other" && /\bbase table\b/.test(item.text),
           ),
         ).toBe(false);
       }

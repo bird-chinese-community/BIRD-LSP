@@ -825,6 +825,21 @@ const parseChannelEntries = (
         continue;
       }
 
+      if (
+        phraseTexts[0] === "base" &&
+        phraseTexts[1] === "table" &&
+        isPresentNode(phraseNodes[2])
+      ) {
+        const tableNameNode = phraseNodes[2];
+        entries.push({
+          kind: "base-table",
+          tableName: textOf(tableNameNode, source),
+          tableNameRange: toRange(tableNameNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
       if (phraseTexts[0] === "secondary" && phraseNodes.length <= 2) {
         const valueNode = phraseNodes[1];
         const valueText = isPresentNode(valueNode)
