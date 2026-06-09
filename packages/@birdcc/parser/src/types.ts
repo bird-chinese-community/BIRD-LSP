@@ -290,6 +290,9 @@ interface ChannelEntryBase extends SourceRange {
     | "add-paths"
     | "igp-table"
     | "bgp-channel-option"
+    | "bgp-next-hop-mode"
+    | "bgp-aigp"
+    | "bgp-channel-cost"
     | "other";
 }
 
@@ -390,10 +393,38 @@ export interface ChannelIgpTableEntry extends ChannelEntryBase {
 
 export interface ChannelBgpOptionEntry extends ChannelEntryBase {
   kind: "bgp-channel-option";
-  option: "secondary" | "extended-next-hop" | "import-table" | "export-table";
+  option:
+    | "secondary"
+    | "extended-next-hop"
+    | "import-table"
+    | "export-table"
+    | "mandatory"
+    | "validate";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
+}
+
+export interface ChannelBgpNextHopModeEntry extends ChannelEntryBase {
+  kind: "bgp-next-hop-mode";
+  option: "self" | "keep";
+  mode: "on" | "off" | "ibgp" | "ebgp" | "other";
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface ChannelBgpAigpEntry extends ChannelEntryBase {
+  kind: "bgp-aigp";
+  enabled: boolean;
+  originate?: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface ChannelBgpCostEntry extends ChannelEntryBase {
+  kind: "bgp-channel-cost";
+  value: string;
+  valueRange: SourceRange;
 }
 
 export interface ChannelOtherEntry extends ChannelEntryBase {
@@ -417,6 +448,9 @@ export type ChannelEntry =
   | ChannelAddPathsEntry
   | ChannelIgpTableEntry
   | ChannelBgpOptionEntry
+  | ChannelBgpNextHopModeEntry
+  | ChannelBgpAigpEntry
+  | ChannelBgpCostEntry
   | ChannelOtherEntry;
 
 export interface ChannelStatement extends StatementBase {

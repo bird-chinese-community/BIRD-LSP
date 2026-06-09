@@ -643,6 +643,40 @@ const parseChannelEntries = (
       }
 
       if (
+        phraseTexts[0] === "next" &&
+        phraseTexts[1] === "hop" &&
+        (phraseTexts[2] === "self" || phraseTexts[2] === "keep") &&
+        phraseNodes.length <= 4
+      ) {
+        const valueNode = phraseNodes[3];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        const loweredValue = valueText?.toLowerCase();
+        entries.push({
+          kind: "bgp-next-hop-mode",
+          option: phraseTexts[2],
+          mode:
+            loweredValue === "ibgp" || loweredValue === "ebgp"
+              ? loweredValue
+              : boolValue === true
+                ? "on"
+                : boolValue === false
+                  ? "off"
+                  : valueText === undefined
+                    ? "on"
+                    : "other",
+          valueText,
+          valueRange: isPresentNode(valueNode)
+            ? toRange(valueNode, source)
+            : undefined,
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
         phraseTexts[0] === "igp" &&
         phraseTexts[1] === "table" &&
         isPresentNode(phraseNodes[2])
@@ -679,6 +713,30 @@ const parseChannelEntries = (
       }
 
       if (
+        (phraseTexts[0] === "mandatory" || phraseTexts[0] === "validate") &&
+        phraseNodes.length <= 2
+      ) {
+        const valueNode = phraseNodes[1];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-option",
+            option: phraseTexts[0],
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
+      if (
         phraseTexts[0] === "extended" &&
         phraseTexts[1] === "next" &&
         phraseTexts[2] === "hop" &&
@@ -702,6 +760,49 @@ const parseChannelEntries = (
           });
           continue;
         }
+      }
+
+      if (phraseTexts[0] === "aigp" && phraseNodes.length <= 2) {
+        const valueNode = phraseNodes[1];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        if (valueText?.toLowerCase() === "originate") {
+          entries.push({
+            kind: "bgp-aigp",
+            enabled: true,
+            originate: true,
+            valueText,
+            valueRange: toRange(valueNode, source),
+            ...entryRange,
+          });
+          continue;
+        }
+
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-aigp",
+            enabled: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
+      if (phraseTexts[0] === "cost" && isPresentNode(phraseNodes[1])) {
+        const valueNode = phraseNodes[1];
+        entries.push({
+          kind: "bgp-channel-cost",
+          value: textOf(valueNode, source),
+          valueRange: toRange(valueNode, source),
+          ...entryRange,
+        });
+        continue;
       }
 
       if (phraseTexts[0] === "domain" && isPresentNode(phraseNodes[1])) {

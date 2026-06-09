@@ -1294,6 +1294,80 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP channel next-hop modes and path attributes", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        ipv4 {
+          next hop self ibgp;
+          next hop keep ebgp;
+          mandatory on;
+          aigp on;
+          aigp originate;
+          cost MY_COST;
+        };
+        flow4 {
+          validate on;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channels = protocol.statements.filter(
+        (item) => item.kind === "channel",
+      );
+
+      expect(channels).toHaveLength(2);
+      const [ipv4Channel, flow4Channel] = channels;
+
+      expect(ipv4Channel?.kind).toBe("channel");
+      if (ipv4Channel?.kind === "channel") {
+        expect(ipv4Channel.entries).toMatchObject([
+          {
+            kind: "bgp-next-hop-mode",
+            option: "self",
+            mode: "ibgp",
+            valueText: "ibgp",
+          },
+          {
+            kind: "bgp-next-hop-mode",
+            option: "keep",
+            mode: "ebgp",
+            valueText: "ebgp",
+          },
+          { kind: "bgp-channel-option", option: "mandatory", value: true },
+          { kind: "bgp-aigp", enabled: true, valueText: "on" },
+          { kind: "bgp-aigp", enabled: true, originate: true },
+          { kind: "bgp-channel-cost", value: "MY_COST" },
+        ]);
+        expect(
+          ipv4Channel.entries.some(
+            (item) =>
+              item.kind === "other" &&
+              /\b(next hop|mandatory|aigp|cost)\b/.test(item.text),
+          ),
+        ).toBe(false);
+      }
+
+      expect(flow4Channel?.kind).toBe("channel");
+      if (flow4Channel?.kind === "channel") {
+        expect(flow4Channel.entries).toMatchObject([
+          { kind: "bgp-channel-option", option: "validate", value: true },
+        ]);
+        expect(
+          flow4Channel.entries.some(
+            (item) => item.kind === "other" && /\bvalidate\b/.test(item.text),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it("parses MPLS entries in compound MPLS channels", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
