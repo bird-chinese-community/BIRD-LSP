@@ -738,6 +738,162 @@ describe("@birdcc/parser tree-sitter", () => {
     ).toBe(false);
   });
 
+  it("parses RPKI cache connection and timing statements", async () => {
+    const parsed = await parseBirdConfig(`
+      roa4 table rpki_roa4;
+
+      protocol rpki rpki_tcp {
+        remote "rpki-cache.example.net" port 3323;
+        local address 192.0.2.10;
+        transport tcp {
+          authentication md5;
+          password "shared-secret";
+        };
+        refresh keep 600;
+        retry 60;
+        expire keep 7200;
+        ignore max length off;
+        min version 1;
+        max version 2;
+
+        roa4 {
+          table rpki_roa4;
+          import all;
+          export none;
+          rpki reload yes;
+        };
+      }
+
+      protocol rpki rpki_ssh {
+        remote 2001:db8::10;
+        port 8282;
+        transport ssh {
+          user "bird";
+          bird private key "/etc/bird/rpki_key";
+          remote public key "/etc/bird/rpki_cache.pub";
+        };
+        refresh 300;
+        retry keep 30;
+        expire 3600;
+        ignore max length;
+      }
+    `);
+
+    const protocols = parsed.program.declarations.filter(
+      (item) => item.kind === "protocol" && item.protocolType === "rpki",
+    );
+    expect(protocols).toHaveLength(2);
+    const [tcp, ssh] = protocols;
+
+    expect(tcp).toBeDefined();
+    if (tcp?.kind === "protocol") {
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-remote" &&
+            item.address === "rpki-cache.example.net" &&
+            item.addressKind === "hostname" &&
+            item.port === "3323",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-local-address" &&
+            item.address === "192.0.2.10" &&
+            item.addressKind === "ip",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-transport" &&
+            item.transport === "tcp" &&
+            item.bodyText?.includes("authentication md5"),
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-timer" &&
+            item.option === "refresh" &&
+            item.keep === true &&
+            item.value === "600",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-timer" &&
+            item.option === "retry" &&
+            item.keep === false &&
+            item.value === "60",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-timer" &&
+            item.option === "expire" &&
+            item.keep === true &&
+            item.value === "7200",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-ignore-max-length" &&
+            item.value === false &&
+            item.valueText === "off",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-version" &&
+            item.option === "min" &&
+            item.value === "1",
+        ),
+      ).toBe(true);
+      expect(
+        tcp.statements.some(
+          (item) =>
+            item.kind === "rpki-version" &&
+            item.option === "max" &&
+            item.value === "2",
+        ),
+      ).toBe(true);
+    }
+
+    expect(ssh).toBeDefined();
+    if (ssh?.kind === "protocol") {
+      expect(
+        ssh.statements.some(
+          (item) =>
+            item.kind === "rpki-remote" &&
+            item.address === "2001:db8::10" &&
+            item.addressKind === "ip",
+        ),
+      ).toBe(true);
+      expect(
+        ssh.statements.some(
+          (item) => item.kind === "rpki-port" && item.port === "8282",
+        ),
+      ).toBe(true);
+      expect(
+        ssh.statements.some(
+          (item) => item.kind === "rpki-transport" && item.transport === "ssh",
+        ),
+      ).toBe(true);
+      expect(
+        ssh.statements.some(
+          (item) =>
+            item.kind === "rpki-ignore-max-length" && item.value === true,
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("parses chained where expressions in protocol channels", async () => {
     const sample = `
       protocol babel edge {

@@ -163,6 +163,7 @@ const FUNCTION_PARAM_WITH_SEMICOLON =
   /^\s*function\b[^{]*\([^)]*;[^)]*\)\s*[{]?\s*$/i;
 const LOCAL_ADDRESS_WITH_AS =
   /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
+const RPKI_LOCAL_ADDRESS = /^\s*local\s+address\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
 const CASE_ARM_STATEMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*.+$/;
 const IPV6_SADR_TABLE_DECLARATION =
@@ -235,6 +236,7 @@ const isRecoverableSyntaxIssue = (
   const currentLineText = lineTextAt(lines, issue.line);
   if (
     LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
+    RPKI_LOCAL_ADDRESS.test(currentLineText) ||
     ALLOW_LOCAL_AS.test(currentLineText) ||
     IPV6_SADR_TABLE_DECLARATION.test(currentLineText) ||
     COMPOUND_CHANNEL_PHRASE.test(issue.message)

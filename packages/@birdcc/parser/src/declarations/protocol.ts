@@ -1185,6 +1185,154 @@ const parseStaticRouteStatement = (
   };
 };
 
+const unquoteProtocolToken = (value: string): string =>
+  stripQuotedText(value.trim());
+
+const quotedOrBareToken = "\"[^\"]+\"|'[^']+'|\\S+";
+
+const rangeForStatementToken = (
+  source: string,
+  statementNode: SyntaxNode,
+  token: string,
+): SourceRange => {
+  const tokenIndex = source.indexOf(token, statementNode.startIndex);
+  if (tokenIndex === -1 || tokenIndex > statementNode.endIndex) {
+    return toRange(statementNode, source);
+  }
+
+  return indexToRange(
+    source,
+    lineStartsOf(source),
+    tokenIndex,
+    tokenIndex + token.length,
+  );
+};
+
+const parseRpkiOtherTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  const remoteMatch = trimmed.match(
+    new RegExp(
+      `^remote\\s+(${quotedOrBareToken})(?:\\s+port\\s+(\\S+))?$`,
+      "iu",
+    ),
+  );
+  if (remoteMatch) {
+    const addressText = remoteMatch[1] ?? "";
+    const address = unquoteProtocolToken(addressText);
+    const port = remoteMatch[2]?.trim();
+    return {
+      kind: "rpki-remote",
+      address,
+      addressKind: isIpLiteralCandidate(address)
+        ? "ip"
+        : addressText.startsWith('"') || addressText.startsWith("'")
+          ? "hostname"
+          : "other",
+      addressRange: tokenRange(addressText),
+      port,
+      portRange: port ? tokenRange(port) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const portMatch = trimmed.match(/^port\s+(\S+)$/iu);
+  if (portMatch?.[1]) {
+    return {
+      kind: "rpki-port",
+      port: portMatch[1],
+      portRange: tokenRange(portMatch[1]),
+      ...statementRange,
+    };
+  }
+
+  const localAddressMatch = trimmed.match(/^local\s+address\s+(\S+)$/iu);
+  if (localAddressMatch?.[1]) {
+    const address = localAddressMatch[1];
+    return {
+      kind: "rpki-local-address",
+      address,
+      addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+      addressRange: tokenRange(address),
+      ...statementRange,
+    };
+  }
+
+  const transportMatch = trimmed.match(/^transport\s+(\S+)(?:\s+(.+))?$/isu);
+  if (transportMatch?.[1]) {
+    const transportText = transportMatch[1].toLowerCase();
+    const bodyText = transportMatch[2]?.trim();
+    return {
+      kind: "rpki-transport",
+      transport:
+        transportText === "tcp" || transportText === "ssh"
+          ? transportText
+          : "other",
+      transportRange: tokenRange(transportMatch[1]),
+      bodyText,
+      bodyRange: bodyText ? tokenRange(bodyText) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const timerMatch = trimmed.match(
+    /^(refresh|retry|expire)\s+(keep\s+)?(\S+)$/iu,
+  );
+  if (timerMatch?.[1] && timerMatch[3]) {
+    const value = timerMatch[3];
+    return {
+      kind: "rpki-timer",
+      option: timerMatch[1].toLowerCase() as "refresh" | "retry" | "expire",
+      keep: Boolean(timerMatch[2]),
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  const ignoreMatch = trimmed.match(/^ignore\s+max\s+length(?:\s+(\S+))?$/iu);
+  if (ignoreMatch) {
+    const valueText = ignoreMatch[1]?.trim();
+    return {
+      kind: "rpki-ignore-max-length",
+      value: parseBoolToken(valueText) ?? true,
+      valueText,
+      valueRange: valueText ? tokenRange(valueText) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const versionMatch = trimmed.match(/^(min|max)\s+version\s+(\S+)$/iu);
+  if (versionMatch?.[1] && versionMatch[2]) {
+    const value = versionMatch[2];
+    return {
+      kind: "rpki-version",
+      option: versionMatch[1].toLowerCase() as "min" | "max",
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
+const parseRpkiStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  const statementRange = toRange(statementNode, source);
+  return parseRpkiOtherTextStatement(
+    textOf(statementNode, source),
+    statementRange,
+    (token) => rangeForStatementToken(source, statementNode, token),
+  );
+};
+
 const collectCompoundChannelFallbacks = (
   blockNode: SyntaxNode,
   source: string,
@@ -1437,6 +1585,53 @@ const mergeNeighborTailStatements = (
   });
 };
 
+const mergeRpkiLocalAddressStatements = (
+  statements: ProtocolStatement[],
+): ProtocolStatement[] => {
+  const consumed = new Set<number>();
+
+  for (let index = 0; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (
+      statement?.kind !== "other" ||
+      statement.text.toLowerCase() !== "local address"
+    ) {
+      continue;
+    }
+
+    const nextIndex = statements.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index &&
+        candidate.kind === "other" &&
+        candidate.line === statement.line &&
+        candidate.column === statement.endColumn + 1,
+    );
+    const next = statements[nextIndex];
+    if (next?.kind !== "other") {
+      continue;
+    }
+
+    const localAddress = parseRpkiOtherTextStatement(
+      `${statement.text} ${next.text}`,
+      mergeRanges(statement, next),
+      (token) => {
+        if (token === next.text.replace(/;\s*$/u, "")) {
+          return next;
+        }
+
+        return mergeRanges(statement, next);
+      },
+    );
+
+    if (localAddress) {
+      statements[index] = localAddress;
+      consumed.add(nextIndex);
+    }
+  }
+
+  return statements.filter((_, index) => !consumed.has(index));
+};
+
 export const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
@@ -1568,6 +1763,12 @@ export const parseProtocolStatements = (
         continue;
       }
 
+      const rpkiStatement = parseRpkiStatement(statementNode, source);
+      if (rpkiStatement) {
+        statements.push(rpkiStatement);
+        continue;
+      }
+
       statements.push({
         kind: "other",
         text: textOf(statementNode, source),
@@ -1666,7 +1867,10 @@ export const parseProtocolStatements = (
     ...compoundChannelFallbacks,
   ];
 
-  return mergeNeighborTailStatements(mergedStatements, issues);
+  return mergeNeighborTailStatements(
+    mergeRpkiLocalAddressStatements(mergedStatements),
+    issues,
+  );
 };
 
 export const parseProtocolDeclaration = (

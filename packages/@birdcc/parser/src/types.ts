@@ -117,7 +117,14 @@ interface StatementBase extends SourceRange {
     | "bgp-hop-mode"
     | "scan-time"
     | "learn"
-    | "interface";
+    | "interface"
+    | "rpki-remote"
+    | "rpki-port"
+    | "rpki-local-address"
+    | "rpki-transport"
+    | "rpki-timer"
+    | "rpki-ignore-max-length"
+    | "rpki-version";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -420,6 +427,58 @@ export interface ProtocolInterfaceStatement extends StatementBase {
   patternRanges: SourceRange[];
 }
 
+export interface RpkiRemoteStatement extends StatementBase {
+  kind: "rpki-remote";
+  address: string;
+  addressKind: "ip" | "hostname" | "other";
+  addressRange: SourceRange;
+  port?: string;
+  portRange?: SourceRange;
+}
+
+export interface RpkiPortStatement extends StatementBase {
+  kind: "rpki-port";
+  port: string;
+  portRange: SourceRange;
+}
+
+export interface RpkiLocalAddressStatement extends StatementBase {
+  kind: "rpki-local-address";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+}
+
+export interface RpkiTransportStatement extends StatementBase {
+  kind: "rpki-transport";
+  transport: "tcp" | "ssh" | "other";
+  transportRange: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface RpkiTimerStatement extends StatementBase {
+  kind: "rpki-timer";
+  option: "refresh" | "retry" | "expire";
+  keep: boolean;
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RpkiIgnoreMaxLengthStatement extends StatementBase {
+  kind: "rpki-ignore-max-length";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RpkiVersionStatement extends StatementBase {
+  kind: "rpki-version";
+  option: "min" | "max";
+  value: string;
+  valueRange: SourceRange;
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -442,6 +501,13 @@ export type ProtocolStatement =
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement
+  | RpkiRemoteStatement
+  | RpkiPortStatement
+  | RpkiLocalAddressStatement
+  | RpkiTransportStatement
+  | RpkiTimerStatement
+  | RpkiIgnoreMaxLengthStatement
+  | RpkiVersionStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {
