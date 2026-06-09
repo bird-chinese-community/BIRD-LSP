@@ -734,6 +734,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "disable-after-cease"
     | "confederation"
     | "confederation-member"
+    | "default-bgp-med"
     | "tx-size-warning";
   value?: boolean | string;
   valueText?: string;

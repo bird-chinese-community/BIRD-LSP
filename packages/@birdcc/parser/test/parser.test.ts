@@ -789,6 +789,39 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP default MED option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        default bgp_med 100;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "default-bgp-med",
+            value: "100",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" && /\bdefault bgp_med\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP capability negotiation statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
