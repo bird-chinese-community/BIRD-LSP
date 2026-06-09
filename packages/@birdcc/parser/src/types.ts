@@ -719,6 +719,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "passive"
     | "onlink"
     | "allow-local-as"
+    | "allow-bgp-med"
     | "bfd"
     | "ttl-security"
     | "check-link"

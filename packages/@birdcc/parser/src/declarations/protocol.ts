@@ -1744,6 +1744,13 @@ const parseProtocolOptionStatement = (
       phraseNodes,
       source,
       statementRange,
+      ["allow", "bgp_med"],
+      "allow-bgp-med",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
       ["ttl", "security"],
       "ttl-security",
     ) ??
