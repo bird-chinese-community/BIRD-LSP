@@ -2338,7 +2338,6 @@ describe("@birdcc/parser tree-sitter", () => {
           stub cost 30;
           translator yes;
           translator stability 40;
-          interface "eth0" { cost 10; };
         };
       }
     `);
@@ -2370,10 +2369,6 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "translator-stability",
               value: "40",
             }),
-            expect.objectContaining({
-              kind: "other",
-              text: 'interface "eth0" { cost 10; }',
-            }),
           ]),
         }),
       );
@@ -2382,6 +2377,123 @@ describe("@birdcc/parser tree-sitter", () => {
           (item) => item.kind === "other" && /\barea\s+0\s*\{/.test(item.text),
         ),
       ).toBe(false);
+    }
+  });
+
+  it("parses OSPF area interface options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0", "ix*" {
+            cost 10;
+            hello 5;
+            retransmit 6;
+            transmit delay 7;
+            wait 8;
+            dead 40;
+            dead count 4;
+            type ptp;
+            priority 9;
+            strict nonbroadcast yes;
+            stub no;
+            check link yes;
+            ecmp weight 32;
+            link lsa suppression no;
+            authentication cryptographic;
+            rx buffer large;
+            tx priority 6;
+            tx length 512;
+            ttl security yes;
+            bfd no;
+            neighbors {
+              192.0.2.1 eligible;
+              192.0.2.2;
+            };
+            password "secret";
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0", "ix*"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({ kind: "cost", value: "10" }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "dead-count",
+                  value: "4",
+                }),
+                expect.objectContaining({ kind: "type", value: "ptp" }),
+                expect.objectContaining({ kind: "priority", value: "9" }),
+                expect.objectContaining({
+                  kind: "strict-nonbroadcast",
+                  value: true,
+                }),
+                expect.objectContaining({ kind: "stub", value: false }),
+                expect.objectContaining({ kind: "check-link", value: true }),
+                expect.objectContaining({ kind: "ecmp-weight", value: "32" }),
+                expect.objectContaining({
+                  kind: "link-lsa-suppression",
+                  value: false,
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "cryptographic",
+                }),
+                expect.objectContaining({ kind: "rx-buffer", value: "large" }),
+                expect.objectContaining({
+                  kind: "tx",
+                  option: "priority",
+                  value: "6",
+                }),
+                expect.objectContaining({
+                  kind: "ttl-security",
+                  value: true,
+                }),
+                expect.objectContaining({ kind: "bfd", value: false }),
+                expect.objectContaining({
+                  kind: "neighbors",
+                  entries: expect.arrayContaining([
+                    expect.objectContaining({
+                      address: "192.0.2.1",
+                      eligible: true,
+                    }),
+                    expect.objectContaining({
+                      address: "192.0.2.2",
+                      eligible: false,
+                    }),
+                  ]),
+                }),
+                expect.objectContaining({
+                  kind: "other",
+                  text: 'password "secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
     }
   });
 

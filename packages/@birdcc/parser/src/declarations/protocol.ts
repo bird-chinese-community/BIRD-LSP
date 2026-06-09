@@ -2720,6 +2720,241 @@ const parseOspfAreaStubnetEntries = (
     });
 };
 
+const parseOspfAreaInterfaceNeighbors = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<
+    Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"][number],
+    { kind: "interface" }
+  >["entries"][number],
+  { kind: "neighbors" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const neighborMatch = item.match(/^(\S+)(?:\s+(eligible))?$/iu);
+      const address = neighborMatch?.[1] ?? item;
+      const eligibleText = neighborMatch?.[2];
+      return {
+        address,
+        addressRange: tokenRange(address),
+        eligible: eligibleText !== undefined,
+        eligibleRange: eligibleText ? tokenRange(eligibleText) : undefined,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseOspfAreaInterfaceEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"][number],
+  { kind: "interface" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const valueMatch = item.match(/^(cost|priority|ecmp\s+weight)\s+(.+)$/iu);
+      if (valueMatch?.[1] && valueMatch[2]) {
+        const option = valueMatch[1].toLowerCase().replace(/\s+/gu, "-");
+        const value = valueMatch[2].trim();
+        return {
+          kind:
+            option === "ecmp-weight"
+              ? "ecmp-weight"
+              : (option as "cost" | "priority"),
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+      if (deadCountMatch?.[1]) {
+        const value = deadCountMatch[1].trim();
+        return {
+          kind: "timer",
+          option: "dead-count",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const timerMatch = item.match(
+        /^(hello|poll|retransmit|wait|dead)\s+(.+)$/iu,
+      );
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const value = timerMatch[2].trim();
+        return {
+          kind: "timer",
+          option: timerMatch[1].toLowerCase() as
+            | "hello"
+            | "poll"
+            | "retransmit"
+            | "wait"
+            | "dead",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      if (transmitDelayMatch?.[1]) {
+        const value = transmitDelayMatch[1].trim();
+        return {
+          kind: "timer",
+          option: "transmit-delay",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const typeMatch = item.match(/^type\s+(\S+)$/iu);
+      if (typeMatch?.[1]) {
+        const valueText = typeMatch[1].toLowerCase();
+        const knownTypes = [
+          "broadcast",
+          "bcast",
+          "nonbroadcast",
+          "nbma",
+          "pointopoint",
+          "ptp",
+          "pointomultipoint",
+          "ptmp",
+        ] as const;
+        return {
+          kind: "type",
+          value: knownTypes.includes(valueText as (typeof knownTypes)[number])
+            ? (valueText as (typeof knownTypes)[number])
+            : "other",
+          valueText,
+          valueRange: tokenRange(typeMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const boolMatch = item.match(
+        /^(strict\s+nonbroadcast|stub|check\s+link|link\s+lsa\s+suppression|ttl\s+security|bfd)\s+(\S+)$/iu,
+      );
+      if (boolMatch?.[1] && boolMatch[2]) {
+        const valueText = boolMatch[2];
+        const value = parseBoolToken(valueText);
+        if (value === undefined) {
+          return {
+            kind: "other",
+            text: item,
+            ...bodyRange,
+          };
+        }
+
+        return {
+          kind: boolMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "strict-nonbroadcast"
+            | "stub"
+            | "check-link"
+            | "link-lsa-suppression"
+            | "ttl-security"
+            | "bfd",
+          value,
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
+      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      if (authenticationMatch?.[1]) {
+        const valueText = authenticationMatch[1].toLowerCase();
+        return {
+          kind: "authentication",
+          value:
+            valueText === "none" ||
+            valueText === "simple" ||
+            valueText === "cryptographic"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(authenticationMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const rxBufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
+      if (rxBufferMatch?.[1]) {
+        const value = rxBufferMatch[1].trim().toLowerCase();
+        return {
+          kind: "rx-buffer",
+          value,
+          valueRange: tokenRange(rxBufferMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const txMatch = item.match(/^tx\s+(tos|priority|length)\s+(.+)$/iu);
+      if (txMatch?.[1] && txMatch[2]) {
+        const value = txMatch[2].trim();
+        return {
+          kind: "tx",
+          option: txMatch[1].toLowerCase() as "tos" | "priority" | "length",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const ttlSecurityTxOnlyMatch = item.match(
+        /^ttl\s+security\s+tx\s+only$/iu,
+      );
+      if (ttlSecurityTxOnlyMatch) {
+        return {
+          kind: "other",
+          text: item,
+          ...bodyRange,
+        };
+      }
+
+      const neighborsMatch = item.match(/^neighbors\s+(\{[\s\S]*\})$/iu);
+      if (neighborsMatch?.[1]) {
+        const neighborsBodyText = neighborsMatch[1];
+        const neighborsBodyRange = tokenRange(neighborsBodyText);
+        return {
+          kind: "neighbors",
+          entries: parseOspfAreaInterfaceNeighbors(
+            neighborsBodyText,
+            neighborsBodyRange,
+            tokenRange,
+          ),
+          bodyText: neighborsBodyText,
+          bodyRange: neighborsBodyRange,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
 const parseOspfAreaEntries = (
   bodyText: string,
   bodyRange: SourceRange,
@@ -2861,6 +3096,32 @@ const parseOspfAreaEntries = (
               : [],
           bodyText: stubnetBodyText,
           bodyRange: stubnetBodyRange,
+          ...bodyRange,
+        };
+      }
+
+      const interfaceMatch = item.match(
+        /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+      );
+      if (interfaceMatch?.[1] && interfaceMatch[2]) {
+        const rest = interfaceMatch[1].trim();
+        const bodyText = interfaceMatch[2];
+        const patternTexts = rest
+          .split(",")
+          .map((pattern) => pattern.trim())
+          .filter(Boolean);
+        const interfaceBodyRange = tokenRange(bodyText);
+        return {
+          kind: "interface",
+          patterns: patternTexts.map((pattern) => stripQuotedText(pattern)),
+          patternRanges: patternTexts.map((pattern) => tokenRange(pattern)),
+          entries: parseOspfAreaInterfaceEntries(
+            bodyText,
+            interfaceBodyRange,
+            tokenRange,
+          ),
+          bodyText,
+          bodyRange: interfaceBodyRange,
           ...bodyRange,
         };
       }

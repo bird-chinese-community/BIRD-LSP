@@ -953,6 +953,7 @@ interface OspfAreaEntryBase extends SourceRange {
     | "networks"
     | "external"
     | "stubnet"
+    | "interface"
     | "other";
 }
 
@@ -1017,6 +1018,127 @@ export interface OspfAreaStubnetEntryStatement extends OspfAreaEntryBase {
   bodyRange?: SourceRange;
 }
 
+interface OspfAreaInterfaceEntryBase extends SourceRange {
+  kind:
+    | "cost"
+    | "timer"
+    | "type"
+    | "priority"
+    | "strict-nonbroadcast"
+    | "stub"
+    | "check-link"
+    | "ecmp-weight"
+    | "link-lsa-suppression"
+    | "authentication"
+    | "rx-buffer"
+    | "tx"
+    | "ttl-security"
+    | "bfd"
+    | "neighbors"
+    | "other";
+}
+
+export interface OspfAreaInterfaceValueEntry extends OspfAreaInterfaceEntryBase {
+  kind: "cost" | "priority" | "ecmp-weight" | "rx-buffer";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaInterfaceTimerEntry extends OspfAreaInterfaceEntryBase {
+  kind: "timer";
+  option:
+    | "hello"
+    | "poll"
+    | "retransmit"
+    | "transmit-delay"
+    | "wait"
+    | "dead"
+    | "dead-count";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaInterfaceTypeEntry extends OspfAreaInterfaceEntryBase {
+  kind: "type";
+  value:
+    | "broadcast"
+    | "bcast"
+    | "nonbroadcast"
+    | "nbma"
+    | "pointopoint"
+    | "ptp"
+    | "pointomultipoint"
+    | "ptmp"
+    | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaInterfaceBoolEntry extends OspfAreaInterfaceEntryBase {
+  kind:
+    | "strict-nonbroadcast"
+    | "stub"
+    | "check-link"
+    | "link-lsa-suppression"
+    | "ttl-security"
+    | "bfd";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface OspfAreaInterfaceAuthenticationEntry extends OspfAreaInterfaceEntryBase {
+  kind: "authentication";
+  value: "none" | "simple" | "cryptographic" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaInterfaceTxEntry extends OspfAreaInterfaceEntryBase {
+  kind: "tx";
+  option: "tos" | "priority" | "length";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaInterfaceNeighborEntry extends SourceRange {
+  address: string;
+  addressRange: SourceRange;
+  eligible: boolean;
+  eligibleRange?: SourceRange;
+}
+
+export interface OspfAreaInterfaceNeighborsEntry extends OspfAreaInterfaceEntryBase {
+  kind: "neighbors";
+  entries: OspfAreaInterfaceNeighborEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface OspfAreaInterfaceOtherEntry extends OspfAreaInterfaceEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type OspfAreaInterfaceEntry =
+  | OspfAreaInterfaceValueEntry
+  | OspfAreaInterfaceTimerEntry
+  | OspfAreaInterfaceTypeEntry
+  | OspfAreaInterfaceBoolEntry
+  | OspfAreaInterfaceAuthenticationEntry
+  | OspfAreaInterfaceTxEntry
+  | OspfAreaInterfaceNeighborsEntry
+  | OspfAreaInterfaceOtherEntry;
+
+export interface OspfAreaInterfaceStatement extends OspfAreaEntryBase {
+  kind: "interface";
+  patterns: string[];
+  patternRanges: SourceRange[];
+  entries: OspfAreaInterfaceEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface OspfAreaOtherEntry extends OspfAreaEntryBase {
   kind: "other";
   text: string;
@@ -1027,6 +1149,7 @@ export type OspfAreaEntry =
   | OspfAreaValueEntry
   | OspfAreaPrefixListEntry
   | OspfAreaStubnetEntryStatement
+  | OspfAreaInterfaceStatement
   | OspfAreaOtherEntry;
 
 export interface OspfAreaStatement extends StatementBase {
