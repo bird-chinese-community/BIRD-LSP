@@ -38,6 +38,10 @@ describe("@birdcc/lsp", () => {
       define ASN = 65001;
       ipv4 table main4;
       router id 1.1.1.1;
+      graceful restart wait 120;
+      hostname "edge-r1";
+      attribute int valid_roa;
+      mpls domain labels;
       template bgp edge_tpl {}
       protocol bgp edge from edge_tpl {}
       filter export_policy { accept; }
@@ -51,6 +55,10 @@ describe("@birdcc/lsp", () => {
     expect(names).toContain("ASN");
     expect(names).toContain("main4");
     expect(names).toContain("router id 1.1.1.1");
+    expect(names).toContain("graceful restart wait 120");
+    expect(names).toContain("hostname edge-r1");
+    expect(names).toContain("valid_roa");
+    expect(names).toContain("labels");
     expect(names).toContain("edge_tpl");
     expect(names).toContain("edge");
     expect(names).toContain("export_policy");

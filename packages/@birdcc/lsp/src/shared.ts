@@ -169,6 +169,50 @@ export const declarationMetadata = (
         completionDetail: `router id ${declaration.valueKind}`,
       };
     }
+    case "graceful-restart-wait":
+      return {
+        symbolName: `graceful restart wait ${declaration.value}`,
+        selectionRange: declaration.valueRange,
+        symbolKind: SymbolKind.Property,
+        detail: "graceful-restart-wait",
+        hoverMarkdown: `**graceful restart wait** \`${escapeMarkdownCode(declaration.value)}\``,
+        completionLabel: `graceful restart wait ${declaration.value}`,
+        completionKind: CompletionItemKind.Property,
+        completionDetail: "graceful restart wait",
+      };
+    case "hostname-override":
+      return {
+        symbolName: `hostname ${declaration.value}`,
+        selectionRange: declaration.valueRange,
+        symbolKind: SymbolKind.String,
+        detail: "hostname",
+        hoverMarkdown: `**hostname** \`${escapeMarkdownCode(declaration.value)}\``,
+        completionLabel: `hostname ${declaration.value}`,
+        completionKind: CompletionItemKind.Text,
+        completionDetail: "hostname override",
+      };
+    case "attribute":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Property,
+        detail: `attribute ${declaration.attributeType}`,
+        hoverMarkdown: `**attribute** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.attributeType)}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Property,
+        completionDetail: `attribute ${declaration.attributeType}`,
+      };
+    case "mpls-domain":
+      return {
+        symbolName: declaration.name,
+        selectionRange: declaration.nameRange,
+        symbolKind: SymbolKind.Object,
+        detail: "mpls domain",
+        hoverMarkdown: `**mpls domain** \`${escapeMarkdownCode(declaration.name)}\``,
+        completionLabel: declaration.name,
+        completionKind: CompletionItemKind.Variable,
+        completionDetail: "mpls domain",
+      };
     default:
       return null;
   }
