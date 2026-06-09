@@ -1701,6 +1701,7 @@ describe("@birdcc/parser tree-sitter", () => {
           next hop self ibgp;
           next hop keep ebgp;
           next hop address 192.0.2.1;
+          next hop prefer global;
           mandatory on;
           aigp on;
           aigp originate;
@@ -1744,6 +1745,10 @@ describe("@birdcc/parser tree-sitter", () => {
           {
             kind: "bgp-next-hop-address",
             address: "192.0.2.1",
+          },
+          {
+            kind: "bgp-next-hop-prefer",
+            mode: "global",
           },
           { kind: "bgp-channel-option", option: "mandatory", value: true },
           { kind: "bgp-aigp", enabled: true, valueText: "on" },

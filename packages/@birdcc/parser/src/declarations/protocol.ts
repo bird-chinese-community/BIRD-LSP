@@ -741,6 +741,23 @@ const parseChannelEntries = (
       if (
         phraseTexts[0] === "next" &&
         phraseTexts[1] === "hop" &&
+        phraseTexts[2] === "prefer" &&
+        (phraseTexts[3] === "global" || phraseTexts[3] === "local") &&
+        phraseNodes.length <= 4
+      ) {
+        const modeNode = phraseNodes[3];
+        entries.push({
+          kind: "bgp-next-hop-prefer",
+          mode: phraseTexts[3],
+          modeRange: toRange(modeNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "next" &&
+        phraseTexts[1] === "hop" &&
         (phraseTexts[2] === "self" || phraseTexts[2] === "keep") &&
         phraseNodes.length <= 4
       ) {

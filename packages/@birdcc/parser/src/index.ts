@@ -22,6 +22,7 @@ export type {
   CaseStatement,
   ChannelAddPathsEntry,
   ChannelBgpNextHopAddressEntry,
+  ChannelBgpNextHopPreferEntry,
   ChannelBgpOptionEntry,
   ChannelDebugEntry,
   ChannelDomainEntry,
