@@ -1767,6 +1767,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["igp", "metric"],
       "igp-metric",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["prefer", "older"],
+      "prefer-older",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;
