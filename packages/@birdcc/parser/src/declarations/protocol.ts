@@ -756,6 +756,27 @@ const parseChannelEntries = (
       }
 
       if (
+        phraseTexts[0] === "link" &&
+        phraseTexts[1] === "local" &&
+        phraseTexts[2] === "next" &&
+        phraseTexts[3] === "hop" &&
+        phraseTexts[4] === "format" &&
+        (phraseTexts[5] === "native" ||
+          phraseTexts[5] === "single" ||
+          phraseTexts[5] === "double") &&
+        phraseNodes.length <= 6
+      ) {
+        const formatNode = phraseNodes[5];
+        entries.push({
+          kind: "bgp-link-local-next-hop-format",
+          format: phraseTexts[5],
+          formatRange: toRange(formatNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
         phraseTexts[0] === "next" &&
         phraseTexts[1] === "hop" &&
         (phraseTexts[2] === "self" || phraseTexts[2] === "keep") &&

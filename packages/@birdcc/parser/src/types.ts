@@ -308,6 +308,7 @@ interface ChannelEntryBase extends SourceRange {
     | "igp-table"
     | "bgp-channel-option"
     | "bgp-channel-require"
+    | "bgp-link-local-next-hop-format"
     | "bgp-next-hop-address"
     | "bgp-next-hop-prefer"
     | "bgp-next-hop-mode"
@@ -434,6 +435,12 @@ export interface ChannelBgpRequireEntry extends ChannelEntryBase {
   valueRange?: SourceRange;
 }
 
+export interface ChannelBgpLinkLocalNextHopFormatEntry extends ChannelEntryBase {
+  kind: "bgp-link-local-next-hop-format";
+  format: "native" | "single" | "double";
+  formatRange: SourceRange;
+}
+
 export interface ChannelBgpNextHopAddressEntry extends ChannelEntryBase {
   kind: "bgp-next-hop-address";
   address: string;
@@ -496,6 +503,7 @@ export type ChannelEntry =
   | ChannelIgpTableEntry
   | ChannelBgpOptionEntry
   | ChannelBgpRequireEntry
+  | ChannelBgpLinkLocalNextHopFormatEntry
   | ChannelBgpNextHopAddressEntry
   | ChannelBgpNextHopPreferEntry
   | ChannelBgpNextHopModeEntry
