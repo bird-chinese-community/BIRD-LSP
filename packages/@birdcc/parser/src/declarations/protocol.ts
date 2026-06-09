@@ -1718,6 +1718,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["disable", "rx"],
       "disable-rx",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["disable", "after", "cease"],
+      "disable-after-cease",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;

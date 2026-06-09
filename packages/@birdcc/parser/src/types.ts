@@ -725,6 +725,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "local-role"
     | "require-roles"
     | "disable-rx"
+    | "disable-after-cease"
     | "tx-size-warning";
   value?: boolean | string;
   valueText?: string;
