@@ -23,6 +23,12 @@ import {
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
 } from "./shared.js";
+import {
+  parseRadvDnsTextStatement,
+  parseRadvInterfaceTextStatement,
+  parseRadvOptionTextStatement,
+  parseRadvPrefixTextStatement,
+} from "./protocol-radv.js";
 
 const COMPOUND_CHANNEL_HEADER =
   /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
@@ -3949,142 +3955,6 @@ const parseBabelInterfaceTextStatement = (
   };
 };
 
-const parseRadvInterfaceEntries = (
-  bodyText: string,
-  bodyRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"] => {
-  const body = bodyText
-    .trim()
-    .replace(/^\{\s*/u, "")
-    .replace(/\s*\}$/u, "");
-  const statements = splitTopLevelStatements(body);
-  return statements
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const prefixMatch = item.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
-      if (prefixMatch?.[1]) {
-        const prefix = prefixMatch[1];
-        const prefixBodyText = prefixMatch[2];
-        const prefixBodyRange = prefixBodyText
-          ? tokenRange(prefixBodyText)
-          : undefined;
-        return {
-          kind: "prefix",
-          prefix,
-          prefixRange: tokenRange(prefix),
-          entries: prefixBodyText
-            ? parseRadvPrefixEntries(prefixBodyText, bodyRange, tokenRange)
-            : [],
-          bodyText: prefixBodyText,
-          bodyRange: prefixBodyRange,
-          ...bodyRange,
-        };
-      }
-
-      const maxRaIntervalMatch = item.match(/^max\s+ra\s+interval\s+(.+)$/iu);
-      if (maxRaIntervalMatch?.[1]) {
-        const value = maxRaIntervalMatch[1].trim();
-        return {
-          kind: "timer",
-          option: "max-ra-interval",
-          value,
-          valueRange: tokenRange(value),
-          ...bodyRange,
-        };
-      }
-
-      const rdnssLocalMatch = item.match(/^rdnss\s+local(?:\s+(\S+))?$/iu);
-      if (rdnssLocalMatch) {
-        const valueText = rdnssLocalMatch[1];
-        return {
-          kind: "local",
-          option: "rdnss-local",
-          value: parseBoolToken(valueText) ?? true,
-          valueText,
-          valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
-        };
-      }
-
-      const dnsBlockMatch = item.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
-      if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
-        const kind = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
-        const dnsBodyText = dnsBlockMatch[2];
-        return {
-          kind,
-          entries: parseRadvDnsBlockEntries(kind, dnsBodyText, tokenRange),
-          bodyText: dnsBodyText,
-          bodyRange: tokenRange(dnsBodyText),
-          ...bodyRange,
-        };
-      }
-
-      return {
-        kind: "other",
-        text: item,
-        ...bodyRange,
-      };
-    });
-};
-
-const parseRadvDnsBlockEntries = (
-  blockKind: "rdnss" | "dnssl",
-  bodyText: string,
-  tokenRange: (token: string) => SourceRange,
-): Extract<
-  Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"][number],
-  { kind: "rdnss" | "dnssl" }
->["entries"] => {
-  const body = bodyText
-    .trim()
-    .replace(/^\{\s*/u, "")
-    .replace(/\s*\}$/u, "");
-
-  return splitTopLevelStatements(body)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const dnsEntryMatch = item.match(
-        /^(ns|domain)\s+(\S+|"[^"]+"|'[^']+')$/iu,
-      );
-      if (dnsEntryMatch?.[1] && dnsEntryMatch[2]) {
-        const entryKind = dnsEntryMatch[1].toLowerCase();
-        const valueText = dnsEntryMatch[2];
-        return {
-          kind: entryKind === "ns" ? "ns" : "domain",
-          value: stripQuotedText(valueText),
-          valueText,
-          valueRange: tokenRange(valueText),
-          ...tokenRange(item),
-        };
-      }
-
-      const lifetimeMatch = item.match(/^lifetime\s+(?:(mult)\s+)?(\S+)$/iu);
-      if (lifetimeMatch?.[2]) {
-        const multiplierText = lifetimeMatch[1];
-        const value = lifetimeMatch[2];
-        return {
-          kind: "lifetime",
-          value,
-          valueRange: tokenRange(value),
-          multiplier: Boolean(multiplierText),
-          multiplierRange: multiplierText
-            ? tokenRange(multiplierText)
-            : undefined,
-          ...tokenRange(item),
-        };
-      }
-
-      return {
-        kind: "other",
-        text: item,
-        ...tokenRange(item),
-      };
-    });
-};
-
 const splitTopLevelStatements = (body: string): string[] => {
   const statements: string[] = [];
   let depth = 0;
@@ -4114,184 +3984,6 @@ const splitTopLevelStatements = (body: string): string[] => {
   }
 
   return statements;
-};
-
-const parseRadvPrefixEntries = (
-  bodyText: string,
-  bodyRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): Extract<
-  Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"][number],
-  { kind: "prefix" }
->["entries"] => {
-  const body = bodyText
-    .trim()
-    .replace(/^\{\s*/u, "")
-    .replace(/\s*\}$/u, "");
-  return splitTopLevelStatements(body)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const boolMatch = item.match(
-        /^(skip|onlink|autonomous|pd\s+preferred)(?:\s+(\S+))?$/iu,
-      );
-      if (boolMatch?.[1]) {
-        const valueText = boolMatch[2];
-        const optionText = boolMatch[1].toLowerCase().replace(/\s+/gu, "-");
-        return {
-          kind: optionText as "skip" | "onlink" | "autonomous" | "pd-preferred",
-          value: parseBoolToken(valueText) ?? true,
-          valueText,
-          valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
-        };
-      }
-
-      const lifetimeMatch = item.match(
-        /^(valid|preferred)\s+lifetime\s+(\S+)(?:\s+sensitive\s+(\S+))?$/iu,
-      );
-      if (lifetimeMatch?.[1] && lifetimeMatch[2]) {
-        const value = lifetimeMatch[2];
-        const sensitiveText = lifetimeMatch[3];
-        return {
-          kind: "lifetime",
-          option:
-            lifetimeMatch[1].toLowerCase() === "valid"
-              ? "valid-lifetime"
-              : "preferred-lifetime",
-          value,
-          valueRange: tokenRange(value),
-          sensitive: parseBoolToken(sensitiveText),
-          sensitiveText,
-          sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
-        };
-      }
-
-      return {
-        kind: "other",
-        text: item,
-        ...bodyRange,
-      };
-    });
-};
-
-const parseRadvInterfaceTextStatement = (
-  statementText: string,
-  statementRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
-  const rest = interfaceMatch?.[1]?.trim();
-  if (!rest) {
-    return undefined;
-  }
-
-  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
-  const bodyText = bodyMatch?.[0];
-  if (!bodyText) {
-    return undefined;
-  }
-
-  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
-  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
-  const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
-  const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
-  const bodyRange = tokenRange(bodyText);
-
-  return {
-    kind: "radv-interface",
-    patterns,
-    patternRanges,
-    entries: parseRadvInterfaceEntries(bodyText, bodyRange, tokenRange),
-    bodyText,
-    bodyRange,
-    ...statementRange,
-  };
-};
-
-const parseRadvTextStatement = (
-  statementText: string,
-  statementRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const propagateRoutesMatch = trimmed.match(/^propagate\s+routes\s+(\S+)$/iu);
-  if (propagateRoutesMatch?.[1]) {
-    const valueText = propagateRoutesMatch[1];
-    return {
-      kind: "radv-option",
-      option: "propagate-routes",
-      value: parseBoolToken(valueText) ?? true,
-      valueText,
-      valueRange: tokenRange(valueText),
-      ...statementRange,
-    };
-  }
-
-  const triggerMatch = trimmed.match(/^trigger\s+(\S+)$/iu);
-  if (triggerMatch?.[1]) {
-    const prefix = triggerMatch[1];
-    return {
-      kind: "radv-trigger",
-      prefix,
-      prefixRange: tokenRange(prefix),
-      ...statementRange,
-    };
-  }
-
-  return undefined;
-};
-
-const parseRadvPrefixTextStatement = (
-  statementText: string,
-  statementRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const prefixMatch = trimmed.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
-  if (!prefixMatch?.[1]) {
-    return undefined;
-  }
-
-  const prefix = prefixMatch[1];
-  const bodyText = prefixMatch[2];
-  const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
-  return {
-    kind: "radv-prefix",
-    prefix,
-    prefixRange: tokenRange(prefix),
-    entries: bodyText
-      ? parseRadvPrefixEntries(bodyText, statementRange, tokenRange)
-      : [],
-    bodyText,
-    bodyRange,
-    ...statementRange,
-  };
-};
-
-const parseRadvDnsTextStatement = (
-  statementText: string,
-  statementRange: SourceRange,
-  tokenRange: (token: string) => SourceRange,
-): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
-  if (!dnsBlockMatch?.[1] || !dnsBlockMatch[2]) {
-    return undefined;
-  }
-
-  const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
-  const bodyText = dnsBlockMatch[2];
-  return {
-    kind: "radv-dns",
-    block,
-    entries: parseRadvDnsBlockEntries(block, bodyText, tokenRange),
-    bodyText,
-    bodyRange: tokenRange(bodyText),
-    ...statementRange,
-  };
 };
 
 const parseRipOptionTextStatement = (
@@ -5844,7 +5536,7 @@ export const parseProtocolStatements = (
           parseRadvDnsTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           ) ??
-          parseRadvTextStatement(statementText, statementRange, (token) =>
+          parseRadvOptionTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           );
         if (radvStatement) {
@@ -6058,7 +5750,7 @@ export const parseProtocolStatements = (
             parseRadvDnsTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
             ) ??
-            parseRadvTextStatement(text, fallbackRange, (token) =>
+            parseRadvOptionTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
             ))
           : undefined;
