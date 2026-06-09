@@ -1191,6 +1191,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP max graceful restart time option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        max graceful restart time 240;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "max-graceful-restart-time",
+            value: "240",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\bmax graceful restart time\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP authentication statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
