@@ -88,10 +88,24 @@ const parseAreaSegments = (
 };
 
 const collectAreas = (
-  entries: Array<{ text: string; range: SourceRange }>,
+  declaration: Parameters<typeof protocolOtherTextEntries>[0],
 ): OspfAreaSegment[] => {
-  const areas: OspfAreaSegment[] = [];
-  for (const entry of entries) {
+  const areas: OspfAreaSegment[] = declaration.statements.flatMap(
+    (statement) => {
+      if (statement.kind !== "ospf-area") {
+        return [];
+      }
+
+      const text = statement.entries
+        .map((entry) => (entry.kind === "other" ? entry.text : entry.kind))
+        .join(" ");
+      return [
+        { areaId: normalizeAreaId(statement.areaId), text, range: statement },
+      ];
+    },
+  );
+
+  for (const entry of protocolOtherTextEntries(declaration)) {
     areas.push(...parseAreaSegments(entry.text, entry.range));
   }
   return areas;
@@ -105,7 +119,7 @@ const ospfMissingAreaRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const areas = collectAreas(protocolOtherTextEntries(declaration));
+    const areas = collectAreas(declaration);
     if (areas.length > 0) {
       continue;
     }
@@ -130,7 +144,7 @@ const ospfBackboneStubRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const areas = collectAreas(protocolOtherTextEntries(declaration));
+    const areas = collectAreas(declaration);
     for (const area of areas) {
       if (!isBackboneArea(area.areaId) || !/\bstub\b/i.test(area.text)) {
         continue;
@@ -157,9 +171,12 @@ const ospfVlinkInBackboneRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const areas = collectAreas(protocolOtherTextEntries(declaration));
+    const areas = collectAreas(declaration);
     for (const area of areas) {
-      if (!isBackboneArea(area.areaId) || !/\bvlink\b/i.test(area.text)) {
+      if (
+        !isBackboneArea(area.areaId) ||
+        !/\b(?:vlink|virtual-link|virtual\s+link)\b/i.test(area.text)
+      ) {
         continue;
       }
 
@@ -184,7 +201,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const areas = collectAreas(protocolOtherTextEntries(declaration));
+    const areas = collectAreas(declaration);
     for (const area of areas) {
       if (isBackboneArea(area.areaId)) {
         continue;

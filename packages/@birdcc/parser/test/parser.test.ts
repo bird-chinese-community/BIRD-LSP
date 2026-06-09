@@ -2644,6 +2644,95 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses OSPF area virtual link options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 1 {
+          virtual link 192.0.2.1 instance 7 {
+            hello 5;
+            retransmit 6;
+            transmit delay 7;
+            wait 8;
+            dead 40;
+            dead count 4;
+            authentication simple;
+            password "secret";
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "virtual-link",
+              routerId: "192.0.2.1",
+              instanceId: "7",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "retransmit",
+                  value: "6",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "transmit-delay",
+                  value: "7",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "wait",
+                  value: "8",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "dead",
+                  value: "40",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "dead-count",
+                  value: "4",
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "simple",
+                }),
+                expect.objectContaining({
+                  kind: "other",
+                  text: 'password "secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+        expect(
+          area.entries.some(
+            (item) =>
+              item.kind === "other" && /\bvirtual\s+link\b/i.test(item.text),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it("parses OSPF area networks and stubnets", async () => {
     const parsed = await parseBirdConfig(`
       protocol ospf core {

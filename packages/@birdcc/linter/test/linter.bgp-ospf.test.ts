@@ -220,7 +220,11 @@ describe("@birdcc/linter bgp+ospf rules", () => {
   it("hits ospf/vlink-in-backbone", async () => {
     const codes = await codesOf(`
       protocol ospf core {
-        area 0 vlink 192.0.2.1;
+        area 0 {
+          virtual link 192.0.2.1 {
+            hello 5;
+          };
+        };
       }
     `);
 

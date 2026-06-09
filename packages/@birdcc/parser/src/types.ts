@@ -990,6 +990,7 @@ interface OspfAreaEntryBase extends SourceRange {
     | "external"
     | "stubnet"
     | "interface"
+    | "virtual-link"
     | "other";
 }
 
@@ -1183,6 +1184,51 @@ export interface OspfAreaInterfaceStatement extends OspfAreaEntryBase {
   bodyRange?: SourceRange;
 }
 
+interface OspfAreaVirtualLinkEntryBase extends SourceRange {
+  kind: "timer" | "authentication" | "other";
+}
+
+export interface OspfAreaVirtualLinkTimerEntry extends OspfAreaVirtualLinkEntryBase {
+  kind: "timer";
+  option:
+    | "hello"
+    | "retransmit"
+    | "transmit-delay"
+    | "wait"
+    | "dead"
+    | "dead-count";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaVirtualLinkAuthenticationEntry extends OspfAreaVirtualLinkEntryBase {
+  kind: "authentication";
+  value: "none" | "simple" | "cryptographic" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaVirtualLinkOtherEntry extends OspfAreaVirtualLinkEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type OspfAreaVirtualLinkEntry =
+  | OspfAreaVirtualLinkTimerEntry
+  | OspfAreaVirtualLinkAuthenticationEntry
+  | OspfAreaVirtualLinkOtherEntry;
+
+export interface OspfAreaVirtualLinkStatement extends OspfAreaEntryBase {
+  kind: "virtual-link";
+  routerId: string;
+  routerIdRange: SourceRange;
+  instanceId?: string;
+  instanceIdRange?: SourceRange;
+  entries: OspfAreaVirtualLinkEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface OspfAreaOtherEntry extends OspfAreaEntryBase {
   kind: "other";
   text: string;
@@ -1194,6 +1240,7 @@ export type OspfAreaEntry =
   | OspfAreaPrefixListEntry
   | OspfAreaStubnetEntryStatement
   | OspfAreaInterfaceStatement
+  | OspfAreaVirtualLinkStatement
   | OspfAreaOtherEntry;
 
 export interface OspfAreaStatement extends StatementBase {

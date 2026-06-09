@@ -3134,6 +3134,87 @@ const parseOspfAreaInterfaceEntries = (
     });
 };
 
+const parseOspfAreaVirtualLinkEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"][number],
+  { kind: "virtual-link" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+      if (deadCountMatch?.[1]) {
+        const value = deadCountMatch[1].trim();
+        return {
+          kind: "timer",
+          option: "dead-count",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const timerMatch = item.match(/^(hello|retransmit|wait|dead)\s+(.+)$/iu);
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const value = timerMatch[2].trim();
+        return {
+          kind: "timer",
+          option: timerMatch[1].toLowerCase() as
+            | "hello"
+            | "retransmit"
+            | "wait"
+            | "dead",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      if (transmitDelayMatch?.[1]) {
+        const value = transmitDelayMatch[1].trim();
+        return {
+          kind: "timer",
+          option: "transmit-delay",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      if (authenticationMatch?.[1]) {
+        const valueText = authenticationMatch[1].toLowerCase();
+        return {
+          kind: "authentication",
+          value:
+            valueText === "none" ||
+            valueText === "simple" ||
+            valueText === "cryptographic"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(authenticationMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
 const parseOspfAreaEntries = (
   bodyText: string,
   bodyRange: SourceRange,
@@ -3311,6 +3392,38 @@ const parseOspfAreaEntries = (
               : [],
           bodyText,
           bodyRange: interfaceBodyRange,
+          ...bodyRange,
+        };
+      }
+
+      const virtualLinkMatch = item.match(
+        /^virtual\s+link\s+(\S+)([\s\S]*?)(?:\s+(\{[\s\S]*\}))?$/iu,
+      );
+      if (virtualLinkMatch?.[1]) {
+        const routerId = virtualLinkMatch[1];
+        const rest = virtualLinkMatch[2].trim();
+        const bodyText = virtualLinkMatch[3];
+        const instanceMatch = rest.match(/^instance\s+(\S+)$/iu);
+        const instanceId = instanceMatch?.[1];
+        const virtualLinkBodyRange = bodyText
+          ? tokenRange(bodyText)
+          : undefined;
+        return {
+          kind: "virtual-link",
+          routerId,
+          routerIdRange: tokenRange(routerId),
+          instanceId,
+          instanceIdRange: instanceId ? tokenRange(instanceId) : undefined,
+          entries:
+            bodyText && virtualLinkBodyRange
+              ? parseOspfAreaVirtualLinkEntries(
+                  bodyText,
+                  virtualLinkBodyRange,
+                  tokenRange,
+                )
+              : [],
+          bodyText,
+          bodyRange: virtualLinkBodyRange,
           ...bodyRange,
         };
       }
