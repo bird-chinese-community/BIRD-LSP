@@ -1879,6 +1879,41 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses direct protocol options without BGP option fallback", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol direct {
+        interface "eth0";
+        check link no;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("direct");
+      expect(protocol.statements).toMatchObject([
+        { kind: "interface", mode: "single", patterns: ["eth0"] },
+        { kind: "direct-option", option: "check-link", value: false },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(check link|interface)\b/.test(item.text),
+        ),
+      ).toBe(false);
+      expect(
+        protocol.statements.some(
+          (item) => item.kind === "bgp-option" && item.option === "check-link",
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses scan time and kernel protocol options", async () => {
     const parsed = await parseBirdConfig(`
       protocol device {

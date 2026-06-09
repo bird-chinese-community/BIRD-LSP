@@ -4487,6 +4487,33 @@ const parseStaticOptionStatement = (
   return undefined;
 };
 
+const parseDirectOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  const phraseNodes = phraseNodesOf(statementNode);
+  const statementRange = toRange(statementNode, source);
+
+  if (
+    phraseTextAt(phraseNodes, 0, source) === "check" &&
+    phraseTextAt(phraseNodes, 1, source) === "link" &&
+    phraseNodes.length <= 3
+  ) {
+    const valueNode = phraseNodes[2];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    return {
+      kind: "direct-option",
+      option: "check-link",
+      value: parseBoolToken(valueText) ?? true,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const unquoteProtocolToken = (value: string): string =>
   stripQuotedText(value.trim());
 
@@ -5386,6 +5413,14 @@ export const parseProtocolStatements = (
         const staticOption = parseStaticOptionStatement(statementNode, source);
         if (staticOption) {
           statements.push(staticOption);
+          continue;
+        }
+      }
+
+      if (protocolType === "direct") {
+        const directOption = parseDirectOptionStatement(statementNode, source);
+        if (directOption) {
+          statements.push(directOption);
           continue;
         }
       }

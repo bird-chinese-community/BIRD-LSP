@@ -39,6 +39,7 @@ export type {
   ChannelStatement,
   ChannelTableEntry,
   DefineDeclaration,
+  DirectOptionStatement,
   DisabledStatement,
   ExpressionStatement,
   ExtractedLiteral,

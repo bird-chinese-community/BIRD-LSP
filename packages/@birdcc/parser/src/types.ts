@@ -207,6 +207,7 @@ interface StatementBase extends SourceRange {
     | "pipe-import-in"
     | "static-option"
     | "static-igp-table"
+    | "direct-option"
     | "bgp-option"
     | "bgp-capability"
     | "bgp-authentication"
@@ -628,6 +629,14 @@ export interface StaticIgpTableStatement extends StatementBase {
   kind: "static-igp-table";
   tableName: string;
   tableNameRange: SourceRange;
+}
+
+export interface DirectOptionStatement extends StatementBase {
+  kind: "direct-option";
+  option: "check-link";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
 }
 
 export interface BgpOptionStatement extends StatementBase {
@@ -1754,6 +1763,7 @@ export type ProtocolStatement =
   | PipeImportInStatement
   | StaticOptionStatement
   | StaticIgpTableStatement
+  | DirectOptionStatement
   | BgpOptionStatement
   | BgpCapabilityStatement
   | BgpAuthenticationStatement
