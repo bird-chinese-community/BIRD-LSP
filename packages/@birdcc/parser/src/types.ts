@@ -1456,6 +1456,7 @@ export interface BabelInterfaceStatement extends StatementBase {
 interface RadvInterfaceEntryBase extends SourceRange {
   kind:
     | "timer"
+    | "bool"
     | "local"
     | "prefix"
     | "skip"
@@ -1476,6 +1477,14 @@ export interface RadvInterfaceTimerEntry extends RadvInterfaceEntryBase {
   option: "min-ra-interval" | "max-ra-interval" | "min-delay";
   value: string;
   valueRange: SourceRange;
+}
+
+export interface RadvInterfaceBoolEntry extends RadvInterfaceEntryBase {
+  kind: "bool";
+  option: "solicited-ra-unicast" | "managed" | "other-config";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
 }
 
 export interface RadvInterfaceLocalEntry extends RadvInterfaceEntryBase {
@@ -1559,6 +1568,7 @@ export interface RadvInterfaceOtherEntry extends RadvInterfaceEntryBase {
 
 export type RadvInterfaceEntry =
   | RadvInterfaceTimerEntry
+  | RadvInterfaceBoolEntry
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
   | RadvDnsBlock

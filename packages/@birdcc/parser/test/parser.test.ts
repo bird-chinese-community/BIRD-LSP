@@ -2531,6 +2531,9 @@ describe("@birdcc/parser tree-sitter", () => {
           min ra interval 3;
           max ra interval 30;
           min delay 1;
+          solicited ra unicast yes;
+          managed on;
+          other config no;
           rdnss local yes;
           dnssl local no;
           custom option local yes;
@@ -2590,6 +2593,21 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "timer",
               option: "min-delay",
               value: "1",
+            }),
+            expect.objectContaining({
+              kind: "bool",
+              option: "solicited-ra-unicast",
+              value: true,
+            }),
+            expect.objectContaining({
+              kind: "bool",
+              option: "managed",
+              value: true,
+            }),
+            expect.objectContaining({
+              kind: "bool",
+              option: "other-config",
+              value: false,
             }),
             expect.objectContaining({
               kind: "local",
