@@ -47,6 +47,7 @@ export type {
   FilterDeclaration,
   FunctionDeclaration,
   GracefulRestartWaitDeclaration,
+  HostnameOverrideDeclaration,
   IfStatement,
   ImportStatement,
   IncludeDeclaration,

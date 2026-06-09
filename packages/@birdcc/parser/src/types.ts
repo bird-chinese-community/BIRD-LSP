@@ -23,6 +23,7 @@ interface DeclarationBase extends SourceRange {
     | "define"
     | "router-id"
     | "graceful-restart-wait"
+    | "hostname-override"
     | "attribute"
     | "table"
     | "mpls-domain"
@@ -57,6 +58,13 @@ export interface RouterIdDeclaration extends DeclarationBase {
 export interface GracefulRestartWaitDeclaration extends DeclarationBase {
   kind: "graceful-restart-wait";
   value: string;
+  valueRange: SourceRange;
+}
+
+export interface HostnameOverrideDeclaration extends DeclarationBase {
+  kind: "hostname-override";
+  value: string;
+  valueText: string;
   valueRange: SourceRange;
 }
 
@@ -1275,6 +1283,7 @@ export type BirdDeclaration =
   | DefineDeclaration
   | RouterIdDeclaration
   | GracefulRestartWaitDeclaration
+  | HostnameOverrideDeclaration
   | AttributeDeclaration
   | TableDeclaration
   | MplsDomainDeclaration

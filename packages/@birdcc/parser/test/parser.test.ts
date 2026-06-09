@@ -140,6 +140,25 @@ describe("@birdcc/parser tree-sitter", () => {
     expect(declarations.some((item) => item.kind === "router-id")).toBe(true);
   });
 
+  it("parses hostname override declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      router id 192.0.2.1;
+      hostname "edge-r1";
+    `);
+
+    const declarations = parsed.program.declarations;
+    const hostname = declarations.find(
+      (item) => item.kind === "hostname-override",
+    );
+
+    expect(hostname).toMatchObject({
+      kind: "hostname-override",
+      value: "edge-r1",
+      valueText: '"edge-r1"',
+    });
+    expect(declarations.some((item) => item.kind === "router-id")).toBe(true);
+  });
+
   it("parses table option blocks", async () => {
     const parsed = await parseBirdConfig(`
       roa4 table roa4_opts {

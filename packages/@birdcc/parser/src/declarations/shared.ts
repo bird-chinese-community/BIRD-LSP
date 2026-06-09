@@ -17,6 +17,10 @@ export type GracefulRestartWaitDeclaration = Extract<
   BirdDeclaration,
   { kind: "graceful-restart-wait" }
 >;
+export type HostnameOverrideDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "hostname-override" }
+>;
 export type AttributeDeclaration = Extract<
   BirdDeclaration,
   { kind: "attribute" }

@@ -1,9 +1,10 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { ParseIssue } from "../types.js";
-import { toRange } from "../tree.js";
+import { stripQuotes, toRange } from "../tree.js";
 import {
   TABLE_TYPES,
   type GracefulRestartWaitDeclaration,
+  type HostnameOverrideDeclaration,
   type RouterIdDeclaration,
   type TableDeclaration,
   isNumericToken,
@@ -143,6 +144,39 @@ export const parseGracefulRestartWaitFromStatement = (
   return {
     kind: "graceful-restart-wait",
     value,
+    valueRange,
+    ...declarationRange,
+  };
+};
+
+export const parseHostnameOverrideFromStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): HostnameOverrideDeclaration | null => {
+  const declarationRange = toRange(statementNode, source);
+  const tokens = topLevelTokensOf(statementNode, source);
+
+  if (tokens[0]?.lowered !== "hostname") {
+    return null;
+  }
+
+  const valueToken = tokens[1];
+  const valueText = valueToken?.text ?? "";
+  const valueRange = valueToken?.range ?? declarationRange;
+
+  if (valueText.length === 0) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing value for hostname override declaration",
+      ...declarationRange,
+    });
+  }
+
+  return {
+    kind: "hostname-override",
+    value: stripQuotes(valueText),
+    valueText,
     valueRange,
     ...declarationRange,
   };

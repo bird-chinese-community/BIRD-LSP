@@ -21,6 +21,7 @@ import { parseFilterDeclaration, parseFunctionDeclaration } from "./filter.js";
 import { parseProtocolDeclaration } from "./protocol.js";
 import {
   parseGracefulRestartWaitFromStatement,
+  parseHostnameOverrideFromStatement,
   parseRouterIdFromStatement,
   parseTableFromStatement,
 } from "./top-level.js";
@@ -778,6 +779,16 @@ export const parseDeclarations = (
         parseGracefulRestartWaitFromStatement(child, source, issues);
       if (gracefulRestartWaitFromTopLevel) {
         declarations.push(gracefulRestartWaitFromTopLevel);
+        continue;
+      }
+
+      const hostnameOverrideFromTopLevel = parseHostnameOverrideFromStatement(
+        child,
+        source,
+        issues,
+      );
+      if (hostnameOverrideFromTopLevel) {
+        declarations.push(hostnameOverrideFromTopLevel);
         continue;
       }
 
