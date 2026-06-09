@@ -3397,6 +3397,18 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
+      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      if (passwordMatch?.[1]) {
+        const valueText = passwordMatch[1].trim();
+        return {
+          kind: "password",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
       const rxBufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
       if (rxBufferMatch?.[1]) {
         const value = rxBufferMatch[1].trim().toLowerCase();

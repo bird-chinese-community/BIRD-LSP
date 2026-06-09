@@ -3468,8 +3468,9 @@ describe("@birdcc/parser tree-sitter", () => {
                   ]),
                 }),
                 expect.objectContaining({
-                  kind: "other",
-                  text: 'password "secret"',
+                  kind: "password",
+                  value: "secret",
+                  valueText: '"secret"',
                 }),
               ]),
             }),

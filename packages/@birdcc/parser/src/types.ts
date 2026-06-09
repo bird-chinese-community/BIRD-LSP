@@ -1171,6 +1171,7 @@ interface OspfAreaInterfaceEntryBase extends SourceRange {
     | "ecmp-weight"
     | "link-lsa-suppression"
     | "authentication"
+    | "password"
     | "rx-buffer"
     | "tx"
     | "ttl-security"
@@ -1238,6 +1239,13 @@ export interface OspfAreaInterfaceAuthenticationEntry extends OspfAreaInterfaceE
   valueRange: SourceRange;
 }
 
+export interface OspfAreaInterfacePasswordEntry extends OspfAreaInterfaceEntryBase {
+  kind: "password";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
 export interface OspfAreaInterfaceTxEntry extends OspfAreaInterfaceEntryBase {
   kind: "tx";
   option: "tos" | "priority" | "length";
@@ -1270,6 +1278,7 @@ export type OspfAreaInterfaceEntry =
   | OspfAreaInterfaceTypeEntry
   | OspfAreaInterfaceBoolEntry
   | OspfAreaInterfaceAuthenticationEntry
+  | OspfAreaInterfacePasswordEntry
   | OspfAreaInterfaceTxEntry
   | OspfAreaInterfaceNeighborsEntry
   | OspfAreaInterfaceOtherEntry;
