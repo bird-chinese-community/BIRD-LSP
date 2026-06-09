@@ -41,6 +41,7 @@ export type MatchExpression = FilterDeclaration["matches"][number];
 type ChannelStatement = Extract<ProtocolStatement, { kind: "channel" }>;
 
 export const PROTOCOL_STATEMENT_TYPES = new Set([
+  "local_role_statement",
   "local_as_statement",
   "neighbor_statement",
   "import_statement",

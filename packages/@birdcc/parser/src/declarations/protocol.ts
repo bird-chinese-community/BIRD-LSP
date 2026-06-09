@@ -898,6 +898,74 @@ const parseBgpBoolOption = (
   };
 };
 
+const parseBgpPhraseBoolOption = (
+  phraseNodes: SyntaxNode[],
+  source: string,
+  statementRange: SourceRange,
+  phrase: string[],
+  option: Extract<ProtocolStatement, { kind: "bgp-option" }>["option"],
+): ProtocolStatement | undefined => {
+  if (phraseNodes.length !== phrase.length + 1) {
+    return undefined;
+  }
+
+  const matches = phrase.every(
+    (text, index) => phraseTextAt(phraseNodes, index, source) === text,
+  );
+  if (!matches) {
+    return undefined;
+  }
+
+  const valueNode = phraseNodes[phrase.length];
+  const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+  const value = parseBoolToken(valueText);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return {
+    kind: "bgp-option",
+    option,
+    value,
+    valueText,
+    valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+    ...statementRange,
+  };
+};
+
+const parseBgpPhraseValueOption = (
+  phraseNodes: SyntaxNode[],
+  source: string,
+  statementRange: SourceRange,
+  phrase: string[],
+  option: Extract<ProtocolStatement, { kind: "bgp-option" }>["option"],
+): ProtocolStatement | undefined => {
+  if (phraseNodes.length < phrase.length + 1) {
+    return undefined;
+  }
+
+  const matches = phrase.every(
+    (text, index) => phraseTextAt(phraseNodes, index, source) === text,
+  );
+  if (!matches) {
+    return undefined;
+  }
+
+  const value = phraseTailFrom(phraseNodes, phrase.length, source);
+  if (!value) {
+    return undefined;
+  }
+
+  return {
+    kind: "bgp-option",
+    option,
+    value: value.text,
+    valueText: value.text,
+    valueRange: value.range,
+    ...statementRange,
+  };
+};
+
 const parseBgpTimerOption = (
   phraseNodes: SyntaxNode[],
   source: string,
@@ -1198,6 +1266,65 @@ const parseProtocolOptionStatement = (
     };
   }
 
+  const bgpSessionBoolOption =
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["ttl", "security"],
+      "ttl-security",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["check", "link"],
+      "check-link",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["enforce", "first", "as"],
+      "enforce-first-as",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["require", "roles"],
+      "require-roles",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["disable", "rx"],
+      "disable-rx",
+    );
+  if (bgpSessionBoolOption) {
+    return bgpSessionBoolOption;
+  }
+
+  const bgpSessionValueOption =
+    parseBgpPhraseValueOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["local", "role"],
+      "local-role",
+    ) ??
+    parseBgpPhraseValueOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["tx", "size", "warning"],
+      "tx-size-warning",
+    );
+  if (bgpSessionValueOption) {
+    return bgpSessionValueOption;
+  }
+
   if (optionText === "direct" && phraseNodes.length === 1) {
     return {
       kind: "bgp-hop-mode",
@@ -1266,6 +1393,30 @@ const parseProtocolOptionStatement = (
   }
 
   return undefined;
+};
+
+const parseLocalRoleStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "local_role_statement") {
+    return undefined;
+  }
+
+  const roleNode = statementNode.childForFieldName("role");
+  if (!isPresentNode(roleNode)) {
+    return undefined;
+  }
+
+  const roleText = textOf(roleNode, source);
+  return {
+    kind: "bgp-option",
+    option: "local-role",
+    value: roleText,
+    valueText: roleText,
+    valueRange: toRange(roleNode, source),
+    ...toRange(statementNode, source),
+  };
 };
 
 const parseStaticRouteStatement = (
@@ -1831,6 +1982,14 @@ export const parseProtocolStatements = (
           : statementRange,
         ...statementRange,
       });
+      continue;
+    }
+
+    if (statementNode.type === "local_role_statement") {
+      const localRole = parseLocalRoleStatement(statementNode, source);
+      if (localRole) {
+        statements.push(localRole);
+      }
       continue;
     }
 

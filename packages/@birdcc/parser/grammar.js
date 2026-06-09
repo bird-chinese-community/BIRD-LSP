@@ -343,6 +343,7 @@ export default grammar({
 
     _block_item: ($) =>
       choice(
+        $.local_role_statement,
         $.local_as_statement,
         $.neighbor_statement,
         $.channel_keep_filtered_statement,
@@ -383,6 +384,14 @@ export default grammar({
         ),
         "as",
         field("asn", choice($.number, $.identifier, $.raw_token)),
+        ";",
+      ),
+
+    local_role_statement: ($) =>
+      seq(
+        "local",
+        "role",
+        field("role", choice($.identifier, $.raw_token)),
         ";",
       ),
 

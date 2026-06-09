@@ -509,7 +509,19 @@ export interface SourceAddressStatement extends StatementBase {
 
 export interface BgpOptionStatement extends StatementBase {
   kind: "bgp-option";
-  option: "rr-client" | "strict-bind" | "passive" | "allow-local-as" | "bfd";
+  option:
+    | "rr-client"
+    | "strict-bind"
+    | "passive"
+    | "allow-local-as"
+    | "bfd"
+    | "ttl-security"
+    | "check-link"
+    | "enforce-first-as"
+    | "local-role"
+    | "require-roles"
+    | "disable-rx"
+    | "tx-size-warning";
   value?: boolean | string;
   valueText?: string;
   valueRange?: SourceRange;
