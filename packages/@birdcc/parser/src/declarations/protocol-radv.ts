@@ -64,14 +64,14 @@ const parseRadvCustomOptionParts = (
     }
   | undefined => {
   const customOptionMatch = statementText.match(
-    /^custom\s+option\s+type\s+(\S+)\s+value\s+(\S+)$/iu,
+    /^custom\s+option\s+type\s+(.+?)\s+value\s+(.+)$/iu,
   );
   if (!customOptionMatch?.[1] || !customOptionMatch[2]) {
     return undefined;
   }
 
-  const optionType = customOptionMatch[1];
-  const value = customOptionMatch[2];
+  const optionType = customOptionMatch[1].trim();
+  const value = customOptionMatch[2].trim();
   return {
     optionType,
     optionTypeRange: tokenRange(optionType),

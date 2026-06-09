@@ -3065,6 +3065,53 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV custom option expressions", async () => {
+    const sample = `
+      protocol radv ra1 {
+        custom option type (40 + 2) value hex:0e:10:20:01;
+
+        interface "eth0" {
+          custom option type (90 + 9) value hex:01:02:03;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-custom-option",
+            optionType: "(40 + 2)",
+            value: "hex:0e:10:20:01",
+          }),
+        ]),
+      );
+
+      const iface = protocol.statements.find(
+        (item) => item.kind === "radv-interface",
+      );
+      expect(iface?.kind).toBe("radv-interface");
+      if (iface?.kind === "radv-interface") {
+        expect(iface.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "custom-option",
+              optionType: "(90 + 9)",
+              value: "hex:01:02:03",
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {
