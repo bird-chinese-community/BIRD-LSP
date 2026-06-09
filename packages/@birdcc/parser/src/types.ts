@@ -190,6 +190,7 @@ interface StatementBase extends SourceRange {
     | "source-address"
     | "bgp-option"
     | "bgp-hop-mode"
+    | "mrt-option"
     | "scan-time"
     | "learn"
     | "interface"
@@ -534,6 +535,14 @@ export interface BgpHopModeStatement extends StatementBase {
   ttlRange?: SourceRange;
 }
 
+export interface MrtOptionStatement extends StatementBase {
+  kind: "mrt-option";
+  option: "table" | "filename" | "period" | "always-add-path";
+  value?: boolean | string;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -630,6 +639,7 @@ export type ProtocolStatement =
   | SourceAddressStatement
   | BgpOptionStatement
   | BgpHopModeStatement
+  | MrtOptionStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

@@ -51,6 +51,7 @@ export type {
   LocalAsStatement,
   MatchExpression,
   MplsDomainDeclaration,
+  MrtOptionStatement,
   NeighborStatement,
   OtherProtocolStatement,
   OtherStatement,

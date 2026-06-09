@@ -589,6 +589,46 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses MRT protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol mrt dump_v4 {
+        table master4;
+        filename "/tmp/bird-%N.mrt";
+        period 300;
+        always add path yes;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("mrt");
+      expect(protocol.statements).toMatchObject([
+        { kind: "mrt-option", option: "table", value: "master4" },
+        {
+          kind: "mrt-option",
+          option: "filename",
+          value: "/tmp/bird-%N.mrt",
+          valueText: '"/tmp/bird-%N.mrt"',
+        },
+        { kind: "mrt-option", option: "period", value: "300" },
+        { kind: "mrt-option", option: "always-add-path", value: true },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(table|filename|period|always add path)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

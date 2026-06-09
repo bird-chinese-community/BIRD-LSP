@@ -1419,6 +1419,67 @@ const parseLocalRoleStatement = (
   };
 };
 
+const parseMrtOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const optionNode = phraseNodes[0];
+  if (!isNode(optionNode)) {
+    return undefined;
+  }
+
+  const statementRange = toRange(statementNode, source);
+  const optionText = textOf(optionNode, source).toLowerCase();
+
+  if (
+    (optionText === "table" ||
+      optionText === "filename" ||
+      optionText === "period") &&
+    isNode(phraseNodes[1])
+  ) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "mrt-option",
+      option: optionText,
+      value: optionText === "filename" ? stripQuotedText(valueText) : valueText,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    phraseNodes.length === 4 &&
+    phraseTextAt(phraseNodes, 0, source) === "always" &&
+    phraseTextAt(phraseNodes, 1, source) === "add" &&
+    phraseTextAt(phraseNodes, 2, source) === "path"
+  ) {
+    const valueNode = phraseNodes[3];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "mrt-option",
+      option: "always-add-path",
+      value,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -1950,6 +2011,7 @@ export const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
   issues: ParseIssue[],
+  protocolType = "",
 ): ProtocolStatement[] => {
   const statements: ProtocolStatement[] = [];
   const nodes = protocolStatementNodesOf(blockNode);
@@ -2070,6 +2132,14 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "expression_statement") {
+      if (protocolType === "mrt") {
+        const mrtOption = parseMrtOptionStatement(statementNode, source);
+        if (mrtOption) {
+          statements.push(mrtOption);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -2259,7 +2329,7 @@ export const parseProtocolDeclaration = (
       ? toRange(fromTemplateNode, source)
       : undefined,
     statements: isPresentNode(bodyNode)
-      ? parseProtocolStatements(bodyNode, source, issues)
+      ? parseProtocolStatements(bodyNode, source, issues, protocolType)
       : [],
     ...declarationRange,
   };
