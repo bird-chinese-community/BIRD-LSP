@@ -112,10 +112,10 @@ const parseRadvDnsBlockEntries = (
         };
       }
 
-      const lifetimeMatch = item.match(/^lifetime\s+(?:(mult)\s+)?(\S+)$/iu);
+      const lifetimeMatch = item.match(/^lifetime\s+(?:(mult)\s+)?(.+)$/iu);
       if (lifetimeMatch?.[2]) {
         const multiplierText = lifetimeMatch[1];
-        const value = lifetimeMatch[2];
+        const value = lifetimeMatch[2].trim();
         return {
           kind: "lifetime",
           value,

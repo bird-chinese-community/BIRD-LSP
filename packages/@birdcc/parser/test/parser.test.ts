@@ -3018,6 +3018,57 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV DNS lifetime expressions", async () => {
+    const sample = `
+      protocol radv ra1 {
+        rdnss {
+          ns 2001:db8::53;
+          lifetime mult (2 + 1);
+        };
+        dnssl {
+          domain "example.net";
+          lifetime (600 + 60);
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-dns",
+            block: "rdnss",
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "lifetime",
+                value: "(2 + 1)",
+                multiplier: true,
+              }),
+            ]),
+          }),
+          expect.objectContaining({
+            kind: "radv-dns",
+            block: "dnssl",
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "lifetime",
+                value: "(600 + 60)",
+                multiplier: false,
+              }),
+            ]),
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses RADV custom option statements", async () => {
     const sample = `
       protocol radv ra1 {
