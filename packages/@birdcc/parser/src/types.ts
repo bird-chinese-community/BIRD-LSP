@@ -233,6 +233,7 @@ interface StatementBase extends SourceRange {
     | "rip-interface"
     | "scan-time"
     | "learn"
+    | "kernel-option"
     | "interface"
     | "rpki-remote"
     | "rpki-port"
@@ -1629,6 +1630,22 @@ export interface LearnStatement extends StatementBase {
   valueRange?: SourceRange;
 }
 
+export interface KernelOptionStatement extends StatementBase {
+  kind: "kernel-option";
+  option:
+    | "persist"
+    | "graceful-restart"
+    | "merge-paths"
+    | "kernel-table"
+    | "metric"
+    | "netlink-rx-buffer";
+  value: boolean | string;
+  valueText?: string;
+  valueRange?: SourceRange;
+  limit?: string;
+  limitRange?: SourceRange;
+}
+
 export interface ProtocolInterfaceStatement extends StatementBase {
   kind: "interface";
   mode: "single" | "range";
@@ -1740,6 +1757,7 @@ export type ProtocolStatement =
   | RipInterfaceStatement
   | ScanTimeStatement
   | LearnStatement
+  | KernelOptionStatement
   | ProtocolInterfaceStatement
   | RpkiRemoteStatement
   | RpkiPortStatement

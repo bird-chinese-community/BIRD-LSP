@@ -1676,8 +1676,11 @@ const parseProtocolOptionStatement = (
     };
   }
 
-  if (optionText === "learn" && phraseNodes.length <= 2) {
-    const valueNode = phraseNodes[1];
+  if (optionText === "learn" && phraseNodes.length <= 3) {
+    const valueNode =
+      phraseTextAt(phraseNodes, 1, source) === "all"
+        ? phraseNodes[1]
+        : (phraseNodes[2] ?? phraseNodes[1]);
     const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
     const boolValue = parseBoolToken(valueText);
     return {
@@ -1708,6 +1711,116 @@ const parseProtocolOptionStatement = (
         ...statementRange,
       };
     }
+  }
+
+  return undefined;
+};
+
+const parseKernelOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const statementRange = toRange(statementNode, source);
+  const first = phraseTextAt(phraseNodes, 0, source);
+  const second = phraseTextAt(phraseNodes, 1, source);
+  const third = phraseTextAt(phraseNodes, 2, source);
+
+  if (first === "persist" && phraseNodes.length <= 2) {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value !== undefined) {
+      return {
+        kind: "kernel-option",
+        option: "persist",
+        value,
+        valueText,
+        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (first === "graceful" && second === "restart" && phraseNodes.length <= 3) {
+    const valueNode = phraseNodes[2];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value !== undefined) {
+      return {
+        kind: "kernel-option",
+        option: "graceful-restart",
+        value,
+        valueText,
+        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (first === "merge" && second === "paths" && phraseNodes.length <= 5) {
+    const valueNode = phraseNodes[2];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value !== undefined) {
+      const limitNode =
+        phraseTextAt(phraseNodes, 3, source) === "limit"
+          ? phraseNodes[4]
+          : undefined;
+      const limit = isNode(limitNode) ? textOf(limitNode, source) : undefined;
+      return {
+        kind: "kernel-option",
+        option: "merge-paths",
+        value,
+        valueText,
+        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+        limit,
+        limitRange: isNode(limitNode) ? toRange(limitNode, source) : undefined,
+        ...statementRange,
+      };
+    }
+  }
+
+  if (first === "kernel" && second === "table" && isNode(phraseNodes[2])) {
+    const valueNode = phraseNodes[2];
+    return {
+      kind: "kernel-option",
+      option: "kernel-table",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (first === "metric" && isNode(phraseNodes[1])) {
+    const valueNode = phraseNodes[1];
+    return {
+      kind: "kernel-option",
+      option: "metric",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    first === "netlink" &&
+    second === "rx" &&
+    third === "buffer" &&
+    isNode(phraseNodes[3])
+  ) {
+    const valueNode = phraseNodes[3];
+    return {
+      kind: "kernel-option",
+      option: "netlink-rx-buffer",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
   }
 
   return undefined;
@@ -5201,6 +5314,14 @@ export const parseProtocolStatements = (
         const staticOption = parseStaticOptionStatement(statementNode, source);
         if (staticOption) {
           statements.push(staticOption);
+          continue;
+        }
+      }
+
+      if (protocolType === "kernel") {
+        const kernelOption = parseKernelOptionStatement(statementNode, source);
+        if (kernelOption) {
+          statements.push(kernelOption);
           continue;
         }
       }

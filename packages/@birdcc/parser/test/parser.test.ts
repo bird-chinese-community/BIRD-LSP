@@ -1879,7 +1879,7 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
-  it("parses scan time and kernel learn statements", async () => {
+  it("parses scan time and kernel protocol options", async () => {
     const parsed = await parseBirdConfig(`
       protocol device {
         scan time 5;
@@ -1890,6 +1890,12 @@ describe("@birdcc/parser tree-sitter", () => {
         learn;
         learn off;
         learn all;
+        persist yes;
+        graceful restart no;
+        merge paths yes limit 8;
+        kernel table 100;
+        metric 10;
+        netlink rx buffer 1M;
       }
     `);
 
@@ -1908,11 +1914,25 @@ describe("@birdcc/parser tree-sitter", () => {
       { kind: "learn", mode: "on" },
       { kind: "learn", mode: "off" },
       { kind: "learn", mode: "all" },
+      { kind: "kernel-option", option: "persist", value: true },
+      { kind: "kernel-option", option: "graceful-restart", value: false },
+      {
+        kind: "kernel-option",
+        option: "merge-paths",
+        value: true,
+        limit: "8",
+      },
+      { kind: "kernel-option", option: "kernel-table", value: "100" },
+      { kind: "kernel-option", option: "metric", value: "10" },
+      { kind: "kernel-option", option: "netlink-rx-buffer", value: "1M" },
     ]);
     expect(
       statements.some(
         (item) =>
-          item.kind === "other" && /\b(scan time|learn)\b/.test(item.text),
+          item.kind === "other" &&
+          /\b(scan time|learn|persist|graceful restart|merge paths|kernel table|metric|netlink rx buffer)\b/.test(
+            item.text,
+          ),
       ),
     ).toBe(false);
   });
