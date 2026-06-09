@@ -22,6 +22,7 @@ interface DeclarationBase extends SourceRange {
     | "include"
     | "define"
     | "router-id"
+    | "graceful-restart-wait"
     | "attribute"
     | "table"
     | "mpls-domain"
@@ -51,6 +52,12 @@ export interface RouterIdDeclaration extends DeclarationBase {
   valueKind: "ip" | "number" | "from" | "unknown";
   valueRange: SourceRange;
   fromSource?: "routing" | "dynamic";
+}
+
+export interface GracefulRestartWaitDeclaration extends DeclarationBase {
+  kind: "graceful-restart-wait";
+  value: string;
+  valueRange: SourceRange;
 }
 
 export interface AttributeDeclaration extends DeclarationBase {
@@ -1267,6 +1274,7 @@ export type BirdDeclaration =
   | IncludeDeclaration
   | DefineDeclaration
   | RouterIdDeclaration
+  | GracefulRestartWaitDeclaration
   | AttributeDeclaration
   | TableDeclaration
   | MplsDomainDeclaration

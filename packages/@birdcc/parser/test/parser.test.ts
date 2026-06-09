@@ -122,6 +122,24 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses graceful restart wait declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      router id 192.0.2.1;
+      graceful restart wait 120;
+    `);
+
+    const declarations = parsed.program.declarations;
+    const gracefulRestartWait = declarations.find(
+      (item) => item.kind === "graceful-restart-wait",
+    );
+
+    expect(gracefulRestartWait).toMatchObject({
+      kind: "graceful-restart-wait",
+      value: "120",
+    });
+    expect(declarations.some((item) => item.kind === "router-id")).toBe(true);
+  });
+
   it("parses table option blocks", async () => {
     const parsed = await parseBirdConfig(`
       roa4 table roa4_opts {

@@ -46,6 +46,7 @@ export type {
   FilterBodyStatement,
   FilterDeclaration,
   FunctionDeclaration,
+  GracefulRestartWaitDeclaration,
   IfStatement,
   ImportStatement,
   IncludeDeclaration,

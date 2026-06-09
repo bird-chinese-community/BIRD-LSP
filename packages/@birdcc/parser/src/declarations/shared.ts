@@ -13,6 +13,10 @@ export type RouterIdDeclaration = Extract<
   BirdDeclaration,
   { kind: "router-id" }
 >;
+export type GracefulRestartWaitDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "graceful-restart-wait" }
+>;
 export type AttributeDeclaration = Extract<
   BirdDeclaration,
   { kind: "attribute" }

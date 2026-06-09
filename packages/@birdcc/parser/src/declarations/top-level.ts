@@ -3,6 +3,7 @@ import type { ParseIssue } from "../types.js";
 import { toRange } from "../tree.js";
 import {
   TABLE_TYPES,
+  type GracefulRestartWaitDeclaration,
   type RouterIdDeclaration,
   type TableDeclaration,
   isNumericToken,
@@ -99,6 +100,50 @@ export const parseRouterIdFromStatement = (
     value,
     valueKind: "unknown",
     valueRange: valueRange,
+    ...declarationRange,
+  };
+};
+
+export const parseGracefulRestartWaitFromStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): GracefulRestartWaitDeclaration | null => {
+  const declarationRange = toRange(statementNode, source);
+  const tokens = topLevelTokensOf(statementNode, source);
+
+  if (
+    tokens[0]?.lowered !== "graceful" ||
+    tokens[1]?.lowered !== "restart" ||
+    tokens[2]?.lowered !== "wait"
+  ) {
+    return null;
+  }
+
+  const valueTokens = tokens.slice(3);
+  const value = valueTokens
+    .map((token) => token.text)
+    .join(" ")
+    .trim();
+  const valueRange = mergedTokenRange(
+    declarationRange,
+    tokens,
+    3,
+    Math.max(tokens.length - 1, 3),
+  );
+
+  if (value.length === 0) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing value for graceful restart wait declaration",
+      ...declarationRange,
+    });
+  }
+
+  return {
+    kind: "graceful-restart-wait",
+    value,
+    valueRange,
     ...declarationRange,
   };
 };

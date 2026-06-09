@@ -20,6 +20,7 @@ import {
 import { parseFilterDeclaration, parseFunctionDeclaration } from "./filter.js";
 import { parseProtocolDeclaration } from "./protocol.js";
 import {
+  parseGracefulRestartWaitFromStatement,
   parseRouterIdFromStatement,
   parseTableFromStatement,
 } from "./top-level.js";
@@ -770,6 +771,13 @@ export const parseDeclarations = (
       );
       if (routerFromTopLevel) {
         declarations.push(routerFromTopLevel);
+        continue;
+      }
+
+      const gracefulRestartWaitFromTopLevel =
+        parseGracefulRestartWaitFromStatement(child, source, issues);
+      if (gracefulRestartWaitFromTopLevel) {
+        declarations.push(gracefulRestartWaitFromTopLevel);
         continue;
       }
 
