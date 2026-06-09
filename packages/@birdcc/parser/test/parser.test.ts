@@ -2534,6 +2534,7 @@ describe("@birdcc/parser tree-sitter", () => {
           solicited ra unicast yes;
           managed on;
           other config no;
+          router discovery off;
           link mtu 1500;
           reachable time 30000;
           retrans timer 1000;
@@ -2617,6 +2618,11 @@ describe("@birdcc/parser tree-sitter", () => {
             expect.objectContaining({
               kind: "bool",
               option: "other-config",
+              value: false,
+            }),
+            expect.objectContaining({
+              kind: "bool",
+              option: "router-discovery",
               value: false,
             }),
             expect.objectContaining({

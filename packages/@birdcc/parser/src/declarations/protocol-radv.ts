@@ -248,7 +248,7 @@ const parseRadvInterfaceEntries = (
       }
 
       const boolMatch = item.match(
-        /^(solicited\s+ra\s+unicast|managed|other\s+config)(?:\s+(\S+))?$/iu,
+        /^(solicited\s+ra\s+unicast|managed|other\s+config|router\s+discovery)(?:\s+(\S+))?$/iu,
       );
       if (boolMatch?.[1]) {
         const valueText = boolMatch[2];
@@ -257,7 +257,8 @@ const parseRadvInterfaceEntries = (
           option: boolMatch[1].toLowerCase().replace(/\s+/gu, "-") as
             | "solicited-ra-unicast"
             | "managed"
-            | "other-config",
+            | "other-config"
+            | "router-discovery",
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,

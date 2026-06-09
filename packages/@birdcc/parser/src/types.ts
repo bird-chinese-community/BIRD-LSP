@@ -1484,7 +1484,11 @@ export interface RadvInterfaceTimerEntry extends RadvInterfaceEntryBase {
 
 export interface RadvInterfaceBoolEntry extends RadvInterfaceEntryBase {
   kind: "bool";
-  option: "solicited-ra-unicast" | "managed" | "other-config";
+  option:
+    | "solicited-ra-unicast"
+    | "managed"
+    | "other-config"
+    | "router-discovery";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
