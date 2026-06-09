@@ -2835,6 +2835,70 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RADV lifetime expressions with whitespace", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0" {
+          default lifetime (30 + 60) sensitive yes;
+          route lifetime (120 + 60) sensitive no;
+          prefix 2001:db8:1::/64 {
+            valid lifetime (3600 + 60) sensitive yes;
+            preferred lifetime (1800 + 60) sensitive no;
+          };
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "radv-interface",
+      );
+      expect(iface?.kind).toBe("radv-interface");
+      if (iface?.kind === "radv-interface") {
+        expect(iface.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "lifetime",
+              option: "default-lifetime",
+              value: "(30 + 60)",
+              sensitive: true,
+            }),
+            expect.objectContaining({
+              kind: "lifetime",
+              option: "route-lifetime",
+              value: "(120 + 60)",
+              sensitive: false,
+            }),
+            expect.objectContaining({
+              kind: "prefix",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "lifetime",
+                  option: "valid-lifetime",
+                  value: "(3600 + 60)",
+                  sensitive: true,
+                }),
+                expect.objectContaining({
+                  kind: "lifetime",
+                  option: "preferred-lifetime",
+                  value: "(1800 + 60)",
+                  sensitive: false,
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("parses RADV protocol prefix blocks", async () => {
     const sample = `
       protocol radv ra1 {

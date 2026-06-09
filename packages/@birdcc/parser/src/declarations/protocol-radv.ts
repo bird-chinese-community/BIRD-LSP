@@ -195,10 +195,10 @@ const parseRadvPrefixEntries = (
       }
 
       const lifetimeMatch = item.match(
-        /^(valid|preferred)\s+lifetime\s+(\S+)(?:\s+sensitive\s+(\S+))?$/iu,
+        /^(valid|preferred)\s+lifetime\s+(.+?)(?:\s+sensitive\s+(\S+))?$/iu,
       );
       if (lifetimeMatch?.[1] && lifetimeMatch[2]) {
-        const value = lifetimeMatch[2];
+        const value = lifetimeMatch[2].trim();
         const sensitiveText = lifetimeMatch[3];
         return {
           kind: "lifetime",
@@ -312,10 +312,10 @@ const parseRadvInterfaceEntries = (
       }
 
       const lifetimeMatch = item.match(
-        /^(default\s+lifetime|route\s+lifetime)\s+(\S+)(?:\s+sensitive\s+(\S+))?$/iu,
+        /^(default\s+lifetime|route\s+lifetime)\s+(.+?)(?:\s+sensitive\s+(\S+))?$/iu,
       );
       if (lifetimeMatch?.[1] && lifetimeMatch[2]) {
-        const value = lifetimeMatch[2];
+        const value = lifetimeMatch[2].trim();
         const sensitiveText = lifetimeMatch[3];
         return {
           kind: "lifetime",

@@ -605,7 +605,8 @@ export default grammar({
         ),
       ),
 
-    phrase_clause: ($) => repeat1(choice($._statement_atom, ",", "(", ")")),
+    phrase_clause: ($) =>
+      repeat1(choice($._statement_atom, ",", "(", ")", "+", "-", "*", "/")),
 
     if_statement: ($) =>
       prec.right(
@@ -691,7 +692,21 @@ export default grammar({
             field("left", $.simple_expression),
             field(
               "operator",
-              choice("~", "=", "!=", "<", ">", "<=", ">=", "&", "|"),
+              choice(
+                "~",
+                "=",
+                "!=",
+                "<",
+                ">",
+                "<=",
+                ">=",
+                "&",
+                "|",
+                "+",
+                "-",
+                "*",
+                "/",
+              ),
             ),
             field("right", $.simple_expression),
           ),
