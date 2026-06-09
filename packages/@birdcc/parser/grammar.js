@@ -680,7 +680,10 @@ export default grammar({
           3,
           seq(
             field("left", $.simple_expression),
-            field("operator", choice("~", "=", "!=", "<", ">", "<=", ">=")),
+            field(
+              "operator",
+              choice("~", "=", "!=", "<", ">", "<=", ">=", "&", "|"),
+            ),
             field("right", $.simple_expression),
           ),
         ),
@@ -704,7 +707,7 @@ export default grammar({
       prec(
         1,
         seq(
-          field("name", choice($.identifier, "filter")),
+          field("name", choice($.identifier, "filter", "defined")),
           "(",
           optional(commaSep1($.simple_expression)),
           ")",

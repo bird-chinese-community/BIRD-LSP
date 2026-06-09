@@ -173,6 +173,7 @@ const MPLS_DOMAIN_HEADER =
 const MPLS_DOMAIN_BLOCK_END = /^\s*}\s*;?\s*$/;
 const COMPOUND_CHANNEL_PHRASE =
   /\b(?:ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/i;
+const BITWISE_FILTER_TERM = /\bbt_assert\s*\([^)]*\s[&|]\s[^)]*\)\s*;/i;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -227,6 +228,14 @@ const isRecoverableSyntaxIssue = (
       CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line)) ||
       isMplsDomainBlockEndIssue(issue, lines)
     );
+  }
+
+  if (
+    issue.code === "parser/missing-symbol" &&
+    issue.message === "Missing symbol ')'" &&
+    BITWISE_FILTER_TERM.test(lineTextAt(lines, issue.line))
+  ) {
+    return true;
   }
 
   if (issue.code !== "parser/syntax-error") {

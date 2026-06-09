@@ -1155,6 +1155,78 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("extracts ASPA and defined filter calls", async () => {
+    const parsed = await parseBirdConfig(`
+      aspa table at;
+
+      function guard(bgppath p) -> bool {
+        if !defined(p) then return false;
+        bt_assert(aspa_check(at, p, true) = ASPA_VALID);
+        return aspa_check(at, p, false) = ASPA_VALID;
+      }
+    `);
+
+    const fn = parsed.program.declarations.find(
+      (item) => item.kind === "function",
+    );
+
+    expect(parsed.issues).toHaveLength(0);
+    expect(fn).toBeDefined();
+    if (fn?.kind === "function") {
+      expect(fn.calls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: "defined", argumentsText: "p" }),
+          expect.objectContaining({
+            name: "bt_assert",
+            argumentsText: "aspa_check(at, p, true) = ASPA_VALID",
+          }),
+          expect.objectContaining({
+            name: "aspa_check",
+            argumentsText: "at, p, true",
+          }),
+          expect.objectContaining({
+            name: "aspa_check",
+            argumentsText: "at, p, false",
+          }),
+        ]),
+      );
+    }
+  });
+
+  it("preserves return values in function statements", async () => {
+    const parsed = await parseBirdConfig(`
+      function callmeagain(int a; int b; int c) -> int {
+        return a + b + c;
+      }
+    `);
+
+    const fn = parsed.program.declarations.find(
+      (item) => item.kind === "function",
+    );
+
+    expect(parsed.issues).toHaveLength(0);
+    expect(fn).toBeDefined();
+    if (fn?.kind === "function") {
+      expect(fn.statements).toContainEqual(
+        expect.objectContaining({
+          kind: "return",
+          valueText: "a + b + c",
+        }),
+      );
+    }
+  });
+
+  it("parses BIRD3 bitwise filter terms", async () => {
+    const parsed = await parseBirdConfig(`
+      function bitwise() {
+        bt_assert(0xfee1a | 0xbeef = 0xffeff);
+        bt_assert(0xfee1a & 0xbeef = 0xae0a);
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+  });
+
   it("extracts filter print, unset and assignment statements", async () => {
     const sample = `
       filter export_policy

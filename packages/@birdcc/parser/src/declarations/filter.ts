@@ -102,8 +102,12 @@ const parseControlStatements = (
     }
 
     if (statementNode.type === "return_statement" || lowered === "return") {
+      const valueNode = statementNode.childForFieldName("value");
       statements.push({
         kind: "return",
+        valueText: isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined,
         ...statementRange,
       });
       continue;
@@ -293,6 +297,34 @@ const collectLiteralsAndMatches = (
   const matches: MatchExpression[] = [];
   const calls: FunctionCallExpression[] = [];
   const isIpLike = (token: string): boolean => isStrictIpLiteral(token);
+  const pushTextCall = (
+    callText: string,
+    range: ReturnType<typeof toRange>,
+  ): void => {
+    const nameMatch = callText.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/u);
+    const openParenIndex = callText.indexOf("(");
+    const closeParenIndex = callText.lastIndexOf(")");
+    if (
+      !nameMatch?.[1] ||
+      openParenIndex === -1 ||
+      closeParenIndex <= openParenIndex
+    ) {
+      return;
+    }
+
+    const name = nameMatch[1];
+    calls.push({
+      name,
+      nameRange: {
+        line: range.line,
+        column: range.column + callText.indexOf(name),
+        endLine: range.line,
+        endColumn: range.column + callText.indexOf(name) + name.length,
+      },
+      argumentsText: callText.slice(openParenIndex + 1, closeParenIndex).trim(),
+      ...range,
+    });
+  };
 
   const extractPrefixSuffix = (token: string): string | null => {
     const slashIndex = token.indexOf("/");
@@ -390,31 +422,7 @@ const collectLiteralsAndMatches = (
       }
 
       if (current.type === "function_call") {
-        const callText = textOf(current, source);
-        const nameMatch = callText.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/u);
-        const openParenIndex = callText.indexOf("(");
-        const closeParenIndex = callText.lastIndexOf(")");
-        if (
-          nameMatch?.[1] &&
-          openParenIndex !== -1 &&
-          closeParenIndex > openParenIndex
-        ) {
-          const name = nameMatch[1];
-          calls.push({
-            name,
-            nameRange: {
-              line: currentRange.line,
-              column: currentRange.column + callText.indexOf(name),
-              endLine: currentRange.line,
-              endColumn:
-                currentRange.column + callText.indexOf(name) + name.length,
-            },
-            argumentsText: callText
-              .slice(openParenIndex + 1, closeParenIndex)
-              .trim(),
-            ...currentRange,
-          });
-        }
+        pushTextCall(textOf(current, source), currentRange);
       }
 
       if (currentText.trim() === "~") {
@@ -450,6 +458,35 @@ const collectLiteralsAndMatches = (
   };
 
   collectNode(bodyNode);
+
+  const bodyText = textOf(bodyNode, source);
+  const bodyRange = toRange(bodyNode, source);
+  const sourceLines = source.split(/\r?\n/);
+  const bodyLines = bodyText.split(/\r?\n/);
+  const callPattern = /\b([A-Za-z_][A-Za-z0-9_]*)\s*\(([^();{}]*)\)/gu;
+  for (let lineOffset = 0; lineOffset < bodyLines.length; lineOffset += 1) {
+    const lineText = bodyLines[lineOffset] ?? "";
+    const sourceLine = bodyRange.line + lineOffset;
+    const sourceLineText = sourceLines[sourceLine - 1] ?? "";
+    const lineStartColumn =
+      lineOffset === 0
+        ? bodyRange.column
+        : sourceLineText.indexOf(lineText) + 1;
+
+    callPattern.lastIndex = 0;
+    let match = callPattern.exec(lineText);
+    while (match) {
+      const matchedText = match[0];
+      const startColumn = Math.max(1, lineStartColumn + match.index);
+      pushTextCall(matchedText, {
+        line: sourceLine,
+        column: startColumn,
+        endLine: sourceLine,
+        endColumn: startColumn + matchedText.length,
+      });
+      match = callPattern.exec(lineText);
+    }
+  }
 
   const literalKeys = new Set<string>();
   const uniqueLiterals: ExtractedLiteral[] = [];
