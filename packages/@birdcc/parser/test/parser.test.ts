@@ -1368,6 +1368,42 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BIRD3 BGP channel export settle time", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        ipv4 {
+          export settle time 2 s;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        expect(channel.entries).toMatchObject([
+          { kind: "bgp-export-settle-time", value: "2 s" },
+        ]);
+        expect(
+          channel.entries.some(
+            (item) =>
+              item.kind === "other" &&
+              /\bexport\s+settle\s+time\b/.test(item.text),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it("parses MPLS entries in compound MPLS channels", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

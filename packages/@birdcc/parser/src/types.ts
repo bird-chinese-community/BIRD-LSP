@@ -293,6 +293,7 @@ interface ChannelEntryBase extends SourceRange {
     | "bgp-next-hop-mode"
     | "bgp-aigp"
     | "bgp-channel-cost"
+    | "bgp-export-settle-time"
     | "other";
 }
 
@@ -427,6 +428,12 @@ export interface ChannelBgpCostEntry extends ChannelEntryBase {
   valueRange: SourceRange;
 }
 
+export interface ChannelBgpExportSettleTimeEntry extends ChannelEntryBase {
+  kind: "bgp-export-settle-time";
+  value: string;
+  valueRange: SourceRange;
+}
+
 export interface ChannelOtherEntry extends ChannelEntryBase {
   kind: "other";
   text: string;
@@ -451,6 +458,7 @@ export type ChannelEntry =
   | ChannelBgpNextHopModeEntry
   | ChannelBgpAigpEntry
   | ChannelBgpCostEntry
+  | ChannelBgpExportSettleTimeEntry
   | ChannelOtherEntry;
 
 export interface ChannelStatement extends StatementBase {

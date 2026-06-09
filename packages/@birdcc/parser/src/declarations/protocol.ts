@@ -424,6 +424,22 @@ const parseChannelEntries = (
       }
 
       if (
+        statement.kind === "export" &&
+        clauseText.startsWith("settle time ")
+      ) {
+        const valueText = (statement.clauseText ?? "")
+          .slice("settle time ".length)
+          .trim();
+        entries.push({
+          kind: "bgp-export-settle-time",
+          value: valueText,
+          valueRange: entryRange,
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
         statement.mode === "other" &&
         (clauseText.startsWith("limit ") ||
           clauseText.startsWith("keep filtered "))
