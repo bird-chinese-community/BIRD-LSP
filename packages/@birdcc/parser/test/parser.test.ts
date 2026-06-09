@@ -753,6 +753,7 @@ describe("@birdcc/parser tree-sitter", () => {
         local role provider;
         require roles no;
         disable rx yes;
+        disable after error yes;
         disable after cease yes;
         confederation 65000;
         confederation member yes;
@@ -788,6 +789,7 @@ describe("@birdcc/parser tree-sitter", () => {
         { kind: "bgp-option", option: "local-role", value: "provider" },
         { kind: "bgp-option", option: "require-roles", value: false },
         { kind: "bgp-option", option: "disable-rx", value: true },
+        { kind: "bgp-option", option: "disable-after-error", value: true },
         { kind: "bgp-option", option: "disable-after-cease", value: true },
         { kind: "bgp-option", option: "confederation", value: "65000" },
         { kind: "bgp-option", option: "confederation-member", value: true },
@@ -799,7 +801,7 @@ describe("@birdcc/parser tree-sitter", () => {
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(rr client|strict bind|passive|onlink|allow local as|bfd graceful|ttl security|check link|enforce first as|path metric|med metric|deterministic med|igp metric|prefer older|local role|require roles|disable rx|disable after cease|confederation|tx size warning|interface)\b/.test(
+            /\b(rr client|strict bind|passive|onlink|allow local as|bfd graceful|ttl security|check link|enforce first as|path metric|med metric|deterministic med|igp metric|prefer older|local role|require roles|disable rx|disable after error|disable after cease|confederation|tx size warning|interface)\b/.test(
               item.text,
             ),
         ),

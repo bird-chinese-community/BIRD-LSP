@@ -758,6 +758,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "local-role"
     | "require-roles"
     | "disable-rx"
+    | "disable-after-error"
     | "disable-after-cease"
     | "confederation"
     | "confederation-member"

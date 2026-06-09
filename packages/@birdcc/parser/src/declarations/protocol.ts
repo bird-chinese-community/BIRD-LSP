@@ -1800,6 +1800,13 @@ const parseProtocolOptionStatement = (
       phraseNodes,
       source,
       statementRange,
+      ["disable", "after", "error"],
+      "disable-after-error",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
       ["disable", "after", "cease"],
       "disable-after-cease",
     ) ??
