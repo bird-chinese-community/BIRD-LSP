@@ -630,6 +630,59 @@ const parseChannelEntries = (
         continue;
       }
 
+      if (
+        phraseTexts[0] === "require" &&
+        phraseTexts[1] === "extended" &&
+        phraseTexts[2] === "next" &&
+        phraseTexts[3] === "hop" &&
+        phraseNodes.length <= 5
+      ) {
+        const valueNode = phraseNodes[4];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-require",
+            option: "extended-next-hop",
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
+      if (
+        phraseTexts[0] === "require" &&
+        phraseTexts[1] === "add" &&
+        phraseTexts[2] === "paths" &&
+        phraseNodes.length <= 4
+      ) {
+        const valueNode = phraseNodes[3];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-require",
+            option: "add-paths",
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
       if (phraseTexts[0] === "add" && phraseTexts[1] === "paths") {
         const valueNode = phraseNodes[2];
         const valueText = isPresentNode(valueNode)

@@ -1389,6 +1389,8 @@ describe("@birdcc/parser tree-sitter", () => {
           add paths rx;
           add paths tx;
           add paths off;
+          require extended next hop on;
+          require add paths yes;
           igp table master4;
           secondary;
           extended next hop on;
@@ -1416,6 +1418,16 @@ describe("@birdcc/parser tree-sitter", () => {
           { kind: "add-paths", mode: "rx" },
           { kind: "add-paths", mode: "tx" },
           { kind: "add-paths", mode: "off" },
+          {
+            kind: "bgp-channel-require",
+            option: "extended-next-hop",
+            value: true,
+          },
+          {
+            kind: "bgp-channel-require",
+            option: "add-paths",
+            value: true,
+          },
           { kind: "igp-table", tableName: "master4" },
           { kind: "bgp-channel-option", option: "secondary", value: true },
           {
@@ -1430,7 +1442,7 @@ describe("@birdcc/parser tree-sitter", () => {
           channel.entries.some(
             (item) =>
               item.kind === "other" &&
-              /\b(gateway|add paths|igp table|secondary|extended next hop|import table|export table)\b/.test(
+              /\b(gateway|add paths|require extended next hop|require add paths|igp table|secondary|extended next hop|import table|export table)\b/.test(
                 item.text,
               ),
           ),

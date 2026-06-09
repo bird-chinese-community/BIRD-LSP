@@ -296,6 +296,7 @@ interface ChannelEntryBase extends SourceRange {
     | "add-paths"
     | "igp-table"
     | "bgp-channel-option"
+    | "bgp-channel-require"
     | "bgp-next-hop-mode"
     | "bgp-aigp"
     | "bgp-channel-cost"
@@ -412,6 +413,14 @@ export interface ChannelBgpOptionEntry extends ChannelEntryBase {
   valueRange?: SourceRange;
 }
 
+export interface ChannelBgpRequireEntry extends ChannelEntryBase {
+  kind: "bgp-channel-require";
+  option: "extended-next-hop" | "add-paths";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
 export interface ChannelBgpNextHopModeEntry extends ChannelEntryBase {
   kind: "bgp-next-hop-mode";
   option: "self" | "keep";
@@ -461,6 +470,7 @@ export type ChannelEntry =
   | ChannelAddPathsEntry
   | ChannelIgpTableEntry
   | ChannelBgpOptionEntry
+  | ChannelBgpRequireEntry
   | ChannelBgpNextHopModeEntry
   | ChannelBgpAigpEntry
   | ChannelBgpCostEntry
