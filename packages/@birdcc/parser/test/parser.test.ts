@@ -2552,10 +2552,12 @@ describe("@birdcc/parser tree-sitter", () => {
             ns 2001:db8::53;
             lifetime mult 3;
           };
+          rdnss 2001:db8::54;
           dnssl {
             domain "example.net";
             lifetime 600;
           };
+          dnssl "example.org";
         };
       }
     `;
@@ -2707,6 +2709,15 @@ describe("@birdcc/parser tree-sitter", () => {
               ]),
             }),
             expect.objectContaining({
+              kind: "rdnss",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "ns",
+                  value: "2001:db8::54",
+                }),
+              ]),
+            }),
+            expect.objectContaining({
               kind: "dnssl",
               entries: expect.arrayContaining([
                 expect.objectContaining({
@@ -2717,6 +2728,15 @@ describe("@birdcc/parser tree-sitter", () => {
                   kind: "lifetime",
                   value: "600",
                   multiplier: false,
+                }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "dnssl",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "domain",
+                  value: "example.org",
                 }),
               ]),
             }),
