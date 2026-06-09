@@ -969,6 +969,57 @@ const parseProtocolOptionStatement = (
     };
   }
 
+  if (optionText === "direct" && phraseNodes.length === 1) {
+    return {
+      kind: "bgp-hop-mode",
+      mode: "direct",
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "multihop" && phraseNodes.length <= 2) {
+    const ttlNode = phraseNodes[1];
+    return {
+      kind: "bgp-hop-mode",
+      mode: "multihop",
+      ttl: isNode(ttlNode) ? textOf(ttlNode, source) : undefined,
+      ttlRange: isNode(ttlNode) ? toRange(ttlNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "scan" &&
+    phraseTextAt(phraseNodes, 1, source) === "time" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    return {
+      kind: "scan-time",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "learn" && phraseNodes.length <= 2) {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const boolValue = parseBoolToken(valueText);
+    return {
+      kind: "learn",
+      mode:
+        valueText?.toLowerCase() === "all"
+          ? "all"
+          : boolValue === false
+            ? "off"
+            : "on",
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
   return undefined;
 };
 

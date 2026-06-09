@@ -113,7 +113,10 @@ interface StatementBase extends SourceRange {
     | "vrf"
     | "bgp-timer"
     | "source-address"
-    | "bgp-option";
+    | "bgp-option"
+    | "bgp-hop-mode"
+    | "scan-time"
+    | "learn";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -379,6 +382,26 @@ export interface BgpOptionStatement extends StatementBase {
   valueRange?: SourceRange;
 }
 
+export interface BgpHopModeStatement extends StatementBase {
+  kind: "bgp-hop-mode";
+  mode: "direct" | "multihop";
+  ttl?: string;
+  ttlRange?: SourceRange;
+}
+
+export interface ScanTimeStatement extends StatementBase {
+  kind: "scan-time";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface LearnStatement extends StatementBase {
+  kind: "learn";
+  mode: "on" | "off" | "all";
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -397,6 +420,9 @@ export type ProtocolStatement =
   | BgpTimerStatement
   | SourceAddressStatement
   | BgpOptionStatement
+  | BgpHopModeStatement
+  | ScanTimeStatement
+  | LearnStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {

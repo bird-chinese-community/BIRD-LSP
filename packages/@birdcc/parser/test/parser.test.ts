@@ -438,6 +438,37 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP hop mode statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        multihop;
+        multihop 8;
+        direct;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "bgp-hop-mode", mode: "multihop" },
+        { kind: "bgp-hop-mode", mode: "multihop", ttl: "8" },
+        { kind: "bgp-hop-mode", mode: "direct" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" && /\b(multihop|direct)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
@@ -649,6 +680,44 @@ describe("@birdcc/parser tree-sitter", () => {
         },
       ]);
     }
+  });
+
+  it("parses scan time and kernel learn statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol device {
+        scan time 5;
+      }
+
+      protocol kernel {
+        scan time 20;
+        learn;
+        learn off;
+        learn all;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocols = parsed.program.declarations.filter(
+      (item) => item.kind === "protocol",
+    );
+    const statements = protocols.flatMap((item) =>
+      item.kind === "protocol" ? item.statements : [],
+    );
+
+    expect(statements).toMatchObject([
+      { kind: "scan-time", value: "5" },
+      { kind: "scan-time", value: "20" },
+      { kind: "learn", mode: "on" },
+      { kind: "learn", mode: "off" },
+      { kind: "learn", mode: "all" },
+    ]);
+    expect(
+      statements.some(
+        (item) =>
+          item.kind === "other" && /\b(scan time|learn)\b/.test(item.text),
+      ),
+    ).toBe(false);
   });
 
   it("parses chained where expressions in protocol channels", async () => {

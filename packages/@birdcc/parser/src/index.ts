@@ -13,6 +13,7 @@ import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 export type {
   AcceptStatement,
   AttributeDeclaration,
+  BgpHopModeStatement,
   BgpOptionStatement,
   BgpTimerStatement,
   BirdDeclaration,
@@ -60,11 +61,13 @@ export type {
   RejectStatement,
   ReturnStatement,
   RouterIdDeclaration,
+  ScanTimeStatement,
   SourceRange,
   SourceAddressStatement,
   StaticRouteStatement,
   TableDeclaration,
   TemplateDeclaration,
+  LearnStatement,
   VrfStatement,
 } from "./types.js";
 
