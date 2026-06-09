@@ -950,6 +950,9 @@ interface OspfAreaEntryBase extends SourceRange {
     | "stub-cost"
     | "translator"
     | "translator-stability"
+    | "networks"
+    | "external"
+    | "stubnet"
     | "other";
 }
 
@@ -966,6 +969,54 @@ export interface OspfAreaValueEntry extends OspfAreaEntryBase {
   valueRange: SourceRange;
 }
 
+export interface OspfAreaPrefixListItem extends SourceRange {
+  prefix: string;
+  prefixRange: SourceRange;
+  hidden?: boolean;
+  hiddenRange?: SourceRange;
+  tag?: string;
+  tagRange?: SourceRange;
+}
+
+export interface OspfAreaPrefixListEntry extends OspfAreaEntryBase {
+  kind: "networks" | "external";
+  entries: OspfAreaPrefixListItem[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface OspfAreaStubnetBoolEntry extends SourceRange {
+  kind: "hidden" | "summary";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface OspfAreaStubnetCostEntry extends SourceRange {
+  kind: "cost";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaStubnetOtherEntry extends SourceRange {
+  kind: "other";
+  text: string;
+}
+
+export type OspfAreaStubnetEntry =
+  | OspfAreaStubnetBoolEntry
+  | OspfAreaStubnetCostEntry
+  | OspfAreaStubnetOtherEntry;
+
+export interface OspfAreaStubnetEntryStatement extends OspfAreaEntryBase {
+  kind: "stubnet";
+  prefix: string;
+  prefixRange: SourceRange;
+  entries: OspfAreaStubnetEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface OspfAreaOtherEntry extends OspfAreaEntryBase {
   kind: "other";
   text: string;
@@ -974,6 +1025,8 @@ export interface OspfAreaOtherEntry extends OspfAreaEntryBase {
 export type OspfAreaEntry =
   | OspfAreaBoolEntry
   | OspfAreaValueEntry
+  | OspfAreaPrefixListEntry
+  | OspfAreaStubnetEntryStatement
   | OspfAreaOtherEntry;
 
 export interface OspfAreaStatement extends StatementBase {

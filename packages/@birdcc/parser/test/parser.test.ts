@@ -2385,6 +2385,85 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses OSPF area networks and stubnets", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          networks {
+            10.0.0.0/24;
+            10.0.1.0/24 hidden;
+            10.0.2.0/24 tag 65000;
+          };
+          external {
+            192.0.2.0/24 tag 100;
+          };
+          stubnet 10.0.3.0/24 {
+            hidden yes;
+            summary no;
+            cost 50;
+          };
+          stubnet 10.0.4.0/24;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "networks",
+              entries: expect.arrayContaining([
+                expect.objectContaining({ prefix: "10.0.0.0/24" }),
+                expect.objectContaining({
+                  prefix: "10.0.1.0/24",
+                  hidden: true,
+                }),
+                expect.objectContaining({
+                  prefix: "10.0.2.0/24",
+                  tag: "65000",
+                }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "external",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  prefix: "192.0.2.0/24",
+                  tag: "100",
+                }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "stubnet",
+              prefix: "10.0.3.0/24",
+              entries: expect.arrayContaining([
+                expect.objectContaining({ kind: "hidden", value: true }),
+                expect.objectContaining({ kind: "summary", value: false }),
+                expect.objectContaining({ kind: "cost", value: "50" }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "stubnet",
+              prefix: "10.0.4.0/24",
+              entries: [],
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("preserves multi-line protocol statements as a single other entry", async () => {
     const sample = `
       protocol ospf core {

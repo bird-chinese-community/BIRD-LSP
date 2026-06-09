@@ -2630,6 +2630,96 @@ const parseOspfOptionTextStatement = (
   return undefined;
 };
 
+const parseOspfAreaPrefixListEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"][number],
+  { kind: "networks" | "external" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const prefixMatch = item.match(/^(\S+)(?:\s+(hidden|tag\s+(.+)))?$/iu);
+      const prefix = prefixMatch?.[1] ?? item;
+      const tag = prefixMatch?.[3]?.trim();
+      const hidden = prefixMatch?.[2]?.toLowerCase() === "hidden";
+      return {
+        prefix,
+        prefixRange: tokenRange(prefix),
+        hidden: hidden ? true : undefined,
+        hiddenRange: hidden
+          ? tokenRange(prefixMatch?.[2] ?? "hidden")
+          : undefined,
+        tag,
+        tagRange: tag ? tokenRange(tag) : undefined,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseOspfAreaStubnetEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"][number],
+  { kind: "stubnet" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const boolMatch = item.match(/^(hidden|summary)(?:\s+(\S+))?$/iu);
+      if (boolMatch?.[1]) {
+        const valueText = boolMatch[2];
+        const value = parseBoolToken(valueText);
+        if (value === undefined) {
+          return {
+            kind: "other",
+            text: item,
+            ...bodyRange,
+          };
+        }
+
+        return {
+          kind: boolMatch[1].toLowerCase() as "hidden" | "summary",
+          value,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const costMatch = item.match(/^cost\s+(.+)$/iu);
+      if (costMatch?.[1]) {
+        const value = costMatch[1].trim();
+        return {
+          kind: "cost",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
 const parseOspfAreaEntries = (
   bodyText: string,
   bodyRange: SourceRange,
@@ -2725,6 +2815,52 @@ const parseOspfAreaEntries = (
           kind: "translator-stability",
           value,
           valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const prefixListMatch = item.match(
+        /^(networks|external)\s+(\{[\s\S]*\})$/iu,
+      );
+      if (prefixListMatch?.[1] && prefixListMatch[2]) {
+        const bodyText = prefixListMatch[2];
+        const prefixListBodyRange = tokenRange(bodyText);
+        return {
+          kind: prefixListMatch[1].toLowerCase() as "networks" | "external",
+          entries: parseOspfAreaPrefixListEntries(
+            bodyText,
+            prefixListBodyRange,
+            tokenRange,
+          ),
+          bodyText,
+          bodyRange: prefixListBodyRange,
+          ...bodyRange,
+        };
+      }
+
+      const stubnetMatch = item.match(
+        /^stubnet\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu,
+      );
+      if (stubnetMatch?.[1]) {
+        const prefix = stubnetMatch[1];
+        const stubnetBodyText = stubnetMatch[2];
+        const stubnetBodyRange = stubnetBodyText
+          ? tokenRange(stubnetBodyText)
+          : undefined;
+        return {
+          kind: "stubnet",
+          prefix,
+          prefixRange: tokenRange(prefix),
+          entries:
+            stubnetBodyText && stubnetBodyRange
+              ? parseOspfAreaStubnetEntries(
+                  stubnetBodyText,
+                  stubnetBodyRange,
+                  tokenRange,
+                )
+              : [],
+          bodyText: stubnetBodyText,
+          bodyRange: stubnetBodyRange,
           ...bodyRange,
         };
       }
