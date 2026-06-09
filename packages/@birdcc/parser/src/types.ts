@@ -224,6 +224,7 @@ interface StatementBase extends SourceRange {
     | "evpn-vlan"
     | "bridge-option"
     | "ospf-option"
+    | "ospf-area"
     | "babel-option"
     | "babel-interface"
     | "radv-interface"
@@ -938,6 +939,52 @@ export interface OspfOptionStatement extends StatementBase {
   limitRange?: SourceRange;
 }
 
+interface OspfAreaEntryBase extends SourceRange {
+  kind:
+    | "stub"
+    | "nssa"
+    | "summary"
+    | "default-nssa"
+    | "default-cost"
+    | "default-cost2"
+    | "stub-cost"
+    | "translator"
+    | "translator-stability"
+    | "other";
+}
+
+export interface OspfAreaBoolEntry extends OspfAreaEntryBase {
+  kind: "stub" | "nssa" | "summary" | "default-nssa" | "translator";
+  value?: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface OspfAreaValueEntry extends OspfAreaEntryBase {
+  kind: "default-cost" | "default-cost2" | "stub-cost" | "translator-stability";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface OspfAreaOtherEntry extends OspfAreaEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type OspfAreaEntry =
+  | OspfAreaBoolEntry
+  | OspfAreaValueEntry
+  | OspfAreaOtherEntry;
+
+export interface OspfAreaStatement extends StatementBase {
+  kind: "ospf-area";
+  areaId: string;
+  areaIdRange: SourceRange;
+  entries: OspfAreaEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface BabelOptionStatement extends StatementBase {
   kind: "babel-option";
   option: "randomize-router-id";
@@ -1274,6 +1321,7 @@ export type ProtocolStatement =
   | EvpnVlanStatement
   | BridgeOptionStatement
   | OspfOptionStatement
+  | OspfAreaStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
   | RadvInterfaceStatement

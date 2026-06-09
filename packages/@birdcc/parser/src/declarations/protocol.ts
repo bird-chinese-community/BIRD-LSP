@@ -2630,6 +2630,138 @@ const parseOspfOptionTextStatement = (
   return undefined;
 };
 
+const parseOspfAreaEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "ospf-area" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const boolMatch = item.match(
+        /^(stub|nssa|summary|translator)(?:\s+(\S+))?$/iu,
+      );
+      if (boolMatch?.[1]) {
+        const valueText = boolMatch[2];
+        const value = parseBoolToken(valueText);
+        if (value === undefined) {
+          return {
+            kind: "other",
+            text: item,
+            ...bodyRange,
+          };
+        }
+
+        return {
+          kind: boolMatch[1].toLowerCase() as
+            | "stub"
+            | "nssa"
+            | "summary"
+            | "translator",
+          value,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const defaultNssaMatch = item.match(/^default\s+nssa(?:\s+(\S+))?$/iu);
+      if (defaultNssaMatch) {
+        const valueText = defaultNssaMatch[1];
+        const value = parseBoolToken(valueText);
+        if (value === undefined) {
+          return {
+            kind: "other",
+            text: item,
+            ...bodyRange,
+          };
+        }
+
+        return {
+          kind: "default-nssa",
+          value,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const defaultCostMatch = item.match(/^default\s+(cost2|cost)\s+(.+)$/iu);
+      if (defaultCostMatch?.[1] && defaultCostMatch[2]) {
+        const value = defaultCostMatch[2].trim();
+        return {
+          kind:
+            defaultCostMatch[1].toLowerCase() === "cost2"
+              ? "default-cost2"
+              : "default-cost",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const stubCostMatch = item.match(/^stub\s+cost\s+(.+)$/iu);
+      if (stubCostMatch?.[1]) {
+        const value = stubCostMatch[1].trim();
+        return {
+          kind: "stub-cost",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const translatorStabilityMatch = item.match(
+        /^translator\s+stability\s+(.+)$/iu,
+      );
+      if (translatorStabilityMatch?.[1]) {
+        const value = translatorStabilityMatch[1].trim();
+        return {
+          kind: "translator-stability",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseOspfAreaTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const areaMatch = trimmed.match(/^area\s+(\S+)\s+(\{[\s\S]*\})$/iu);
+  if (!areaMatch?.[1] || !areaMatch[2]) {
+    return undefined;
+  }
+
+  const areaId = areaMatch[1];
+  const bodyText = areaMatch[2];
+  const bodyRange = tokenRange(bodyText);
+  return {
+    kind: "ospf-area",
+    areaId,
+    areaIdRange: tokenRange(areaId),
+    entries: parseOspfAreaEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseBabelTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -4081,11 +4213,14 @@ export const parseProtocolStatements = (
       }
 
       if (protocolType.toLowerCase().startsWith("ospf")) {
-        const ospfStatement = parseOspfOptionTextStatement(
-          textOf(statementNode, source),
-          statementRange,
-          (token) => rangeForStatementToken(source, statementNode, token),
-        );
+        const statementText = textOf(statementNode, source);
+        const ospfStatement =
+          parseOspfAreaTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          ) ??
+          parseOspfOptionTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          );
         if (ospfStatement) {
           statements.push(ospfStatement);
           continue;
@@ -4231,9 +4366,12 @@ export const parseProtocolStatements = (
             )
           : undefined;
       const ospfStatement = protocolType.toLowerCase().startsWith("ospf")
-        ? parseOspfOptionTextStatement(text, fallbackRange, (token) =>
+        ? (parseOspfAreaTextStatement(text, fallbackRange, (token) =>
             rangeForTextToken(source, fallbackRange, token),
-          )
+          ) ??
+          parseOspfOptionTextStatement(text, fallbackRange, (token) =>
+            rangeForTextToken(source, fallbackRange, token),
+          ))
         : undefined;
       const bfdStatement =
         protocolType === "bfd"

@@ -2325,6 +2325,66 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses OSPF area scalar options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          stub no;
+          nssa;
+          summary yes;
+          default nssa no;
+          default cost 10;
+          default cost2 20;
+          stub cost 30;
+          translator yes;
+          translator stability 40;
+          interface "eth0" { cost 10; };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area).toEqual(
+        expect.objectContaining({
+          kind: "ospf-area",
+          areaId: "0",
+          entries: expect.arrayContaining([
+            expect.objectContaining({ kind: "stub", value: false }),
+            expect.objectContaining({ kind: "nssa" }),
+            expect.objectContaining({ kind: "summary", value: true }),
+            expect.objectContaining({ kind: "default-nssa", value: false }),
+            expect.objectContaining({ kind: "default-cost", value: "10" }),
+            expect.objectContaining({ kind: "default-cost2", value: "20" }),
+            expect.objectContaining({ kind: "stub-cost", value: "30" }),
+            expect.objectContaining({ kind: "translator", value: true }),
+            expect.objectContaining({
+              kind: "translator-stability",
+              value: "40",
+            }),
+            expect.objectContaining({
+              kind: "other",
+              text: 'interface "eth0" { cost 10; }',
+            }),
+          ]),
+        }),
+      );
+      expect(
+        protocol.statements.some(
+          (item) => item.kind === "other" && /\barea\s+0\s*\{/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("preserves multi-line protocol statements as a single other entry", async () => {
     const sample = `
       protocol ospf core {
