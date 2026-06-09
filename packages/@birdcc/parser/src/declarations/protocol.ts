@@ -1896,6 +1896,13 @@ const parseProtocolOptionStatement = (
       phraseNodes,
       source,
       statementRange,
+      ["long", "lived", "stale", "time"],
+      "long-lived-stale-time",
+    ) ??
+    parseBgpPhraseValueOption(
+      phraseNodes,
+      source,
+      statementRange,
       ["default", "bgp_med"],
       "default-bgp-med",
     ) ??

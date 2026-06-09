@@ -1225,6 +1225,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP long lived stale time option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        long lived stale time 3600;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "long-lived-stale-time",
+            value: "3600",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\blong lived stale time\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP authentication statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
