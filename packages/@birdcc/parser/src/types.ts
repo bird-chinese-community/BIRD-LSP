@@ -191,6 +191,7 @@ interface StatementBase extends SourceRange {
     | "bgp-option"
     | "bgp-hop-mode"
     | "mrt-option"
+    | "aggregator-option"
     | "scan-time"
     | "learn"
     | "interface"
@@ -543,6 +544,16 @@ export interface MrtOptionStatement extends StatementBase {
   valueRange?: SourceRange;
 }
 
+export interface AggregatorOptionStatement extends StatementBase {
+  kind: "aggregator-option";
+  option: "table" | "peer-table" | "aggregate-on" | "merge-by";
+  value?: string;
+  valueText?: string;
+  valueRange?: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -640,6 +651,7 @@ export type ProtocolStatement =
   | BgpOptionStatement
   | BgpHopModeStatement
   | MrtOptionStatement
+  | AggregatorOptionStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

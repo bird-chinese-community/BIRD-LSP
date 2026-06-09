@@ -629,6 +629,59 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses aggregator protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol aggregator agr_sample {
+        table master4;
+        export all;
+        aggregate on net, bgp_path.len;
+        merge by {
+          accept;
+        };
+        import all;
+        peer table agr_result;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("aggregator");
+      expect(protocol.statements).toMatchObject([
+        { kind: "aggregator-option", option: "table", value: "master4" },
+        { kind: "export", mode: "all" },
+        {
+          kind: "aggregator-option",
+          option: "aggregate-on",
+          value: "net, bgp_path.len",
+        },
+        {
+          kind: "aggregator-option",
+          option: "merge-by",
+          bodyText: "{\n          accept;\n        }",
+        },
+        { kind: "import", mode: "all" },
+        {
+          kind: "aggregator-option",
+          option: "peer-table",
+          value: "agr_result",
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(table|aggregate on|merge by|peer table)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

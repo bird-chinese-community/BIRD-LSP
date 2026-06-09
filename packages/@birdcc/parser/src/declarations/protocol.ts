@@ -1480,6 +1480,96 @@ const parseMrtOptionStatement = (
   return undefined;
 };
 
+const parseAggregatorOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const optionNode = phraseNodes[0];
+  if (!isNode(optionNode)) {
+    return undefined;
+  }
+
+  const statementRange = toRange(statementNode, source);
+  const optionText = textOf(optionNode, source).toLowerCase();
+
+  if (optionText === "table" && isNode(phraseNodes[1])) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "aggregator-option",
+      option: "table",
+      value: valueText,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "peer" &&
+    phraseTextAt(phraseNodes, 1, source) === "table" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "aggregator-option",
+      option: "peer-table",
+      value: valueText,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "aggregate" &&
+    phraseTextAt(phraseNodes, 1, source) === "on"
+  ) {
+    const onNode = phraseNodes[1];
+    if (!isNode(onNode)) {
+      return undefined;
+    }
+
+    const value = statementTailAfterNode(statementNode, onNode, source);
+    if (!value) {
+      return undefined;
+    }
+    const valueText = value.text.replace(/\s*,\s*/gu, ", ");
+
+    return {
+      kind: "aggregator-option",
+      option: "aggregate-on",
+      value: valueText,
+      valueText,
+      valueRange: value.range,
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "merge" && phraseTextAt(phraseNodes, 1, source) === "by") {
+    const bodyNode = statementNode.childForFieldName("body");
+    if (!isPresentNode(bodyNode)) {
+      return undefined;
+    }
+
+    return {
+      kind: "aggregator-option",
+      option: "merge-by",
+      bodyText: textOf(bodyNode, source),
+      bodyRange: toRange(bodyNode, source),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -2136,6 +2226,17 @@ export const parseProtocolStatements = (
         const mrtOption = parseMrtOptionStatement(statementNode, source);
         if (mrtOption) {
           statements.push(mrtOption);
+          continue;
+        }
+      }
+
+      if (protocolType === "aggregator") {
+        const aggregatorOption = parseAggregatorOptionStatement(
+          statementNode,
+          source,
+        );
+        if (aggregatorOption) {
+          statements.push(aggregatorOption);
           continue;
         }
       }
