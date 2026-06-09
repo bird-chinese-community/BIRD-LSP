@@ -1725,6 +1725,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["disable", "after", "cease"],
       "disable-after-cease",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["confederation", "member"],
+      "confederation-member",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;
@@ -1744,6 +1751,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["tx", "size", "warning"],
       "tx-size-warning",
+    ) ??
+    parseBgpPhraseValueOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["confederation"],
+      "confederation",
     );
   if (bgpSessionValueOption) {
     return bgpSessionValueOption;

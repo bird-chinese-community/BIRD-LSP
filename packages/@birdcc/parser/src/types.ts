@@ -726,6 +726,8 @@ export interface BgpOptionStatement extends StatementBase {
     | "require-roles"
     | "disable-rx"
     | "disable-after-cease"
+    | "confederation"
+    | "confederation-member"
     | "tx-size-warning";
   value?: boolean | string;
   valueText?: string;
