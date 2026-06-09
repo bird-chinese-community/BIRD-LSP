@@ -197,6 +197,8 @@ interface StatementBase extends SourceRange {
     | "bfd-profile"
     | "bfd-neighbor"
     | "vpn-option"
+    | "evpn-encapsulation"
+    | "evpn-vlan"
     | "babel-option"
     | "babel-interface"
     | "radv-interface"
@@ -702,6 +704,78 @@ export interface VpnOptionStatement extends StatementBase {
   valueRange: SourceRange;
 }
 
+interface EvpnEncapsulationEntryBase extends SourceRange {
+  kind: "tunnel-device" | "router-address" | "default" | "other";
+}
+
+export interface EvpnTunnelDeviceEntry extends EvpnEncapsulationEntryBase {
+  kind: "tunnel-device";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface EvpnRouterAddressEntry extends EvpnEncapsulationEntryBase {
+  kind: "router-address";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+}
+
+export interface EvpnDefaultEntry extends EvpnEncapsulationEntryBase {
+  kind: "default";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface EvpnEncapsulationOtherEntry extends EvpnEncapsulationEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type EvpnEncapsulationEntry =
+  | EvpnTunnelDeviceEntry
+  | EvpnRouterAddressEntry
+  | EvpnDefaultEntry
+  | EvpnEncapsulationOtherEntry;
+
+export interface EvpnEncapsulationStatement extends StatementBase {
+  kind: "evpn-encapsulation";
+  encapsulation: "vxlan" | "other";
+  encapsulationText: string;
+  encapsulationRange: SourceRange;
+  entries: EvpnEncapsulationEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+interface EvpnVlanEntryBase extends SourceRange {
+  kind: "range" | "vni" | "vid" | "other";
+}
+
+export interface EvpnVlanValueEntry extends EvpnVlanEntryBase {
+  kind: "range" | "vni" | "vid";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface EvpnVlanOtherEntry extends EvpnVlanEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type EvpnVlanEntry = EvpnVlanValueEntry | EvpnVlanOtherEntry;
+
+export interface EvpnVlanStatement extends StatementBase {
+  kind: "evpn-vlan";
+  id: string;
+  idRange: SourceRange;
+  entries: EvpnVlanEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface BabelOptionStatement extends StatementBase {
   kind: "babel-option";
   option: "randomize-router-id";
@@ -1026,6 +1100,8 @@ export type ProtocolStatement =
   | BfdProfileStatement
   | BfdNeighborStatement
   | VpnOptionStatement
+  | EvpnEncapsulationStatement
+  | EvpnVlanStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
   | RadvInterfaceStatement

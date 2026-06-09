@@ -2024,6 +2024,145 @@ const parseVpnOptionTextStatement = (
   return undefined;
 };
 
+const parseEvpnEncapsulationEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "evpn-encapsulation" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const tunnelDeviceMatch = item.match(/^tunnel\s+device\s+(.+)$/iu);
+      if (tunnelDeviceMatch?.[1]) {
+        const valueText = tunnelDeviceMatch[1].trim();
+        return {
+          kind: "tunnel-device",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
+      const routerAddressMatch = item.match(/^router\s+address\s+(\S+)$/iu);
+      if (routerAddressMatch?.[1]) {
+        const address = routerAddressMatch[1];
+        return {
+          kind: "router-address",
+          address,
+          addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+          addressRange: tokenRange(address),
+          ...bodyRange,
+        };
+      }
+
+      const defaultMatch = item.match(/^default(?:\s+(\S+))?$/iu);
+      if (defaultMatch) {
+        const valueText = defaultMatch[1];
+        return {
+          kind: "default",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseEvpnVlanEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "evpn-vlan" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const valueMatch = item.match(/^(range|vni|vid)\s+(.+)$/iu);
+      if (valueMatch?.[1] && valueMatch[2]) {
+        const value = valueMatch[2].trim();
+        return {
+          kind: valueMatch[1].toLowerCase() as "range" | "vni" | "vid",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseEvpnTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const encapsulationMatch = trimmed.match(
+    /^encapsulation\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu,
+  );
+  if (encapsulationMatch?.[1]) {
+    const encapsulationText = encapsulationMatch[1].toLowerCase();
+    const bodyText = encapsulationMatch[2];
+    const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
+    return {
+      kind: "evpn-encapsulation",
+      encapsulation: encapsulationText === "vxlan" ? "vxlan" : "other",
+      encapsulationText,
+      encapsulationRange: tokenRange(encapsulationMatch[1]),
+      entries:
+        bodyText && bodyRange
+          ? parseEvpnEncapsulationEntries(bodyText, bodyRange, tokenRange)
+          : [],
+      bodyText,
+      bodyRange,
+      ...statementRange,
+    };
+  }
+
+  const vlanMatch = trimmed.match(/^vlan\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
+  if (vlanMatch?.[1]) {
+    const id = vlanMatch[1];
+    const bodyText = vlanMatch[2];
+    const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
+    return {
+      kind: "evpn-vlan",
+      id,
+      idRange: tokenRange(id),
+      entries:
+        bodyText && bodyRange
+          ? parseEvpnVlanEntries(bodyText, bodyRange, tokenRange)
+          : [],
+      bodyText,
+      bodyRange,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseBabelTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -3337,6 +3476,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "evpn") {
+        const evpnStatement = parseEvpnTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (evpnStatement) {
+          statements.push(evpnStatement);
+          continue;
+        }
+      }
+
       if (protocolType === "mrt") {
         const mrtOption = parseMrtOptionStatement(statementNode, source);
         if (mrtOption) {
@@ -3511,6 +3662,12 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             )
           : undefined;
+      const evpnStatement =
+        protocolType === "evpn"
+          ? parseEvpnTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       const bfdStatement =
         protocolType === "bfd"
           ? parseBfdTextStatement(text, fallbackRange, (token) =>
@@ -3534,6 +3691,7 @@ export const parseProtocolStatements = (
           : undefined;
       statements.push(
         vpnOption ??
+          evpnStatement ??
           bfdStatement ??
           babelStatement ??
           radvStatement ?? {

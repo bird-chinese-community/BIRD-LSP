@@ -981,6 +981,101 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses EVPN encapsulation blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol evpn fabric_evpn {
+        encapsulation vxlan {
+          tunnel device "vxlan100";
+          router address 192.0.2.1;
+          default yes;
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("evpn");
+      expect(protocol.statements).toContainEqual(
+        expect.objectContaining({
+          kind: "evpn-encapsulation",
+          encapsulation: "vxlan",
+          entries: expect.arrayContaining([
+            expect.objectContaining({
+              kind: "tunnel-device",
+              value: "vxlan100",
+            }),
+            expect.objectContaining({
+              kind: "router-address",
+              address: "192.0.2.1",
+              addressKind: "ip",
+            }),
+            expect.objectContaining({
+              kind: "default",
+              value: true,
+            }),
+          ]),
+        }),
+      );
+    }
+  });
+
+  it("parses EVPN vlan statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol evpn fabric_evpn {
+        vlan 20 {
+          range 4;
+          vni 10020;
+          vid 20;
+        };
+        vlan 30;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("evpn");
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "evpn-vlan",
+            id: "20",
+            entries: expect.arrayContaining([
+              expect.objectContaining({
+                kind: "range",
+                value: "4",
+              }),
+              expect.objectContaining({
+                kind: "vni",
+                value: "10020",
+              }),
+              expect.objectContaining({
+                kind: "vid",
+                value: "20",
+              }),
+            ]),
+          }),
+          expect.objectContaining({
+            kind: "evpn-vlan",
+            id: "30",
+            entries: [],
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
