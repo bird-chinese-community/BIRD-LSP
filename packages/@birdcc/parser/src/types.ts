@@ -197,6 +197,8 @@ interface StatementBase extends SourceRange {
     | "bfd-profile"
     | "bfd-neighbor"
     | "vpn-option"
+    | "babel-option"
+    | "babel-interface"
     | "scan-time"
     | "learn"
     | "interface"
@@ -699,6 +701,148 @@ export interface VpnOptionStatement extends StatementBase {
   valueRange: SourceRange;
 }
 
+export interface BabelOptionStatement extends StatementBase {
+  kind: "babel-option";
+  option: "randomize-router-id";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+interface BabelInterfaceEntryBase extends SourceRange {
+  kind:
+    | "type"
+    | "rxcost"
+    | "limit"
+    | "timer"
+    | "buffer"
+    | "tx-length"
+    | "tx"
+    | "tx-priority"
+    | "check-link"
+    | "next-hop"
+    | "next-hop-prefer"
+    | "extended-next-hop"
+    | "authentication"
+    | "password"
+    | "rtt"
+    | "send-timestamps"
+    | "other";
+}
+
+export interface BabelInterfaceTypeEntry extends BabelInterfaceEntryBase {
+  kind: "type";
+  value: "wired" | "wireless" | "tunnel" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceValueEntry extends BabelInterfaceEntryBase {
+  kind: "rxcost" | "limit" | "tx-length";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceTimerEntry extends BabelInterfaceEntryBase {
+  kind: "timer";
+  option: "hello-interval" | "update-interval";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceBufferEntry extends BabelInterfaceEntryBase {
+  kind: "buffer";
+  option: "rx-buffer";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceTxEntry extends BabelInterfaceEntryBase {
+  kind: "tx";
+  option: string;
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfacePriorityEntry extends BabelInterfaceEntryBase {
+  kind: "tx-priority";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceBoolEntry extends BabelInterfaceEntryBase {
+  kind: "check-link" | "extended-next-hop" | "send-timestamps";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface BabelInterfaceNextHopEntry extends BabelInterfaceEntryBase {
+  kind: "next-hop";
+  family: "ipv4" | "ipv6";
+  address: string;
+  addressKind: "ip" | "other";
+  addressRange: SourceRange;
+}
+
+export interface BabelInterfaceNextHopPreferEntry extends BabelInterfaceEntryBase {
+  kind: "next-hop-prefer";
+  value: "native" | "ipv6" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceAuthenticationEntry extends BabelInterfaceEntryBase {
+  kind: "authentication";
+  authType: string;
+  authTypeRange: SourceRange;
+  permissive: boolean;
+  permissiveRange?: SourceRange;
+}
+
+export interface BabelInterfacePasswordEntry extends BabelInterfaceEntryBase {
+  kind: "password";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceRttEntry extends BabelInterfaceEntryBase {
+  kind: "rtt";
+  option: "min" | "max" | "cost" | "decay";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface BabelInterfaceOtherEntry extends BabelInterfaceEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type BabelInterfaceEntry =
+  | BabelInterfaceTypeEntry
+  | BabelInterfaceValueEntry
+  | BabelInterfaceTimerEntry
+  | BabelInterfaceBufferEntry
+  | BabelInterfaceTxEntry
+  | BabelInterfacePriorityEntry
+  | BabelInterfaceBoolEntry
+  | BabelInterfaceNextHopEntry
+  | BabelInterfaceNextHopPreferEntry
+  | BabelInterfaceAuthenticationEntry
+  | BabelInterfacePasswordEntry
+  | BabelInterfaceRttEntry
+  | BabelInterfaceOtherEntry;
+
+export interface BabelInterfaceStatement extends StatementBase {
+  kind: "babel-interface";
+  patterns: string[];
+  patternRanges: SourceRange[];
+  entries: BabelInterfaceEntry[];
+  bodyText: string;
+  bodyRange: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -802,6 +946,8 @@ export type ProtocolStatement =
   | BfdProfileStatement
   | BfdNeighborStatement
   | VpnOptionStatement
+  | BabelOptionStatement
+  | BabelInterfaceStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

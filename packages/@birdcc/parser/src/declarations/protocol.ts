@@ -2024,6 +2024,291 @@ const parseVpnOptionTextStatement = (
   return undefined;
 };
 
+const parseBabelTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const randomizeRouterIdMatch = trimmed.match(
+    /^randomize\s+router\s+id(?:\s+(\S+))?$/iu,
+  );
+  if (randomizeRouterIdMatch) {
+    const valueText = randomizeRouterIdMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "babel-option",
+      option: "randomize-router-id",
+      value,
+      valueText,
+      valueRange: valueText ? tokenRange(valueText) : undefined,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
+const parseBabelInterfaceEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "babel-interface" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return body
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const typeMatch = item.match(/^type\s+(\S+)$/iu);
+      if (typeMatch?.[1]) {
+        const valueText = typeMatch[1].toLowerCase();
+        return {
+          kind: "type",
+          value:
+            valueText === "wired" ||
+            valueText === "wireless" ||
+            valueText === "tunnel"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(typeMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const simpleValueMatch = item.match(
+        /^(rxcost|limit|tx\s+length)\s+(.+)$/iu,
+      );
+      if (simpleValueMatch?.[1] && simpleValueMatch[2]) {
+        const option = simpleValueMatch[1].toLowerCase();
+        const kind =
+          option === "rxcost"
+            ? "rxcost"
+            : option === "limit"
+              ? "limit"
+              : "tx-length";
+        const value = simpleValueMatch[2].trim();
+        return {
+          kind,
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const timerMatch = item.match(/^(hello|update)\s+interval\s+(.+)$/iu);
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const value = timerMatch[2].trim();
+        return {
+          kind: "timer",
+          option:
+            timerMatch[1].toLowerCase() === "hello"
+              ? "hello-interval"
+              : "update-interval",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const bufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
+      if (bufferMatch?.[1]) {
+        const value = bufferMatch[1].trim();
+        return {
+          kind: "buffer",
+          option: "rx-buffer",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const txMatch = item.match(
+        /^tx\s+(?!length\b|priority\b)(\S+)\s+(.+)$/iu,
+      );
+      if (txMatch?.[1] && txMatch[2]) {
+        const value = txMatch[2].trim();
+        return {
+          kind: "tx",
+          option: txMatch[1].toLowerCase(),
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const txPriorityMatch = item.match(/^tx\s+priority\s+(.+)$/iu);
+      if (txPriorityMatch?.[1]) {
+        const value = txPriorityMatch[1].trim();
+        return {
+          kind: "tx-priority",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const checkLinkMatch = item.match(/^check\s+link(?:\s+(\S+))?$/iu);
+      if (checkLinkMatch) {
+        const valueText = checkLinkMatch[1];
+        return {
+          kind: "check-link",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const nextHopMatch = item.match(/^next\s+hop\s+(ipv4|ipv6)\s+(\S+)$/iu);
+      if (nextHopMatch?.[1] && nextHopMatch[2]) {
+        const family = nextHopMatch[1].toLowerCase() as "ipv4" | "ipv6";
+        const address = nextHopMatch[2];
+        return {
+          kind: "next-hop",
+          family,
+          address,
+          addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
+          addressRange: tokenRange(address),
+          ...bodyRange,
+        };
+      }
+
+      const nextHopPreferMatch = item.match(/^next\s+hop\s+prefer\s+(\S+)$/iu);
+      if (nextHopPreferMatch?.[1]) {
+        const valueText = nextHopPreferMatch[1].toLowerCase();
+        return {
+          kind: "next-hop-prefer",
+          value:
+            valueText === "native" || valueText === "ipv6"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(nextHopPreferMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const extendedNextHopMatch = item.match(
+        /^extended\s+next\s+hop(?:\s+(\S+))?$/iu,
+      );
+      if (extendedNextHopMatch) {
+        const valueText = extendedNextHopMatch[1];
+        return {
+          kind: "extended-next-hop",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const authenticationMatch = item.match(
+        /^authentication\s+(\S+)(?:\s+(permissive))?$/iu,
+      );
+      if (authenticationMatch?.[1]) {
+        const permissiveText = authenticationMatch[2];
+        return {
+          kind: "authentication",
+          authType: authenticationMatch[1].toLowerCase(),
+          authTypeRange: tokenRange(authenticationMatch[1]),
+          permissive: Boolean(permissiveText),
+          permissiveRange: permissiveText
+            ? tokenRange(permissiveText)
+            : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      if (passwordMatch?.[1]) {
+        const valueText = passwordMatch[1].trim();
+        return {
+          kind: "password",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
+      const rttMatch = item.match(/^(rtt)\s+(min|max|cost|decay)\s+(.+)$/iu);
+      if (rttMatch?.[2] && rttMatch[3]) {
+        const value = rttMatch[3].trim();
+        return {
+          kind: "rtt",
+          option: rttMatch[2].toLowerCase() as "min" | "max" | "cost" | "decay",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const sendTimestampsMatch = item.match(
+        /^send\s+timestamps(?:\s+(\S+))?$/iu,
+      );
+      if (sendTimestampsMatch) {
+        const valueText = sendTimestampsMatch[1];
+        return {
+          kind: "send-timestamps",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseBabelInterfaceTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
+  const rest = interfaceMatch?.[1]?.trim();
+  if (!rest) {
+    return undefined;
+  }
+
+  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
+  const bodyText = bodyMatch?.[0];
+  if (!bodyText) {
+    return undefined;
+  }
+
+  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
+  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
+  const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
+  const bodyRange = tokenRange(bodyText);
+
+  return {
+    kind: "babel-interface",
+    patterns,
+    patternRanges,
+    entries: parseBabelInterfaceEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -2898,6 +3183,23 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "babel") {
+        const statementText = textOf(statementNode, source);
+        const babelStatement =
+          parseBabelInterfaceTextStatement(
+            statementText,
+            statementRange,
+            (token) => rangeForStatementToken(source, statementNode, token),
+          ) ??
+          parseBabelTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          );
+        if (babelStatement) {
+          statements.push(babelStatement);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -3010,14 +3312,24 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             )
           : undefined;
-      statements.push({
-        ...(vpnOption ??
-          bfdStatement ?? {
+      const babelStatement =
+        protocolType === "babel"
+          ? (parseBabelInterfaceTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ) ??
+            parseBabelTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ))
+          : undefined;
+      statements.push(
+        vpnOption ??
+          bfdStatement ??
+          babelStatement ?? {
             kind: "other",
             text,
             ...fallbackRange,
-          }),
-      });
+          },
+      );
     }
 
     index = endIndex;

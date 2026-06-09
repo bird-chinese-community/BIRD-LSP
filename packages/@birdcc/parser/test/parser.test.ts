@@ -1438,6 +1438,210 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses Babel protocol options without disturbing channels", async () => {
+    const sample = `
+      protocol babel edge {
+        randomize router id yes;
+        ipv4 {
+          export where babel_metric < 128;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("babel");
+      expect(protocol.name).toBe("edge");
+      expect(protocol.statements).toContainEqual(
+        expect.objectContaining({
+          kind: "babel-option",
+          option: "randomize-router-id",
+          value: true,
+          valueText: "yes",
+        }),
+      );
+
+      const channel = protocol.statements.find(
+        (item) => item.kind === "channel",
+      );
+      expect(channel?.kind).toBe("channel");
+      if (channel?.kind === "channel") {
+        const exportEntry = channel.entries.find(
+          (item) => item.kind === "export",
+        );
+        expect(exportEntry?.kind).toBe("export");
+        if (exportEntry?.kind === "export") {
+          expect(exportEntry.mode).toBe("where");
+          expect(exportEntry.whereExpression).toBe("babel_metric < 128");
+        }
+      }
+    }
+  });
+
+  it("parses Babel interface options", async () => {
+    const sample = `
+      protocol babel edge {
+        interface "eth0" {
+          type wired;
+          rxcost 96;
+          hello interval 4 s;
+          update interval 16 s;
+          rx buffer 4096;
+          tx length 1200;
+          tx class 6;
+          tx priority 7;
+          check link no;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "babel-interface",
+      );
+      expect(iface).toEqual(
+        expect.objectContaining({
+          kind: "babel-interface",
+          patterns: ["eth0"],
+          entries: expect.arrayContaining([
+            expect.objectContaining({ kind: "type", value: "wired" }),
+            expect.objectContaining({ kind: "rxcost", value: "96" }),
+            expect.objectContaining({
+              kind: "timer",
+              option: "hello-interval",
+              value: "4 s",
+            }),
+            expect.objectContaining({
+              kind: "timer",
+              option: "update-interval",
+              value: "16 s",
+            }),
+            expect.objectContaining({
+              kind: "buffer",
+              option: "rx-buffer",
+              value: "4096",
+            }),
+            expect.objectContaining({ kind: "tx-length", value: "1200" }),
+            expect.objectContaining({
+              kind: "tx",
+              option: "class",
+              value: "6",
+            }),
+            expect.objectContaining({ kind: "tx-priority", value: "7" }),
+            expect.objectContaining({ kind: "check-link", value: false }),
+          ]),
+        }),
+      );
+    }
+  });
+
+  it("parses Babel next-hop, authentication and RTT options", async () => {
+    const sample = `
+      protocol babel edge {
+        interface "tun0" {
+          type tunnel;
+          next hop ipv4 192.0.2.1;
+          next hop ipv6 2001:db8::1;
+          next hop prefer native;
+          extended next hop on;
+          authentication mac permissive;
+          password "secret";
+          rtt min 10 ms;
+          rtt max 300 ms;
+          rtt cost 96;
+          rtt decay 42;
+          send timestamps yes;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "babel-interface",
+      );
+      expect(iface?.kind).toBe("babel-interface");
+      if (iface?.kind === "babel-interface") {
+        expect(iface.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "next-hop",
+              family: "ipv4",
+              address: "192.0.2.1",
+              addressKind: "ip",
+            }),
+            expect.objectContaining({
+              kind: "next-hop",
+              family: "ipv6",
+              address: "2001:db8::1",
+              addressKind: "ip",
+            }),
+            expect.objectContaining({
+              kind: "next-hop-prefer",
+              value: "native",
+            }),
+            expect.objectContaining({
+              kind: "extended-next-hop",
+              value: true,
+            }),
+            expect.objectContaining({
+              kind: "authentication",
+              authType: "mac",
+              permissive: true,
+            }),
+            expect.objectContaining({
+              kind: "password",
+              value: "secret",
+            }),
+            expect.objectContaining({
+              kind: "rtt",
+              option: "min",
+              value: "10 ms",
+            }),
+            expect.objectContaining({
+              kind: "rtt",
+              option: "max",
+              value: "300 ms",
+            }),
+            expect.objectContaining({
+              kind: "rtt",
+              option: "cost",
+              value: "96",
+            }),
+            expect.objectContaining({
+              kind: "rtt",
+              option: "decay",
+              value: "42",
+            }),
+            expect.objectContaining({
+              kind: "send-timestamps",
+              value: true,
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {
