@@ -3996,13 +3996,39 @@ const parseRipInterfaceEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
-      const valueMatch = item.match(/^(metric|ecmp\s+weight)\s+(.+)$/iu);
+      const versionOnlyMatch = item.match(/^version\s+only(?:\s+(\S+))?$/iu);
+      if (versionOnlyMatch) {
+        const valueText = versionOnlyMatch[1];
+        return {
+          kind: "version-only",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const valueMatch = item.match(
+        /^(metric|port|version|ecmp\s+weight)\s+(.+)$/iu,
+      );
       if (valueMatch?.[1] && valueMatch[2]) {
         const value = valueMatch[2].trim();
+        const optionText = valueMatch[1].toLowerCase().replace(/\s+/gu, "-");
         return {
-          kind:
-            valueMatch[1].toLowerCase() === "metric" ? "metric" : "ecmp-weight",
+          kind: optionText as "metric" | "port" | "version" | "ecmp-weight",
           value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const addressMatch = item.match(/^address\s+(\S+)$/iu);
+      if (addressMatch?.[1]) {
+        const value = addressMatch[1];
+        return {
+          kind: "address",
+          value,
+          addressKind: isIpLiteralCandidate(value) ? "ip" : "other",
           valueRange: tokenRange(value),
           ...bodyRange,
         };
@@ -4023,13 +4049,87 @@ const parseRipInterfaceEntries = (
         };
       }
 
+      const timerMatch = item.match(
+        /^(update|timeout|garbage|retransmit)\s+time\s+(.+)$/iu,
+      );
+      if (timerMatch?.[1] && timerMatch[2]) {
+        const value = timerMatch[2].trim();
+        return {
+          kind: "timer",
+          option: `${timerMatch[1].toLowerCase()}-time` as
+            | "update-time"
+            | "timeout-time"
+            | "garbage-time"
+            | "retransmit-time",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const rxBufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
+      if (rxBufferMatch?.[1]) {
+        const value = rxBufferMatch[1].trim();
+        return {
+          kind: "buffer",
+          option: "rx-buffer",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const txMatch = item.match(/^tx\s+(length|tos|dscp|priority)\s+(.+)$/iu);
+      if (txMatch?.[1] && txMatch[2]) {
+        const value = txMatch[2].trim();
+        return {
+          kind: "tx",
+          option: `tx-${txMatch[1].toLowerCase()}` as
+            | "tx-length"
+            | "tx-tos"
+            | "tx-dscp"
+            | "tx-priority",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      if (/^ttl\s+security\s+tx\s+only$/iu.test(item)) {
+        return {
+          kind: "ttl-security",
+          value: "tx-only",
+          ...bodyRange,
+        };
+      }
+
+      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      if (authenticationMatch?.[1]) {
+        const valueText = authenticationMatch[1].toLowerCase();
+        return {
+          kind: "authentication",
+          value:
+            valueText === "none" ||
+            valueText === "plaintext" ||
+            valueText === "cryptographic" ||
+            valueText === "md5"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(authenticationMatch[1]),
+          ...bodyRange,
+        };
+      }
+
       const boolMatch = item.match(
-        /^(split\s+horizon|poison\s+reverse|check\s+zero|demand\s+circuit|ttl\s+security|check\s+link|bfd)(?:\s+(\S+))?$/iu,
+        /^(passive|version\s+only|split\s+horizon|poison\s+reverse|check\s+zero|demand\s+circuit|ttl\s+security|check\s+link|bfd)(?:\s+(\S+))?$/iu,
       );
       if (boolMatch?.[1]) {
         const valueText = boolMatch[2];
         return {
           kind: boolMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "passive"
+            | "version-only"
             | "split-horizon"
             | "poison-reverse"
             | "check-zero"

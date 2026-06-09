@@ -1500,20 +1500,36 @@ interface RipInterfaceEntryBase extends SourceRange {
   kind:
     | "metric"
     | "mode"
+    | "passive"
+    | "address"
+    | "port"
+    | "version"
+    | "version-only"
     | "split-horizon"
     | "poison-reverse"
     | "check-zero"
     | "demand-circuit"
+    | "timer"
+    | "buffer"
+    | "tx"
     | "ttl-security"
     | "check-link"
     | "bfd"
     | "ecmp-weight"
+    | "authentication"
     | "other";
 }
 
 export interface RipInterfaceValueEntry extends RipInterfaceEntryBase {
-  kind: "metric" | "ecmp-weight";
+  kind: "metric" | "port" | "version" | "ecmp-weight";
   value: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceAddressEntry extends RipInterfaceEntryBase {
+  kind: "address";
+  value: string;
+  addressKind: "ip" | "other";
   valueRange: SourceRange;
 }
 
@@ -1526,16 +1542,52 @@ export interface RipInterfaceModeEntry extends RipInterfaceEntryBase {
 
 export interface RipInterfaceBoolEntry extends RipInterfaceEntryBase {
   kind:
+    | "passive"
+    | "version-only"
     | "split-horizon"
     | "poison-reverse"
     | "check-zero"
     | "demand-circuit"
-    | "ttl-security"
     | "check-link"
     | "bfd";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
+}
+
+export interface RipInterfaceTtlSecurityEntry extends RipInterfaceEntryBase {
+  kind: "ttl-security";
+  value: boolean | "tx-only";
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RipInterfaceTimerEntry extends RipInterfaceEntryBase {
+  kind: "timer";
+  option: "update-time" | "timeout-time" | "garbage-time" | "retransmit-time";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceBufferEntry extends RipInterfaceEntryBase {
+  kind: "buffer";
+  option: "rx-buffer";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceTxEntry extends RipInterfaceEntryBase {
+  kind: "tx";
+  option: "tx-length" | "tx-tos" | "tx-dscp" | "tx-priority";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceAuthenticationEntry extends RipInterfaceEntryBase {
+  kind: "authentication";
+  value: "none" | "plaintext" | "cryptographic" | "md5" | "other";
+  valueText: string;
+  valueRange: SourceRange;
 }
 
 export interface RipInterfaceOtherEntry extends RipInterfaceEntryBase {
@@ -1545,8 +1597,14 @@ export interface RipInterfaceOtherEntry extends RipInterfaceEntryBase {
 
 export type RipInterfaceEntry =
   | RipInterfaceValueEntry
+  | RipInterfaceAddressEntry
   | RipInterfaceModeEntry
   | RipInterfaceBoolEntry
+  | RipInterfaceTtlSecurityEntry
+  | RipInterfaceTimerEntry
+  | RipInterfaceBufferEntry
+  | RipInterfaceTxEntry
+  | RipInterfaceAuthenticationEntry
   | RipInterfaceOtherEntry;
 
 export interface RipInterfaceStatement extends StatementBase {

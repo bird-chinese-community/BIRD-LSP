@@ -508,6 +508,70 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RIP interface address, timers and authentication options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol rip rip0 {
+        interface "eth1" {
+          passive yes;
+          address 192.0.2.1;
+          port 520;
+          version 2;
+          version only yes;
+          update time 30;
+          timeout time 180;
+          garbage time 240;
+          retransmit time 5 s;
+          rx buffer 1024;
+          tx length 1024;
+          tx dscp 48;
+          tx priority 7;
+          ttl security tx only;
+          authentication cryptographic;
+        };
+      }
+    `);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        {
+          kind: "rip-interface",
+          patterns: ["eth1"],
+          entries: [
+            { kind: "passive", value: true, valueText: "yes" },
+            { kind: "address", value: "192.0.2.1", addressKind: "ip" },
+            { kind: "port", value: "520" },
+            { kind: "version", value: "2" },
+            { kind: "version-only", value: true, valueText: "yes" },
+            { kind: "timer", option: "update-time", value: "30" },
+            { kind: "timer", option: "timeout-time", value: "180" },
+            { kind: "timer", option: "garbage-time", value: "240" },
+            { kind: "timer", option: "retransmit-time", value: "5 s" },
+            { kind: "buffer", option: "rx-buffer", value: "1024" },
+            { kind: "tx", option: "tx-length", value: "1024" },
+            { kind: "tx", option: "tx-dscp", value: "48" },
+            { kind: "tx", option: "tx-priority", value: "7" },
+            { kind: "ttl-security", value: "tx-only" },
+            { kind: "authentication", value: "cryptographic" },
+          ],
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(address|update time|authentication cryptographic)\b/u.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses protocol metadata and VRF statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
