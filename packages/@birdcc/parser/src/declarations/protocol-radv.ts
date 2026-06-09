@@ -445,7 +445,9 @@ export const parseRadvInterfaceTextStatement = (
   const patternText = bodyText
     ? rest.slice(0, rest.indexOf(bodyText)).trim()
     : rest;
-  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const patternMatches = [
+    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|\S+/gu),
+  ].filter((match) => match[0] !== ",");
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
   const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
