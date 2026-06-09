@@ -2538,6 +2538,10 @@ describe("@birdcc/parser tree-sitter", () => {
           reachable time 30000;
           retrans timer 1000;
           current hop limit 64;
+          default lifetime 90 sensitive yes;
+          route lifetime 1800 sensitive no;
+          prefix linger time 120;
+          route linger time 240;
           rdnss local yes;
           dnssl local no;
           custom option local yes;
@@ -2632,6 +2636,28 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "scalar",
               option: "current-hop-limit",
               value: "64",
+            }),
+            expect.objectContaining({
+              kind: "lifetime",
+              option: "default-lifetime",
+              value: "90",
+              sensitive: true,
+            }),
+            expect.objectContaining({
+              kind: "lifetime",
+              option: "route-lifetime",
+              value: "1800",
+              sensitive: false,
+            }),
+            expect.objectContaining({
+              kind: "linger-time",
+              option: "prefix-linger-time",
+              value: "120",
+            }),
+            expect.objectContaining({
+              kind: "linger-time",
+              option: "route-linger-time",
+              value: "240",
             }),
             expect.objectContaining({
               kind: "local",

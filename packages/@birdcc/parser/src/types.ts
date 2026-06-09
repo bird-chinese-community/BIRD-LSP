@@ -1459,6 +1459,7 @@ interface RadvInterfaceEntryBase extends SourceRange {
     | "bool"
     | "scalar"
     | "local"
+    | "linger-time"
     | "prefix"
     | "skip"
     | "onlink"
@@ -1491,6 +1492,23 @@ export interface RadvInterfaceBoolEntry extends RadvInterfaceEntryBase {
 export interface RadvInterfaceScalarEntry extends RadvInterfaceEntryBase {
   kind: "scalar";
   option: "link-mtu" | "reachable-time" | "retrans-timer" | "current-hop-limit";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RadvInterfaceLifetimeEntry extends RadvInterfaceEntryBase {
+  kind: "lifetime";
+  option: "default-lifetime" | "route-lifetime";
+  value: string;
+  valueRange: SourceRange;
+  sensitive?: boolean;
+  sensitiveText?: string;
+  sensitiveRange?: SourceRange;
+}
+
+export interface RadvInterfaceLingerTimeEntry extends RadvInterfaceEntryBase {
+  kind: "linger-time";
+  option: "prefix-linger-time" | "route-linger-time";
   value: string;
   valueRange: SourceRange;
 }
@@ -1578,6 +1596,8 @@ export type RadvInterfaceEntry =
   | RadvInterfaceTimerEntry
   | RadvInterfaceBoolEntry
   | RadvInterfaceScalarEntry
+  | RadvInterfaceLifetimeEntry
+  | RadvInterfaceLingerTimeEntry
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
   | RadvDnsBlock

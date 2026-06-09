@@ -283,6 +283,42 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const lifetimeMatch = item.match(
+        /^(default\s+lifetime|route\s+lifetime)\s+(\S+)(?:\s+sensitive\s+(\S+))?$/iu,
+      );
+      if (lifetimeMatch?.[1] && lifetimeMatch[2]) {
+        const value = lifetimeMatch[2];
+        const sensitiveText = lifetimeMatch[3];
+        return {
+          kind: "lifetime",
+          option: lifetimeMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "default-lifetime"
+            | "route-lifetime",
+          value,
+          valueRange: tokenRange(value),
+          sensitive: parseBoolToken(sensitiveText),
+          sensitiveText,
+          sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const lingerTimeMatch = item.match(
+        /^(prefix\s+linger\s+time|route\s+linger\s+time)\s+(.+)$/iu,
+      );
+      if (lingerTimeMatch?.[1] && lingerTimeMatch[2]) {
+        const value = lingerTimeMatch[2].trim();
+        return {
+          kind: "linger-time",
+          option: lingerTimeMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "prefix-linger-time"
+            | "route-linger-time",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
       const localMatch = item.match(
         /^(rdnss|dnssl|custom\s+option)\s+local(?:\s+(\S+))?$/iu,
       );
