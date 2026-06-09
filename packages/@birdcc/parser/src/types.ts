@@ -720,6 +720,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "onlink"
     | "allow-local-as"
     | "allow-bgp-med"
+    | "allow-bgp-local-pref"
     | "bfd"
     | "ttl-security"
     | "check-link"
