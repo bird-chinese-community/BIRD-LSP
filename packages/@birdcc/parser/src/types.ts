@@ -724,6 +724,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "check-link"
     | "enforce-first-as"
     | "path-metric"
+    | "med-metric"
     | "local-role"
     | "require-roles"
     | "disable-rx"
