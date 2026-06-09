@@ -721,6 +721,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "allow-local-as"
     | "allow-bgp-med"
     | "allow-bgp-local-pref"
+    | "allow-as-sets"
     | "bfd"
     | "ttl-security"
     | "check-link"

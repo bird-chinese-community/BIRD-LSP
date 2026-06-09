@@ -922,6 +922,39 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP allow AS sets option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        allow as sets no;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "allow-as-sets",
+            value: false,
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" && /\ballow as sets\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP capability negotiation statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
