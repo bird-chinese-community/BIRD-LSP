@@ -212,6 +212,7 @@ interface StatementBase extends SourceRange {
     | "bgp-authentication"
     | "bgp-password"
     | "bgp-setkey"
+    | "bgp-tcp-ao-keys"
     | "bgp-hop-mode"
     | "mrt-option"
     | "aggregator-option"
@@ -681,6 +682,31 @@ export interface BgpSetkeyStatement extends StatementBase {
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
+}
+
+export interface BgpTcpAoKey extends SourceRange {
+  id?: string;
+  idRange?: SourceRange;
+  sendId?: string;
+  sendIdRange?: SourceRange;
+  recvId?: string;
+  recvIdRange?: SourceRange;
+  algorithm?: string;
+  algorithmRange?: SourceRange;
+  secret?: string;
+  secretText?: string;
+  secretRange?: SourceRange;
+  preference?: "preferred" | "deprecated";
+  preferenceRange?: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface BgpTcpAoKeysStatement extends StatementBase {
+  kind: "bgp-tcp-ao-keys";
+  keys: BgpTcpAoKey[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
 }
 
 export interface BgpHopModeStatement extends StatementBase {
@@ -1503,6 +1529,7 @@ export type ProtocolStatement =
   | BgpAuthenticationStatement
   | BgpPasswordStatement
   | BgpSetkeyStatement
+  | BgpTcpAoKeysStatement
   | BgpHopModeStatement
   | MrtOptionStatement
   | AggregatorOptionStatement

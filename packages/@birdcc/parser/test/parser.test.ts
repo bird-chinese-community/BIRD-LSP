@@ -740,6 +740,69 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP TCP-AO key blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        authentication ao;
+        keys {
+          key {
+            id 7;
+            algorithm hmac sha256;
+            secret "shared";
+            preferred;
+          };
+          key {
+            send id 8;
+            recv id 9;
+            algorithm cmac aes128;
+            secret 0x001122;
+            deprecated;
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const keys = protocol.statements.find(
+        (item) => item.kind === "bgp-tcp-ao-keys",
+      );
+      expect(keys).toEqual(
+        expect.objectContaining({
+          kind: "bgp-tcp-ao-keys",
+          keys: [
+            expect.objectContaining({
+              id: "7",
+              algorithm: "hmac sha256",
+              secret: "shared",
+              secretText: '"shared"',
+              preference: "preferred",
+            }),
+            expect.objectContaining({
+              sendId: "8",
+              recvId: "9",
+              algorithm: "cmac aes128",
+              secret: "0x001122",
+              secretText: "0x001122",
+              preference: "deprecated",
+            }),
+          ],
+        }),
+      );
+      expect(
+        protocol.statements.some(
+          (item) => item.kind === "other" && /\bkeys\s*\{/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP hop mode statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

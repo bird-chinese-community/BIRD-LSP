@@ -1529,6 +1529,15 @@ const parseProtocolOptionStatement = (
     };
   }
 
+  const tcpAoKeys = parseBgpTcpAoKeysTextStatement(
+    textOf(statementNode, source),
+    statementRange,
+    (token) => rangeForStatementToken(source, statementNode, token),
+  );
+  if (tcpAoKeys) {
+    return tcpAoKeys;
+  }
+
   if (
     optionText === "allow" &&
     phraseTextAt(phraseNodes, 1, source) === "local" &&
@@ -1702,6 +1711,118 @@ const parseProtocolOptionStatement = (
   }
 
   return undefined;
+};
+
+const parseBgpTcpAoKeyBlock = (
+  keyText: string,
+  keyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "bgp-tcp-ao-keys" }>["keys"][number] => {
+  const bodyText = keyText
+    .trim()
+    .replace(/^key\s*/iu, "")
+    .replace(/;\s*$/u, "");
+  const bodyRange = tokenRange(bodyText);
+  const key: Extract<
+    ProtocolStatement,
+    { kind: "bgp-tcp-ao-keys" }
+  >["keys"][number] = {
+    bodyText,
+    bodyRange,
+    ...keyRange,
+  };
+
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  for (const item of splitTopLevelStatements(body)
+    .map((entry) => entry.trim())
+    .filter(Boolean)) {
+    const idMatch = item.match(/^id\s+(.+)$/iu);
+    if (idMatch?.[1]) {
+      const value = idMatch[1].trim();
+      key.id = value;
+      key.idRange = tokenRange(value);
+      continue;
+    }
+
+    const sendIdMatch = item.match(/^send\s+id\s+(.+)$/iu);
+    if (sendIdMatch?.[1]) {
+      const value = sendIdMatch[1].trim();
+      key.sendId = value;
+      key.sendIdRange = tokenRange(value);
+      continue;
+    }
+
+    const recvIdMatch = item.match(/^recv\s+id\s+(.+)$/iu);
+    if (recvIdMatch?.[1]) {
+      const value = recvIdMatch[1].trim();
+      key.recvId = value;
+      key.recvIdRange = tokenRange(value);
+      continue;
+    }
+
+    const algorithmMatch = item.match(/^algorithm\s+(.+)$/iu);
+    if (algorithmMatch?.[1]) {
+      const valueText = algorithmMatch[1].trim();
+      key.algorithm = valueText.toLowerCase();
+      key.algorithmRange = tokenRange(valueText);
+      continue;
+    }
+
+    const secretMatch = item.match(/^secret\s+(.+)$/iu);
+    if (secretMatch?.[1]) {
+      const valueText = secretMatch[1].trim();
+      key.secret = stripQuotedText(valueText);
+      key.secretText = valueText;
+      key.secretRange = tokenRange(valueText);
+      continue;
+    }
+
+    const preferenceMatch = item.match(/^(preferred|deprecated)$/iu);
+    if (preferenceMatch?.[1]) {
+      const preference = preferenceMatch[1].toLowerCase() as
+        | "preferred"
+        | "deprecated";
+      key.preference = preference;
+      key.preferenceRange = tokenRange(preferenceMatch[1]);
+    }
+  }
+
+  return key;
+};
+
+const parseBgpTcpAoKeysTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const keysMatch = trimmed.match(/^keys\s+(\{[\s\S]*\})$/iu);
+  if (!keysMatch?.[1]) {
+    return undefined;
+  }
+
+  const bodyText = keysMatch[1];
+  const bodyRange = tokenRange(bodyText);
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  const keys = splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => /^key\s+\{[\s\S]*\}$/iu.test(item))
+    .map((item) => parseBgpTcpAoKeyBlock(item, tokenRange(item), tokenRange));
+
+  return {
+    kind: "bgp-tcp-ao-keys",
+    keys,
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
 };
 
 const parseLocalRoleStatement = (
