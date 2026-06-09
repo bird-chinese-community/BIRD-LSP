@@ -25,6 +25,7 @@ import {
   parseRouterIdFromStatement,
   parseTableFromStatement,
   parseTimeformatFromStatement,
+  parseWatchdogFromStatement,
 } from "./top-level.js";
 import { normalizeTableType } from "./shared.js";
 
@@ -753,6 +754,14 @@ export const parseDeclarations = (
       continue;
     }
 
+    if (child.type === "watchdog_statement") {
+      const watchdog = parseWatchdogFromStatement(child, source, issues);
+      if (watchdog) {
+        declarations.push(watchdog);
+      }
+      continue;
+    }
+
     if (child.type === "protocol_declaration") {
       declarations.push(parseProtocolDeclaration(child, source, issues));
       continue;
@@ -814,6 +823,16 @@ export const parseDeclarations = (
       );
       if (timeformatFromTopLevel) {
         declarations.push(timeformatFromTopLevel);
+        continue;
+      }
+
+      const watchdogFromTopLevel = parseWatchdogFromStatement(
+        child,
+        source,
+        issues,
+      );
+      if (watchdogFromTopLevel) {
+        declarations.push(watchdogFromTopLevel);
       }
     }
   }

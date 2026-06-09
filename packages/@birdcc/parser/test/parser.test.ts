@@ -190,6 +190,32 @@ describe("@birdcc/parser tree-sitter", () => {
     });
   });
 
+  it("parses watchdog declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      watchdog warning 5 s;
+      watchdog timeout 30;
+    `);
+
+    const declarations = parsed.program.declarations.filter(
+      (item) => item.kind === "watchdog",
+    );
+
+    expect(parsed.issues).toEqual([]);
+    expect(declarations).toHaveLength(2);
+
+    expect(declarations[0]).toMatchObject({
+      kind: "watchdog",
+      option: "warning",
+      value: "5 s",
+    });
+
+    expect(declarations[1]).toMatchObject({
+      kind: "watchdog",
+      option: "timeout",
+      value: "30",
+    });
+  });
+
   it("parses table option blocks", async () => {
     const parsed = await parseBirdConfig(`
       roa4 table roa4_opts {

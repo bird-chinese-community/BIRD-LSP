@@ -28,6 +28,7 @@ interface DeclarationBase extends SourceRange {
     | "table"
     | "mpls-domain"
     | "timeformat"
+    | "watchdog"
     | "protocol"
     | "template"
     | "filter"
@@ -197,6 +198,14 @@ export interface TimeformatDeclaration extends DeclarationBase {
   fallbackFormat?: string;
   fallbackFormatText?: string;
   fallbackFormatRange?: SourceRange;
+}
+
+export interface WatchdogDeclaration extends DeclarationBase {
+  kind: "watchdog";
+  option: "warning" | "timeout" | "unknown";
+  optionRange: SourceRange;
+  value: string;
+  valueRange: SourceRange;
 }
 
 interface StatementBase extends SourceRange {
@@ -2248,6 +2257,7 @@ export type BirdDeclaration =
   | TableDeclaration
   | MplsDomainDeclaration
   | TimeformatDeclaration
+  | WatchdogDeclaration
   | ProtocolDeclaration
   | TemplateDeclaration
   | FilterDeclaration

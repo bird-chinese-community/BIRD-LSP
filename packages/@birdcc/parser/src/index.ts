@@ -87,6 +87,7 @@ export type {
   TableDeclaration,
   TemplateDeclaration,
   TimeformatDeclaration,
+  WatchdogDeclaration,
   LearnStatement,
   VrfStatement,
 } from "./types.js";

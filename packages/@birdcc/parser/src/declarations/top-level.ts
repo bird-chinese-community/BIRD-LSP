@@ -8,6 +8,7 @@ import {
   type RouterIdDeclaration,
   type TableDeclaration,
   type TimeformatDeclaration,
+  type WatchdogDeclaration,
   isNumericToken,
   isStrictIpv4Literal,
   mergedTokenRange,
@@ -366,6 +367,69 @@ export const parseTimeformatFromStatement = (
       : undefined,
     fallbackFormatText: fallbackFormatToken?.text,
     fallbackFormatRange: fallbackFormatToken?.range,
+    ...declarationRange,
+  };
+};
+
+const WATCHDOG_OPTIONS = new Set(["warning", "timeout"]);
+
+export const parseWatchdogFromStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): WatchdogDeclaration | null => {
+  const declarationRange = toRange(statementNode, source);
+  const tokens = topLevelTokensOf(statementNode, source);
+  const isWatchdogStatement =
+    statementNode.type === "watchdog_statement" ||
+    tokens[0]?.lowered === "watchdog";
+
+  if (!isWatchdogStatement) {
+    return null;
+  }
+
+  const optionToken =
+    tokenLikeFromNode(statementNode.childForFieldName("option"), source) ??
+    tokens[1];
+  const valueTokenStart = statementNode.type === "watchdog_statement" ? 0 : 2;
+  const valueTokens = tokens.slice(valueTokenStart);
+  const value = valueTokens
+    .map((token) => token.text)
+    .join(" ")
+    .trim();
+  const valueRange = mergedTokenRange(
+    declarationRange,
+    tokens,
+    valueTokenStart,
+    Math.max(tokens.length - 1, valueTokenStart),
+  );
+
+  if (!optionToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing option for watchdog declaration",
+      ...declarationRange,
+    });
+  }
+
+  if (value.length === 0) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing value for watchdog declaration",
+      ...declarationRange,
+    });
+  }
+
+  const option = WATCHDOG_OPTIONS.has(optionToken?.lowered ?? "")
+    ? (optionToken?.lowered as WatchdogDeclaration["option"])
+    : "unknown";
+
+  return {
+    kind: "watchdog",
+    option,
+    optionRange: optionToken?.range ?? declarationRange,
+    value,
+    valueRange,
     ...declarationRange,
   };
 };

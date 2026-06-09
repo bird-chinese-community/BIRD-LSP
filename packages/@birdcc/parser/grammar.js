@@ -20,6 +20,7 @@ export default grammar({
         $.table_declaration,
         $.mpls_domain_declaration,
         $.timeformat_statement,
+        $.watchdog_statement,
         $.protocol_declaration,
         $.template_declaration,
         $.filter_declaration,
@@ -209,6 +210,14 @@ export default grammar({
             field("fallback_format", $.string),
           ),
         ),
+        ";",
+      ),
+
+    watchdog_statement: ($) =>
+      seq(
+        "watchdog",
+        field("option", choice("warning", "timeout")),
+        repeat1(choice($.number, $.identifier, $.raw_token)),
         ";",
       ),
 

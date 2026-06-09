@@ -34,6 +34,10 @@ export type TimeformatDeclaration = Extract<
   BirdDeclaration,
   { kind: "timeformat" }
 >;
+export type WatchdogDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "watchdog" }
+>;
 export type ProtocolDeclaration = Extract<
   BirdDeclaration,
   { kind: "protocol" }
