@@ -137,9 +137,13 @@ describe("@birdcc/parser tree-sitter", () => {
       };
 
       ipv4 table bird3_opts {
+        sorted on;
+        debug { routes, filters };
+        cork threshold 10 100;
         export settle time 2 s;
         route refresh export settle time 3 s;
         digest settle time 4 s;
+        thread group worker;
       };
     `);
 
@@ -172,6 +176,9 @@ describe("@birdcc/parser tree-sitter", () => {
     expect(bird3).toBeDefined();
     if (bird3?.kind === "table") {
       expect(bird3.entries).toMatchObject([
+        { kind: "sorted", value: true, valueText: "on" },
+        { kind: "debug", clauseText: "{ routes, filters }" },
+        { kind: "cork-threshold", low: "10", high: "100" },
         { kind: "settle-time", option: "export", value: "2 s" },
         {
           kind: "settle-time",
@@ -179,7 +186,15 @@ describe("@birdcc/parser tree-sitter", () => {
           value: "3 s",
         },
         { kind: "settle-time", option: "digest", value: "4 s" },
+        { kind: "thread-group", name: "worker" },
       ]);
+      expect(
+        bird3.entries.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(sorted|debug|cork threshold|thread group)\b/.test(item.text),
+        ),
+      ).toBe(false);
     }
   });
 

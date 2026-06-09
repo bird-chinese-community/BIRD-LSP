@@ -62,14 +62,43 @@ export interface AttributeDeclaration extends DeclarationBase {
 }
 
 interface TableOptionEntryBase extends SourceRange {
-  kind: "trie" | "gc-threshold" | "gc-period" | "settle-time" | "other";
+  kind:
+    | "trie"
+    | "sorted"
+    | "debug"
+    | "cork-threshold"
+    | "thread-group"
+    | "gc-threshold"
+    | "gc-period"
+    | "settle-time"
+    | "other";
 }
 
 export interface TableTrieEntry extends TableOptionEntryBase {
-  kind: "trie";
+  kind: "trie" | "sorted";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
+}
+
+export interface TableDebugEntry extends TableOptionEntryBase {
+  kind: "debug";
+  clauseText: string;
+  clauseRange: SourceRange;
+}
+
+export interface TableCorkThresholdEntry extends TableOptionEntryBase {
+  kind: "cork-threshold";
+  low: string;
+  high: string;
+  lowRange: SourceRange;
+  highRange: SourceRange;
+}
+
+export interface TableThreadGroupEntry extends TableOptionEntryBase {
+  kind: "thread-group";
+  name: string;
+  nameRange: SourceRange;
 }
 
 export interface TableGcEntry extends TableOptionEntryBase {
@@ -92,6 +121,9 @@ export interface TableOtherEntry extends TableOptionEntryBase {
 
 export type TableOptionEntry =
   | TableTrieEntry
+  | TableDebugEntry
+  | TableCorkThresholdEntry
+  | TableThreadGroupEntry
   | TableGcEntry
   | TableSettleTimeEntry
   | TableOtherEntry;

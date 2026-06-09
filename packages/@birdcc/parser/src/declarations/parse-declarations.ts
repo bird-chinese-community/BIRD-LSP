@@ -149,7 +149,7 @@ const parseTableOptionEntries = (
   bodyText: string,
 ): TableOptionEntry[] => {
   const entries: TableOptionEntry[] = [];
-  const statements = bodyText.matchAll(/([^;{}]+);/gu);
+  const statements = bodyText.matchAll(/((?:[^;{}]|\{[^{}]*\})+);/gu);
 
   for (const statementMatch of statements) {
     if (statementMatch.index === undefined) {
@@ -194,6 +194,96 @@ const parseTableOptionEntries = (
               valueText,
             )
           : undefined,
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const sortedMatch = lowered.match(/^sorted(?:\s+(\S+))?$/u);
+    if (sortedMatch) {
+      const valueText = sortedMatch[1];
+      entries.push({
+        kind: "sorted",
+        value:
+          valueText === undefined ||
+          valueText === "yes" ||
+          valueText === "on" ||
+          valueText === "true",
+        valueText,
+        valueRange: valueText
+          ? valueRangeInStatement(
+              source,
+              lineStarts,
+              statementStartIndex,
+              statementText,
+              valueText,
+            )
+          : undefined,
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const debugMatch = statementText.match(/^debug\s+(.+)$/iu);
+    if (debugMatch?.[1]) {
+      const clauseText = debugMatch[1].trim();
+      entries.push({
+        kind: "debug",
+        clauseText,
+        clauseRange: valueRangeInStatement(
+          source,
+          lineStarts,
+          statementStartIndex,
+          statementText,
+          clauseText,
+        ),
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const corkThresholdMatch = statementText.match(
+      /^cork\s+threshold\s+(\S+)\s+(.+)$/iu,
+    );
+    if (corkThresholdMatch?.[1] && corkThresholdMatch[2]) {
+      const low = corkThresholdMatch[1].trim();
+      const high = corkThresholdMatch[2].trim();
+      entries.push({
+        kind: "cork-threshold",
+        low,
+        high,
+        lowRange: valueRangeInStatement(
+          source,
+          lineStarts,
+          statementStartIndex,
+          statementText,
+          low,
+        ),
+        highRange: valueRangeInStatement(
+          source,
+          lineStarts,
+          statementStartIndex,
+          statementText,
+          high,
+        ),
+        ...statementRange,
+      });
+      continue;
+    }
+
+    const threadGroupMatch = statementText.match(/^thread\s+group\s+(.+)$/iu);
+    if (threadGroupMatch?.[1]) {
+      const name = threadGroupMatch[1].trim();
+      entries.push({
+        kind: "thread-group",
+        name,
+        nameRange: valueRangeInStatement(
+          source,
+          lineStarts,
+          statementStartIndex,
+          statementText,
+          name,
+        ),
         ...statementRange,
       });
       continue;
