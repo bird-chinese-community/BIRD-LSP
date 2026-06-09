@@ -1570,6 +1570,130 @@ const parseAggregatorOptionStatement = (
   return undefined;
 };
 
+const parseBmpOptionStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+): ProtocolStatement | undefined => {
+  if (statementNode.type !== "expression_statement") {
+    return undefined;
+  }
+
+  const phraseNodes = phraseNodesOf(statementNode);
+  const optionNode = phraseNodes[0];
+  if (!isNode(optionNode)) {
+    return undefined;
+  }
+
+  const statementRange = toRange(statementNode, source);
+  const optionText = textOf(optionNode, source).toLowerCase();
+
+  if (
+    optionText === "local" &&
+    phraseTextAt(phraseNodes, 1, source) === "address" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    return {
+      kind: "bmp-option",
+      option: "local-address",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "station" &&
+    phraseTextAt(phraseNodes, 1, source) === "address" &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    const statementText = textOf(statementNode, source);
+    const portMatch = statementText.match(/\bport\s+([^\s;]+)/iu);
+    const port = portMatch?.[1];
+    return {
+      kind: "bmp-option",
+      option: "station-address",
+      value: textOf(valueNode, source),
+      valueRange: toRange(valueNode, source),
+      port,
+      portRange: port
+        ? rangeForStatementToken(source, statementNode, port)
+        : undefined,
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "system" &&
+    (phraseTextAt(phraseNodes, 1, source) === "description" ||
+      phraseTextAt(phraseNodes, 1, source) === "name") &&
+    isNode(phraseNodes[2])
+  ) {
+    const valueNode = phraseNodes[2];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "bmp-option",
+      option:
+        phraseTextAt(phraseNodes, 1, source) === "description"
+          ? "system-description"
+          : "system-name",
+      value: stripQuotedText(valueText),
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "monitoring" &&
+    phraseTextAt(phraseNodes, 1, source) === "rib" &&
+    phraseTextAt(phraseNodes, 2, source) === "in" &&
+    (phraseTextAt(phraseNodes, 3, source) === "pre_policy" ||
+      phraseTextAt(phraseNodes, 3, source) === "post_policy") &&
+    isNode(phraseNodes[4])
+  ) {
+    const valueNode = phraseNodes[4];
+    const valueText = textOf(valueNode, source);
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "bmp-option",
+      option:
+        phraseTextAt(phraseNodes, 3, source) === "pre_policy"
+          ? "monitoring-rib-in-pre-policy"
+          : "monitoring-rib-in-post-policy",
+      value,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (
+    optionText === "tx" &&
+    phraseTextAt(phraseNodes, 1, source) === "buffer" &&
+    phraseTextAt(phraseNodes, 2, source) === "limit" &&
+    isNode(phraseNodes[3])
+  ) {
+    const valueNode = phraseNodes[3];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "bmp-option",
+      option: "tx-buffer-limit",
+      value: valueText,
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -2097,6 +2221,50 @@ const mergeRpkiLocalAddressStatements = (
   return statements.filter((_, index) => !consumed.has(index));
 };
 
+const mergeBmpLocalAddressStatements = (
+  statements: ProtocolStatement[],
+): ProtocolStatement[] => {
+  const consumed = new Set<number>();
+
+  for (let index = 0; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (
+      statement?.kind !== "other" ||
+      statement.text.toLowerCase() !== "local address"
+    ) {
+      continue;
+    }
+
+    const nextIndex = statements.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex !== index &&
+        candidate.kind === "other" &&
+        candidate.line === statement.line &&
+        candidate.column === statement.endColumn + 1,
+    );
+    const next = statements[nextIndex];
+    if (next?.kind !== "other") {
+      continue;
+    }
+
+    const address = next.text.replace(/;\s*$/u, "").trim();
+    if (!address) {
+      continue;
+    }
+
+    statements[index] = {
+      kind: "bmp-option",
+      option: "local-address",
+      value: address,
+      valueRange: next,
+      ...mergeRanges(statement, next),
+    };
+    consumed.add(nextIndex);
+  }
+
+  return statements.filter((_, index) => !consumed.has(index));
+};
+
 export const parseProtocolStatements = (
   blockNode: SyntaxNode,
   source: string,
@@ -2241,6 +2409,14 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "bmp") {
+        const bmpOption = parseBmpOptionStatement(statementNode, source);
+        if (bmpOption) {
+          statements.push(bmpOption);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -2360,9 +2536,21 @@ export const parseProtocolStatements = (
     ...compoundChannelFallbacks,
   ];
 
-  return mergeNeighborTailStatements(
-    mergeRpkiLocalAddressStatements(mergedStatements),
-    issues,
+  const protocolMergedStatements =
+    protocolType === "rpki"
+      ? mergeRpkiLocalAddressStatements(mergedStatements)
+      : protocolType === "bmp"
+        ? mergeBmpLocalAddressStatements(mergedStatements)
+        : mergedStatements;
+
+  return mergeNeighborTailStatements(protocolMergedStatements, issues).sort(
+    (left, right) => {
+      if (left.line !== right.line) {
+        return left.line - right.line;
+      }
+
+      return left.column - right.column;
+    },
   );
 };
 

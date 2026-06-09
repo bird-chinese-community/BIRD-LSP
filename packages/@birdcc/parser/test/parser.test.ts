@@ -682,6 +682,73 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BMP protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bmp collector {
+        local address 192.0.2.1;
+        station address 192.0.2.10 port 1790;
+        system description "edge collector";
+        system name "rr-1";
+        monitoring rib in pre_policy yes;
+        monitoring rib in post_policy no;
+        tx buffer limit 64;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("bmp");
+      expect(protocol.statements).toMatchObject([
+        { kind: "bmp-option", option: "local-address", value: "192.0.2.1" },
+        {
+          kind: "bmp-option",
+          option: "station-address",
+          value: "192.0.2.10",
+          port: "1790",
+        },
+        {
+          kind: "bmp-option",
+          option: "system-description",
+          value: "edge collector",
+          valueText: '"edge collector"',
+        },
+        {
+          kind: "bmp-option",
+          option: "system-name",
+          value: "rr-1",
+          valueText: '"rr-1"',
+        },
+        {
+          kind: "bmp-option",
+          option: "monitoring-rib-in-pre-policy",
+          value: true,
+        },
+        {
+          kind: "bmp-option",
+          option: "monitoring-rib-in-post-policy",
+          value: false,
+        },
+        { kind: "bmp-option", option: "tx-buffer-limit", value: "64" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "rpki-local-address" ||
+            (item.kind === "other" &&
+              /\b(local address|station address|system description|system name|monitoring rib in|tx buffer limit)\b/.test(
+                item.text,
+              )),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {

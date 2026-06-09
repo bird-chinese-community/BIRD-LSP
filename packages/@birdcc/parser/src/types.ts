@@ -192,6 +192,7 @@ interface StatementBase extends SourceRange {
     | "bgp-hop-mode"
     | "mrt-option"
     | "aggregator-option"
+    | "bmp-option"
     | "scan-time"
     | "learn"
     | "interface"
@@ -554,6 +555,23 @@ export interface AggregatorOptionStatement extends StatementBase {
   bodyRange?: SourceRange;
 }
 
+export interface BmpOptionStatement extends StatementBase {
+  kind: "bmp-option";
+  option:
+    | "local-address"
+    | "station-address"
+    | "system-description"
+    | "system-name"
+    | "monitoring-rib-in-pre-policy"
+    | "monitoring-rib-in-post-policy"
+    | "tx-buffer-limit";
+  value: boolean | string;
+  valueText?: string;
+  valueRange: SourceRange;
+  port?: string;
+  portRange?: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -652,6 +670,7 @@ export type ProtocolStatement =
   | BgpHopModeStatement
   | MrtOptionStatement
   | AggregatorOptionStatement
+  | BmpOptionStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement
