@@ -735,6 +735,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "confederation"
     | "confederation-member"
     | "default-bgp-med"
+    | "default-bgp-local-pref"
     | "tx-size-warning";
   value?: boolean | string;
   valueText?: string;

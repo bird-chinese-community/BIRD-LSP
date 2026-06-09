@@ -1854,6 +1854,13 @@ const parseProtocolOptionStatement = (
       phraseNodes,
       source,
       statementRange,
+      ["default", "bgp_local_pref"],
+      "default-bgp-local-pref",
+    ) ??
+    parseBgpPhraseValueOption(
+      phraseNodes,
+      source,
+      statementRange,
       ["tx", "size", "warning"],
       "tx-size-warning",
     ) ??

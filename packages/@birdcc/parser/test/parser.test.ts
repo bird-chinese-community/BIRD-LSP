@@ -822,6 +822,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP default local preference option", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        default bgp_local_pref 200;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "default-bgp-local-pref",
+            value: "200",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\bdefault bgp_local_pref\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP capability negotiation statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
