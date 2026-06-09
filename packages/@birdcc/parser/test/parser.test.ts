@@ -2178,6 +2178,40 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("accepts BIRD2 bridge dynamic kbr_source filters", async () => {
+    const parsed = await parseBirdConfig(`
+      filter bridge_only {
+        if kbr_source = KBR_SRC_BIRD then accept;
+        kbr_source = KBR_SRC_STATIC;
+        reject;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "if" &&
+            item.conditionText === "kbr_source = KBR_SRC_BIRD",
+        ),
+      ).toBe(true);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" &&
+            item.targetText === "kbr_source" &&
+            item.valueText === "KBR_SRC_STATIC",
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("does not collect nested protocol statements inside inline filter blocks", async () => {
     const sample = `
       protocol bgp edge_peer {
