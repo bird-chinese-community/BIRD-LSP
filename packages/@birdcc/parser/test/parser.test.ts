@@ -435,6 +435,37 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RIP top-level protocol options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol rip rip0 {
+        ecmp yes limit 8;
+        infinity 16;
+        ipv4 {
+          table master4;
+        };
+      }
+    `);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "rip-option", option: "ecmp", value: true, valueText: "yes" },
+        { kind: "rip-option", option: "infinity", value: "16" },
+        { kind: "channel", channelType: "ipv4" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" && /\b(ecmp|infinity)\b/u.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses protocol metadata and VRF statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

@@ -229,6 +229,7 @@ interface StatementBase extends SourceRange {
     | "babel-option"
     | "babel-interface"
     | "radv-interface"
+    | "rip-option"
     | "scan-time"
     | "learn"
     | "interface"
@@ -1473,6 +1474,27 @@ export interface RadvInterfaceStatement extends StatementBase {
   bodyRange: SourceRange;
 }
 
+export interface RipEcmpOptionStatement extends StatementBase {
+  kind: "rip-option";
+  option: "ecmp";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+  limit?: string;
+  limitRange?: SourceRange;
+}
+
+export interface RipInfinityOptionStatement extends StatementBase {
+  kind: "rip-option";
+  option: "infinity";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export type RipOptionStatement =
+  | RipEcmpOptionStatement
+  | RipInfinityOptionStatement;
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -1593,6 +1615,7 @@ export type ProtocolStatement =
   | BabelOptionStatement
   | BabelInterfaceStatement
   | RadvInterfaceStatement
+  | RipOptionStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

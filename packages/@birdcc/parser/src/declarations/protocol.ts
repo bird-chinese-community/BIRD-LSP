@@ -3939,6 +3939,49 @@ const parseRadvInterfaceTextStatement = (
   };
 };
 
+const parseRipOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  const ecmpMatch = trimmed.match(/^ecmp\s+(\S+)(?:\s+limit\s+(.+))?$/iu);
+  if (ecmpMatch?.[1]) {
+    const valueText = ecmpMatch[1];
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    const limit = ecmpMatch[2]?.trim();
+    return {
+      kind: "rip-option",
+      option: "ecmp",
+      value,
+      valueText,
+      valueRange: tokenRange(valueText),
+      limit,
+      limitRange: limit ? tokenRange(limit) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const infinityMatch = trimmed.match(/^infinity\s+(.+)$/iu);
+  if (infinityMatch?.[1]) {
+    const value = infinityMatch[1].trim();
+    return {
+      kind: "rip-option",
+      option: "infinity",
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -4934,6 +4977,18 @@ export const parseProtocolStatements = (
         );
         if (radvStatement) {
           statements.push(radvStatement);
+          continue;
+        }
+      }
+
+      if (protocolType.toLowerCase().startsWith("rip")) {
+        const ripOption = parseRipOptionTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (ripOption) {
+          statements.push(ripOption);
           continue;
         }
       }
