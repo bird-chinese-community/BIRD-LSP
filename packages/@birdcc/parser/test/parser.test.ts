@@ -466,6 +466,48 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses RIP interface option blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol rip rip0 {
+        interface "eth0" {
+          metric 2;
+          mode multicast;
+          split horizon no;
+          ecmp weight 4;
+        };
+      }
+    `);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        {
+          kind: "rip-interface",
+          patterns: ["eth0"],
+          entries: [
+            { kind: "metric", value: "2" },
+            { kind: "mode", value: "multicast" },
+            { kind: "split-horizon", value: false, valueText: "no" },
+            { kind: "ecmp-weight", value: "4" },
+          ],
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(metric|mode multicast|split horizon|ecmp weight)\b/u.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses protocol metadata and VRF statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

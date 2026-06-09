@@ -230,6 +230,7 @@ interface StatementBase extends SourceRange {
     | "babel-interface"
     | "radv-interface"
     | "rip-option"
+    | "rip-interface"
     | "scan-time"
     | "learn"
     | "interface"
@@ -1495,6 +1496,68 @@ export type RipOptionStatement =
   | RipEcmpOptionStatement
   | RipInfinityOptionStatement;
 
+interface RipInterfaceEntryBase extends SourceRange {
+  kind:
+    | "metric"
+    | "mode"
+    | "split-horizon"
+    | "poison-reverse"
+    | "check-zero"
+    | "demand-circuit"
+    | "ttl-security"
+    | "check-link"
+    | "bfd"
+    | "ecmp-weight"
+    | "other";
+}
+
+export interface RipInterfaceValueEntry extends RipInterfaceEntryBase {
+  kind: "metric" | "ecmp-weight";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceModeEntry extends RipInterfaceEntryBase {
+  kind: "mode";
+  value: "multicast" | "broadcast" | "other";
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface RipInterfaceBoolEntry extends RipInterfaceEntryBase {
+  kind:
+    | "split-horizon"
+    | "poison-reverse"
+    | "check-zero"
+    | "demand-circuit"
+    | "ttl-security"
+    | "check-link"
+    | "bfd";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RipInterfaceOtherEntry extends RipInterfaceEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type RipInterfaceEntry =
+  | RipInterfaceValueEntry
+  | RipInterfaceModeEntry
+  | RipInterfaceBoolEntry
+  | RipInterfaceOtherEntry;
+
+export interface RipInterfaceStatement extends StatementBase {
+  kind: "rip-interface";
+  patterns: string[];
+  patternRanges: SourceRange[];
+  entries: RipInterfaceEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -1616,6 +1679,7 @@ export type ProtocolStatement =
   | BabelInterfaceStatement
   | RadvInterfaceStatement
   | RipOptionStatement
+  | RipInterfaceStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

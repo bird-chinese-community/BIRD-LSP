@@ -3982,6 +3982,105 @@ const parseRipOptionTextStatement = (
   return undefined;
 };
 
+const parseRipInterfaceEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "rip-interface" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const valueMatch = item.match(/^(metric|ecmp\s+weight)\s+(.+)$/iu);
+      if (valueMatch?.[1] && valueMatch[2]) {
+        const value = valueMatch[2].trim();
+        return {
+          kind:
+            valueMatch[1].toLowerCase() === "metric" ? "metric" : "ecmp-weight",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const modeMatch = item.match(/^mode\s+(\S+)$/iu);
+      if (modeMatch?.[1]) {
+        const valueText = modeMatch[1].toLowerCase();
+        return {
+          kind: "mode",
+          value:
+            valueText === "multicast" || valueText === "broadcast"
+              ? valueText
+              : "other",
+          valueText,
+          valueRange: tokenRange(modeMatch[1]),
+          ...bodyRange,
+        };
+      }
+
+      const boolMatch = item.match(
+        /^(split\s+horizon|poison\s+reverse|check\s+zero|demand\s+circuit|ttl\s+security|check\s+link|bfd)(?:\s+(\S+))?$/iu,
+      );
+      if (boolMatch?.[1]) {
+        const valueText = boolMatch[2];
+        return {
+          kind: boolMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "split-horizon"
+            | "poison-reverse"
+            | "check-zero"
+            | "demand-circuit"
+            | "ttl-security"
+            | "check-link"
+            | "bfd",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseRipInterfaceTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const interfaceMatch = trimmed.match(
+    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+  );
+  if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
+    return undefined;
+  }
+
+  const patternText = interfaceMatch[1].trim();
+  const bodyText = interfaceMatch[2];
+  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const bodyRange = tokenRange(bodyText);
+
+  return {
+    kind: "rip-interface",
+    patterns: patternMatches.map((match) => stripQuotedText(match[0])),
+    patternRanges: patternMatches.map((match) => tokenRange(match[0])),
+    entries: parseRipInterfaceEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -4982,13 +5081,18 @@ export const parseProtocolStatements = (
       }
 
       if (protocolType.toLowerCase().startsWith("rip")) {
-        const ripOption = parseRipOptionTextStatement(
-          textOf(statementNode, source),
-          statementRange,
-          (token) => rangeForStatementToken(source, statementNode, token),
-        );
-        if (ripOption) {
-          statements.push(ripOption);
+        const statementText = textOf(statementNode, source);
+        const ripStatement =
+          parseRipInterfaceTextStatement(
+            statementText,
+            statementRange,
+            (token) => rangeForStatementToken(source, statementNode, token),
+          ) ??
+          parseRipOptionTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          );
+        if (ripStatement) {
+          statements.push(ripStatement);
           continue;
         }
       }
@@ -5148,6 +5252,14 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             )
           : undefined;
+      const ripStatement = protocolType.toLowerCase().startsWith("rip")
+        ? (parseRipInterfaceTextStatement(text, fallbackRange, (token) =>
+            rangeForTextToken(source, fallbackRange, token),
+          ) ??
+          parseRipOptionTextStatement(text, fallbackRange, (token) =>
+            rangeForTextToken(source, fallbackRange, token),
+          ))
+        : undefined;
       statements.push(
         vpnOption ??
           evpnStatement ??
@@ -5155,7 +5267,8 @@ export const parseProtocolStatements = (
           ospfStatement ??
           bfdStatement ??
           babelStatement ??
-          radvStatement ?? {
+          radvStatement ??
+          ripStatement ?? {
             kind: "other",
             text,
             ...fallbackRange,
