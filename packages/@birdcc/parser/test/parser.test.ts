@@ -1642,6 +1642,110 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("preserves RADV interface body entries", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0" {
+          max ra interval 30;
+          rdnss local yes;
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "radv-interface",
+      );
+      expect(iface).toEqual(
+        expect.objectContaining({
+          kind: "radv-interface",
+          patterns: ["eth0"],
+          entries: expect.arrayContaining([
+            expect.objectContaining({
+              kind: "timer",
+              option: "max-ra-interval",
+              value: "30",
+            }),
+            expect.objectContaining({
+              kind: "local",
+              option: "rdnss-local",
+              value: true,
+            }),
+          ]),
+        }),
+      );
+    }
+  });
+
+  it("parses RADV prefix blocks", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0" {
+          prefix 2001:db8:1::/64 {
+            skip no;
+            onlink yes;
+            autonomous yes;
+            pd preferred yes;
+            valid lifetime 3600 sensitive yes;
+            preferred lifetime 1800 sensitive no;
+          };
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "radv-interface",
+      );
+      expect(iface?.kind).toBe("radv-interface");
+      if (iface?.kind === "radv-interface") {
+        expect(iface.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "prefix",
+              prefix: "2001:db8:1::/64",
+              entries: expect.arrayContaining([
+                expect.objectContaining({ kind: "skip", value: false }),
+                expect.objectContaining({ kind: "onlink", value: true }),
+                expect.objectContaining({ kind: "autonomous", value: true }),
+                expect.objectContaining({
+                  kind: "pd-preferred",
+                  value: true,
+                }),
+                expect.objectContaining({
+                  kind: "lifetime",
+                  option: "valid-lifetime",
+                  value: "3600",
+                  sensitive: true,
+                }),
+                expect.objectContaining({
+                  kind: "lifetime",
+                  option: "preferred-lifetime",
+                  value: "1800",
+                  sensitive: false,
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("preserves generic protocol statements as other entries", async () => {
     const sample = `
       protocol ospf core {

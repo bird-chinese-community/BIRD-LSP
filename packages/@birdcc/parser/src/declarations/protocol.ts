@@ -2309,6 +2309,199 @@ const parseBabelInterfaceTextStatement = (
   };
 };
 
+const parseRadvInterfaceEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  const statements = splitTopLevelStatements(body);
+  return statements
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const prefixMatch = item.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
+      if (prefixMatch?.[1]) {
+        const prefix = prefixMatch[1];
+        const prefixBodyText = prefixMatch[2];
+        const prefixBodyRange = prefixBodyText
+          ? tokenRange(prefixBodyText)
+          : undefined;
+        return {
+          kind: "prefix",
+          prefix,
+          prefixRange: tokenRange(prefix),
+          entries: prefixBodyText
+            ? parseRadvPrefixEntries(prefixBodyText, bodyRange, tokenRange)
+            : [],
+          bodyText: prefixBodyText,
+          bodyRange: prefixBodyRange,
+          ...bodyRange,
+        };
+      }
+
+      const maxRaIntervalMatch = item.match(/^max\s+ra\s+interval\s+(.+)$/iu);
+      if (maxRaIntervalMatch?.[1]) {
+        const value = maxRaIntervalMatch[1].trim();
+        return {
+          kind: "timer",
+          option: "max-ra-interval",
+          value,
+          valueRange: tokenRange(value),
+          ...bodyRange,
+        };
+      }
+
+      const rdnssLocalMatch = item.match(/^rdnss\s+local(?:\s+(\S+))?$/iu);
+      if (rdnssLocalMatch) {
+        const valueText = rdnssLocalMatch[1];
+        return {
+          kind: "local",
+          option: "rdnss-local",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const splitTopLevelStatements = (body: string): string[] => {
+  const statements: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (char === ";" && depth === 0) {
+      statements.push(body.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  const tail = body.slice(start).trim();
+  if (tail.length > 0) {
+    statements.push(tail);
+  }
+
+  return statements;
+};
+
+const parseRadvPrefixEntries = (
+  bodyText: string,
+  bodyRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"][number],
+  { kind: "prefix" }
+>["entries"] => {
+  const body = bodyText
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "");
+  return splitTopLevelStatements(body)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const boolMatch = item.match(
+        /^(skip|onlink|autonomous|pd\s+preferred)(?:\s+(\S+))?$/iu,
+      );
+      if (boolMatch?.[1]) {
+        const valueText = boolMatch[2];
+        const optionText = boolMatch[1].toLowerCase().replace(/\s+/gu, "-");
+        return {
+          kind: optionText as "skip" | "onlink" | "autonomous" | "pd-preferred",
+          value: parseBoolToken(valueText) ?? true,
+          valueText,
+          valueRange: valueText ? tokenRange(valueText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      const lifetimeMatch = item.match(
+        /^(valid|preferred)\s+lifetime\s+(\S+)(?:\s+sensitive\s+(\S+))?$/iu,
+      );
+      if (lifetimeMatch?.[1] && lifetimeMatch[2]) {
+        const value = lifetimeMatch[2];
+        const sensitiveText = lifetimeMatch[3];
+        return {
+          kind: "lifetime",
+          option:
+            lifetimeMatch[1].toLowerCase() === "valid"
+              ? "valid-lifetime"
+              : "preferred-lifetime",
+          value,
+          valueRange: tokenRange(value),
+          sensitive: parseBoolToken(sensitiveText),
+          sensitiveText,
+          sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
+          ...bodyRange,
+        };
+      }
+
+      return {
+        kind: "other",
+        text: item,
+        ...bodyRange,
+      };
+    });
+};
+
+const parseRadvInterfaceTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
+  const rest = interfaceMatch?.[1]?.trim();
+  if (!rest) {
+    return undefined;
+  }
+
+  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
+  const bodyText = bodyMatch?.[0];
+  if (!bodyText) {
+    return undefined;
+  }
+
+  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
+  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
+  const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
+  const bodyRange = tokenRange(bodyText);
+
+  return {
+    kind: "radv-interface",
+    patterns,
+    patternRanges,
+    entries: parseRadvInterfaceEntries(bodyText, bodyRange, tokenRange),
+    bodyText,
+    bodyRange,
+    ...statementRange,
+  };
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -3200,6 +3393,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "radv") {
+        const radvStatement = parseRadvInterfaceTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (radvStatement) {
+          statements.push(radvStatement);
+          continue;
+        }
+      }
+
       const protocolOption = parseProtocolOptionStatement(
         statementNode,
         source,
@@ -3321,10 +3526,17 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             ))
           : undefined;
+      const radvStatement =
+        protocolType === "radv"
+          ? parseRadvInterfaceTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       statements.push(
         vpnOption ??
           bfdStatement ??
-          babelStatement ?? {
+          babelStatement ??
+          radvStatement ?? {
             kind: "other",
             text,
             ...fallbackRange,

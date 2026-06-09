@@ -199,6 +199,7 @@ interface StatementBase extends SourceRange {
     | "vpn-option"
     | "babel-option"
     | "babel-interface"
+    | "radv-interface"
     | "scan-time"
     | "learn"
     | "interface"
@@ -843,6 +844,85 @@ export interface BabelInterfaceStatement extends StatementBase {
   bodyRange: SourceRange;
 }
 
+interface RadvInterfaceEntryBase extends SourceRange {
+  kind:
+    | "timer"
+    | "local"
+    | "prefix"
+    | "skip"
+    | "onlink"
+    | "autonomous"
+    | "pd-preferred"
+    | "lifetime"
+    | "other";
+}
+
+export interface RadvInterfaceTimerEntry extends RadvInterfaceEntryBase {
+  kind: "timer";
+  option: "max-ra-interval";
+  value: string;
+  valueRange: SourceRange;
+}
+
+export interface RadvInterfaceLocalEntry extends RadvInterfaceEntryBase {
+  kind: "local";
+  option: "rdnss-local";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RadvPrefixBoolEntry extends RadvInterfaceEntryBase {
+  kind: "skip" | "onlink" | "autonomous" | "pd-preferred";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RadvPrefixLifetimeEntry extends RadvInterfaceEntryBase {
+  kind: "lifetime";
+  option: "valid-lifetime" | "preferred-lifetime";
+  value: string;
+  valueRange: SourceRange;
+  sensitive?: boolean;
+  sensitiveText?: string;
+  sensitiveRange?: SourceRange;
+}
+
+export type RadvPrefixEntry =
+  | RadvPrefixBoolEntry
+  | RadvPrefixLifetimeEntry
+  | RadvInterfaceOtherEntry;
+
+export interface RadvInterfacePrefixEntry extends RadvInterfaceEntryBase {
+  kind: "prefix";
+  prefix: string;
+  prefixRange: SourceRange;
+  entries: RadvPrefixEntry[];
+  bodyText?: string;
+  bodyRange?: SourceRange;
+}
+
+export interface RadvInterfaceOtherEntry extends RadvInterfaceEntryBase {
+  kind: "other";
+  text: string;
+}
+
+export type RadvInterfaceEntry =
+  | RadvInterfaceTimerEntry
+  | RadvInterfaceLocalEntry
+  | RadvInterfacePrefixEntry
+  | RadvInterfaceOtherEntry;
+
+export interface RadvInterfaceStatement extends StatementBase {
+  kind: "radv-interface";
+  patterns: string[];
+  patternRanges: SourceRange[];
+  entries: RadvInterfaceEntry[];
+  bodyText: string;
+  bodyRange: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -948,6 +1028,7 @@ export type ProtocolStatement =
   | VpnOptionStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
+  | RadvInterfaceStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement
