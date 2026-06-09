@@ -208,6 +208,7 @@ interface StatementBase extends SourceRange {
     | "static-option"
     | "static-igp-table"
     | "bgp-option"
+    | "bgp-capability"
     | "bgp-hop-mode"
     | "mrt-option"
     | "aggregator-option"
@@ -627,6 +628,23 @@ export interface BgpOptionStatement extends StatementBase {
     | "disable-rx"
     | "tx-size-warning";
   value?: boolean | string;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface BgpCapabilityStatement extends StatementBase {
+  kind: "bgp-capability";
+  mode: "enable" | "require" | "advertise" | "capabilities";
+  option:
+    | "route-refresh"
+    | "enhanced-route-refresh"
+    | "as4"
+    | "extended-messages"
+    | "hostname"
+    | "graceful-restart"
+    | "long-lived-graceful-restart"
+    | "all";
+  value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
 }
@@ -1217,6 +1235,7 @@ export type ProtocolStatement =
   | StaticOptionStatement
   | StaticIgpTableStatement
   | BgpOptionStatement
+  | BgpCapabilityStatement
   | BgpHopModeStatement
   | MrtOptionStatement
   | AggregatorOptionStatement

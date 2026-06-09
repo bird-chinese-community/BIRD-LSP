@@ -595,6 +595,115 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP capability negotiation statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        enable route refresh yes;
+        enable enhanced route refresh no;
+        enable as4 yes;
+        enable extended messages off;
+        advertise hostname on;
+        require route refresh yes;
+        require enhanced route refresh no;
+        require as4 yes;
+        require extended messages yes;
+        require hostname no;
+        require graceful restart yes;
+        require long lived graceful restart off;
+        capabilities no;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        {
+          kind: "bgp-capability",
+          mode: "enable",
+          option: "route-refresh",
+          value: true,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "enable",
+          option: "enhanced-route-refresh",
+          value: false,
+        },
+        { kind: "bgp-capability", mode: "enable", option: "as4", value: true },
+        {
+          kind: "bgp-capability",
+          mode: "enable",
+          option: "extended-messages",
+          value: false,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "advertise",
+          option: "hostname",
+          value: true,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "route-refresh",
+          value: true,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "enhanced-route-refresh",
+          value: false,
+        },
+        { kind: "bgp-capability", mode: "require", option: "as4", value: true },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "extended-messages",
+          value: true,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "hostname",
+          value: false,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "graceful-restart",
+          value: true,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "require",
+          option: "long-lived-graceful-restart",
+          value: false,
+        },
+        {
+          kind: "bgp-capability",
+          mode: "capabilities",
+          option: "all",
+          value: false,
+        },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(enable|require|advertise hostname|capabilities)\b/.test(
+              item.text,
+            ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP hop mode statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

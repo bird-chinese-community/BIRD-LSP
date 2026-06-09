@@ -1083,6 +1083,86 @@ const parseBgpPhraseValueOption = (
   };
 };
 
+const parseBgpCapabilityStatement = (
+  phraseNodes: SyntaxNode[],
+  source: string,
+  statementRange: SourceRange,
+): ProtocolStatement | undefined => {
+  const modeText = phraseTextAt(phraseNodes, 0, source);
+
+  if (modeText === "capabilities" && phraseNodes.length <= 2) {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "bgp-capability",
+      mode: "capabilities",
+      option: "all",
+      value,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
+  const mode =
+    modeText === "enable" || modeText === "require" || modeText === "advertise"
+      ? modeText
+      : undefined;
+  if (!mode) {
+    return undefined;
+  }
+
+  const phraseOffset = 1;
+  const valueNode = phraseNodes.at(-1);
+  const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+  const value = parseBoolToken(valueText);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const optionTexts = phraseNodes
+    .slice(phraseOffset, -1)
+    .map((node) => textOf(node, source).toLowerCase());
+  const optionText = optionTexts.join("-");
+  const option =
+    optionText === "route-refresh" ||
+    optionText === "enhanced-route-refresh" ||
+    optionText === "as4" ||
+    optionText === "extended-messages" ||
+    optionText === "hostname" ||
+    optionText === "graceful-restart" ||
+    optionText === "long-lived-graceful-restart"
+      ? optionText
+      : undefined;
+
+  if (!option) {
+    return undefined;
+  }
+
+  if (mode === "enable" && option === "hostname") {
+    return undefined;
+  }
+
+  if (mode === "advertise" && option !== "hostname") {
+    return undefined;
+  }
+
+  return {
+    kind: "bgp-capability",
+    mode,
+    option,
+    value,
+    valueText,
+    valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+    ...statementRange,
+  };
+};
+
 const parseBgpTimerOption = (
   phraseNodes: SyntaxNode[],
   source: string,
@@ -1381,6 +1461,15 @@ const parseProtocolOptionStatement = (
       valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
       ...statementRange,
     };
+  }
+
+  const bgpCapabilityStatement = parseBgpCapabilityStatement(
+    phraseNodes,
+    source,
+    statementRange,
+  );
+  if (bgpCapabilityStatement) {
+    return bgpCapabilityStatement;
   }
 
   const bgpSessionBoolOption =
