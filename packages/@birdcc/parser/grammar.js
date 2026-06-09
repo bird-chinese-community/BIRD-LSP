@@ -19,6 +19,7 @@ export default grammar({
         $.attribute_declaration,
         $.table_declaration,
         $.mpls_domain_declaration,
+        $.timeformat_statement,
         $.protocol_declaration,
         $.template_declaration,
         $.filter_declaration,
@@ -195,6 +196,20 @@ export default grammar({
           field("body", $.block),
           optional(";"),
         ),
+      ),
+
+    timeformat_statement: ($) =>
+      seq(
+        "timeformat",
+        field("scope", choice("route", "protocol", "base", "log")),
+        field("format", $.string),
+        optional(
+          seq(
+            field("limit", choice($.number, $.identifier, $.raw_token)),
+            field("fallback_format", $.string),
+          ),
+        ),
+        ";",
       ),
 
     protocol_declaration: ($) =>

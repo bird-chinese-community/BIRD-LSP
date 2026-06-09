@@ -24,6 +24,7 @@ import {
   parseHostnameOverrideFromStatement,
   parseRouterIdFromStatement,
   parseTableFromStatement,
+  parseTimeformatFromStatement,
 } from "./top-level.js";
 import { normalizeTableType } from "./shared.js";
 
@@ -744,6 +745,14 @@ export const parseDeclarations = (
       continue;
     }
 
+    if (child.type === "timeformat_statement") {
+      const timeformat = parseTimeformatFromStatement(child, source, issues);
+      if (timeformat) {
+        declarations.push(timeformat);
+      }
+      continue;
+    }
+
     if (child.type === "protocol_declaration") {
       declarations.push(parseProtocolDeclaration(child, source, issues));
       continue;
@@ -795,6 +804,16 @@ export const parseDeclarations = (
       const tableFromTopLevel = parseTableFromStatement(child, source, issues);
       if (tableFromTopLevel) {
         declarations.push(tableFromTopLevel);
+        continue;
+      }
+
+      const timeformatFromTopLevel = parseTimeformatFromStatement(
+        child,
+        source,
+        issues,
+      );
+      if (timeformatFromTopLevel) {
+        declarations.push(timeformatFromTopLevel);
       }
     }
   }

@@ -27,6 +27,7 @@ interface DeclarationBase extends SourceRange {
     | "attribute"
     | "table"
     | "mpls-domain"
+    | "timeformat"
     | "protocol"
     | "template"
     | "filter"
@@ -182,6 +183,20 @@ export interface MplsDomainDeclaration extends DeclarationBase {
   nameRange: SourceRange;
   bodyText?: string;
   bodyRange?: SourceRange;
+}
+
+export interface TimeformatDeclaration extends DeclarationBase {
+  kind: "timeformat";
+  scope: "route" | "protocol" | "base" | "log" | "unknown";
+  scopeRange: SourceRange;
+  format: string;
+  formatText: string;
+  formatRange: SourceRange;
+  limit?: string;
+  limitRange?: SourceRange;
+  fallbackFormat?: string;
+  fallbackFormatText?: string;
+  fallbackFormatRange?: SourceRange;
 }
 
 interface StatementBase extends SourceRange {
@@ -2232,6 +2247,7 @@ export type BirdDeclaration =
   | AttributeDeclaration
   | TableDeclaration
   | MplsDomainDeclaration
+  | TimeformatDeclaration
   | ProtocolDeclaration
   | TemplateDeclaration
   | FilterDeclaration

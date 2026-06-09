@@ -86,6 +86,7 @@ export type {
   StaticRouteStatement,
   TableDeclaration,
   TemplateDeclaration,
+  TimeformatDeclaration,
   LearnStatement,
   VrfStatement,
 } from "./types.js";

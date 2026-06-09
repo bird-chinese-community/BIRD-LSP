@@ -30,6 +30,10 @@ export type MplsDomainDeclaration = Extract<
   BirdDeclaration,
   { kind: "mpls-domain" }
 >;
+export type TimeformatDeclaration = Extract<
+  BirdDeclaration,
+  { kind: "timeformat" }
+>;
 export type ProtocolDeclaration = Extract<
   BirdDeclaration,
   { kind: "protocol" }

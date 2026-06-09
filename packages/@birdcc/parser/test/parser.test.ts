@@ -159,6 +159,37 @@ describe("@birdcc/parser tree-sitter", () => {
     expect(declarations.some((item) => item.kind === "router-id")).toBe(true);
   });
 
+  it("parses timeformat declarations", async () => {
+    const parsed = await parseBirdConfig(`
+      timeformat route "%T.%3f" 72000 "%F";
+      timeformat log "%F %T";
+    `);
+
+    const declarations = parsed.program.declarations.filter(
+      (item) => item.kind === "timeformat",
+    );
+
+    expect(parsed.issues).toEqual([]);
+    expect(declarations).toHaveLength(2);
+
+    expect(declarations[0]).toMatchObject({
+      kind: "timeformat",
+      scope: "route",
+      format: "%T.%3f",
+      formatText: '"%T.%3f"',
+      limit: "72000",
+      fallbackFormat: "%F",
+      fallbackFormatText: '"%F"',
+    });
+
+    expect(declarations[1]).toMatchObject({
+      kind: "timeformat",
+      scope: "log",
+      format: "%F %T",
+      formatText: '"%F %T"',
+    });
+  });
+
   it("parses table option blocks", async () => {
     const parsed = await parseBirdConfig(`
       roa4 table roa4_opts {

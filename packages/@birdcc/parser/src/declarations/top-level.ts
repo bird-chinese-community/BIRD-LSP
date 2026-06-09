@@ -1,12 +1,13 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { ParseIssue } from "../types.js";
-import { stripQuotes, toRange } from "../tree.js";
+import { stripQuotes, textOf, toRange } from "../tree.js";
 import {
   TABLE_TYPES,
   type GracefulRestartWaitDeclaration,
   type HostnameOverrideDeclaration,
   type RouterIdDeclaration,
   type TableDeclaration,
+  type TimeformatDeclaration,
   isNumericToken,
   isStrictIpv4Literal,
   mergedTokenRange,
@@ -270,6 +271,101 @@ export const parseTableFromStatement = (
     attrsText,
     attrsRange,
     entries: [],
+    ...declarationRange,
+  };
+};
+
+const TIMEFORMAT_SCOPES = new Set(["route", "protocol", "base", "log"]);
+
+const tokenLikeFromNode = (
+  node: SyntaxNode | null,
+  source: string,
+): {
+  text: string;
+  lowered: string;
+  range: ReturnType<typeof toRange>;
+} | null => {
+  if (!node) {
+    return null;
+  }
+
+  const text = textOf(node, source).trim();
+  if (text.length === 0) {
+    return null;
+  }
+
+  return {
+    text,
+    lowered: text.toLowerCase(),
+    range: toRange(node, source),
+  };
+};
+
+export const parseTimeformatFromStatement = (
+  statementNode: SyntaxNode,
+  source: string,
+  issues: ParseIssue[],
+): TimeformatDeclaration | null => {
+  const declarationRange = toRange(statementNode, source);
+  const tokens = topLevelTokensOf(statementNode, source);
+  const isTimeformatStatement =
+    statementNode.type === "timeformat_statement" ||
+    tokens[0]?.lowered === "timeformat";
+
+  if (!isTimeformatStatement) {
+    return null;
+  }
+
+  const scopeToken =
+    tokenLikeFromNode(statementNode.childForFieldName("scope"), source) ??
+    tokens[1];
+  const formatToken =
+    tokenLikeFromNode(statementNode.childForFieldName("format"), source) ??
+    tokens[2];
+  const limitToken =
+    tokenLikeFromNode(statementNode.childForFieldName("limit"), source) ??
+    tokens[3];
+  const fallbackFormatToken =
+    tokenLikeFromNode(
+      statementNode.childForFieldName("fallback_format"),
+      source,
+    ) ?? tokens[4];
+
+  if (!scopeToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing scope for timeformat declaration",
+      ...declarationRange,
+    });
+  }
+
+  if (!formatToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing format for timeformat declaration",
+      ...declarationRange,
+    });
+  }
+
+  const scope = TIMEFORMAT_SCOPES.has(scopeToken?.lowered ?? "")
+    ? (scopeToken?.lowered as TimeformatDeclaration["scope"])
+    : "unknown";
+  const formatText = formatToken?.text ?? "";
+
+  return {
+    kind: "timeformat",
+    scope,
+    scopeRange: scopeToken?.range ?? declarationRange,
+    format: stripQuotes(formatText),
+    formatText,
+    formatRange: formatToken?.range ?? declarationRange,
+    limit: limitToken?.text,
+    limitRange: limitToken?.range,
+    fallbackFormat: fallbackFormatToken
+      ? stripQuotes(fallbackFormatToken.text)
+      : undefined,
+    fallbackFormatText: fallbackFormatToken?.text,
+    fallbackFormatRange: fallbackFormatToken?.range,
     ...declarationRange,
   };
 };
