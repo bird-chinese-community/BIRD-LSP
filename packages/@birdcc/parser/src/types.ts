@@ -766,6 +766,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "min-graceful-restart-time"
     | "max-graceful-restart-time"
     | "long-lived-stale-time"
+    | "min-long-lived-stale-time"
     | "default-bgp-med"
     | "default-bgp-local-pref"
     | "tx-size-warning";
