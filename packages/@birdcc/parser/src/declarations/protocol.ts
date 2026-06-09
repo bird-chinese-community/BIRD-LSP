@@ -724,6 +724,23 @@ const parseChannelEntries = (
       if (
         phraseTexts[0] === "next" &&
         phraseTexts[1] === "hop" &&
+        phraseTexts[2] === "address" &&
+        isPresentNode(phraseNodes[3]) &&
+        phraseNodes.length <= 4
+      ) {
+        const addressNode = phraseNodes[3];
+        entries.push({
+          kind: "bgp-next-hop-address",
+          address: textOf(addressNode, source),
+          addressRange: toRange(addressNode, source),
+          ...entryRange,
+        });
+        continue;
+      }
+
+      if (
+        phraseTexts[0] === "next" &&
+        phraseTexts[1] === "hop" &&
         (phraseTexts[2] === "self" || phraseTexts[2] === "keep") &&
         phraseNodes.length <= 4
       ) {

@@ -21,6 +21,7 @@ export type {
   BirdProgram,
   CaseStatement,
   ChannelAddPathsEntry,
+  ChannelBgpNextHopAddressEntry,
   ChannelBgpOptionEntry,
   ChannelDebugEntry,
   ChannelDomainEntry,
