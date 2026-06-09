@@ -4211,6 +4211,39 @@ const parseRadvInterfaceTextStatement = (
   };
 };
 
+const parseRadvTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const propagateRoutesMatch = trimmed.match(/^propagate\s+routes\s+(\S+)$/iu);
+  if (propagateRoutesMatch?.[1]) {
+    const valueText = propagateRoutesMatch[1];
+    return {
+      kind: "radv-option",
+      option: "propagate-routes",
+      value: parseBoolToken(valueText) ?? true,
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...statementRange,
+    };
+  }
+
+  const triggerMatch = trimmed.match(/^trigger\s+(\S+)$/iu);
+  if (triggerMatch?.[1]) {
+    const prefix = triggerMatch[1];
+    return {
+      kind: "radv-trigger",
+      prefix,
+      prefixRange: tokenRange(prefix),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseRipOptionTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -5748,11 +5781,16 @@ export const parseProtocolStatements = (
       }
 
       if (protocolType === "radv") {
-        const radvStatement = parseRadvInterfaceTextStatement(
-          textOf(statementNode, source),
-          statementRange,
-          (token) => rangeForStatementToken(source, statementNode, token),
-        );
+        const statementText = textOf(statementNode, source);
+        const radvStatement =
+          parseRadvInterfaceTextStatement(
+            statementText,
+            statementRange,
+            (token) => rangeForStatementToken(source, statementNode, token),
+          ) ??
+          parseRadvTextStatement(statementText, statementRange, (token) =>
+            rangeForStatementToken(source, statementNode, token),
+          );
         if (radvStatement) {
           statements.push(radvStatement);
           continue;
@@ -5955,9 +5993,12 @@ export const parseProtocolStatements = (
           : undefined;
       const radvStatement =
         protocolType === "radv"
-          ? parseRadvInterfaceTextStatement(text, fallbackRange, (token) =>
+          ? (parseRadvInterfaceTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
-            )
+            ) ??
+            parseRadvTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ))
           : undefined;
       const ripStatement = protocolType.toLowerCase().startsWith("rip")
         ? (parseRipInterfaceTextStatement(text, fallbackRange, (token) =>

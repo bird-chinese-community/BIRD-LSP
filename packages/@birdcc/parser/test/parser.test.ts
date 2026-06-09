@@ -2524,6 +2524,9 @@ describe("@birdcc/parser tree-sitter", () => {
   it("preserves RADV interface body entries", async () => {
     const sample = `
       protocol radv ra1 {
+        trigger 2001:db8:ffff::/64;
+        propagate routes yes;
+
         interface "eth0" {
           max ra interval 30;
           rdnss local yes;
@@ -2547,6 +2550,20 @@ describe("@birdcc/parser tree-sitter", () => {
     );
     expect(protocol).toBeDefined();
     if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-trigger",
+            prefix: "2001:db8:ffff::/64",
+          }),
+          expect.objectContaining({
+            kind: "radv-option",
+            option: "propagate-routes",
+            value: true,
+          }),
+        ]),
+      );
+
       const iface = protocol.statements.find(
         (item) => item.kind === "radv-interface",
       );

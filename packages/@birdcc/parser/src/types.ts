@@ -230,6 +230,8 @@ interface StatementBase extends SourceRange {
     | "ospf-area"
     | "babel-option"
     | "babel-interface"
+    | "radv-option"
+    | "radv-trigger"
     | "radv-interface"
     | "rip-option"
     | "rip-interface"
@@ -1559,6 +1561,20 @@ export interface RadvInterfaceStatement extends StatementBase {
   bodyRange: SourceRange;
 }
 
+export interface RadvOptionStatement extends StatementBase {
+  kind: "radv-option";
+  option: "propagate-routes";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface RadvTriggerStatement extends StatementBase {
+  kind: "radv-trigger";
+  prefix: string;
+  prefixRange: SourceRange;
+}
+
 export interface RipEcmpOptionStatement extends StatementBase {
   kind: "rip-option";
   option: "ecmp";
@@ -1885,6 +1901,8 @@ export type ProtocolStatement =
   | OspfAreaStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
+  | RadvOptionStatement
+  | RadvTriggerStatement
   | RadvInterfaceStatement
   | RipOptionStatement
   | RipInterfaceStatement
