@@ -1753,6 +1753,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["med", "metric"],
       "med-metric",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["deterministic", "med"],
+      "deterministic-med",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;
