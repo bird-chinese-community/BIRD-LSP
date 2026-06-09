@@ -242,12 +242,18 @@ const parseRadvInterfaceEntries = (
         };
       }
 
-      const rdnssLocalMatch = item.match(/^rdnss\s+local(?:\s+(\S+))?$/iu);
-      if (rdnssLocalMatch) {
-        const valueText = rdnssLocalMatch[1];
+      const localMatch = item.match(
+        /^(rdnss|dnssl|custom\s+option)\s+local(?:\s+(\S+))?$/iu,
+      );
+      if (localMatch?.[1]) {
+        const option = `${localMatch[1].toLowerCase().replace(/\s+/gu, "-")}-local`;
+        const valueText = localMatch[2];
         return {
           kind: "local",
-          option: "rdnss-local",
+          option: option as
+            | "rdnss-local"
+            | "dnssl-local"
+            | "custom-option-local",
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,

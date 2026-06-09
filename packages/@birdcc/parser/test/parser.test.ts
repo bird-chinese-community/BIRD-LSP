@@ -2530,6 +2530,8 @@ describe("@birdcc/parser tree-sitter", () => {
         interface "eth0" {
           max ra interval 30;
           rdnss local yes;
+          dnssl local no;
+          custom option local yes;
           rdnss {
             ns 2001:db8::53;
             lifetime mult 3;
@@ -2580,6 +2582,16 @@ describe("@birdcc/parser tree-sitter", () => {
             expect.objectContaining({
               kind: "local",
               option: "rdnss-local",
+              value: true,
+            }),
+            expect.objectContaining({
+              kind: "local",
+              option: "dnssl-local",
+              value: false,
+            }),
+            expect.objectContaining({
+              kind: "local",
+              option: "custom-option-local",
               value: true,
             }),
             expect.objectContaining({

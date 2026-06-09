@@ -1480,7 +1480,7 @@ export interface RadvInterfaceTimerEntry extends RadvInterfaceEntryBase {
 
 export interface RadvInterfaceLocalEntry extends RadvInterfaceEntryBase {
   kind: "local";
-  option: "rdnss-local";
+  option: "rdnss-local" | "dnssl-local" | "custom-option-local";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
