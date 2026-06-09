@@ -1295,7 +1295,7 @@ export interface OspfAreaInterfaceStatement extends OspfAreaEntryBase {
 }
 
 interface OspfAreaVirtualLinkEntryBase extends SourceRange {
-  kind: "timer" | "authentication" | "other";
+  kind: "timer" | "authentication" | "password" | "other";
 }
 
 export interface OspfAreaVirtualLinkTimerEntry extends OspfAreaVirtualLinkEntryBase {
@@ -1318,6 +1318,13 @@ export interface OspfAreaVirtualLinkAuthenticationEntry extends OspfAreaVirtualL
   valueRange: SourceRange;
 }
 
+export interface OspfAreaVirtualLinkPasswordEntry extends OspfAreaVirtualLinkEntryBase {
+  kind: "password";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
 export interface OspfAreaVirtualLinkOtherEntry extends OspfAreaVirtualLinkEntryBase {
   kind: "other";
   text: string;
@@ -1326,6 +1333,7 @@ export interface OspfAreaVirtualLinkOtherEntry extends OspfAreaVirtualLinkEntryB
 export type OspfAreaVirtualLinkEntry =
   | OspfAreaVirtualLinkTimerEntry
   | OspfAreaVirtualLinkAuthenticationEntry
+  | OspfAreaVirtualLinkPasswordEntry
   | OspfAreaVirtualLinkOtherEntry;
 
 export interface OspfAreaVirtualLinkStatement extends OspfAreaEntryBase {

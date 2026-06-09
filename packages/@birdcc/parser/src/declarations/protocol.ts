@@ -3530,6 +3530,18 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
+      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      if (passwordMatch?.[1]) {
+        const valueText = passwordMatch[1].trim();
+        return {
+          kind: "password",
+          value: stripQuotedText(valueText),
+          valueText,
+          valueRange: tokenRange(valueText),
+          ...bodyRange,
+        };
+      }
+
       return {
         kind: "other",
         text: item,
