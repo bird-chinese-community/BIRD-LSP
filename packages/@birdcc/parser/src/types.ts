@@ -199,6 +199,7 @@ interface StatementBase extends SourceRange {
     | "vpn-option"
     | "evpn-encapsulation"
     | "evpn-vlan"
+    | "bridge-option"
     | "babel-option"
     | "babel-interface"
     | "radv-interface"
@@ -776,6 +777,14 @@ export interface EvpnVlanStatement extends StatementBase {
   bodyRange?: SourceRange;
 }
 
+export interface BridgeOptionStatement extends StatementBase {
+  kind: "bridge-option";
+  option: "bridge-device" | "vlan-filtering";
+  value: boolean | string;
+  valueText?: string;
+  valueRange: SourceRange;
+}
+
 export interface BabelOptionStatement extends StatementBase {
   kind: "babel-option";
   option: "randomize-router-id";
@@ -1102,6 +1111,7 @@ export type ProtocolStatement =
   | VpnOptionStatement
   | EvpnEncapsulationStatement
   | EvpnVlanStatement
+  | BridgeOptionStatement
   | BabelOptionStatement
   | BabelInterfaceStatement
   | RadvInterfaceStatement

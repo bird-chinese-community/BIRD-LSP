@@ -1341,6 +1341,45 @@ describe("@birdcc/parser tree-sitter", () => {
     ).toBe(false);
   });
 
+  it("parses bridge protocol options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bridge br0 {
+        bridge device "br0";
+        vlan filtering yes;
+        scan time 10 s;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("bridge");
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bridge-option",
+            option: "bridge-device",
+            value: "br0",
+          }),
+          expect.objectContaining({
+            kind: "bridge-option",
+            option: "vlan-filtering",
+            value: true,
+          }),
+          expect.objectContaining({
+            kind: "scan-time",
+            value: "10 s",
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses RPKI cache connection and timing statements", async () => {
     const parsed = await parseBirdConfig(`
       roa4 table rpki_roa4;

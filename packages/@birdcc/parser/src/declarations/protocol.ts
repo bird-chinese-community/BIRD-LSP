@@ -1349,11 +1349,16 @@ const parseProtocolOptionStatement = (
     phraseTextAt(phraseNodes, 1, source) === "time" &&
     isNode(phraseNodes[2])
   ) {
-    const valueNode = phraseNodes[2];
+    const valueNodes = phraseNodes.slice(2);
+    const value = valueNodes.map((node) => textOf(node, source)).join(" ");
+    const valueRange = mergeRanges(
+      toRange(valueNodes[0] ?? phraseNodes[2], source),
+      toRange(valueNodes[valueNodes.length - 1] ?? phraseNodes[2], source),
+    );
     return {
       kind: "scan-time",
-      value: textOf(valueNode, source),
-      valueRange: toRange(valueNode, source),
+      value,
+      valueRange,
       ...statementRange,
     };
   }
@@ -2156,6 +2161,42 @@ const parseEvpnTextStatement = (
           : [],
       bodyText,
       bodyRange,
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
+const parseBridgeOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  const bridgeDeviceMatch = trimmed.match(/^bridge\s+device\s+(.+)$/iu);
+  if (bridgeDeviceMatch?.[1]) {
+    const valueText = bridgeDeviceMatch[1].trim();
+    return {
+      kind: "bridge-option",
+      option: "bridge-device",
+      value: stripQuotedText(valueText),
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...statementRange,
+    };
+  }
+
+  const vlanFilteringMatch = trimmed.match(/^vlan\s+filtering(?:\s+(\S+))?$/iu);
+  if (vlanFilteringMatch) {
+    const valueText = vlanFilteringMatch[1];
+    return {
+      kind: "bridge-option",
+      option: "vlan-filtering",
+      value: parseBoolToken(valueText) ?? true,
+      valueText,
+      valueRange: valueText ? tokenRange(valueText) : statementRange,
       ...statementRange,
     };
   }
@@ -3488,6 +3529,18 @@ export const parseProtocolStatements = (
         }
       }
 
+      if (protocolType === "bridge") {
+        const bridgeStatement = parseBridgeOptionTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (bridgeStatement) {
+          statements.push(bridgeStatement);
+          continue;
+        }
+      }
+
       if (protocolType === "mrt") {
         const mrtOption = parseMrtOptionStatement(statementNode, source);
         if (mrtOption) {
@@ -3668,6 +3721,12 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             )
           : undefined;
+      const bridgeStatement =
+        protocolType === "bridge"
+          ? parseBridgeOptionTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       const bfdStatement =
         protocolType === "bfd"
           ? parseBfdTextStatement(text, fallbackRange, (token) =>
@@ -3692,6 +3751,7 @@ export const parseProtocolStatements = (
       statements.push(
         vpnOption ??
           evpnStatement ??
+          bridgeStatement ??
           bfdStatement ??
           babelStatement ??
           radvStatement ?? {
