@@ -116,7 +116,8 @@ interface StatementBase extends SourceRange {
     | "bgp-option"
     | "bgp-hop-mode"
     | "scan-time"
-    | "learn";
+    | "learn"
+    | "interface";
 }
 
 export interface LocalAsStatement extends StatementBase {
@@ -174,6 +175,7 @@ interface ChannelEntryBase extends SourceRange {
     | "gateway"
     | "add-paths"
     | "igp-table"
+    | "bgp-channel-option"
     | "other";
 }
 
@@ -272,6 +274,14 @@ export interface ChannelIgpTableEntry extends ChannelEntryBase {
   tableNameRange: SourceRange;
 }
 
+export interface ChannelBgpOptionEntry extends ChannelEntryBase {
+  kind: "bgp-channel-option";
+  option: "secondary" | "extended-next-hop" | "import-table" | "export-table";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
 export interface ChannelOtherEntry extends ChannelEntryBase {
   kind: "other";
   text: string;
@@ -292,6 +302,7 @@ export type ChannelEntry =
   | ChannelGatewayEntry
   | ChannelAddPathsEntry
   | ChannelIgpTableEntry
+  | ChannelBgpOptionEntry
   | ChannelOtherEntry;
 
 export interface ChannelStatement extends StatementBase {
@@ -402,6 +413,13 @@ export interface LearnStatement extends StatementBase {
   valueRange?: SourceRange;
 }
 
+export interface ProtocolInterfaceStatement extends StatementBase {
+  kind: "interface";
+  mode: "single" | "range";
+  patterns: string[];
+  patternRanges: SourceRange[];
+}
+
 export interface OtherProtocolStatement extends SourceRange {
   kind: "other";
   text: string;
@@ -423,6 +441,7 @@ export type ProtocolStatement =
   | BgpHopModeStatement
   | ScanTimeStatement
   | LearnStatement
+  | ProtocolInterfaceStatement
   | OtherProtocolStatement;
 
 export interface ProtocolDeclaration extends DeclarationBase {

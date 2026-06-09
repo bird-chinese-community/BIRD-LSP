@@ -404,6 +404,25 @@ const parseChannelEntries = (
       const statement = parseImportExportNode(entryNode, source);
       const clauseText = statement.clauseText?.toLowerCase() ?? "";
 
+      if (statement.mode === "other" && clauseText.startsWith("table ")) {
+        const valueText = (statement.clauseText ?? "")
+          .slice("table ".length)
+          .trim();
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-option",
+            option:
+              statement.kind === "import" ? "import-table" : "export-table",
+            value: boolValue,
+            valueText,
+            valueRange: entryRange,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
       if (
         statement.mode === "other" &&
         (clauseText.startsWith("limit ") ||
@@ -636,6 +655,53 @@ const parseChannelEntries = (
           ...entryRange,
         });
         continue;
+      }
+
+      if (phraseTexts[0] === "secondary" && phraseNodes.length <= 2) {
+        const valueNode = phraseNodes[1];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-option",
+            option: "secondary",
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
+      }
+
+      if (
+        phraseTexts[0] === "extended" &&
+        phraseTexts[1] === "next" &&
+        phraseTexts[2] === "hop" &&
+        phraseNodes.length <= 4
+      ) {
+        const valueNode = phraseNodes[3];
+        const valueText = isPresentNode(valueNode)
+          ? textOf(valueNode, source)
+          : undefined;
+        const boolValue = parseBoolToken(valueText);
+        if (boolValue !== undefined) {
+          entries.push({
+            kind: "bgp-channel-option",
+            option: "extended-next-hop",
+            value: boolValue,
+            valueText,
+            valueRange: isPresentNode(valueNode)
+              ? toRange(valueNode, source)
+              : undefined,
+            ...entryRange,
+          });
+          continue;
+        }
       }
 
       if (phraseTexts[0] === "domain" && isPresentNode(phraseNodes[1])) {
@@ -1018,6 +1084,22 @@ const parseProtocolOptionStatement = (
       valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
       ...statementRange,
     };
+  }
+
+  if (optionText === "interface" && isNode(phraseNodes[1])) {
+    const isRange = phraseTextAt(phraseNodes, 1, source) === "range";
+    const patternNodes = isRange ? phraseNodes.slice(2) : phraseNodes.slice(1);
+    if (patternNodes.length > 0) {
+      return {
+        kind: "interface",
+        mode: isRange ? "range" : "single",
+        patterns: patternNodes.map((node) =>
+          stripQuotedText(textOf(node, source)),
+        ),
+        patternRanges: patternNodes.map((node) => toRange(node, source)),
+        ...statementRange,
+      };
+    }
   }
 
   return undefined;

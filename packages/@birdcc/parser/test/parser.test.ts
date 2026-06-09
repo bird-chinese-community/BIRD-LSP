@@ -408,6 +408,8 @@ describe("@birdcc/parser tree-sitter", () => {
         passive no;
         allow local as 2;
         bfd graceful;
+        interface "eth1";
+        interface range "ix*";
       }
     `);
 
@@ -425,12 +427,14 @@ describe("@birdcc/parser tree-sitter", () => {
         { kind: "bgp-option", option: "passive", value: false },
         { kind: "bgp-option", option: "allow-local-as", value: "2" },
         { kind: "bgp-option", option: "bfd", value: "graceful" },
+        { kind: "interface", mode: "single", patterns: ["eth1"] },
+        { kind: "interface", mode: "range", patterns: ["ix*"] },
       ]);
       expect(
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(rr client|strict bind|passive|allow local as|bfd graceful)\b/.test(
+            /\b(rr client|strict bind|passive|allow local as|bfd graceful|interface)\b/.test(
               item.text,
             ),
         ),
@@ -564,6 +568,10 @@ describe("@birdcc/parser tree-sitter", () => {
           add paths tx;
           add paths off;
           igp table master4;
+          secondary;
+          extended next hop on;
+          import table yes;
+          export table off;
         };
       }
     `);
@@ -587,12 +595,22 @@ describe("@birdcc/parser tree-sitter", () => {
           { kind: "add-paths", mode: "tx" },
           { kind: "add-paths", mode: "off" },
           { kind: "igp-table", tableName: "master4" },
+          { kind: "bgp-channel-option", option: "secondary", value: true },
+          {
+            kind: "bgp-channel-option",
+            option: "extended-next-hop",
+            value: true,
+          },
+          { kind: "bgp-channel-option", option: "import-table", value: true },
+          { kind: "bgp-channel-option", option: "export-table", value: false },
         ]);
         expect(
           channel.entries.some(
             (item) =>
               item.kind === "other" &&
-              /\b(gateway|add paths|igp table)\b/.test(item.text),
+              /\b(gateway|add paths|igp table|secondary|extended next hop|import table|export table)\b/.test(
+                item.text,
+              ),
           ),
         ).toBe(false);
       }
