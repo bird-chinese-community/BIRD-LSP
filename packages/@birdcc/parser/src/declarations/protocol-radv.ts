@@ -136,6 +136,33 @@ const parseRadvDnsBlockEntries = (
     });
 };
 
+const parseRadvDnsShorthandEntry = (
+  blockKind: "rdnss" | "dnssl",
+  valueText: string,
+  tokenRange: TokenRange,
+): Extract<
+  Extract<ProtocolStatement, { kind: "radv-interface" }>["entries"][number],
+  { kind: "rdnss" | "dnssl" }
+>["entries"][number] => {
+  if (blockKind === "rdnss") {
+    return {
+      kind: "ns",
+      value: valueText,
+      valueText,
+      valueRange: tokenRange(valueText),
+      ...tokenRange(valueText),
+    };
+  }
+
+  return {
+    kind: "domain",
+    value: stripQuotedText(valueText),
+    valueText,
+    valueRange: tokenRange(valueText),
+    ...tokenRange(valueText),
+  };
+};
+
 const parseRadvPrefixEntries = (
   bodyText: string,
   bodyRange: SourceRange,
@@ -371,6 +398,19 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const dnsShorthandMatch = item.match(
+        /^(rdnss|dnssl)\s+(\S+|"[^"]+"|'[^']+')$/iu,
+      );
+      if (dnsShorthandMatch?.[1] && dnsShorthandMatch[2]) {
+        const kind = dnsShorthandMatch[1].toLowerCase() as "rdnss" | "dnssl";
+        const valueText = dnsShorthandMatch[2];
+        return {
+          kind,
+          entries: [parseRadvDnsShorthandEntry(kind, valueText, tokenRange)],
+          ...bodyRange,
+        };
+      }
+
       const customOption = parseRadvCustomOptionParts(item, tokenRange);
       if (customOption) {
         return {
@@ -490,18 +530,32 @@ export const parseRadvDnsTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
-  if (!dnsBlockMatch?.[1] || !dnsBlockMatch[2]) {
+  if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
+    const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
+    const bodyText = dnsBlockMatch[2];
+    return {
+      kind: "radv-dns",
+      block,
+      entries: parseRadvDnsBlockEntries(block, bodyText, tokenRange),
+      bodyText,
+      bodyRange: tokenRange(bodyText),
+      ...statementRange,
+    };
+  }
+
+  const dnsShorthandMatch = trimmed.match(
+    /^(rdnss|dnssl)\s+(\S+|"[^"]+"|'[^']+')$/iu,
+  );
+  if (!dnsShorthandMatch?.[1] || !dnsShorthandMatch[2]) {
     return undefined;
   }
 
-  const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
-  const bodyText = dnsBlockMatch[2];
+  const block = dnsShorthandMatch[1].toLowerCase() as "rdnss" | "dnssl";
+  const valueText = dnsShorthandMatch[2];
   return {
     kind: "radv-dns",
     block,
-    entries: parseRadvDnsBlockEntries(block, bodyText, tokenRange),
-    bodyText,
-    bodyRange: tokenRange(bodyText),
+    entries: [parseRadvDnsShorthandEntry(block, valueText, tokenRange)],
     ...statementRange,
   };
 };
