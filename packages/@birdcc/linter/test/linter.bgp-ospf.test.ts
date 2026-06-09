@@ -198,9 +198,31 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).toContain("bgp/timer-invalid");
   });
 
+  it("hits bgp/timer-invalid for structured time clauses", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65001;
+        hold time 2;
+        keepalive time 10;
+      }
+    `);
+
+    expect(codes).toContain("bgp/timer-invalid");
+  });
+
   it("hits ospf/missing-area", async () => {
     const codes = await codesOf(`
       protocol ospf core {
+      }
+    `);
+
+    expect(codes).toContain("ospf/missing-area");
+  });
+
+  it("hits ospf/missing-area for versioned OSPF protocols", async () => {
+    const codes = await codesOf(`
+      protocol ospf v2 core {
       }
     `);
 
@@ -217,9 +239,35 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).toContain("ospf/backbone-stub");
   });
 
+  it("does not hit ospf/backbone-stub for disabled structured backbone stub", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        area 0 {
+          stub no;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("ospf/backbone-stub");
+  });
+
   it("hits ospf/vlink-in-backbone", async () => {
     const codes = await codesOf(`
       protocol ospf core {
+        area 0 {
+          virtual link 192.0.2.1 {
+            hello 5;
+          };
+        };
+      }
+    `);
+
+    expect(codes).toContain("ospf/vlink-in-backbone");
+  });
+
+  it("hits ospf/vlink-in-backbone for versioned OSPF protocols", async () => {
+    const codes = await codesOf(`
+      protocol ospf v3 core {
         area 0 {
           virtual link 192.0.2.1 {
             hello 5;

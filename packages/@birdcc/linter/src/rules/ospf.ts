@@ -3,7 +3,7 @@ import type { SourceRange } from "@birdcc/parser";
 import {
   createProtocolDiagnostic,
   createRuleDiagnostic,
-  isProtocolType,
+  isProtocolTypeFamily,
   protocolDeclarations,
   protocolOtherTextEntries,
   type BirdRule,
@@ -13,6 +13,9 @@ interface OspfAreaSegment {
   areaId: string;
   text: string;
   range: SourceRange;
+  hasStub?: boolean;
+  hasVlink?: boolean;
+  hasAsbr?: boolean;
 }
 
 const BACKBONE_AREA_IDS = new Set(["0", "0.0.0.0"]);
@@ -100,7 +103,22 @@ const collectAreas = (
         .map((entry) => (entry.kind === "other" ? entry.text : entry.kind))
         .join(" ");
       return [
-        { areaId: normalizeAreaId(statement.areaId), text, range: statement },
+        {
+          areaId: normalizeAreaId(statement.areaId),
+          text,
+          range: statement,
+          hasStub: statement.entries.some(
+            (entry) =>
+              entry.kind === "stub" &&
+              (entry.value === undefined || entry.value),
+          ),
+          hasVlink: statement.entries.some(
+            (entry) => entry.kind === "virtual-link",
+          ),
+          hasAsbr: statement.entries.some(
+            (entry) => entry.kind === "other" && /\basbr\b/i.test(entry.text),
+          ),
+        },
       ];
     },
   );
@@ -115,7 +133,7 @@ const ospfMissingAreaRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isProtocolType(declaration, "ospf")) {
+    if (!isProtocolTypeFamily(declaration, "ospf")) {
       continue;
     }
 
@@ -140,13 +158,16 @@ const ospfBackboneStubRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isProtocolType(declaration, "ospf")) {
+    if (!isProtocolTypeFamily(declaration, "ospf")) {
       continue;
     }
 
     const areas = collectAreas(declaration);
     for (const area of areas) {
-      if (!isBackboneArea(area.areaId) || !/\bstub\b/i.test(area.text)) {
+      if (
+        !isBackboneArea(area.areaId) ||
+        !(area.hasStub ?? /\bstub\b/i.test(area.text))
+      ) {
         continue;
       }
 
@@ -167,7 +188,7 @@ const ospfVlinkInBackboneRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isProtocolType(declaration, "ospf")) {
+    if (!isProtocolTypeFamily(declaration, "ospf")) {
       continue;
     }
 
@@ -175,7 +196,10 @@ const ospfVlinkInBackboneRule: BirdRule = ({ parsed }) => {
     for (const area of areas) {
       if (
         !isBackboneArea(area.areaId) ||
-        !/\b(?:vlink|virtual-link|virtual\s+link)\b/i.test(area.text)
+        !(
+          area.hasVlink ??
+          /\b(?:vlink|virtual-link|virtual\s+link)\b/i.test(area.text)
+        )
       ) {
         continue;
       }
@@ -197,7 +221,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
   const diagnostics: BirdDiagnostic[] = [];
 
   for (const declaration of protocolDeclarations(parsed)) {
-    if (!isProtocolType(declaration, "ospf")) {
+    if (!isProtocolTypeFamily(declaration, "ospf")) {
       continue;
     }
 
@@ -207,7 +231,9 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      if (!/\bstub\b/i.test(area.text) || !/\basbr\b/i.test(area.text)) {
+      const hasStub = area.hasStub ?? /\bstub\b/i.test(area.text);
+      const hasAsbr = area.hasAsbr ?? /\basbr\b/i.test(area.text);
+      if (!hasStub || !hasAsbr) {
         continue;
       }
 

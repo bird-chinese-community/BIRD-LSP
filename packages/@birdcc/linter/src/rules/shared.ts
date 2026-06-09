@@ -149,6 +149,14 @@ export const isProtocolType = (
   expected: string,
 ): boolean => declaration.protocolType.toLowerCase() === expected;
 
+export const isProtocolTypeFamily = (
+  declaration: ProtocolDeclaration,
+  expected: string,
+): boolean => {
+  const protocolType = declaration.protocolType.toLowerCase();
+  return protocolType === expected || protocolType.startsWith(`${expected} `);
+};
+
 export const protocolOtherStatements = (
   declaration: ProtocolDeclaration,
 ): ProtocolStatement[] =>

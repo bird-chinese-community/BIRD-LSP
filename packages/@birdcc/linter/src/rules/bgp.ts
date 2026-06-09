@@ -195,6 +195,37 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
     let keepalive: number | null = null;
 
     for (const statement of declaration.statements) {
+      if (statement.kind === "bgp-timer") {
+        const value = numericValue(statement.value);
+        if (statement.option === "hold-time") {
+          hold = value;
+          if (value !== null && (value < 3 || value > 65_535)) {
+            diagnostics.push(
+              createRuleDiagnostic(
+                "bgp/timer-invalid",
+                `BGP protocol '${declaration.name}' hold time must be in range 3..65535`,
+                statement.valueRange,
+              ),
+            );
+          }
+        }
+
+        if (statement.option === "keepalive-time") {
+          keepalive = value;
+          if (value !== null && (value < 1 || value > 65_535)) {
+            diagnostics.push(
+              createRuleDiagnostic(
+                "bgp/timer-invalid",
+                `BGP protocol '${declaration.name}' keepalive must be in range 1..65535`,
+                statement.valueRange,
+              ),
+            );
+          }
+        }
+
+        continue;
+      }
+
       if (statement.kind !== "other") {
         continue;
       }
