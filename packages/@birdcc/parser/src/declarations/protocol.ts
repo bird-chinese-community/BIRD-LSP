@@ -1739,6 +1739,13 @@ const parseProtocolOptionStatement = (
       statementRange,
       ["onlink"],
       "onlink",
+    ) ??
+    parseBgpPhraseBoolOption(
+      phraseNodes,
+      source,
+      statementRange,
+      ["path", "metric"],
+      "path-metric",
     );
   if (bgpSessionBoolOption) {
     return bgpSessionBoolOption;

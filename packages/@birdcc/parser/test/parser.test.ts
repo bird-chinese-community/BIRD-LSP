@@ -688,6 +688,7 @@ describe("@birdcc/parser tree-sitter", () => {
         ttl security on;
         check link off;
         enforce first as yes;
+        path metric yes;
         local role provider;
         require roles no;
         disable rx yes;
@@ -718,6 +719,7 @@ describe("@birdcc/parser tree-sitter", () => {
         { kind: "bgp-option", option: "ttl-security", value: true },
         { kind: "bgp-option", option: "check-link", value: false },
         { kind: "bgp-option", option: "enforce-first-as", value: true },
+        { kind: "bgp-option", option: "path-metric", value: true },
         { kind: "bgp-option", option: "local-role", value: "provider" },
         { kind: "bgp-option", option: "require-roles", value: false },
         { kind: "bgp-option", option: "disable-rx", value: true },
@@ -732,7 +734,7 @@ describe("@birdcc/parser tree-sitter", () => {
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(rr client|strict bind|passive|onlink|allow local as|bfd graceful|ttl security|check link|enforce first as|local role|require roles|disable rx|disable after cease|confederation|tx size warning|interface)\b/.test(
+            /\b(rr client|strict bind|passive|onlink|allow local as|bfd graceful|ttl security|check link|enforce first as|path metric|local role|require roles|disable rx|disable after cease|confederation|tx size warning|interface)\b/.test(
               item.text,
             ),
         ),

@@ -723,6 +723,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "ttl-security"
     | "check-link"
     | "enforce-first-as"
+    | "path-metric"
     | "local-role"
     | "require-roles"
     | "disable-rx"
