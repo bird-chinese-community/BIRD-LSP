@@ -1969,6 +1969,61 @@ const parseBfdTextStatement = (
   parseBfdProfileTextStatement(statementText, statementRange, tokenRange) ??
   parseBfdNeighborTextStatement(statementText, statementRange, tokenRange);
 
+const parseVpnOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: (token: string) => SourceRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+
+  const simpleMatch = trimmed.match(/^(rd|vni|vid|tag)\s+(.+)$/iu);
+  if (simpleMatch?.[1] && simpleMatch[2]) {
+    const optionText = simpleMatch[1].toLowerCase();
+    const value = simpleMatch[2].trim();
+    return {
+      kind: "vpn-option",
+      option: optionText as "rd" | "vni" | "vid" | "tag",
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  const routeDistinguisherMatch = trimmed.match(
+    /^route\s+distinguisher\s+(.+)$/iu,
+  );
+  if (routeDistinguisherMatch?.[1]) {
+    const value = routeDistinguisherMatch[1].trim();
+    return {
+      kind: "vpn-option",
+      option: "route-distinguisher",
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  const targetMatch = trimmed.match(
+    /^(import|export|route)\s+target\s+(.+)$/iu,
+  );
+  if (targetMatch?.[1] && targetMatch[2]) {
+    const optionText = `${targetMatch[1].toLowerCase()}-target` as
+      | "import-target"
+      | "export-target"
+      | "route-target";
+    const value = targetMatch[2].trim();
+    return {
+      kind: "vpn-option",
+      option: optionText,
+      value,
+      valueRange: tokenRange(value),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseStaticRouteStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -2754,6 +2809,18 @@ export const parseProtocolStatements = (
       statementNode.type === "import_statement" ||
       statementNode.type === "export_statement"
     ) {
+      if (protocolType === "l3vpn" || protocolType === "evpn") {
+        const vpnOption = parseVpnOptionTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (vpnOption) {
+          statements.push(vpnOption);
+          continue;
+        }
+      }
+
       statements.push(parseImportExportNode(statementNode, source));
       continue;
     }
@@ -2780,6 +2847,18 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "expression_statement") {
+      if (protocolType === "l3vpn" || protocolType === "evpn") {
+        const vpnOption = parseVpnOptionTextStatement(
+          textOf(statementNode, source),
+          statementRange,
+          (token) => rangeForStatementToken(source, statementNode, token),
+        );
+        if (vpnOption) {
+          statements.push(vpnOption);
+          continue;
+        }
+      }
+
       if (protocolType === "mrt") {
         const mrtOption = parseMrtOptionStatement(statementNode, source);
         if (mrtOption) {
@@ -2919,6 +2998,12 @@ export const parseProtocolStatements = (
         toRange(currentNode, source),
         toRange(lastNode, source),
       );
+      const vpnOption =
+        protocolType === "l3vpn" || protocolType === "evpn"
+          ? parseVpnOptionTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            )
+          : undefined;
       const bfdStatement =
         protocolType === "bfd"
           ? parseBfdTextStatement(text, fallbackRange, (token) =>
@@ -2926,11 +3011,12 @@ export const parseProtocolStatements = (
             )
           : undefined;
       statements.push({
-        ...(bfdStatement ?? {
-          kind: "other",
-          text,
-          ...fallbackRange,
-        }),
+        ...(vpnOption ??
+          bfdStatement ?? {
+            kind: "other",
+            text,
+            ...fallbackRange,
+          }),
       });
     }
 

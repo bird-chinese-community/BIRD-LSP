@@ -196,6 +196,7 @@ interface StatementBase extends SourceRange {
     | "bfd-option"
     | "bfd-profile"
     | "bfd-neighbor"
+    | "vpn-option"
     | "scan-time"
     | "learn"
     | "interface"
@@ -683,6 +684,21 @@ export interface BfdNeighborStatement extends StatementBase {
   multihopRange?: SourceRange;
 }
 
+export interface VpnOptionStatement extends StatementBase {
+  kind: "vpn-option";
+  option:
+    | "rd"
+    | "route-distinguisher"
+    | "import-target"
+    | "export-target"
+    | "route-target"
+    | "vni"
+    | "vid"
+    | "tag";
+  value: string;
+  valueRange: SourceRange;
+}
+
 export interface ScanTimeStatement extends StatementBase {
   kind: "scan-time";
   value: string;
@@ -785,6 +801,7 @@ export type ProtocolStatement =
   | BfdOptionStatement
   | BfdProfileStatement
   | BfdNeighborStatement
+  | VpnOptionStatement
   | ScanTimeStatement
   | LearnStatement
   | ProtocolInterfaceStatement

@@ -883,6 +883,104 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses L3VPN protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol l3vpn cust_vpn {
+        rd 65000:10;
+        route distinguisher 65000:11;
+        import target all;
+        export target [(rt, 65000, 100), (rt, 65000, 101)];
+        route target none;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("l3vpn");
+      expect(protocol.statements).toMatchObject([
+        { kind: "vpn-option", option: "rd", value: "65000:10" },
+        {
+          kind: "vpn-option",
+          option: "route-distinguisher",
+          value: "65000:11",
+        },
+        { kind: "vpn-option", option: "import-target", value: "all" },
+        {
+          kind: "vpn-option",
+          option: "export-target",
+          value: "[(rt, 65000, 100), (rt, 65000, 101)]",
+        },
+        { kind: "vpn-option", option: "route-target", value: "none" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            (item.kind === "import" || item.kind === "export") &&
+            item.mode === "other",
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("parses EVPN protocol option statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol evpn fabric_evpn {
+        rd 65000:20;
+        import target [(rt, 65000, 200)];
+        export target (rt, 65000, 201);
+        route target [(rt, 65000, 202)];
+        vni 10020;
+        vid 20;
+        tag 200020;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.protocolType).toBe("evpn");
+      expect(protocol.statements).toMatchObject([
+        { kind: "vpn-option", option: "rd", value: "65000:20" },
+        {
+          kind: "vpn-option",
+          option: "import-target",
+          value: "[(rt, 65000, 200)]",
+        },
+        {
+          kind: "vpn-option",
+          option: "export-target",
+          value: "(rt, 65000, 201)",
+        },
+        {
+          kind: "vpn-option",
+          option: "route-target",
+          value: "[(rt, 65000, 202)]",
+        },
+        { kind: "vpn-option", option: "vni", value: "10020" },
+        { kind: "vpn-option", option: "vid", value: "20" },
+        { kind: "vpn-option", option: "tag", value: "200020" },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            (item.kind === "import" || item.kind === "export") &&
+            item.mode === "other",
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses compound channel type phrases", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge_peer {
