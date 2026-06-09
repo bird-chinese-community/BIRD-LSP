@@ -2850,8 +2850,21 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
+      const ttlSecurityTxOnlyMatch = item.match(
+        /^ttl\s+security\s+tx\s+only$/iu,
+      );
+      if (ttlSecurityTxOnlyMatch) {
+        return {
+          kind: "ttl-security",
+          value: "tx-only",
+          valueText: "tx only",
+          valueRange: tokenRange("tx only"),
+          ...bodyRange,
+        };
+      }
+
       const boolMatch = item.match(
-        /^(strict\s+nonbroadcast|stub|check\s+link|link\s+lsa\s+suppression|ttl\s+security|bfd)\s+(\S+)$/iu,
+        /^(strict\s+nonbroadcast|stub|check\s+link|real\s+broadcast|ptp\s+netmask|ptp\s+address|link\s+lsa\s+suppression|ttl\s+security|bfd)\s+(\S+)$/iu,
       );
       if (boolMatch?.[1] && boolMatch[2]) {
         const valueText = boolMatch[2];
@@ -2869,6 +2882,9 @@ const parseOspfAreaInterfaceEntries = (
             | "strict-nonbroadcast"
             | "stub"
             | "check-link"
+            | "real-broadcast"
+            | "ptp-netmask"
+            | "ptp-address"
             | "link-lsa-suppression"
             | "ttl-security"
             | "bfd",
@@ -2915,17 +2931,6 @@ const parseOspfAreaInterfaceEntries = (
           option: txMatch[1].toLowerCase() as "tos" | "priority" | "length",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
-        };
-      }
-
-      const ttlSecurityTxOnlyMatch = item.match(
-        /^ttl\s+security\s+tx\s+only$/iu,
-      );
-      if (ttlSecurityTxOnlyMatch) {
-        return {
-          kind: "other",
-          text: item,
           ...bodyRange,
         };
       }
@@ -3101,25 +3106,35 @@ const parseOspfAreaEntries = (
       }
 
       const interfaceMatch = item.match(
-        /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+        /^interface\b([\s\S]*?)(?:\s+(\{[\s\S]*\}))?$/iu,
       );
-      if (interfaceMatch?.[1] && interfaceMatch[2]) {
+      if (interfaceMatch?.[1]) {
         const rest = interfaceMatch[1].trim();
         const bodyText = interfaceMatch[2];
-        const patternTexts = rest
+        const instanceMatch = rest.match(/\s+instance\s+(\S+)\s*$/iu);
+        const instanceId = instanceMatch?.[1];
+        const patternsText = instanceMatch
+          ? rest.slice(0, instanceMatch.index).trim()
+          : rest;
+        const patternTexts = patternsText
           .split(",")
           .map((pattern) => pattern.trim())
           .filter(Boolean);
-        const interfaceBodyRange = tokenRange(bodyText);
+        const interfaceBodyRange = bodyText ? tokenRange(bodyText) : undefined;
         return {
           kind: "interface",
           patterns: patternTexts.map((pattern) => stripQuotedText(pattern)),
           patternRanges: patternTexts.map((pattern) => tokenRange(pattern)),
-          entries: parseOspfAreaInterfaceEntries(
-            bodyText,
-            interfaceBodyRange,
-            tokenRange,
-          ),
+          instanceId,
+          instanceIdRange: instanceId ? tokenRange(instanceId) : undefined,
+          entries:
+            bodyText && interfaceBodyRange
+              ? parseOspfAreaInterfaceEntries(
+                  bodyText,
+                  interfaceBodyRange,
+                  tokenRange,
+                )
+              : [],
           bodyText,
           bodyRange: interfaceBodyRange,
           ...bodyRange,

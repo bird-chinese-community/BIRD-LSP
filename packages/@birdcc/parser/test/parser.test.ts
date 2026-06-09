@@ -2497,6 +2497,78 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses OSPF area interface header variants", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" instance 7 {
+            real broadcast yes;
+            ptp netmask no;
+            ptp address yes;
+            ttl security tx only;
+          };
+          interface "lo";
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              instanceId: "7",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "real-broadcast",
+                  value: true,
+                }),
+                expect.objectContaining({
+                  kind: "ptp-netmask",
+                  value: false,
+                }),
+                expect.objectContaining({
+                  kind: "ptp-address",
+                  value: true,
+                }),
+                expect.objectContaining({
+                  kind: "ttl-security",
+                  value: "tx-only",
+                }),
+              ]),
+            }),
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["lo"],
+              entries: [],
+            }),
+          ]),
+        );
+        expect(
+          area.entries.some(
+            (item) =>
+              item.kind === "other" &&
+              /\b(real broadcast|ptp netmask|ptp address|ttl security tx only|interface "lo")\b/.test(
+                item.text,
+              ),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
   it("parses OSPF area networks and stubnets", async () => {
     const parsed = await parseBirdConfig(`
       protocol ospf core {

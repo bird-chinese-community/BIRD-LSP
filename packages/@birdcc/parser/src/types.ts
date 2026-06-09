@@ -1027,6 +1027,9 @@ interface OspfAreaInterfaceEntryBase extends SourceRange {
     | "strict-nonbroadcast"
     | "stub"
     | "check-link"
+    | "real-broadcast"
+    | "ptp-netmask"
+    | "ptp-address"
     | "ecmp-weight"
     | "link-lsa-suppression"
     | "authentication"
@@ -1079,10 +1082,13 @@ export interface OspfAreaInterfaceBoolEntry extends OspfAreaInterfaceEntryBase {
     | "strict-nonbroadcast"
     | "stub"
     | "check-link"
+    | "real-broadcast"
+    | "ptp-netmask"
+    | "ptp-address"
     | "link-lsa-suppression"
     | "ttl-security"
     | "bfd";
-  value: boolean;
+  value: boolean | "tx-only";
   valueText?: string;
   valueRange?: SourceRange;
 }
@@ -1134,6 +1140,8 @@ export interface OspfAreaInterfaceStatement extends OspfAreaEntryBase {
   kind: "interface";
   patterns: string[];
   patternRanges: SourceRange[];
+  instanceId?: string;
+  instanceIdRange?: SourceRange;
   entries: OspfAreaInterfaceEntry[];
   bodyText?: string;
   bodyRange?: SourceRange;
