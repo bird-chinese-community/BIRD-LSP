@@ -704,6 +704,42 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP authentication statements", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        authentication ao;
+        password "shared-secret";
+        setkey yes;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toMatchObject([
+        { kind: "bgp-authentication", authType: "ao" },
+        {
+          kind: "bgp-password",
+          value: "shared-secret",
+          valueText: '"shared-secret"',
+        },
+        { kind: "bgp-setkey", value: true },
+      ]);
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" &&
+            /\b(authentication|password|setkey)\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP hop mode statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

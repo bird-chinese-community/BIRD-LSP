@@ -209,6 +209,9 @@ interface StatementBase extends SourceRange {
     | "static-igp-table"
     | "bgp-option"
     | "bgp-capability"
+    | "bgp-authentication"
+    | "bgp-password"
+    | "bgp-setkey"
     | "bgp-hop-mode"
     | "mrt-option"
     | "aggregator-option"
@@ -644,6 +647,26 @@ export interface BgpCapabilityStatement extends StatementBase {
     | "graceful-restart"
     | "long-lived-graceful-restart"
     | "all";
+  value: boolean;
+  valueText?: string;
+  valueRange?: SourceRange;
+}
+
+export interface BgpAuthenticationStatement extends StatementBase {
+  kind: "bgp-authentication";
+  authType: "none" | "md5" | "ao" | "other";
+  authTypeRange: SourceRange;
+}
+
+export interface BgpPasswordStatement extends StatementBase {
+  kind: "bgp-password";
+  value: string;
+  valueText: string;
+  valueRange: SourceRange;
+}
+
+export interface BgpSetkeyStatement extends StatementBase {
+  kind: "bgp-setkey";
   value: boolean;
   valueText?: string;
   valueRange?: SourceRange;
@@ -1236,6 +1259,9 @@ export type ProtocolStatement =
   | StaticIgpTableStatement
   | BgpOptionStatement
   | BgpCapabilityStatement
+  | BgpAuthenticationStatement
+  | BgpPasswordStatement
+  | BgpSetkeyStatement
   | BgpHopModeStatement
   | MrtOptionStatement
   | AggregatorOptionStatement

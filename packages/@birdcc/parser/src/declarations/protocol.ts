@@ -1431,6 +1431,51 @@ const parseProtocolOptionStatement = (
     return parseBgpBoolOption(phraseNodes, source, "passive", statementRange);
   }
 
+  if (optionText === "authentication" && isNode(phraseNodes[1])) {
+    const authTypeNode = phraseNodes[1];
+    const authTypeText = textOf(authTypeNode, source).toLowerCase();
+    return {
+      kind: "bgp-authentication",
+      authType:
+        authTypeText === "none" ||
+        authTypeText === "md5" ||
+        authTypeText === "ao"
+          ? authTypeText
+          : "other",
+      authTypeRange: toRange(authTypeNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "password" && isNode(phraseNodes[1])) {
+    const valueNode = phraseNodes[1];
+    const valueText = textOf(valueNode, source);
+    return {
+      kind: "bgp-password",
+      value: stripQuotedText(valueText),
+      valueText,
+      valueRange: toRange(valueNode, source),
+      ...statementRange,
+    };
+  }
+
+  if (optionText === "setkey" && phraseNodes.length <= 2) {
+    const valueNode = phraseNodes[1];
+    const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
+    const value = parseBoolToken(valueText);
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return {
+      kind: "bgp-setkey",
+      value,
+      valueText,
+      valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
+      ...statementRange,
+    };
+  }
+
   if (
     optionText === "allow" &&
     phraseTextAt(phraseNodes, 1, source) === "local" &&
