@@ -524,8 +524,15 @@ export interface StaticRouteStatement extends StatementBase {
   destinationTypeRange?: SourceRange;
   nextHop?: string;
   nextHopRange?: SourceRange;
+  nextHops?: StaticRouteNextHop[];
   options?: StaticRouteOption[];
   optionsText?: string;
+}
+
+export interface StaticRouteNextHop extends SourceRange {
+  target: string;
+  targetRange: SourceRange;
+  options?: StaticRouteOption[];
 }
 
 export type StaticRouteOption =

@@ -8,6 +8,7 @@ import type {
   ProtocolStatement,
   RpkiTransportEntry,
   SourceRange,
+  StaticRouteNextHop,
   StaticRouteOption,
   StaticRouteStatement,
 } from "../types.js";
@@ -4511,7 +4512,12 @@ const parseStaticRouteStatement = (
       : destinationIndex + 1;
   const optionNodes =
     destinationIndex === -1 ? [] : phraseNodes.slice(optionsStartIndex);
-  const options = parseStaticRouteOptions(optionNodes, source);
+  const nextHops =
+    destinationType === "via"
+      ? parseStaticRouteNextHops(phraseNodes.slice(destinationIndex), source)
+      : [];
+  const options =
+    nextHops[0]?.options ?? parseStaticRouteOptions(optionNodes, source);
 
   return {
     kind: "static-route",
@@ -4528,6 +4534,7 @@ const parseStaticRouteStatement = (
     nextHopRange: isNode(nextHopNode)
       ? toRange(nextHopNode, source)
       : undefined,
+    nextHops: nextHops.length > 0 ? nextHops : undefined,
     optionsText:
       optionNodes.length > 0
         ? optionNodes.map((node) => textOf(node, source)).join(" ")
@@ -4535,6 +4542,54 @@ const parseStaticRouteStatement = (
     options: options.length > 0 ? options : undefined,
     ...toRange(statementNode, source),
   };
+};
+
+const parseStaticRouteNextHops = (
+  routeNodes: SyntaxNode[],
+  source: string,
+): StaticRouteNextHop[] => {
+  const nextHops: StaticRouteNextHop[] = [];
+
+  for (let index = 0; index < routeNodes.length; index += 1) {
+    const tokenNode = routeNodes[index];
+    if (
+      !isNode(tokenNode) ||
+      textOf(tokenNode, source).toLowerCase() !== "via"
+    ) {
+      continue;
+    }
+
+    const targetNode = routeNodes[index + 1];
+    if (!isNode(targetNode)) {
+      continue;
+    }
+
+    const optionStart = index + 2;
+    let nextViaIndex = routeNodes.length;
+    for (let cursor = optionStart; cursor < routeNodes.length; cursor += 1) {
+      const cursorNode = routeNodes[cursor];
+      if (
+        isNode(cursorNode) &&
+        textOf(cursorNode, source).toLowerCase() === "via"
+      ) {
+        nextViaIndex = cursor;
+        break;
+      }
+    }
+
+    const optionNodes = routeNodes.slice(optionStart, nextViaIndex);
+    const options = parseStaticRouteOptions(optionNodes, source);
+    nextHops.push({
+      target: textOf(targetNode, source),
+      targetRange: toRange(targetNode, source),
+      options: options.length > 0 ? options : undefined,
+      ...mergeRanges(toRange(tokenNode, source), toRange(targetNode, source)),
+    });
+
+    index = nextViaIndex - 1;
+  }
+
+  return nextHops;
 };
 
 const parseStaticRouteOptions = (

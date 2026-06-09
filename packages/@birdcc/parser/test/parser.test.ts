@@ -1893,6 +1893,7 @@ describe("@birdcc/parser tree-sitter", () => {
         check link yes;
         igp table master4;
         route 192.0.2.0/24 via 198.51.100.1 dev "eth0" onlink yes weight 2 bfd no mpls 16000;
+        route 198.51.100.0/24 via 192.0.2.1 bfd yes weight 1 via 192.0.2.2 weight 2;
       }
     `);
 
@@ -1918,6 +1919,25 @@ describe("@birdcc/parser tree-sitter", () => {
             { kind: "weight", value: "2" },
             { kind: "bfd", value: false },
             { kind: "mpls", value: "16000" },
+          ],
+        },
+        {
+          kind: "static-route",
+          routeTarget: "198.51.100.0/24",
+          destinationType: "via",
+          nextHop: "192.0.2.1",
+          nextHops: [
+            {
+              target: "192.0.2.1",
+              options: [
+                { kind: "bfd", value: true },
+                { kind: "weight", value: "1" },
+              ],
+            },
+            {
+              target: "192.0.2.2",
+              options: [{ kind: "weight", value: "2" }],
+            },
           ],
         },
       ]);
