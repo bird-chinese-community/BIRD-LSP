@@ -425,8 +425,15 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
         hold time 90;
+        min hold time 3;
+        startup hold time 240;
+        connect delay time 5;
         connect retry time 30;
         keepalive time 30;
+        min keepalive time 10;
+        send hold time 120;
+        error forget time 300;
+        error wait time 5, 60;
         source address 192.0.2.10;
       }
     `);
@@ -441,8 +448,15 @@ describe("@birdcc/parser tree-sitter", () => {
     if (protocol?.kind === "protocol") {
       expect(protocol.statements).toMatchObject([
         { kind: "bgp-timer", option: "hold-time", value: "90" },
+        { kind: "bgp-timer", option: "min-hold-time", value: "3" },
+        { kind: "bgp-timer", option: "startup-hold-time", value: "240" },
+        { kind: "bgp-timer", option: "connect-delay-time", value: "5" },
         { kind: "bgp-timer", option: "connect-retry-time", value: "30" },
         { kind: "bgp-timer", option: "keepalive-time", value: "30" },
+        { kind: "bgp-timer", option: "min-keepalive-time", value: "10" },
+        { kind: "bgp-timer", option: "send-hold-time", value: "120" },
+        { kind: "bgp-timer", option: "error-forget-time", value: "300" },
+        { kind: "bgp-timer", option: "error-wait-time", value: "5, 60" },
         {
           kind: "source-address",
           address: "192.0.2.10",
@@ -453,7 +467,7 @@ describe("@birdcc/parser tree-sitter", () => {
         protocol.statements.some(
           (item) =>
             item.kind === "other" &&
-            /\b(hold time|connect retry time|keepalive time|source address)\b/.test(
+            /\b(hold time|min hold time|startup hold time|connect delay time|connect retry time|keepalive time|min keepalive time|send hold time|error forget time|error wait time|source address)\b/.test(
               item.text,
             ),
         ),

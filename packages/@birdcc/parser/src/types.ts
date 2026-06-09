@@ -418,7 +418,17 @@ export interface VrfStatement extends StatementBase {
 
 export interface BgpTimerStatement extends StatementBase {
   kind: "bgp-timer";
-  option: "hold-time" | "connect-retry-time" | "keepalive-time";
+  option:
+    | "hold-time"
+    | "min-hold-time"
+    | "startup-hold-time"
+    | "connect-delay-time"
+    | "connect-retry-time"
+    | "keepalive-time"
+    | "min-keepalive-time"
+    | "send-hold-time"
+    | "error-forget-time"
+    | "error-wait-time";
   value: string;
   valueRange: SourceRange;
 }

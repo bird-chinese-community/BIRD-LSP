@@ -840,6 +840,81 @@ const parseBgpBoolOption = (
   };
 };
 
+const parseBgpTimerOption = (
+  phraseNodes: SyntaxNode[],
+  source: string,
+  statementRange: SourceRange,
+): ProtocolStatement | undefined => {
+  const phraseTexts = phraseNodes.map((node) => textOf(node, source));
+  const lowerTexts = phraseTexts.map((text) => text.toLowerCase());
+
+  const timerOptions: Array<{
+    phrase: string[];
+    option: Extract<ProtocolStatement, { kind: "bgp-timer" }>["option"];
+  }> = [
+    { phrase: ["hold", "time"], option: "hold-time" },
+    { phrase: ["min", "hold", "time"], option: "min-hold-time" },
+    { phrase: ["startup", "hold", "time"], option: "startup-hold-time" },
+    { phrase: ["connect", "delay", "time"], option: "connect-delay-time" },
+    { phrase: ["connect", "retry", "time"], option: "connect-retry-time" },
+    { phrase: ["keepalive", "time"], option: "keepalive-time" },
+    {
+      phrase: ["min", "keepalive", "time"],
+      option: "min-keepalive-time",
+    },
+    { phrase: ["send", "hold", "time"], option: "send-hold-time" },
+    { phrase: ["error", "forget", "time"], option: "error-forget-time" },
+    { phrase: ["error", "wait", "time"], option: "error-wait-time" },
+  ];
+
+  for (const timerOption of timerOptions) {
+    const { phrase, option } = timerOption;
+    if (
+      lowerTexts.length === phrase.length + 1 &&
+      phrase.every((item, index) => lowerTexts[index] === item)
+    ) {
+      const valueNode = phraseNodes.at(-1);
+      if (!isNode(valueNode)) {
+        return undefined;
+      }
+
+      return {
+        kind: "bgp-timer",
+        option,
+        value: textOf(valueNode, source),
+        valueRange: toRange(valueNode, source),
+        ...statementRange,
+      };
+    }
+  }
+
+  if (
+    lowerTexts.length === 5 &&
+    lowerTexts[0] === "error" &&
+    lowerTexts[1] === "wait" &&
+    lowerTexts[2] === "time"
+  ) {
+    const minNode = phraseNodes[3];
+    const maxNode = phraseNodes[4];
+    if (!isNode(minNode) || !isNode(maxNode)) {
+      return undefined;
+    }
+
+    return {
+      kind: "bgp-timer",
+      option: "error-wait-time",
+      value: `${textOf(minNode, source)}, ${textOf(maxNode, source)}`,
+      valueRange: mergeRanges(
+        toRange(minNode, source),
+        toRange(maxNode, source),
+      ),
+      ...statementRange,
+    };
+  }
+
+  return undefined;
+};
+
 const parseProtocolOptionStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -915,51 +990,13 @@ const parseProtocolOptionStatement = (
     }
   }
 
-  const valueNode = phraseNodes.at(-1);
-  if (
-    optionText === "hold" &&
-    phraseTextAt(phraseNodes, 1, source) === "time" &&
-    phraseNodes.length === 3 &&
-    isNode(valueNode)
-  ) {
-    return {
-      kind: "bgp-timer",
-      option: "hold-time",
-      value: textOf(valueNode, source),
-      valueRange: toRange(valueNode, source),
-      ...statementRange,
-    };
-  }
-
-  if (
-    optionText === "connect" &&
-    phraseTextAt(phraseNodes, 1, source) === "retry" &&
-    phraseTextAt(phraseNodes, 2, source) === "time" &&
-    phraseNodes.length === 4 &&
-    isNode(valueNode)
-  ) {
-    return {
-      kind: "bgp-timer",
-      option: "connect-retry-time",
-      value: textOf(valueNode, source),
-      valueRange: toRange(valueNode, source),
-      ...statementRange,
-    };
-  }
-
-  if (
-    optionText === "keepalive" &&
-    phraseTextAt(phraseNodes, 1, source) === "time" &&
-    phraseNodes.length === 3 &&
-    isNode(valueNode)
-  ) {
-    return {
-      kind: "bgp-timer",
-      option: "keepalive-time",
-      value: textOf(valueNode, source),
-      valueRange: toRange(valueNode, source),
-      ...statementRange,
-    };
+  const timerStatement = parseBgpTimerOption(
+    phraseNodes,
+    source,
+    statementRange,
+  );
+  if (timerStatement) {
+    return timerStatement;
   }
 
   if (
