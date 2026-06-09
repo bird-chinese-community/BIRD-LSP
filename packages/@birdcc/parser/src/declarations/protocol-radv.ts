@@ -319,6 +319,25 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const preferenceMatch = item.match(
+        /^(default\s+preference|route\s+preference)\s+(low|medium|high)$/iu,
+      );
+      if (preferenceMatch?.[1] && preferenceMatch[2]) {
+        const value = preferenceMatch[2].toLowerCase() as
+          | "low"
+          | "medium"
+          | "high";
+        return {
+          kind: "preference",
+          option: preferenceMatch[1].toLowerCase().replace(/\s+/gu, "-") as
+            | "default-preference"
+            | "route-preference",
+          value,
+          valueRange: tokenRange(preferenceMatch[2]),
+          ...bodyRange,
+        };
+      }
+
       const localMatch = item.match(
         /^(rdnss|dnssl|custom\s+option)\s+local(?:\s+(\S+))?$/iu,
       );

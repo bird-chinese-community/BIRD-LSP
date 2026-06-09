@@ -1460,6 +1460,7 @@ interface RadvInterfaceEntryBase extends SourceRange {
     | "scalar"
     | "local"
     | "linger-time"
+    | "preference"
     | "prefix"
     | "skip"
     | "onlink"
@@ -1510,6 +1511,13 @@ export interface RadvInterfaceLingerTimeEntry extends RadvInterfaceEntryBase {
   kind: "linger-time";
   option: "prefix-linger-time" | "route-linger-time";
   value: string;
+  valueRange: SourceRange;
+}
+
+export interface RadvInterfacePreferenceEntry extends RadvInterfaceEntryBase {
+  kind: "preference";
+  option: "default-preference" | "route-preference";
+  value: "low" | "medium" | "high";
   valueRange: SourceRange;
 }
 
@@ -1598,6 +1606,7 @@ export type RadvInterfaceEntry =
   | RadvInterfaceScalarEntry
   | RadvInterfaceLifetimeEntry
   | RadvInterfaceLingerTimeEntry
+  | RadvInterfacePreferenceEntry
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
   | RadvDnsBlock

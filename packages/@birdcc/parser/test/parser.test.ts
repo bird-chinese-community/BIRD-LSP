@@ -2542,6 +2542,8 @@ describe("@birdcc/parser tree-sitter", () => {
           route lifetime 1800 sensitive no;
           prefix linger time 120;
           route linger time 240;
+          default preference high;
+          route preference low;
           rdnss local yes;
           dnssl local no;
           custom option local yes;
@@ -2658,6 +2660,16 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "linger-time",
               option: "route-linger-time",
               value: "240",
+            }),
+            expect.objectContaining({
+              kind: "preference",
+              option: "default-preference",
+              value: "high",
+            }),
+            expect.objectContaining({
+              kind: "preference",
+              option: "route-preference",
+              value: "low",
             }),
             expect.objectContaining({
               kind: "local",
