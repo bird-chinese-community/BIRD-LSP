@@ -513,6 +513,53 @@ export const checkTypes = (
     const variableTypes = new Map<string, TypeValue>();
 
     for (const statement of declaration.statements) {
+      if (statement.kind === "assignment") {
+        const variableName = statement.targetText.trim();
+        const assignedValue = statement.valueText;
+        const expectedType = variableTypes.get(variableName);
+
+        if (!expectedType) {
+          if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(variableName.toLowerCase())) {
+            continue;
+          }
+
+          diagnostics.push({
+            code: "type/undefined-variable",
+            message: `Assignment to undefined variable '${variableName}'`,
+            severity: "error",
+            source: "core",
+            range: {
+              line: statement.line,
+              column: statement.column,
+              endLine: statement.endLine,
+              endColumn: statement.endColumn,
+            },
+          });
+          continue;
+        }
+
+        const inferredType = inferValueType(assignedValue, variableTypes);
+        if (expectedType === "unknown") {
+          continue;
+        }
+
+        if (inferredType !== "unknown" && inferredType !== expectedType) {
+          diagnostics.push(
+            createTypeMismatchDiagnostic(
+              expectedType,
+              inferredType,
+              statement.line,
+              statement.column,
+              statement.endLine,
+              statement.endColumn,
+              variableName,
+            ),
+          );
+        }
+
+        continue;
+      }
+
       if (statement.kind !== "expression") {
         if (
           strictUnknownExpression &&

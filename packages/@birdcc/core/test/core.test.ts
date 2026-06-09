@@ -223,6 +223,14 @@ describe("@birdcc/core boundaries", () => {
     `;
 
     const parsed = await parseBirdConfig(sample);
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+    expect(
+      filter?.kind === "filter" &&
+        filter.statements.some((item) => item.kind === "assignment"),
+    ).toBe(true);
+
     const snapshot = buildCoreSnapshotFromParsed(parsed);
 
     expect(
