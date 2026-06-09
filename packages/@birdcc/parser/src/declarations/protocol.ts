@@ -24,6 +24,7 @@ import {
   protocolStatementNodesOf,
 } from "./shared.js";
 import {
+  parseRadvCustomOptionTextStatement,
   parseRadvDnsTextStatement,
   parseRadvInterfaceTextStatement,
   parseRadvOptionTextStatement,
@@ -5536,6 +5537,11 @@ export const parseProtocolStatements = (
           parseRadvDnsTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           ) ??
+          parseRadvCustomOptionTextStatement(
+            statementText,
+            statementRange,
+            (token) => rangeForStatementToken(source, statementNode, token),
+          ) ??
           parseRadvOptionTextStatement(statementText, statementRange, (token) =>
             rangeForStatementToken(source, statementNode, token),
           );
@@ -5748,6 +5754,9 @@ export const parseProtocolStatements = (
               rangeForTextToken(source, fallbackRange, token),
             ) ??
             parseRadvDnsTextStatement(text, fallbackRange, (token) =>
+              rangeForTextToken(source, fallbackRange, token),
+            ) ??
+            parseRadvCustomOptionTextStatement(text, fallbackRange, (token) =>
               rangeForTextToken(source, fallbackRange, token),
             ) ??
             parseRadvOptionTextStatement(text, fallbackRange, (token) =>

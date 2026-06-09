@@ -52,6 +52,34 @@ const splitTopLevelStatements = (body: string): string[] => {
   return statements;
 };
 
+const parseRadvCustomOptionParts = (
+  statementText: string,
+  tokenRange: TokenRange,
+):
+  | {
+      optionType: string;
+      optionTypeRange: SourceRange;
+      value: string;
+      valueRange: SourceRange;
+    }
+  | undefined => {
+  const customOptionMatch = statementText.match(
+    /^custom\s+option\s+type\s+(\S+)\s+value\s+(\S+)$/iu,
+  );
+  if (!customOptionMatch?.[1] || !customOptionMatch[2]) {
+    return undefined;
+  }
+
+  const optionType = customOptionMatch[1];
+  const value = customOptionMatch[2];
+  return {
+    optionType,
+    optionTypeRange: tokenRange(optionType),
+    value,
+    valueRange: tokenRange(value),
+  };
+};
+
 const parseRadvDnsBlockEntries = (
   blockKind: "rdnss" | "dnssl",
   bodyText: string,
@@ -240,6 +268,15 @@ const parseRadvInterfaceEntries = (
         };
       }
 
+      const customOption = parseRadvCustomOptionParts(item, tokenRange);
+      if (customOption) {
+        return {
+          kind: "custom-option",
+          ...customOption,
+          ...bodyRange,
+        };
+      }
+
       return {
         kind: "other",
         text: item,
@@ -362,6 +399,24 @@ export const parseRadvDnsTextStatement = (
     entries: parseRadvDnsBlockEntries(block, bodyText, tokenRange),
     bodyText,
     bodyRange: tokenRange(bodyText),
+    ...statementRange,
+  };
+};
+
+export const parseRadvCustomOptionTextStatement = (
+  statementText: string,
+  statementRange: SourceRange,
+  tokenRange: TokenRange,
+): ProtocolStatement | undefined => {
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const customOption = parseRadvCustomOptionParts(trimmed, tokenRange);
+  if (!customOption) {
+    return undefined;
+  }
+
+  return {
+    kind: "radv-custom-option",
+    ...customOption,
     ...statementRange,
   };
 };

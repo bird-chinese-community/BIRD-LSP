@@ -234,6 +234,7 @@ interface StatementBase extends SourceRange {
     | "radv-trigger"
     | "radv-prefix"
     | "radv-dns"
+    | "radv-custom-option"
     | "radv-interface"
     | "rip-option"
     | "rip-interface"
@@ -1466,6 +1467,7 @@ interface RadvInterfaceEntryBase extends SourceRange {
     | "dnssl"
     | "ns"
     | "domain"
+    | "custom-option"
     | "other";
 }
 
@@ -1542,6 +1544,14 @@ export interface RadvDnsBlock extends RadvInterfaceEntryBase {
   bodyRange?: SourceRange;
 }
 
+export interface RadvCustomOptionEntry extends RadvInterfaceEntryBase {
+  kind: "custom-option";
+  optionType: string;
+  optionTypeRange: SourceRange;
+  value: string;
+  valueRange: SourceRange;
+}
+
 export interface RadvInterfaceOtherEntry extends RadvInterfaceEntryBase {
   kind: "other";
   text: string;
@@ -1552,6 +1562,7 @@ export type RadvInterfaceEntry =
   | RadvInterfaceLocalEntry
   | RadvInterfacePrefixEntry
   | RadvDnsBlock
+  | RadvCustomOptionEntry
   | RadvInterfaceOtherEntry;
 
 export interface RadvInterfaceStatement extends StatementBase {
@@ -1592,6 +1603,14 @@ export interface RadvDnsStatement extends StatementBase {
   entries: RadvDnsBlockEntry[];
   bodyText?: string;
   bodyRange?: SourceRange;
+}
+
+export interface RadvCustomOptionStatement extends StatementBase {
+  kind: "radv-custom-option";
+  optionType: string;
+  optionTypeRange: SourceRange;
+  value: string;
+  valueRange: SourceRange;
 }
 
 export interface RipEcmpOptionStatement extends StatementBase {
@@ -1924,6 +1943,7 @@ export type ProtocolStatement =
   | RadvTriggerStatement
   | RadvPrefixStatement
   | RadvDnsStatement
+  | RadvCustomOptionStatement
   | RadvInterfaceStatement
   | RipOptionStatement
   | RipInterfaceStatement
