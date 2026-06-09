@@ -738,6 +738,9 @@ export interface BgpOptionStatement extends StatementBase {
   value?: boolean | string;
   valueText?: string;
   valueRange?: SourceRange;
+  flags?: string[];
+  flagsText?: string;
+  flagsRange?: SourceRange;
 }
 
 export interface BgpCapabilityStatement extends StatementBase {

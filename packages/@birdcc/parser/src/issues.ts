@@ -180,6 +180,10 @@ const MPLS_DOMAIN_BLOCK_END = /^\s*}\s*;?\s*$/;
 const COMPOUND_CHANNEL_PHRASE =
   /\b(?:ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/i;
 const BITWISE_FILTER_TERM = /\bbt_assert\s*\([^)]*\s[&|]\s[^)]*\)\s*;/i;
+const BGP_DISABLE_AFTER_CEASE_HEADER = /^\s*disable\s+after\s+cease\s*\{\s*$/i;
+const BLOCK_END = /^\s*\}\s*;?\s*$/u;
+const BGP_CEASE_FLAG_LINE =
+  /^\s*(?:cease|prefix\s+limit\s+hit|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\s*,?\s*$/i;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 
@@ -225,6 +229,28 @@ const isMplsDomainBlockEndIssue = (
   return false;
 };
 
+const isBgpDisableAfterCeaseFlagSetIssue = (
+  issue: ParseIssue,
+  lines: string[],
+): boolean => {
+  if (!BGP_CEASE_FLAG_LINE.test(lineTextAt(lines, issue.line))) {
+    return false;
+  }
+
+  for (let line = issue.line - 1; line >= 1; line -= 1) {
+    const text = lineTextAt(lines, line);
+    if (BGP_DISABLE_AFTER_CEASE_HEADER.test(text)) {
+      return true;
+    }
+
+    if (BLOCK_END.test(text)) {
+      return false;
+    }
+  }
+
+  return false;
+};
+
 const isRecoverableSyntaxIssue = (
   issue: ParseIssue,
   lines: string[],
@@ -233,6 +259,7 @@ const isRecoverableSyntaxIssue = (
     return (
       CASE_ARM_STATEMENT.test(lineTextAt(lines, issue.line)) ||
       isMplsDomainBlockEndIssue(issue, lines) ||
+      isBgpDisableAfterCeaseFlagSetIssue(issue, lines) ||
       BFD_NEIGHBOR.test(lineTextAt(lines, issue.line))
     );
   }

@@ -750,6 +750,45 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP disable-after-cease flag sets", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        disable after cease {
+          cease,
+          prefix limit hit,
+          administrative shutdown
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "disable-after-cease",
+            value: "flags",
+            flags: ["cease", "prefix-limit-hit", "administrative-shutdown"],
+            flagsText: "cease, prefix limit hit, administrative shutdown",
+          }),
+        ]),
+      );
+      expect(
+        protocol.statements.some(
+          (item) =>
+            item.kind === "other" && /\bdisable after cease\b/.test(item.text),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("parses BGP capability negotiation statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {

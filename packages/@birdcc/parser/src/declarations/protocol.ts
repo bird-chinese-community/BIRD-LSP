@@ -1240,6 +1240,52 @@ const parseBgpPhraseValueOption = (
   };
 };
 
+const normalizeBgpCeaseFlag = (flagText: string): string =>
+  flagText.trim().toLowerCase().replace(/\s+/gu, "-");
+
+const parseBgpDisableAfterCeaseFlagSet = (
+  statementNode: SyntaxNode,
+  phraseNodes: SyntaxNode[],
+  source: string,
+  statementRange: SourceRange,
+): ProtocolStatement | undefined => {
+  if (
+    phraseNodes.length !== 3 ||
+    phraseTextAt(phraseNodes, 0, source) !== "disable" ||
+    phraseTextAt(phraseNodes, 1, source) !== "after" ||
+    phraseTextAt(phraseNodes, 2, source) !== "cease"
+  ) {
+    return undefined;
+  }
+
+  const bodyNode = statementNode.childForFieldName("body");
+  if (!isPresentNode(bodyNode)) {
+    return undefined;
+  }
+
+  const flagsText = textOf(bodyNode, source)
+    .trim()
+    .replace(/^\{\s*/u, "")
+    .replace(/\s*\}$/u, "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(", ");
+  if (!flagsText) {
+    return undefined;
+  }
+
+  return {
+    kind: "bgp-option",
+    option: "disable-after-cease",
+    value: "flags",
+    flags: flagsText.split(",").map(normalizeBgpCeaseFlag),
+    flagsText,
+    flagsRange: toRange(bodyNode, source),
+    ...statementRange,
+  };
+};
+
 const parseBgpCapabilityStatement = (
   phraseNodes: SyntaxNode[],
   source: string,
@@ -1545,6 +1591,16 @@ const parseProtocolOptionStatement = (
   );
   if (timerStatement) {
     return timerStatement;
+  }
+
+  const bgpDisableAfterCeaseFlags = parseBgpDisableAfterCeaseFlagSet(
+    statementNode,
+    phraseNodes,
+    source,
+    statementRange,
+  );
+  if (bgpDisableAfterCeaseFlags) {
+    return bgpDisableAfterCeaseFlags;
   }
 
   if (
