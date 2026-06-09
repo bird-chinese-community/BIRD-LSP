@@ -726,6 +726,7 @@ export interface BgpOptionStatement extends StatementBase {
     | "path-metric"
     | "med-metric"
     | "deterministic-med"
+    | "igp-metric"
     | "local-role"
     | "require-roles"
     | "disable-rx"
