@@ -4513,6 +4513,63 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("does not treat comparison expressions as assignments", async () => {
+    const parsed = await parseBirdConfig(`
+      filter compare_only {
+        if (bgp_med == 100) then accept;
+        bgp_med != 100;
+        bgp_med <= 100;
+        bgp_med >= 100;
+        reject;
+      }
+    `);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" &&
+            /^=/u.test(item.valueText),
+        ),
+      ).toBe(false);
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" && item.targetText === "bgp_med",
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("does not extract BIRD keywords as function calls", async () => {
+    const parsed = await parseBirdConfig(`
+      filter keyword_calls {
+        if (1 = 1) then accept;
+        reject;
+      }
+    `);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.calls.some((call) =>
+          ["if", "then", "else", "case", "accept", "reject"].includes(
+            call.name.toLowerCase(),
+          ),
+        ),
+      ).toBe(false);
+    }
+  });
+
   it("does not collect nested protocol statements inside inline filter blocks", async () => {
     const sample = `
       protocol bgp edge_peer {

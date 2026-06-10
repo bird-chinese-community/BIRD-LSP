@@ -38,8 +38,11 @@ const parseFilterSegmentStatement = (
     };
   }
 
+  // Match plain assignments like `target = value`, but reject comparison
+  // operators (`==`, `!=`, `<=`, `>=`) so bare comparison expression
+  // statements are not misclassified as assignments.
   const assignmentMatch = normalizedSegment.match(
-    /^([A-Za-z_][A-Za-z0-9_.]*(?:\[[^\]]+\])?)\s*=\s*(.+)$/u,
+    /^([A-Za-z_][A-Za-z0-9_.]*(?:\[[^\]]+\])?)\s*(?<![<>!=])=(?!=)\s*(.+)$/u,
   );
   if (assignmentMatch) {
     return {
@@ -285,6 +288,23 @@ const collectFunctionLeadingDeclarations = (
   return statements;
 };
 
+const FILTER_KEYWORD_DENYLIST = new Set([
+  "if",
+  "then",
+  "else",
+  "case",
+  "for",
+  "do",
+  "while",
+  "return",
+  "accept",
+  "reject",
+  "print",
+  "printn",
+  "unset",
+  "in",
+]);
+
 const collectLiteralsAndMatches = (
   bodyNode: SyntaxNode,
   source: string,
@@ -313,6 +333,9 @@ const collectLiteralsAndMatches = (
     }
 
     const name = nameMatch[1];
+    if (FILTER_KEYWORD_DENYLIST.has(name.toLowerCase())) {
+      return;
+    }
     calls.push({
       name,
       nameRange: {
