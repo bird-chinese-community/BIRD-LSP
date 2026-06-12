@@ -5416,7 +5416,7 @@ const mergeRpkiLocalAddressStatements = (
         candidateIndex !== index &&
         candidate.kind === "other" &&
         candidate.line === statement.line &&
-        candidate.column === statement.endColumn + 1,
+        candidate.column > statement.endColumn,
     );
     const next = statements[nextIndex];
     if (next?.kind !== "other") {
