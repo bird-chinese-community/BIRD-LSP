@@ -495,7 +495,7 @@ const collectLiteralsAndMatches = (
     let match = callPattern.exec(lineText);
     while (match) {
       const matchedText = match[0];
-      const startColumn = Math.max(1, lineStartColumn + match.index);
+      const startColumn = lineStartColumn + match.index;
       pushTextCall(matchedText, {
         line: sourceLine,
         column: startColumn,
