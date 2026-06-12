@@ -86,7 +86,7 @@ const nodeCodeUnitSpan = (
   };
 };
 
-const lineStartsOf = (source: string): number[] => {
+export const lineStartsOf = (source: string): number[] => {
   const estimatedBytes = Buffer.byteLength(source, "utf8");
   const canUseCache = estimatedBytes <= UTF8_CACHE_LIMIT_BYTES;
   if (
@@ -141,6 +141,22 @@ const indexToLineColumn = (
   return {
     line: bestLineIndex + 1,
     column: codeUnitIndex - lineStart + 1,
+  };
+};
+
+export const indexToRange = (
+  source: string,
+  lineStarts: number[],
+  startIndex: number,
+  endIndex: number,
+): SourceRange => {
+  const start = indexToLineColumn(startIndex, lineStarts);
+  const end = indexToLineColumn(endIndex, lineStarts);
+  return {
+    line: start.line,
+    column: start.column,
+    endLine: end.line,
+    endColumn: end.column,
   };
 };
 

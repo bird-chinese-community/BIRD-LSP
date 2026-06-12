@@ -28,6 +28,7 @@ import {
   parseWatchdogFromStatement,
 } from "./top-level.js";
 import { normalizeTableType } from "./shared.js";
+import { indexToRange, lineStartsOf } from "../tree.js";
 
 const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
@@ -56,49 +57,6 @@ const countChar = (text: string, char: string): number => {
     }
   }
   return count;
-};
-
-const lineStartsOf = (source: string): number[] => {
-  const starts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === "\n") {
-      starts.push(index + 1);
-    }
-  }
-  return starts;
-};
-
-const indexToRange = (
-  source: string,
-  lineStarts: number[],
-  startIndex: number,
-  endIndex: number,
-): SourceRange => {
-  const positionOf = (index: number): { line: number; column: number } => {
-    let lineIndex = 0;
-    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
-      const start = lineStarts[cursor] ?? 0;
-      if (start > index) {
-        break;
-      }
-      lineIndex = cursor;
-    }
-
-    const lineStart = lineStarts[lineIndex] ?? 0;
-    return {
-      line: lineIndex + 1,
-      column: index - lineStart + 1,
-    };
-  };
-
-  const start = positionOf(startIndex);
-  const end = positionOf(endIndex);
-  return {
-    line: start.line,
-    column: start.column,
-    endLine: end.line,
-    endColumn: end.column,
-  };
 };
 
 const findMatchingBraceIndex = (
