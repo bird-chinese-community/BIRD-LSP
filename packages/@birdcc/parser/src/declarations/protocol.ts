@@ -1204,23 +1204,24 @@ const parseBgpDisableAfterCeaseFlagSet = (
     return undefined;
   }
 
-  const flagsText = textOf(bodyNode, source)
+  const rawFlags = textOf(bodyNode, source)
     .trim()
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "")
     .split(",")
     .map((item) => item.trim())
-    .filter(Boolean)
-    .join(", ");
-  if (!flagsText) {
+    .filter(Boolean);
+  if (rawFlags.length === 0) {
     return undefined;
   }
+
+  const flagsText = rawFlags.join(", ");
 
   return {
     kind: "bgp-option",
     option: "disable-after-cease",
     value: "flags",
-    flags: flagsText.split(",").map(normalizeBgpCeaseFlag),
+    flags: rawFlags.map(normalizeBgpCeaseFlag),
     flagsText,
     flagsRange: toRange(bodyNode, source),
     ...statementRange,
