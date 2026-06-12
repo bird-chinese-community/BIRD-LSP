@@ -317,20 +317,29 @@ export const parseTimeformatFromStatement = (
     return null;
   }
 
-  const scopeToken =
-    tokenLikeFromNode(statementNode.childForFieldName("scope"), source) ??
-    tokens[1];
-  const formatToken =
-    tokenLikeFromNode(statementNode.childForFieldName("format"), source) ??
-    tokens[2];
-  const limitToken =
-    tokenLikeFromNode(statementNode.childForFieldName("limit"), source) ??
-    tokens[3];
-  const fallbackFormatToken =
-    tokenLikeFromNode(
-      statementNode.childForFieldName("fallback_format"),
-      source,
-    ) ?? tokens[4];
+  const isStrictTimeformat = statementNode.type === "timeformat_statement";
+
+  const scopeToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("scope"), source)
+    : (tokenLikeFromNode(statementNode.childForFieldName("scope"), source) ??
+      tokens[1]);
+  const formatToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("format"), source)
+    : (tokenLikeFromNode(statementNode.childForFieldName("format"), source) ??
+      tokens[2]);
+  const limitToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("limit"), source)
+    : (tokenLikeFromNode(statementNode.childForFieldName("limit"), source) ??
+      tokens[3]);
+  const fallbackFormatToken = isStrictTimeformat
+    ? tokenLikeFromNode(
+        statementNode.childForFieldName("fallback_format"),
+        source,
+      )
+    : (tokenLikeFromNode(
+        statementNode.childForFieldName("fallback_format"),
+        source,
+      ) ?? tokens[4]);
 
   if (!scopeToken) {
     issues.push({
@@ -388,10 +397,13 @@ export const parseWatchdogFromStatement = (
     return null;
   }
 
-  const optionToken =
-    tokenLikeFromNode(statementNode.childForFieldName("option"), source) ??
-    tokens[1];
-  const valueTokenStart = statementNode.type === "watchdog_statement" ? 0 : 2;
+  const isStrictWatchdog = statementNode.type === "watchdog_statement";
+
+  const optionToken = isStrictWatchdog
+    ? tokenLikeFromNode(statementNode.childForFieldName("option"), source)
+    : (tokenLikeFromNode(statementNode.childForFieldName("option"), source) ??
+      tokens[1]);
+  const valueTokenStart = isStrictWatchdog ? 0 : 2;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
     .map((token) => token.text)
