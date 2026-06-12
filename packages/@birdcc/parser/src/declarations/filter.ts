@@ -484,17 +484,12 @@ const collectLiteralsAndMatches = (
 
   const bodyText = textOf(bodyNode, source);
   const bodyRange = toRange(bodyNode, source);
-  const sourceLines = source.split(/\r?\n/);
   const bodyLines = bodyText.split(/\r?\n/);
   const callPattern = /\b([A-Za-z_][A-Za-z0-9_]*)\s*\(([^();{}]*)\)/gu;
   for (let lineOffset = 0; lineOffset < bodyLines.length; lineOffset += 1) {
     const lineText = bodyLines[lineOffset] ?? "";
     const sourceLine = bodyRange.line + lineOffset;
-    const sourceLineText = sourceLines[sourceLine - 1] ?? "";
-    const lineStartColumn =
-      lineOffset === 0
-        ? bodyRange.column
-        : sourceLineText.indexOf(lineText) + 1;
+    const lineStartColumn = lineOffset === 0 ? bodyRange.column : 1;
 
     callPattern.lastIndex = 0;
     let match = callPattern.exec(lineText);
