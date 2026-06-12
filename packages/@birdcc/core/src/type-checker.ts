@@ -515,17 +515,29 @@ export const checkTypes = (
     for (const statement of declaration.statements) {
       if (statement.kind === "assignment") {
         const variableName = statement.targetText.trim();
+        // Structured assignments such as `foo.bar = 1` or `foo[bar] = 1`
+        // store the base variable name (`foo`) in variableTypes. Use the
+        // base name for lookup and skip strict type-mismatch checks on
+        // property/index assignments because their types depend on runtime
+        // shape that we do not track yet.
+        const isStructured =
+          variableName.includes(".") || variableName.includes("[");
+        const baseVariableName = isStructured
+          ? (variableName.split(/[.[]/, 1)[0]?.trim() ?? variableName)
+          : variableName;
         const assignedValue = statement.valueText;
-        const expectedType = variableTypes.get(variableName);
+        const expectedType = variableTypes.get(baseVariableName);
 
         if (!expectedType) {
-          if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(variableName.toLowerCase())) {
+          if (
+            BUILTIN_ASSIGNABLE_ATTRIBUTES.has(baseVariableName.toLowerCase())
+          ) {
             continue;
           }
 
           diagnostics.push({
             code: "type/undefined-variable",
-            message: `Assignment to undefined variable '${variableName}'`,
+            message: `Assignment to undefined variable '${baseVariableName}'`,
             severity: "error",
             source: "core",
             range: {
@@ -539,7 +551,7 @@ export const checkTypes = (
         }
 
         const inferredType = inferValueType(assignedValue, variableTypes);
-        if (expectedType === "unknown") {
+        if (expectedType === "unknown" || isStructured) {
           continue;
         }
 
@@ -552,7 +564,7 @@ export const checkTypes = (
               statement.column,
               statement.endLine,
               statement.endColumn,
-              variableName,
+              baseVariableName,
             ),
           );
         }
