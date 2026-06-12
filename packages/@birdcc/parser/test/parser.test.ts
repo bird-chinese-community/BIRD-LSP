@@ -4533,14 +4533,12 @@ describe("@birdcc/parser tree-sitter", () => {
       expect(
         filter.statements.some(
           (item) =>
-            item.kind === "assignment" &&
-            /^=/u.test(item.valueText),
+            item.kind === "assignment" && item.valueText.startsWith("="),
         ),
       ).toBe(false);
       expect(
         filter.statements.some(
-          (item) =>
-            item.kind === "assignment" && item.targetText === "bgp_med",
+          (item) => item.kind === "assignment" && item.targetText === "bgp_med",
         ),
       ).toBe(false);
     }
