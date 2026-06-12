@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vibe Coding GitHub SOP"
+  short_description: "Standardize GitHub Issues, PRs, and Projects v2."
+  default_prompt: "Use $vibe-coding-github-sop to standardize GitHub Issues, Epic/Sub-Issue breakdowns, labels, branch naming, PR flow, and Projects v2 status updates."
