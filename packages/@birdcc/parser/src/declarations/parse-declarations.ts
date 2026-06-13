@@ -54,16 +54,6 @@ const sourceRangeForLineSlice = (
   endColumn: startColumn + text.length,
 });
 
-const countChar = (text: string, char: string): number => {
-  let count = 0;
-  for (const current of text) {
-    if (current === char) {
-      count += 1;
-    }
-  }
-  return count;
-};
-
 const valueRangeInStatement = (
   source: string,
   lineStarts: number[],
@@ -303,6 +293,7 @@ const collectFallbackMplsDomainDeclarations = (
   );
   const fallbackDeclarations: MplsDomainDeclaration[] = [];
   const lines = source.split(/\r?\n/);
+  const lineStarts = lineStartsOf(source);
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineText = lines[index] ?? "";
@@ -324,27 +315,43 @@ const collectFallbackMplsDomainDeclarations = (
     const nameColumn =
       lineText.indexOf(name, domainKeywordColumn + "domain".length) + 1;
     let endLineIndex = index;
-    let braceBalance = 0;
-    let sawBody = false;
+    let bodyText: string | undefined;
+    let bodyRange: SourceRange | undefined;
 
-    for (let cursor = index; cursor < lines.length; cursor += 1) {
-      const currentLine = lines[cursor] ?? "";
-      braceBalance += countChar(currentLine, "{");
-      braceBalance -= countChar(currentLine, "}");
-      sawBody ||= currentLine.includes("{");
+    const lineStartIndex = lineStarts[index] ?? 0;
+    const headerEndIndex = lineStartIndex + match[0].length;
+    const openBraceIndex = source.indexOf("{", headerEndIndex);
+    const semicolonIndex = source.indexOf(";", headerEndIndex);
 
-      if (sawBody) {
-        if (braceBalance <= 0) {
-          endLineIndex = cursor;
-          break;
-        }
-        continue;
+    if (
+      openBraceIndex !== -1 &&
+      (semicolonIndex === -1 || openBraceIndex < semicolonIndex)
+    ) {
+      const closeBraceIndex = findMatchingBraceIndex(source, openBraceIndex);
+      if (closeBraceIndex !== -1) {
+        const closeBraceRange = indexToRange(
+          source,
+          lineStarts,
+          closeBraceIndex,
+          closeBraceIndex + 1,
+        );
+        endLineIndex = closeBraceRange.line - 1;
+        bodyText = source.slice(openBraceIndex, closeBraceIndex + 1);
+        bodyRange = indexToRange(
+          source,
+          lineStarts,
+          openBraceIndex,
+          closeBraceIndex + 1,
+        );
       }
-
-      if (currentLine.includes(";")) {
-        endLineIndex = cursor;
-        break;
-      }
+    } else if (semicolonIndex !== -1) {
+      const semicolonRange = indexToRange(
+        source,
+        lineStarts,
+        semicolonIndex,
+        semicolonIndex + 1,
+      );
+      endLineIndex = semicolonRange.line - 1;
     }
 
     const endLineText = lines[endLineIndex] ?? "";
@@ -354,32 +361,6 @@ const collectFallbackMplsDomainDeclarations = (
       endLine: endLineIndex + 1,
       endColumn: endLineText.trimEnd().length + 1,
     };
-
-    let bodyText: string | undefined;
-    let bodyRange: SourceRange | undefined;
-    const joinedText = lines.slice(index, endLineIndex + 1).join("\n");
-    const bodyStartOffset = joinedText.indexOf("{");
-    const bodyEndOffset = joinedText.lastIndexOf("}");
-    if (bodyStartOffset !== -1 && bodyEndOffset > bodyStartOffset) {
-      bodyText = joinedText.slice(bodyStartOffset, bodyEndOffset + 1);
-      const bodyLinesBefore = joinedText.slice(0, bodyStartOffset).split("\n");
-      const bodyEndLinesBefore = joinedText
-        .slice(0, bodyEndOffset + 1)
-        .split("\n");
-      const bodyStartLine = line + bodyLinesBefore.length - 1;
-      const bodyEndLine = line + bodyEndLinesBefore.length - 1;
-      const bodyStartColumn =
-        bodyLinesBefore.length === 1
-          ? startColumn + bodyStartOffset
-          : (bodyLinesBefore.at(-1)?.length ?? 0) + 1;
-      const bodyEndColumn = bodyEndLinesBefore.at(-1)?.length ?? 0;
-      bodyRange = {
-        line: bodyStartLine,
-        column: bodyStartColumn,
-        endLine: bodyEndLine,
-        endColumn: bodyEndColumn + 1,
-      };
-    }
 
     fallbackDeclarations.push({
       kind: "mpls-domain",
