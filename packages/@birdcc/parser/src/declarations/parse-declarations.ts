@@ -28,7 +28,12 @@ import {
   parseWatchdogFromStatement,
 } from "./top-level.js";
 import { normalizeTableType } from "./shared.js";
-import { indexToRange, lineStartsOf } from "../tree.js";
+import {
+  findMatchingBraceIndex,
+  indexToRange,
+  lineStartsOf,
+  rangeContains,
+} from "../tree.js";
 
 const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
@@ -57,31 +62,6 @@ const countChar = (text: string, char: string): number => {
     }
   }
   return count;
-};
-
-const findMatchingBraceIndex = (
-  source: string,
-  openBraceIndex: number,
-): number => {
-  let balance = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      balance += 1;
-      continue;
-    }
-
-    if (char !== "}") {
-      continue;
-    }
-
-    balance -= 1;
-    if (balance === 0) {
-      return index;
-    }
-  }
-
-  return -1;
 };
 
 const valueRangeInStatement = (
@@ -119,7 +99,7 @@ const parseTableOptionEntries = (
     }
 
     const rawStatement = statementMatch[1] ?? "";
-    const statementText = rawStatement.trim();
+    const statementText = rawStatement.replace(/#.*$/gu, "").trim();
     if (statementText.length === 0) {
       continue;
     }
@@ -340,7 +320,8 @@ const collectFallbackMplsDomainDeclarations = (
 
     const indent = match[1]?.length ?? 0;
     const startColumn = indent + 1;
-    const nameColumn = lineText.indexOf(name) + 1;
+    const domainKeywordColumn = lineText.toLowerCase().indexOf("domain") + 1;
+    const nameColumn = lineText.indexOf(name, domainKeywordColumn) + 1;
     let endLineIndex = index;
     let braceBalance = 0;
     let sawBody = false;
@@ -448,7 +429,10 @@ const collectFallbackAttributeDeclarations = (
       startColumn,
       statementText,
     );
-    const attributeTypeColumn = lineText.indexOf(attributeType) + 1;
+    const attributeKeywordColumn =
+      lineText.toLowerCase().indexOf("attribute") + 1;
+    const attributeTypeColumn =
+      lineText.indexOf(attributeType, attributeKeywordColumn) + 1;
     const nameColumn = lineText.indexOf(name, attributeTypeColumn) + 1;
 
     fallbackDeclarations.push({
@@ -503,7 +487,8 @@ const collectFallbackTableDeclarations = (
       startColumn,
       statementText,
     );
-    const nameColumn = lineText.indexOf(name) + 1;
+    const tableKeywordColumn = lineText.toLowerCase().indexOf("table") + 1;
+    const nameColumn = lineText.indexOf(name, tableKeywordColumn) + 1;
 
     fallbackDeclarations.push({
       kind: "table",
@@ -628,16 +613,6 @@ const collectTableBlockDeclarations = (
   }
 
   return blockDeclarations;
-};
-
-const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
-  const startsBefore =
-    outer.line < inner.line ||
-    (outer.line === inner.line && outer.column <= inner.column);
-  const endsAfter =
-    outer.endLine > inner.endLine ||
-    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
-  return startsBefore && endsAfter;
 };
 
 const removeTablesCoveredByBlockTables = (
