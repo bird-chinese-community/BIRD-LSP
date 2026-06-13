@@ -3541,7 +3541,8 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      const cleanItem = item.replace(/(?:#|\/\/).*/, "").trim();
+      const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
         return {
@@ -3674,7 +3675,8 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      const cleanItem = item.replace(/(?:#|\/\/).*/, "").trim();
+      const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
         return {
