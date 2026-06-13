@@ -6,35 +6,13 @@ type TokenRange = (token: string) => SourceRange;
 const stripQuotedText = (value: string): string =>
   value.replace(/^(['"])(.*)\1$/u, "$2");
 
-const stripTrailingComment = (value: string): string => {
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if (char === "\\") {
-      index += 1;
-      continue;
-    }
-
-    if (char === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-      continue;
-    }
-
-    if (char === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (!inSingleQuote && !inDoubleQuote) {
-      if (char === "#" || (char === "/" && value[index + 1] === "/")) {
-        return value.slice(0, index);
-      }
-    }
-  }
-
-  return value;
-};
+const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (!value) {

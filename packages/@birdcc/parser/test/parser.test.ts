@@ -848,6 +848,39 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses BGP disable-after-cease flag sets with block comments", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        disable after cease {
+          cease, /* keep this neighbor down on generic cease */
+          prefix limit, /* standard BIRD 2 keyword (no hit) */
+          administrative shutdown
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "disable-after-cease",
+            value: "flags",
+            flags: ["cease", "prefix-limit", "administrative-shutdown"],
+            flagsText: "cease, prefix limit, administrative shutdown",
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses BGP default MED option", async () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
@@ -3964,6 +3997,48 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("strips block comments from OSPF interface passwords", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            password "secret"; /* interface auth password */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "password",
+                  value: "secret",
+                  valueText: '"secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("parses OSPF area interface header variants", async () => {
     const parsed = await parseBirdConfig(`
       protocol ospf core {
@@ -4122,6 +4197,49 @@ describe("@birdcc/parser tree-sitter", () => {
               item.kind === "other" && /\bvirtual\s+link\b/i.test(item.text),
           ),
         ).toBe(false);
+      }
+    }
+  });
+
+  it("strips block comments from OSPF virtual link passwords", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 1 {
+          virtual link 192.0.2.1 {
+            authentication simple;
+            password "secret"; /* virtual link auth password */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "virtual-link",
+              routerId: "192.0.2.1",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "password",
+                  value: "secret",
+                  valueText: '"secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
       }
     }
   });

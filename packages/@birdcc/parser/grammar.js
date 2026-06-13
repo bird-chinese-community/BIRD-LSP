@@ -29,7 +29,13 @@ export default grammar({
         $.top_level_statement,
       ),
 
-    comment: () => token(seq("#", /.*/)),
+    comment: () =>
+      token(
+        choice(
+          seq("#", /.*/),
+          seq("/*", repeat(choice(/[^*]/, seq("*", /[^/]/))), "*/"),
+        ),
+      ),
 
     string: () =>
       token(

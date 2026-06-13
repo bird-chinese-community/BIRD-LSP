@@ -47,7 +47,7 @@ const COMPOUND_CHANNEL_HEADER =
 const stripTrailingComment = (value: string): string =>
   value
     .replace(
-      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|((?:#|\/\/).*)/gu,
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
       (match, group) => (group ? "" : match),
     )
     .trim();
