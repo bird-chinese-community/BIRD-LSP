@@ -5342,7 +5342,7 @@ const nearestFollowingOtherIndex = (
     if (
       candidate &&
       candidate.line === statement.line &&
-      candidate.column > statement.endColumn &&
+      candidate.column >= statement.endColumn &&
       candidate.column < nearestColumn
     ) {
       nearestIndex = candidateIndex;
