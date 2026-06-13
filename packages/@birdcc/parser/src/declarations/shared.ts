@@ -77,10 +77,15 @@ export const splitTopLevelStatements = (body: string): string[] => {
 
     // Single-line comments (# or //)
     if (char === "#" || (char === "/" && nextChar === "/")) {
+      const commentStart = index;
       while (index < body.length && body[index] !== "\n") {
         index += 1;
       }
       if (depth === 0) {
+        const preComment = body.slice(start, commentStart).trim();
+        if (preComment.length > 0) {
+          statements.push(preComment);
+        }
         start = index < body.length ? index + 1 : body.length;
       }
       continue;
@@ -88,6 +93,7 @@ export const splitTopLevelStatements = (body: string): string[] => {
 
     // Multi-line comments (/* ... */)
     if (char === "/" && nextChar === "*") {
+      const commentStart = index;
       index += 2;
       while (index < body.length - 1) {
         if (body[index] === "*" && body[index + 1] === "/") {
@@ -95,6 +101,13 @@ export const splitTopLevelStatements = (body: string): string[] => {
           break;
         }
         index += 1;
+      }
+      if (depth === 0) {
+        const preComment = body.slice(start, commentStart).trim();
+        if (preComment.length > 0) {
+          statements.push(preComment);
+        }
+        start = index + 1;
       }
       continue;
     }
