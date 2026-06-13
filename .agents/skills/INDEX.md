@@ -18,6 +18,7 @@
 | TypeScript E2E 测试   | [`typescript-e2e-testing`](#typescript-e2e-testing)     |
 | 单元测试              | [`vitest`](#vitest)                                     |
 | VS Code 扩展开发      | [`vscode-extension-builder`](#vscode-extension-builder) |
+| BIRD 配置工具链       | [`bird-agent`](#bird-agent)                             |
 | GitHub 项目管理       | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     |
 | PR 评论处理           | [`pr-address-comments`](#pr-address-comments)           |
 | npm 版本升级          | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         |
@@ -49,13 +50,14 @@
 | [`typescript-e2e-testing`](#typescript-e2e-testing) | TypeScript E2E 测试 | Jest、Docker 基础设施、GWT 模式、真实服务测试    |
 | [`vitest`](#vitest)                                 | 单元测试框架        | Vite 原生、Mock、Coverage、并发测试              |
 
-### 🔧 工具平台（4 skills）
+### 🔧 工具平台（5 skills）
 
 特定平台/工具的使用指南。
 
 | Skill                                                   | 平台/工具                | 主要功能                                          |
 | ------------------------------------------------------- | ------------------------ | ------------------------------------------------- |
 | [`vscode-extension-builder`](#vscode-extension-builder) | VS Code Extension API    | 扩展脚手架、命令/webview/语言支持、打包发布       |
+| [`bird-agent`](#bird-agent)                             | BIRD Config 工具链       | 调用 BIRD-LSP CLI 进行 lint/fmt/validate，跨编辑器支持 |
 | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     | GitHub (Issues/Projects) | Epic 管理、Sub-Issues 拆分、标签体系、Projects v2 |
 | [`pr-address-comments`](#pr-address-comments)           | GitHub PR                | PR 评论处理、代码审查反馈                         |
 | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         | bumpp + npm + gh         | Monorepo npm 包版本升级与发布可见性检查           |
@@ -272,6 +274,24 @@
 
 ---
 
+### bird-agent
+
+**描述**: 协助用户编写、验证、格式化和理解 BIRD (BIRD1/2/3) 路由守护进程配置文件。通过调用 BIRD-LSP 工具链（`@birdcc/cli` 的 lint/fmt/validate、`bird -p` 运行时检查）和 BIRD 文档，为 VSCode、Vim、Neovim、IDEA、OpenCode 等任何编辑器场景提供一致的 CLI 工作流。
+
+**使用场景**:
+
+- 编辑或审查 `bird.conf` / `bird2.conf` / `bird3.conf` 配置文件
+- 诊断 BIRD 配置语法/语义错误
+- 格式化 BIRD 配置文件
+- 配置 GitHub Actions CI 自动校验 BIRD 配置
+- 查询 BIRD 关键字、函数、协议或 CLI 命令的用法
+
+**触发关键词**: BIRD、BIRD2、BIRD3、bird.conf、BGP、OSPF、RIP、birdcc、@birdcc/cli、setup-birdcc、formatter、linter
+
+**输出**: lint 诊断报告、格式化后的配置、修复建议、CI workflow 模板、文档解释
+
+---
+
 ## 常见工作流组合
 
 ### 1. 新项目启动
@@ -342,6 +362,7 @@ project-indexer (文档归档)
          ▼
 工具平台层
 ├── vscode-extension-builder
+├── bird-agent
 ├── vibe-coding-github-sop
 └── pr-address-comments
 ```
@@ -363,4 +384,4 @@ project-indexer (文档归档)
 
 ---
 
-_最后更新: 2026-03-02_
+_最后更新: 2026-06-14_
