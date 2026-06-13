@@ -2137,6 +2137,7 @@ export interface TemplateDeclaration extends DeclarationBase {
   nameRange: SourceRange;
   fromTemplate?: string;
   fromTemplateRange?: SourceRange;
+  bodyText?: string;
 }
 
 export interface ExtractedLiteral extends SourceRange {

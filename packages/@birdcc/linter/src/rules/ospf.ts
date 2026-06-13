@@ -1,5 +1,11 @@
 import type { BirdDiagnostic } from "@birdcc/core";
-import type { SourceRange } from "@birdcc/parser";
+import type {
+  ParsedBirdDocument,
+  ProtocolDeclaration,
+  ProtocolStatement,
+  SourceRange,
+  TemplateDeclaration,
+} from "@birdcc/parser";
 import {
   createProtocolDiagnostic,
   createRuleDiagnostic,
@@ -38,11 +44,55 @@ const isAsbrEnabled = (text: string): boolean => {
 };
 
 const hasProtocolAsbr = (
-  declaration: Parameters<typeof protocolOtherTextEntries>[0],
-): boolean =>
-  declaration.statements.some(
-    (statement) => statement.kind === "other" && isAsbrEnabled(statement.text),
-  );
+  declaration: ProtocolDeclaration,
+  parsed: ParsedBirdDocument,
+): boolean => {
+  const declarations = parsed.program.declarations;
+  const visited = new Set<string>();
+  let current: ProtocolDeclaration | TemplateDeclaration | undefined =
+    declaration;
+  let depth = 0;
+  const maxDepth = 10;
+
+  while (current && depth < maxDepth) {
+    if (current.kind === "protocol") {
+      const asbrStatements = current.statements.filter(
+        (
+          statement,
+        ): statement is Extract<ProtocolStatement, { kind: "other" }> =>
+          statement.kind === "other" && /\basbr\b/i.test(statement.text),
+      );
+      if (asbrStatements.length > 0) {
+        const lastStatement = asbrStatements[asbrStatements.length - 1];
+        return isAsbrEnabled(lastStatement.text);
+      }
+    } else if (current.kind === "template") {
+      const bodyText = current.bodyText ?? "";
+      if (/\basbr\b/i.test(bodyText)) {
+        return isAsbrEnabled(bodyText);
+      }
+    }
+
+    const templateName = current.fromTemplate;
+    if (!templateName) {
+      break;
+    }
+
+    const key = templateName.toLowerCase();
+    if (visited.has(key)) {
+      break;
+    }
+    visited.add(key);
+
+    current = declarations.find(
+      (decl): decl is TemplateDeclaration =>
+        decl.kind === "template" && decl.name.toLowerCase() === key,
+    );
+    depth += 1;
+  }
+
+  return false;
+};
 
 const parseAreaSegments = (
   text: string,
@@ -250,7 +300,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const protocolAsbr = hasProtocolAsbr(declaration);
+    const protocolAsbr = hasProtocolAsbr(declaration, parsed);
     const areas = collectAreas(declaration);
     for (const area of areas) {
       if (isBackboneArea(area.areaId)) {

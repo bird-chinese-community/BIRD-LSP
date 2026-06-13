@@ -305,6 +305,21 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).not.toContain("ospf/asbr-stub-area");
   });
 
+  it("hits ospf/asbr-stub-area when ASBR is inherited from template", async () => {
+    const codes = await codesOf(`
+      template ospf base_tpl {
+        asbr;
+      }
+      protocol ospf core from base_tpl {
+        area 1 {
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).toContain("ospf/asbr-stub-area");
+  });
+
   it("accepts area 0.0.0.0 as backbone area id", async () => {
     const codes = await codesOf(`
       protocol ospf core {
