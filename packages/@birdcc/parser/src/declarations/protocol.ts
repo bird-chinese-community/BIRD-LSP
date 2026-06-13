@@ -4482,14 +4482,14 @@ const parseProtocolInterfaceEntries = (
           address,
           addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
           addressRange: tokenRange(address),
-          ...bodyRange,
+          ...tokenRange(item),
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...tokenRange(item),
       };
     });
 };

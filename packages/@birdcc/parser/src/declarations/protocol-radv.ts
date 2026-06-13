@@ -6,6 +6,31 @@ type TokenRange = (token: string) => SourceRange;
 const stripQuotedText = (value: string): string =>
   value.replace(/^(['"])(.*)\1$/u, "$2");
 
+const stripTrailingComment = (value: string): string => {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (!inSingleQuote && !inDoubleQuote) {
+      if (char === "#" || (char === "/" && value[index + 1] === "/")) {
+        return value.slice(0, index);
+      }
+    }
+  }
+
+  return value;
+};
+
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (!value) {
     return undefined;
@@ -412,7 +437,7 @@ export const parseRadvInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
-  const rest = interfaceMatch?.[1]?.trim();
+  const rest = stripTrailingComment((interfaceMatch?.[1] ?? "").trim()).trim();
   if (!rest) {
     return undefined;
   }
