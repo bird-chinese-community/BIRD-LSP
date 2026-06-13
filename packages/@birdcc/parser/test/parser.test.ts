@@ -4244,6 +4244,116 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("strips comments from OSPF interface options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            cost 10; /* interface cost */
+            hello 5; # hello interval
+            authentication simple; /* auth method */
+            rx buffer large; # rx buffer size
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "cost",
+                  value: "10",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "simple",
+                }),
+                expect.objectContaining({
+                  kind: "rx-buffer",
+                  value: "large",
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("strips comments from OSPF virtual link options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 1 {
+          virtual link 192.0.2.1 {
+            hello 5; /* hello interval */
+            transmit delay 7; # tx delay
+            authentication cryptographic; /* auth method */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "virtual-link",
+              routerId: "192.0.2.1",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "transmit-delay",
+                  value: "7",
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "cryptographic",
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("parses OSPF area networks and stubnets", async () => {
     const parsed = await parseBirdConfig(`
       protocol ospf core {

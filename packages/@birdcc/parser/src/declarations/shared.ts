@@ -149,6 +149,18 @@ export const splitTopLevelStatements = (body: string): string[] => {
   return statements;
 };
 
+/**
+ * Remove trailing line comments (`#`, `//`) and block comments (`/* ... *\/`) while preserving quoted strings.
+ * Useful when parsing statement text that may contain inline comments.
+ */
+export const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
+
 export const TABLE_TYPES = new Set([
   "routing",
   "ipv4",

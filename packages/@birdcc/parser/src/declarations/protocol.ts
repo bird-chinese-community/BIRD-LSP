@@ -32,6 +32,7 @@ import {
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
   splitTopLevelStatements,
+  stripTrailingComment,
 } from "./shared.js";
 import {
   parseRadvCustomOptionTextStatement,
@@ -43,14 +44,6 @@ import {
 
 const COMPOUND_CHANNEL_HEADER =
   /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
-
-const stripTrailingComment = (value: string): string =>
-  value
-    .replace(
-      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
-      (match, group) => (group ? "" : match),
-    )
-    .trim();
 
 const fallbackEntryRange = (
   source: string,
@@ -3407,7 +3400,10 @@ const parseOspfAreaInterfaceEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
-      const valueMatch = item.match(/^(cost|priority|ecmp\s+weight)\s+(.+)$/iu);
+      const cleanItem = stripTrailingComment(item);
+      const valueMatch = cleanItem.match(
+        /^(cost|priority|ecmp\s+weight)\s+(.+)$/iu,
+      );
       if (valueMatch?.[1] && valueMatch[2]) {
         const option = valueMatch[1].toLowerCase().replace(/\s+/gu, "-");
         const value = valueMatch[2].trim();
@@ -3422,7 +3418,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+      const deadCountMatch = cleanItem.match(/^dead\s+count\s+(.+)$/iu);
       if (deadCountMatch?.[1]) {
         const value = deadCountMatch[1].trim();
         return {
@@ -3434,7 +3430,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const timerMatch = item.match(
+      const timerMatch = cleanItem.match(
         /^(hello|poll|retransmit|wait|dead)\s+(.+)$/iu,
       );
       if (timerMatch?.[1] && timerMatch[2]) {
@@ -3453,7 +3449,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      const transmitDelayMatch = cleanItem.match(/^transmit\s+delay\s+(.+)$/iu);
       if (transmitDelayMatch?.[1]) {
         const value = transmitDelayMatch[1].trim();
         return {
@@ -3465,7 +3461,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const typeMatch = item.match(/^type\s+(\S+)$/iu);
+      const typeMatch = cleanItem.match(/^type\s+(\S+)$/iu);
       if (typeMatch?.[1]) {
         const valueText = typeMatch[1].toLowerCase();
         const knownTypes = [
@@ -3489,7 +3485,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const ttlSecurityTxOnlyMatch = item.match(
+      const ttlSecurityTxOnlyMatch = cleanItem.match(
         /^ttl\s+security\s+tx\s+only$/iu,
       );
       if (ttlSecurityTxOnlyMatch) {
@@ -3502,7 +3498,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const boolMatch = item.match(
+      const boolMatch = cleanItem.match(
         /^(strict\s+nonbroadcast|stub|check\s+link|real\s+broadcast|ptp\s+netmask|ptp\s+address|link\s+lsa\s+suppression|ttl\s+security|bfd)\s+(\S+)$/iu,
       );
       if (boolMatch?.[1] && boolMatch[2]) {
@@ -3534,7 +3530,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      const authenticationMatch = cleanItem.match(/^authentication\s+(\S+)$/iu);
       if (authenticationMatch?.[1]) {
         const valueText = authenticationMatch[1].toLowerCase();
         return {
@@ -3551,7 +3547,6 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const cleanItem = stripTrailingComment(item);
       const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
@@ -3564,7 +3559,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const rxBufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
+      const rxBufferMatch = cleanItem.match(/^rx\s+buffer\s+(.+)$/iu);
       if (rxBufferMatch?.[1]) {
         const value = rxBufferMatch[1].trim().toLowerCase();
         return {
@@ -3575,7 +3570,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const txMatch = item.match(/^tx\s+(tos|priority|length)\s+(.+)$/iu);
+      const txMatch = cleanItem.match(/^tx\s+(tos|priority|length)\s+(.+)$/iu);
       if (txMatch?.[1] && txMatch[2]) {
         const value = txMatch[2].trim();
         return {
@@ -3587,7 +3582,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const neighborsMatch = item.match(/^neighbors\s+(\{[\s\S]*\})$/iu);
+      const neighborsMatch = cleanItem.match(/^neighbors\s+(\{[\s\S]*\})$/iu);
       if (neighborsMatch?.[1]) {
         const neighborsBodyText = neighborsMatch[1];
         const neighborsBodyRange = tokenRange(neighborsBodyText);
@@ -3628,7 +3623,8 @@ const parseOspfAreaVirtualLinkEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
-      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+      const cleanItem = stripTrailingComment(item);
+      const deadCountMatch = cleanItem.match(/^dead\s+count\s+(.+)$/iu);
       if (deadCountMatch?.[1]) {
         const value = deadCountMatch[1].trim();
         return {
@@ -3640,7 +3636,9 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const timerMatch = item.match(/^(hello|retransmit|wait|dead)\s+(.+)$/iu);
+      const timerMatch = cleanItem.match(
+        /^(hello|retransmit|wait|dead)\s+(.+)$/iu,
+      );
       if (timerMatch?.[1] && timerMatch[2]) {
         const value = timerMatch[2].trim();
         return {
@@ -3656,7 +3654,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      const transmitDelayMatch = cleanItem.match(/^transmit\s+delay\s+(.+)$/iu);
       if (transmitDelayMatch?.[1]) {
         const value = transmitDelayMatch[1].trim();
         return {
@@ -3668,7 +3666,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      const authenticationMatch = cleanItem.match(/^authentication\s+(\S+)$/iu);
       if (authenticationMatch?.[1]) {
         const valueText = authenticationMatch[1].toLowerCase();
         return {
@@ -3685,7 +3683,6 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const cleanItem = stripTrailingComment(item);
       const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();

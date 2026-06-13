@@ -1,18 +1,10 @@
 import type { ProtocolStatement, SourceRange } from "../types.js";
-import { splitTopLevelStatements } from "./shared.js";
+import { splitTopLevelStatements, stripTrailingComment } from "./shared.js";
 
 type TokenRange = (token: string) => SourceRange;
 
 const stripQuotedText = (value: string): string =>
   value.replace(/^(['"])(.*)\1$/u, "$2");
-
-const stripTrailingComment = (value: string): string =>
-  value
-    .replace(
-      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
-      (match, group) => (group ? "" : match),
-    )
-    .trim();
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (!value) {
