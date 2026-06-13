@@ -102,26 +102,37 @@ const collectAreas = (
       const text = statement.entries
         .map((entry) => (entry.kind === "other" ? entry.text : entry.kind))
         .join(" ");
+
+      let hasStub: boolean | undefined;
+      let hasVlink: boolean | undefined;
+      let hasAsbr = false;
+      for (const entry of statement.entries) {
+        if (entry.kind === "stub") {
+          hasStub = entry.value === undefined || entry.value;
+          continue;
+        }
+
+        if (entry.kind === "virtual-link") {
+          hasVlink = true;
+          continue;
+        }
+
+        if (
+          entry.kind === "other" &&
+          /^\s*(?:no\s+)?asbr\b/i.test(entry.text)
+        ) {
+          hasAsbr = !/^\s*no\s+asbr\b/i.test(entry.text);
+        }
+      }
+
       return [
         {
           areaId: normalizeAreaId(statement.areaId),
           text,
           range: statement,
-          hasStub: statement.entries.some((entry) => entry.kind === "stub")
-            ? statement.entries.some(
-                (entry) =>
-                  entry.kind === "stub" &&
-                  (entry.value === undefined || entry.value),
-              )
-            : undefined,
-          hasVlink: statement.entries.some(
-            (entry) => entry.kind === "virtual-link",
-          )
-            ? statement.entries.some((entry) => entry.kind === "virtual-link")
-            : undefined,
-          hasAsbr: statement.entries.some(
-            (entry) => entry.kind === "other" && /\basbr\b/i.test(entry.text),
-          ),
+          hasStub,
+          hasVlink,
+          hasAsbr,
         },
       ];
     },

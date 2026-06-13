@@ -261,7 +261,13 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
       }
     }
 
-    if (hold !== null && keepalive !== null && keepalive >= hold) {
+    if (
+      hold !== null &&
+      keepalive !== null &&
+      hold !== 0 &&
+      keepalive !== 0 &&
+      keepalive >= hold
+    ) {
       diagnostics.push(
         createProtocolDiagnostic(
           "bgp/timer-invalid",
