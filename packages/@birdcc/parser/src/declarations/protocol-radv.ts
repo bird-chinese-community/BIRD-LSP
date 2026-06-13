@@ -142,7 +142,7 @@ const parseRadvDnsShorthandEntry = (
   if (blockKind === "rdnss") {
     return {
       kind: "ns",
-      value: valueText,
+      value: stripQuotedText(valueText),
       valueText,
       valueRange: tokenRange(valueText),
       ...tokenRange(valueText),
