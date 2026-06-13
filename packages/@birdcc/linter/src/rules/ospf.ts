@@ -34,22 +34,25 @@ const stripComments = (value: string): string =>
   value
     .replace(
       /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
-      (match, group) => (group ? "" : match),
+      "",
     )
     .trim();
 
-const isAsbrEnabled = (text: string): boolean => {
+const getAsbrState = (text: string): "enabled" | "disabled" | "none" => {
   const normalized = stripComments(text).toLowerCase();
   if (!/\basbr\b/i.test(normalized)) {
-    return false;
+    return "none";
   }
 
-  // Disabled forms: "no asbr", "asbr no", "asbr off", "asbr false".
-  return (
-    !/\bno\s+asbr\b/i.test(normalized) &&
-    !/\basbr\s+(?:no|off|false)\b/i.test(normalized)
-  );
+  const isDisabled =
+    /\bno\s+asbr\b/i.test(normalized) ||
+    /\basbr\s+(?:no|off|false)\b/i.test(normalized);
+
+  return isDisabled ? "disabled" : "enabled";
 };
+
+const isAsbrEnabled = (text: string): boolean =>
+  getAsbrState(text) === "enabled";
 
 const hasProtocolAsbr = (
   declaration: ProtocolDeclaration,
@@ -68,16 +71,25 @@ const hasProtocolAsbr = (
         (
           statement,
         ): statement is Extract<ProtocolStatement, { kind: "other" }> =>
-          statement.kind === "other" && /\basbr\b/i.test(statement.text),
+          statement.kind === "other",
       );
-      if (asbrStatements.length > 0) {
-        const lastStatement = asbrStatements[asbrStatements.length - 1];
-        return isAsbrEnabled(lastStatement.text);
+      for (let index = asbrStatements.length - 1; index >= 0; index -= 1) {
+        const state = getAsbrState(asbrStatements[index]?.text ?? "");
+        if (state === "enabled") {
+          return true;
+        }
+        if (state === "disabled") {
+          return false;
+        }
       }
     } else if (current.kind === "template") {
       const bodyText = current.bodyText ?? "";
-      if (/\basbr\b/i.test(bodyText)) {
-        return isAsbrEnabled(bodyText);
+      const state = getAsbrState(bodyText);
+      if (state === "enabled") {
+        return true;
+      }
+      if (state === "disabled") {
+        return false;
       }
     }
 
