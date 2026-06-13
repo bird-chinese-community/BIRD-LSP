@@ -149,7 +149,10 @@ export const splitTopLevelStatements = (body: string): string[] => {
     }
 
     if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
+      const statement = body.slice(start, index).trim();
+      if (statement.length > 0) {
+        statements.push(statement);
+      }
       start = index + 1;
     }
   }

@@ -9,7 +9,7 @@ const stripQuotedText = (value: string): string =>
 const stripTrailingComment = (value: string): string =>
   value
     .replace(
-      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\/.*|\/\*[\s\S]*?\*\/)/gu,
       (match, group) => (group ? "" : match),
     )
     .trim();
@@ -41,7 +41,8 @@ const parseRadvCustomOptionParts = (
       valueRange: SourceRange;
     }
   | undefined => {
-  const customOptionMatch = statementText.match(
+  const cleaned = stripTrailingComment(statementText).replace(/;\s*$/u, "");
+  const customOptionMatch = cleaned.match(
     /^custom\s+option\s+type\s+(.+?)\s+value\s+(.+)$/iu,
   );
   if (!customOptionMatch || !customOptionMatch[1] || !customOptionMatch[2]) {
