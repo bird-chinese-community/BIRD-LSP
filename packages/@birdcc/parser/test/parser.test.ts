@@ -813,8 +813,8 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
         disable after cease {
-          cease,
-          prefix limit hit,
+          cease, # keep this neighbor down on generic cease
+          prefix limit, # standard BIRD 2 keyword (no hit)
           administrative shutdown
         };
       }
@@ -834,8 +834,8 @@ describe("@birdcc/parser tree-sitter", () => {
             kind: "bgp-option",
             option: "disable-after-cease",
             value: "flags",
-            flags: ["cease", "prefix-limit-hit", "administrative-shutdown"],
-            flagsText: "cease, prefix limit hit, administrative shutdown",
+            flags: ["cease", "prefix-limit", "administrative-shutdown"],
+            flagsText: "cease, prefix limit, administrative shutdown",
           }),
         ]),
       );
@@ -3875,7 +3875,7 @@ describe("@birdcc/parser tree-sitter", () => {
               192.0.2.1 eligible;
               192.0.2.2;
             };
-            password "secret";
+            password "secret"; # interface auth password
           };
         };
       }
@@ -4048,7 +4048,7 @@ describe("@birdcc/parser tree-sitter", () => {
             dead 40;
             dead count 4;
             authentication simple;
-            password "secret";
+            password "secret"; # virtual link auth password
           };
         };
       }
