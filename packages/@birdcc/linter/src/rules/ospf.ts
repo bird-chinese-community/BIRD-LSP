@@ -32,7 +32,7 @@ const isAsbrEnabled = (text: string): boolean => {
 
   // Disabled forms: "no asbr", "asbr no", "asbr off", "asbr false".
   return (
-    !/^\s*no\s+asbr\b/i.test(normalized) &&
+    !/\bno\s+asbr\b/i.test(normalized) &&
     !/\basbr\s+(?:no|off|false)\b/i.test(normalized)
   );
 };
