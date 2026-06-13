@@ -411,6 +411,8 @@ export const parseWatchdogFromStatement = (
   const optionToken = isStrictWatchdog
     ? tokenLikeFromNode(statementNode.childForFieldName("option"), source)
     : tokens[1];
+  // In strict statements the keyword and option are anonymous, so named
+  // children (and therefore tokens) start with the value(s).
   const valueTokenStart = isStrictWatchdog ? 0 : 2;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
