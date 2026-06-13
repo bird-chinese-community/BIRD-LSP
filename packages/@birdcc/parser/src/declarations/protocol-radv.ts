@@ -11,6 +11,11 @@ const stripTrailingComment = (value: string): string => {
   let inDoubleQuote = false;
   for (let index = 0; index < value.length; index += 1) {
     const char = value[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+
     if (char === '"' && !inSingleQuote) {
       inDoubleQuote = !inDoubleQuote;
       continue;
