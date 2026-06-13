@@ -57,20 +57,21 @@ const fallbackEntryRange = (
     bodyStartIndex + matchIndex + matchText.length,
   );
 
+const tokenStartInMatch = (matchText: string, token: string): number =>
+  matchText.toLowerCase().lastIndexOf(token.toLowerCase());
+
 const fallbackTokenRange = (
   source: string,
   lineStarts: number[],
-  entryStartIndex: number,
+  tokenStartIndex: number,
   token: string,
-): SourceRange => {
-  const tokenStart = source.indexOf(token, entryStartIndex);
-  return indexToRange(
+): SourceRange =>
+  indexToRange(
     source,
     lineStarts,
-    tokenStart,
-    tokenStart + token.length,
+    tokenStartIndex,
+    tokenStartIndex + token.length,
   );
-};
 
 const parseFallbackChannelEntries = (
   source: string,
@@ -100,13 +101,15 @@ const parseFallbackChannelEntries = (
 
     const domainName = match[2];
     if (domainName) {
+      const domainNameStart =
+        entryStart + tokenStartInMatch(match[0], domainName);
       entries.push({
         kind: "domain",
         domainName,
         domainNameRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          domainNameStart,
           domainName,
         ),
         ...entryRange,
@@ -116,13 +119,15 @@ const parseFallbackChannelEntries = (
 
     const tableName = match[4];
     if (tableName) {
+      const tableNameStart =
+        entryStart + tokenStartInMatch(match[0], tableName);
       entries.push({
         kind: "table",
         tableName,
         tableNameRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          tableNameStart,
           tableName,
         ),
         ...entryRange,
@@ -132,13 +137,15 @@ const parseFallbackChannelEntries = (
 
     const labelRange = match[7];
     if (labelRange) {
+      const labelRangeStart =
+        entryStart + tokenStartInMatch(match[0], labelRange);
       entries.push({
         kind: "label-range",
         range: labelRange,
         rangeRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          labelRangeStart,
           labelRange,
         ),
         ...entryRange,
@@ -149,6 +156,8 @@ const parseFallbackChannelEntries = (
     const labelPolicy = match[10];
     if (labelPolicy) {
       const policy = labelPolicy.toLowerCase();
+      const labelPolicyStart =
+        entryStart + tokenStartInMatch(match[0], labelPolicy);
       entries.push({
         kind: "label-policy",
         policy:
@@ -161,7 +170,7 @@ const parseFallbackChannelEntries = (
         policyRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          labelPolicyStart,
           labelPolicy,
         ),
         ...entryRange,
@@ -5328,6 +5337,37 @@ const mergeNeighborTailStatements = (
   });
 };
 
+const nearestFollowingOtherIndex = (
+  statements: ProtocolStatement[],
+  index: number,
+  statement: Extract<ProtocolStatement, { kind: "other" }>,
+): number => {
+  let nearestIndex = -1;
+  let nearestColumn = Number.POSITIVE_INFINITY;
+  for (
+    let candidateIndex = 0;
+    candidateIndex < statements.length;
+    candidateIndex += 1
+  ) {
+    if (candidateIndex === index) {
+      continue;
+    }
+
+    const candidate = statements[candidateIndex];
+    if (
+      candidate?.kind === "other" &&
+      candidate.line === statement.line &&
+      candidate.column > statement.endColumn &&
+      candidate.column < nearestColumn
+    ) {
+      nearestIndex = candidateIndex;
+      nearestColumn = candidate.column;
+    }
+  }
+
+  return nearestIndex;
+};
+
 const mergeRpkiLocalAddressStatements = (
   statements: ProtocolStatement[],
 ): ProtocolStatement[] => {
@@ -5342,13 +5382,7 @@ const mergeRpkiLocalAddressStatements = (
       continue;
     }
 
-    const nextIndex = statements.findIndex(
-      (candidate, candidateIndex) =>
-        candidateIndex !== index &&
-        candidate.kind === "other" &&
-        candidate.line === statement.line &&
-        candidate.column > statement.endColumn,
-    );
+    const nextIndex = nearestFollowingOtherIndex(statements, index, statement);
     const next = statements[nextIndex];
     if (next?.kind !== "other") {
       continue;
