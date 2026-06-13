@@ -107,14 +107,18 @@ const collectAreas = (
           areaId: normalizeAreaId(statement.areaId),
           text,
           range: statement,
-          hasStub: statement.entries.some(
-            (entry) =>
-              entry.kind === "stub" &&
-              (entry.value === undefined || entry.value),
-          ),
+          hasStub: statement.entries.some((entry) => entry.kind === "stub")
+            ? statement.entries.some(
+                (entry) =>
+                  entry.kind === "stub" &&
+                  (entry.value === undefined || entry.value),
+              )
+            : undefined,
           hasVlink: statement.entries.some(
             (entry) => entry.kind === "virtual-link",
-          ),
+          )
+            ? statement.entries.some((entry) => entry.kind === "virtual-link")
+            : undefined,
           hasAsbr: statement.entries.some(
             (entry) => entry.kind === "other" && /\basbr\b/i.test(entry.text),
           ),
