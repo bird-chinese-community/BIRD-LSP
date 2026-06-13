@@ -411,9 +411,24 @@ export const parseWatchdogFromStatement = (
   const optionToken = isStrictWatchdog
     ? tokenLikeFromNode(statementNode.childForFieldName("option"), source)
     : tokens[1];
-  // In strict statements the keyword and option are anonymous, so named
-  // children (and therefore tokens) start with the value(s).
-  const valueTokenStart = isStrictWatchdog ? 0 : 2;
+  // In strict statements the keyword and option are anonymous. Locate the
+  // first token that begins at or after the option ends so the value always
+  // starts at the actual value token, regardless of whether the option is
+  // included in the token list.
+  const optionEndLine = optionToken?.range.endLine ?? declarationRange.line;
+  const optionEndColumn =
+    optionToken?.range.endColumn ?? declarationRange.column;
+  const valueTokenStart = isStrictWatchdog
+    ? Math.max(
+        0,
+        tokens.findIndex(
+          (token) =>
+            token.range.line > optionEndLine ||
+            (token.range.line === optionEndLine &&
+              token.range.column >= optionEndColumn),
+        ),
+      )
+    : 2;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
     .map((token) => token.text)

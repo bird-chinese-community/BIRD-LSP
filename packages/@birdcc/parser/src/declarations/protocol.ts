@@ -5340,7 +5340,7 @@ const nearestFollowingOtherIndex = (
 
     const candidate = statements[candidateIndex];
     if (
-      candidate?.kind === "other" &&
+      candidate &&
       candidate.line === statement.line &&
       candidate.column > statement.endColumn &&
       candidate.column < nearestColumn
@@ -5350,7 +5350,8 @@ const nearestFollowingOtherIndex = (
     }
   }
 
-  return nearestIndex;
+  const nearest = statements[nearestIndex];
+  return nearest?.kind === "other" ? nearestIndex : -1;
 };
 
 const mergeRpkiLocalAddressStatements = (
