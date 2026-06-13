@@ -1208,6 +1208,7 @@ const parseBgpDisableAfterCeaseFlagSet = (
     .trim()
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "")
+    .replace(/(?:#|\/\/)[^\n]*|\/\*[\s\S]*?\*\//gu, "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
