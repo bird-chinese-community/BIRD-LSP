@@ -31,6 +31,7 @@ import {
   normalizeChannelType,
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
+  splitTopLevelStatements,
 } from "./shared.js";
 import {
   parseRadvCustomOptionTextStatement,
@@ -4215,37 +4216,6 @@ const parseBabelInterfaceTextStatement = (
     bodyRange,
     ...statementRange,
   };
-};
-
-const splitTopLevelStatements = (body: string): string[] => {
-  const statements: string[] = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  const tail = body.slice(start).trim();
-  if (tail.length > 0) {
-    statements.push(tail);
-  }
-
-  return statements;
 };
 
 const parseRipOptionTextStatement = (
