@@ -36,7 +36,7 @@ const parseRadvCustomOptionParts = (
   const customOptionMatch = statementText.match(
     /^custom\s+option\s+type\s+(.+?)\s+value\s+(.+)$/iu,
   );
-  if (!customOptionMatch?.[1] || !customOptionMatch[2]) {
+  if (!customOptionMatch || !customOptionMatch[1] || !customOptionMatch[2]) {
     return undefined;
   }
 
@@ -149,6 +149,7 @@ const parseRadvPrefixEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const boolMatch = item.match(
         /^(skip|onlink|autonomous|pd\s+preferred)(?:\s+(\S+))?$/iu,
       );
@@ -160,7 +161,7 @@ const parseRadvPrefixEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -181,14 +182,14 @@ const parseRadvPrefixEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -207,6 +208,7 @@ const parseRadvInterfaceEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const prefixMatch = item.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
       if (prefixMatch?.[1]) {
         const prefix = prefixMatch[1];
@@ -218,12 +220,17 @@ const parseRadvInterfaceEntries = (
           kind: "prefix",
           prefix,
           prefixRange: tokenRange(prefix),
-          entries: prefixBodyText
-            ? parseRadvPrefixEntries(prefixBodyText, bodyRange, tokenRange)
-            : [],
+          entries:
+            prefixBodyText && prefixBodyRange
+              ? parseRadvPrefixEntries(
+                  prefixBodyText,
+                  prefixBodyRange,
+                  tokenRange,
+                )
+              : [],
           bodyText: prefixBodyText,
           bodyRange: prefixBodyRange,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -240,7 +247,7 @@ const parseRadvInterfaceEntries = (
             | "min-delay",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -259,7 +266,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -277,7 +284,7 @@ const parseRadvInterfaceEntries = (
             | "current-hop-limit",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -297,7 +304,7 @@ const parseRadvInterfaceEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -313,7 +320,7 @@ const parseRadvInterfaceEntries = (
             | "route-linger-time",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -332,7 +339,7 @@ const parseRadvInterfaceEntries = (
             | "route-preference",
           value,
           valueRange: tokenRange(preferenceMatch[2]),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -351,7 +358,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -364,7 +371,7 @@ const parseRadvInterfaceEntries = (
           entries: parseRadvDnsBlockEntries(kind, dnsBodyText, tokenRange),
           bodyText: dnsBodyText,
           bodyRange: tokenRange(dnsBodyText),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -377,7 +384,7 @@ const parseRadvInterfaceEntries = (
         return {
           kind,
           entries: [parseRadvDnsShorthandEntry(kind, valueText, tokenRange)],
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -386,14 +393,14 @@ const parseRadvInterfaceEntries = (
         return {
           kind: "custom-option",
           ...customOption,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -416,7 +423,7 @@ export const parseRadvInterfaceTextStatement = (
     ? rest.slice(0, rest.indexOf(bodyText)).trim()
     : rest;
   const patternMatches = [
-    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|\S+/gu),
+    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|[^,\s]+/gu),
   ].filter((match) => match[0] !== ",");
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
@@ -487,9 +494,10 @@ export const parseRadvPrefixTextStatement = (
     kind: "radv-prefix",
     prefix,
     prefixRange: tokenRange(prefix),
-    entries: bodyText
-      ? parseRadvPrefixEntries(bodyText, statementRange, tokenRange)
-      : [],
+    entries:
+      bodyText && bodyRange
+        ? parseRadvPrefixEntries(bodyText, bodyRange, tokenRange)
+        : [],
     bodyText,
     bodyRange,
     ...statementRange,

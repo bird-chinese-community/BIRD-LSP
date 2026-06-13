@@ -73,6 +73,44 @@ export const splitTopLevelStatements = (body: string): string[] => {
 
   for (let index = 0; index < body.length; index += 1) {
     const char = body[index];
+    const nextChar = body[index + 1];
+
+    // Single-line comments (# or //)
+    if (char === "#" || (char === "/" && nextChar === "/")) {
+      while (index < body.length && body[index] !== "\n") {
+        index += 1;
+      }
+      continue;
+    }
+
+    // Multi-line comments (/* ... */)
+    if (char === "/" && nextChar === "*") {
+      index += 2;
+      while (index < body.length - 1) {
+        if (body[index] === "*" && body[index + 1] === "/") {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    // Quoted strings
+    if (char === '"' || char === "'") {
+      const quote = char;
+      index += 1;
+      while (index < body.length) {
+        if (body[index] === "\\") {
+          index += 1;
+        } else if (body[index] === quote) {
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
     if (char === "{") {
       depth += 1;
       continue;
