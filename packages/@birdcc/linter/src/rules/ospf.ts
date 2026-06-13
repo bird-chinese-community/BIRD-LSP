@@ -38,6 +38,26 @@ const stripComments = (value: string): string =>
     )
     .trim();
 
+const stripNestedBlocks = (value: string): string => {
+  let result = "";
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth <= 1) {
+      result += char;
+    }
+  }
+  return result;
+};
+
 const getAsbrState = (text: string): "enabled" | "disabled" | "none" => {
   const normalized = stripComments(text).toLowerCase();
   if (!/\basbr\b/i.test(normalized)) {
@@ -84,7 +104,7 @@ const hasProtocolAsbr = (
       }
     } else if (current.kind === "template") {
       const bodyText = current.bodyText ?? "";
-      const state = getAsbrState(bodyText);
+      const state = getAsbrState(stripNestedBlocks(bodyText));
       if (state === "enabled") {
         return true;
       }
