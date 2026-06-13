@@ -38,5 +38,5 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore(sync): update config examples [skip ci]"
+          git commit -m "chore(sync): Update config examples [skip ci]"
           git push
