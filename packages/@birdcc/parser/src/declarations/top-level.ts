@@ -359,7 +359,7 @@ export const parseTimeformatFromStatement = (
     issues.push({
       code: "parser/missing-symbol",
       message: "Missing fallback format for timeformat declaration with limit",
-      ...declarationRange,
+      ...(limitToken?.range ?? declarationRange),
     });
   }
 
