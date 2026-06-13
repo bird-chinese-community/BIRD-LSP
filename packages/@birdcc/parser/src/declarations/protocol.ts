@@ -44,6 +44,14 @@ import {
 const COMPOUND_CHANNEL_HEADER =
   /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
 
+const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|((?:#|\/\/).*)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
+
 const fallbackEntryRange = (
   source: string,
   lineStarts: number[],
@@ -679,38 +687,40 @@ const parseChannelEntries = (
         continue;
       }
 
+      const nextHopPreferMode = phraseTexts[3];
       if (
         phraseTexts[0] === "next" &&
         phraseTexts[1] === "hop" &&
         phraseTexts[2] === "prefer" &&
-        (phraseTexts[3] === "global" || phraseTexts[3] === "local") &&
+        (nextHopPreferMode === "global" || nextHopPreferMode === "local") &&
         phraseNodes.length <= 4
       ) {
         const modeNode = phraseNodes[3];
         entries.push({
           kind: "bgp-next-hop-prefer",
-          mode: phraseTexts[3],
+          mode: nextHopPreferMode,
           modeRange: toRange(modeNode, source),
           ...entryRange,
         });
         continue;
       }
 
+      const linkLocalNextHopFormat = phraseTexts[5];
       if (
         phraseTexts[0] === "link" &&
         phraseTexts[1] === "local" &&
         phraseTexts[2] === "next" &&
         phraseTexts[3] === "hop" &&
         phraseTexts[4] === "format" &&
-        (phraseTexts[5] === "native" ||
-          phraseTexts[5] === "single" ||
-          phraseTexts[5] === "double") &&
+        (linkLocalNextHopFormat === "native" ||
+          linkLocalNextHopFormat === "single" ||
+          linkLocalNextHopFormat === "double") &&
         phraseNodes.length <= 6
       ) {
         const formatNode = phraseNodes[5];
         entries.push({
           kind: "bgp-link-local-next-hop-format",
-          format: phraseTexts[5],
+          format: linkLocalNextHopFormat,
           formatRange: toRange(formatNode, source),
           ...entryRange,
         });
@@ -3541,7 +3551,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const cleanItem = item.replace(/(?:#|\/\/).*/, "").trim();
+      const cleanItem = stripTrailingComment(item);
       const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
@@ -3675,7 +3685,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const cleanItem = item.replace(/(?:#|\/\/).*/, "").trim();
+      const cleanItem = stripTrailingComment(item);
       const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
