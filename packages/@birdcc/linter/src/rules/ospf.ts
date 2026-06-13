@@ -15,7 +15,6 @@ interface OspfAreaSegment {
   range: SourceRange;
   hasStub?: boolean;
   hasVlink?: boolean;
-  hasAsbr?: boolean;
 }
 
 const BACKBONE_AREA_IDS = new Set(["0", "0.0.0.0"]);
@@ -24,6 +23,26 @@ const normalizeAreaId = (value: string): string => value.trim().toLowerCase();
 
 const isBackboneArea = (value: string): boolean =>
   BACKBONE_AREA_IDS.has(normalizeAreaId(value));
+
+const isAsbrEnabled = (text: string): boolean => {
+  const normalized = text.trim().toLowerCase();
+  if (!/\basbr\b/i.test(normalized)) {
+    return false;
+  }
+
+  // Disabled forms: "no asbr", "asbr no", "asbr off", "asbr false".
+  return (
+    !/^\s*no\s+asbr\b/i.test(normalized) &&
+    !/\basbr\s+(?:no|off|false)\b/i.test(normalized)
+  );
+};
+
+const hasProtocolAsbr = (
+  declaration: Parameters<typeof protocolOtherTextEntries>[0],
+): boolean =>
+  declaration.statements.some(
+    (statement) => statement.kind === "other" && isAsbrEnabled(statement.text),
+  );
 
 const parseAreaSegments = (
   text: string,
@@ -105,7 +124,6 @@ const collectAreas = (
 
       let hasStub: boolean | undefined;
       let hasVlink: boolean | undefined;
-      let hasAsbr = false;
       for (const entry of statement.entries) {
         if (entry.kind === "stub") {
           hasStub = entry.value === undefined || entry.value;
@@ -116,13 +134,6 @@ const collectAreas = (
           hasVlink = true;
           continue;
         }
-
-        if (
-          entry.kind === "other" &&
-          /^\s*(?:no\s+)?asbr\b/i.test(entry.text)
-        ) {
-          hasAsbr = !/^\s*no\s+asbr\b/i.test(entry.text);
-        }
       }
 
       return [
@@ -132,7 +143,6 @@ const collectAreas = (
           range: statement,
           hasStub,
           hasVlink,
-          hasAsbr,
         },
       ];
     },
@@ -240,6 +250,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
+    const protocolAsbr = hasProtocolAsbr(declaration);
     const areas = collectAreas(declaration);
     for (const area of areas) {
       if (isBackboneArea(area.areaId)) {
@@ -247,7 +258,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       }
 
       const hasStub = area.hasStub ?? /\bstub\b/i.test(area.text);
-      const hasAsbr = area.hasAsbr ?? /\basbr\b/i.test(area.text);
+      const hasAsbr = protocolAsbr || isAsbrEnabled(area.text);
       if (!hasStub || !hasAsbr) {
         continue;
       }
