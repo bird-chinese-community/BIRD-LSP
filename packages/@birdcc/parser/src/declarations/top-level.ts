@@ -278,6 +278,10 @@ export const parseTableFromStatement = (
 
 const TIMEFORMAT_SCOPES = new Set(["route", "protocol", "base", "log"]);
 
+const isTimeformatScope = (
+  value: string,
+): value is TimeformatDeclaration["scope"] => TIMEFORMAT_SCOPES.has(value);
+
 const tokenLikeFromNode = (
   node: SyntaxNode | null,
   source: string,
@@ -321,25 +325,19 @@ export const parseTimeformatFromStatement = (
 
   const scopeToken = isStrictTimeformat
     ? tokenLikeFromNode(statementNode.childForFieldName("scope"), source)
-    : (tokenLikeFromNode(statementNode.childForFieldName("scope"), source) ??
-      tokens[1]);
+    : tokens[1];
   const formatToken = isStrictTimeformat
     ? tokenLikeFromNode(statementNode.childForFieldName("format"), source)
-    : (tokenLikeFromNode(statementNode.childForFieldName("format"), source) ??
-      tokens[2]);
+    : tokens[2];
   const limitToken = isStrictTimeformat
     ? tokenLikeFromNode(statementNode.childForFieldName("limit"), source)
-    : (tokenLikeFromNode(statementNode.childForFieldName("limit"), source) ??
-      tokens[3]);
+    : tokens[3];
   const fallbackFormatToken = isStrictTimeformat
     ? tokenLikeFromNode(
         statementNode.childForFieldName("fallback_format"),
         source,
       )
-    : (tokenLikeFromNode(
-        statementNode.childForFieldName("fallback_format"),
-        source,
-      ) ?? tokens[4]);
+    : tokens[4];
 
   if (!scopeToken) {
     issues.push({
@@ -357,9 +355,16 @@ export const parseTimeformatFromStatement = (
     });
   }
 
-  const scope = TIMEFORMAT_SCOPES.has(scopeToken?.lowered ?? "")
-    ? (scopeToken?.lowered as TimeformatDeclaration["scope"])
-    : "unknown";
+  if (limitToken && !fallbackFormatToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing fallback format for timeformat declaration with limit",
+      ...declarationRange,
+    });
+  }
+
+  const scopeText = scopeToken?.lowered ?? "";
+  const scope = isTimeformatScope(scopeText) ? scopeText : "unknown";
   const formatText = formatToken?.text ?? "";
 
   return {
@@ -382,6 +387,10 @@ export const parseTimeformatFromStatement = (
 
 const WATCHDOG_OPTIONS = new Set(["warning", "timeout"]);
 
+const isWatchdogOption = (
+  value: string,
+): value is WatchdogDeclaration["option"] => WATCHDOG_OPTIONS.has(value);
+
 export const parseWatchdogFromStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -401,8 +410,7 @@ export const parseWatchdogFromStatement = (
 
   const optionToken = isStrictWatchdog
     ? tokenLikeFromNode(statementNode.childForFieldName("option"), source)
-    : (tokenLikeFromNode(statementNode.childForFieldName("option"), source) ??
-      tokens[1]);
+    : tokens[1];
   const valueTokenStart = isStrictWatchdog ? 0 : 2;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
@@ -432,9 +440,8 @@ export const parseWatchdogFromStatement = (
     });
   }
 
-  const option = WATCHDOG_OPTIONS.has(optionToken?.lowered ?? "")
-    ? (optionToken?.lowered as WatchdogDeclaration["option"])
-    : "unknown";
+  const optionText = optionToken?.lowered ?? "";
+  const option = isWatchdogOption(optionText) ? optionText : "unknown";
 
   return {
     kind: "watchdog",
