@@ -30,8 +30,16 @@ const normalizeAreaId = (value: string): string => value.trim().toLowerCase();
 const isBackboneArea = (value: string): boolean =>
   BACKBONE_AREA_IDS.has(normalizeAreaId(value));
 
+const stripComments = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
+
 const isAsbrEnabled = (text: string): boolean => {
-  const normalized = text.trim().toLowerCase();
+  const normalized = stripComments(text).toLowerCase();
   if (!/\basbr\b/i.test(normalized)) {
     return false;
   }
