@@ -2011,13 +2011,17 @@ const parseKernelOptionStatement = (
   }
 
   if (first === "merge" && second === "paths" && phraseNodes.length <= 5) {
-    const valueNode = phraseNodes[2];
+    const hasExplicitBool = phraseTextAt(phraseNodes, 2, source) !== "limit";
+    const valueNode = hasExplicitBool ? phraseNodes[2] : undefined;
     const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
-    const value = parseBoolToken(valueText);
+    const value = valueText !== undefined ? parseBoolToken(valueText) : true;
     if (value !== undefined) {
-      const limitNode =
-        phraseTextAt(phraseNodes, 3, source) === "limit"
+      const limitNode = hasExplicitBool
+        ? phraseTextAt(phraseNodes, 3, source) === "limit"
           ? phraseNodes[4]
+          : undefined
+        : phraseTextAt(phraseNodes, 2, source) === "limit"
+          ? phraseNodes[3]
           : undefined;
       const limit = isNode(limitNode) ? textOf(limitNode, source) : undefined;
       return {
@@ -4978,6 +4982,31 @@ const parseRpkiTransportEntries = (
     parseRpkiTransportEntry(statementText, tokenRange),
   );
 
+const RPKI_TEXT_ENTRY_PATTERNS = [
+  {
+    kind: "bird-private-key" as const,
+    pattern: new RegExp(
+      `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "remote-public-key" as const,
+    pattern: new RegExp(
+      `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "password" as const,
+    pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+  {
+    kind: "user" as const,
+    pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+];
+
 const parseRpkiTransportEntry = (
   statementText: string,
   tokenRange: (token: string) => SourceRange,
@@ -4996,32 +5025,7 @@ const parseRpkiTransportEntry = (
     };
   }
 
-  const textEntryPatterns = [
-    {
-      kind: "bird-private-key",
-      pattern: new RegExp(
-        `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "remote-public-key",
-      pattern: new RegExp(
-        `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "password",
-      pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-    {
-      kind: "user",
-      pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-  ] as const;
-
-  for (const entryPattern of textEntryPatterns) {
+  for (const entryPattern of RPKI_TEXT_ENTRY_PATTERNS) {
     const match = trimmed.match(entryPattern.pattern);
     if (!match?.[1]) {
       continue;

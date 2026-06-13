@@ -130,6 +130,7 @@ export const splitTopLevelStatements = (body: string): string[] => {
         ) {
           start += 1;
         }
+        index = start - 1;
       }
       continue;
     }
