@@ -118,6 +118,16 @@ export const splitTopLevelStatements = (body: string): string[] => {
 
     if (char === "}") {
       depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        statements.push(body.slice(start, index + 1));
+        start = index + 1;
+        while (
+          start < body.length &&
+          (body[start] === ";" || /\s/u.test(body[start] ?? ""))
+        ) {
+          start += 1;
+        }
+      }
       continue;
     }
 
