@@ -3397,10 +3397,9 @@ const parseOspfAreaInterfaceEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item.trim()))
     .filter(Boolean)
-    .map((item) => {
-      const cleanItem = stripTrailingComment(item);
+    .map((cleanItem) => {
       const valueMatch = cleanItem.match(
         /^(cost|priority|ecmp\s+weight)\s+(.+)$/iu,
       );
@@ -3507,7 +3506,7 @@ const parseOspfAreaInterfaceEntries = (
         if (value === undefined) {
           return {
             kind: "other",
-            text: item,
+            text: cleanItem,
             ...bodyRange,
           };
         }
@@ -3601,7 +3600,7 @@ const parseOspfAreaInterfaceEntries = (
 
       return {
         kind: "other",
-        text: item,
+        text: cleanItem,
         ...bodyRange,
       };
     });
@@ -3620,10 +3619,9 @@ const parseOspfAreaVirtualLinkEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item.trim()))
     .filter(Boolean)
-    .map((item) => {
-      const cleanItem = stripTrailingComment(item);
+    .map((cleanItem) => {
       const deadCountMatch = cleanItem.match(/^dead\s+count\s+(.+)$/iu);
       if (deadCountMatch?.[1]) {
         const value = deadCountMatch[1].trim();
@@ -3697,7 +3695,7 @@ const parseOspfAreaVirtualLinkEntries = (
 
       return {
         kind: "other",
-        text: item,
+        text: cleanItem,
         ...bodyRange,
       };
     });
