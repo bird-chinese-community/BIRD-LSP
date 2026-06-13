@@ -80,6 +80,9 @@ export const splitTopLevelStatements = (body: string): string[] => {
       while (index < body.length && body[index] !== "\n") {
         index += 1;
       }
+      if (depth === 0) {
+        start = index < body.length ? index + 1 : body.length;
+      }
       continue;
     }
 
