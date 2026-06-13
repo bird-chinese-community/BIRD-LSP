@@ -365,10 +365,21 @@ const collectLiteralsAndMatches = (
     return matched?.[0] ?? null;
   };
 
-  const collectNode = (node: SyntaxNode): void => {
-    const namedChildren = node.namedChildren;
+  const collectNode = (rootNode: SyntaxNode): void => {
+    type Frame = { node: SyntaxNode; index: number };
+    const stack: Frame[] = [{ node: rootNode, index: 0 }];
 
-    for (let index = 0; index < namedChildren.length; index += 1) {
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const { node, index } = frame;
+      const namedChildren = node.namedChildren;
+
+      if (index >= namedChildren.length) {
+        stack.pop();
+        continue;
+      }
+
+      frame.index += 1;
       const current = namedChildren[index];
       if (!current) {
         continue;
@@ -479,7 +490,9 @@ const collectLiteralsAndMatches = (
         });
       }
 
-      collectNode(current);
+      if (current.namedChildren.length > 0) {
+        stack.push({ node: current, index: 0 });
+      }
     }
   };
 
