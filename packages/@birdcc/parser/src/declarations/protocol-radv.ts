@@ -6,35 +6,13 @@ type TokenRange = (token: string) => SourceRange;
 const stripQuotedText = (value: string): string =>
   value.replace(/^(['"])(.*)\1$/u, "$2");
 
-const stripTrailingComment = (value: string): string => {
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if (char === "\\") {
-      index += 1;
-      continue;
-    }
-
-    if (char === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-      continue;
-    }
-
-    if (char === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (!inSingleQuote && !inDoubleQuote) {
-      if (char === "#" || (char === "/" && value[index + 1] === "/")) {
-        return value.slice(0, index);
-      }
-    }
-  }
-
-  return value;
-};
+const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (!value) {
@@ -442,16 +420,17 @@ export const parseRadvInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
-  const rest = stripTrailingComment((interfaceMatch?.[1] ?? "").trim()).trim();
+  const rest = (interfaceMatch?.[1] ?? "").trim();
   if (!rest) {
     return undefined;
   }
 
   const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
-  const patternText = bodyText
+  const rawPatternText = bodyText
     ? rest.slice(0, rest.indexOf(bodyText)).trim()
     : rest;
+  const patternText = stripTrailingComment(rawPatternText);
   const patternMatches = [
     ...patternText.matchAll(/"[^"]+"|'[^']+'|,|[^,\s]+/gu),
   ].filter((match) => match[0] !== ",");
@@ -511,7 +490,9 @@ export const parseRadvPrefixTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = stripTrailingComment(statementText)
+    .trim()
+    .replace(/;\s*$/u, "");
   const prefixMatch = trimmed.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
   if (!prefixMatch?.[1]) {
     return undefined;

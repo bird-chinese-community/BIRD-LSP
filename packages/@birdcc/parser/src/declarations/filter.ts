@@ -66,11 +66,12 @@ const parseControlStatements = (
   const statements: FilterBodyStatement[] = [];
   const bodyRange = toRange(bodyNode, source);
   const bodyText = textOf(bodyNode, source);
-  const tokenTexts = bodyNode.namedChildren.map((node) =>
+  const bodyChildren = bodyNode.namedChildren;
+  const tokenTexts = bodyChildren.map((node) =>
     textOf(node, source).toLowerCase(),
   );
 
-  for (const statementNode of bodyNode.namedChildren) {
+  for (const statementNode of bodyChildren) {
     const statementRange = toRange(statementNode, source);
     const text = textOf(statementNode, source).trim();
     const lowered = text.toLowerCase();
@@ -366,21 +367,20 @@ const collectLiteralsAndMatches = (
   };
 
   const collectNode = (rootNode: SyntaxNode): void => {
-    type Frame = { node: SyntaxNode; index: number };
-    const stack: Frame[] = [{ node: rootNode, index: 0 }];
+    type Frame = { children: SyntaxNode[]; index: number };
+    const stack: Frame[] = [{ children: rootNode.namedChildren, index: 0 }];
 
     while (stack.length > 0) {
       const frame = stack[stack.length - 1];
-      const { node, index } = frame;
-      const namedChildren = node.namedChildren;
+      const { index, children } = frame;
 
-      if (index >= namedChildren.length) {
+      if (index >= children.length) {
         stack.pop();
         continue;
       }
 
       frame.index += 1;
-      const current = namedChildren[index];
+      const current = children[index];
       if (!current) {
         continue;
       }
@@ -416,7 +416,7 @@ const collectLiteralsAndMatches = (
             });
           }
         } else {
-          const nextNode = namedChildren[index + 1];
+          const nextNode = children[index + 1];
           const nextText = nextNode ? textOf(nextNode, source) : "";
           const nextSuffix = nextNode ? extractPrefixSuffix(nextText) : null;
 
@@ -463,8 +463,8 @@ const collectLiteralsAndMatches = (
       }
 
       if (currentText.trim() === "~") {
-        const leftNode = namedChildren[index - 1];
-        const immediateRightNode = namedChildren[index + 1];
+        const leftNode = children[index - 1];
+        const immediateRightNode = children[index + 1];
 
         if (!leftNode || !immediateRightNode) {
           continue;
@@ -474,7 +474,7 @@ const collectLiteralsAndMatches = (
         const immediateRightText = textOf(immediateRightNode, source).trim();
         const rightNode =
           immediateRightText === "["
-            ? (namedChildren[index + 2] ?? immediateRightNode)
+            ? (children[index + 2] ?? immediateRightNode)
             : immediateRightNode;
         const rightText = textOf(rightNode, source).trim();
 
@@ -490,8 +490,11 @@ const collectLiteralsAndMatches = (
         });
       }
 
-      if (current.namedChildren.length > 0) {
-        stack.push({ node: current, index: 0 });
+      if (current.namedChildCount > 0) {
+        stack.push({
+          children: current.namedChildren,
+          index: 0,
+        });
       }
     }
   };
