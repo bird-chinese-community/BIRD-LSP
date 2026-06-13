@@ -5340,17 +5340,23 @@ const nearestFollowingOtherIndex = (
 
     const candidate = statements[candidateIndex];
     if (
-      candidate &&
+      candidate?.kind === "other" &&
       candidate.line === statement.line &&
       candidate.column > statement.endColumn &&
-      candidate.column < nearestColumn
+      candidate.column < nearestColumn &&
+      !statements.some(
+        (intermediate) =>
+          intermediate.line === statement.line &&
+          intermediate.column > statement.endColumn &&
+          intermediate.column < candidate.column,
+      )
     ) {
       nearestIndex = candidateIndex;
       nearestColumn = candidate.column;
     }
   }
 
-  const nearest = statements[nearestIndex];
+  const nearest = nearestIndex >= 0 ? statements[nearestIndex] : undefined;
   return nearest?.kind === "other" ? nearestIndex : -1;
 };
 

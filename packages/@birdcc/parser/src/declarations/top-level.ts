@@ -418,17 +418,20 @@ export const parseWatchdogFromStatement = (
   const optionEndLine = optionToken?.range.endLine ?? declarationRange.line;
   const optionEndColumn =
     optionToken?.range.endColumn ?? declarationRange.column;
-  const valueTokenStart = isStrictWatchdog
-    ? Math.max(
-        0,
-        tokens.findIndex(
-          (token) =>
-            token.range.line > optionEndLine ||
-            (token.range.line === optionEndLine &&
-              token.range.column >= optionEndColumn),
-        ),
+  const strictValueTokenStart = isStrictWatchdog
+    ? tokens.findIndex(
+        (token) =>
+          token.range.line > optionEndLine ||
+          (token.range.line === optionEndLine &&
+            token.range.column >= optionEndColumn),
       )
-    : 2;
+    : -1;
+  const valueTokenStart =
+    strictValueTokenStart === -1
+      ? isStrictWatchdog
+        ? tokens.length
+        : 2
+      : strictValueTokenStart;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
     .map((token) => token.text)
