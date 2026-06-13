@@ -183,6 +183,102 @@ export const toRange = (node: SyntaxNode, source?: string): SourceRange => {
   };
 };
 
+export const findMatchingBraceIndex = (
+  source: string,
+  openBraceIndex: number,
+): number => {
+  let balance = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    const char = source[index];
+    const prevChar = source[index - 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "/" && prevChar === "*") {
+        inBlockComment = false;
+      }
+      continue;
+    }
+
+    if (inSingleQuote) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === "'") {
+        inSingleQuote = false;
+      }
+      continue;
+    }
+
+    if (inDoubleQuote) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === '"') {
+        inDoubleQuote = false;
+      }
+      continue;
+    }
+
+    if (char === "#" || (char === "/" && source[index + 1] === "/")) {
+      inLineComment = true;
+      continue;
+    }
+
+    if (char === "/" && source[index + 1] === "*") {
+      inBlockComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === "'") {
+      inSingleQuote = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inDoubleQuote = true;
+      continue;
+    }
+
+    if (char === "{") {
+      balance += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      balance -= 1;
+      if (balance === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+};
+
+export const rangeContains = (
+  outer: SourceRange,
+  inner: SourceRange,
+): boolean => {
+  const startsBefore =
+    outer.line < inner.line ||
+    (outer.line === inner.line && outer.column <= inner.column);
+  const endsAfter =
+    outer.endLine > inner.endLine ||
+    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
+  return startsBefore && endsAfter;
+};
+
 export const mergeRanges = (
   start: SourceRange,
   end: SourceRange,

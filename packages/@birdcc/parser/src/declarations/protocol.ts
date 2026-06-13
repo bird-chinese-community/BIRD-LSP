@@ -13,7 +13,16 @@ import type {
   StaticRouteStatement,
 } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
-import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
+import {
+  findMatchingBraceIndex,
+  indexToRange,
+  isPresentNode,
+  lineStartsOf,
+  mergeRanges,
+  rangeContains,
+  textOf,
+  toRange,
+} from "../tree.js";
 import {
   CHANNEL_DIRECTIONS,
   PROTOCOL_STATEMENT_TYPES,
@@ -33,84 +42,6 @@ import {
 
 const COMPOUND_CHANNEL_HEADER =
   /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
-
-const lineStartsOf = (source: string): number[] => {
-  const starts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === "\n") {
-      starts.push(index + 1);
-    }
-  }
-  return starts;
-};
-
-const indexToRange = (
-  source: string,
-  lineStarts: number[],
-  startIndex: number,
-  endIndex: number,
-): SourceRange => {
-  const positionOf = (index: number): { line: number; column: number } => {
-    let lineIndex = 0;
-    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
-      const start = lineStarts[cursor] ?? 0;
-      if (start > index) {
-        break;
-      }
-      lineIndex = cursor;
-    }
-
-    const lineStart = lineStarts[lineIndex] ?? 0;
-    return {
-      line: lineIndex + 1,
-      column: index - lineStart + 1,
-    };
-  };
-
-  const start = positionOf(startIndex);
-  const end = positionOf(endIndex);
-  return {
-    line: start.line,
-    column: start.column,
-    endLine: end.line,
-    endColumn: end.column,
-  };
-};
-
-const findMatchingBraceIndex = (
-  source: string,
-  openBraceIndex: number,
-): number => {
-  let balance = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      balance += 1;
-      continue;
-    }
-
-    if (char !== "}") {
-      continue;
-    }
-
-    balance -= 1;
-    if (balance === 0) {
-      return index;
-    }
-  }
-
-  return -1;
-};
-
-const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
-  const startsBefore =
-    outer.line < inner.line ||
-    (outer.line === inner.line && outer.column <= inner.column);
-  const endsAfter =
-    outer.endLine > inner.endLine ||
-    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
-  return startsBefore && endsAfter;
-};
 
 const fallbackEntryRange = (
   source: string,

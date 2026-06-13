@@ -18,7 +18,10 @@ const parseFilterSegmentStatement = (
   segment: string,
   range: ReturnType<typeof toRange>,
 ): FilterBodyStatement | undefined => {
-  const normalizedSegment = segment.trim().replace(/;\s*$/u, "");
+  const normalizedSegment = segment
+    .replace(/#.*$/gu, "")
+    .trim()
+    .replace(/;\s*$/u, "");
   const normalizedPrintMatch = normalizedSegment.match(/^print(n)?\s+(.+)$/iu);
   if (normalizedPrintMatch) {
     return {
