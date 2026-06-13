@@ -181,10 +181,10 @@ const COMPOUND_CHANNEL_PHRASE =
   /\b(?:ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/i;
 const BITWISE_FILTER_TERM = /\bbt_assert\s*\([^)]*\s[&|]\s[^)]*\)\s*;/i;
 const BGP_DISABLE_AFTER_CEASE_HEADER =
-  /^\s*disable\s+after\s+cease\s*\{\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?$/iu;
-const BLOCK_END = /^\s*\}\s*;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?$/u;
+  /^\s*disable\s+after\s+cease\s*\{\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/iu;
+const BLOCK_END = /^\s*\}\s*;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/u;
 const BGP_CEASE_FLAG_LINE =
-  /^\s*(?:cease|prefix\s+limit(?:\s+hit)?|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\b\s*,?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?$/iu;
+  /^\s*(?:cease|prefix\s+limit(?:\s+hit)?|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\b\s*,?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/iu;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 

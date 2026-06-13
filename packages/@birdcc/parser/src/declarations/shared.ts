@@ -156,7 +156,7 @@ export const splitTopLevelStatements = (body: string): string[] => {
 export const stripTrailingComment = (value: string): string =>
   value
     .replace(
-      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\/.*|\/\*[\s\S]*?\*\/)/gu,
       (match, group) => (group ? "" : match),
     )
     .trim();
