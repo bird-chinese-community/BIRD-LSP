@@ -183,7 +183,7 @@ const BITWISE_FILTER_TERM = /\bbt_assert\s*\([^)]*\s[&|]\s[^)]*\)\s*;/i;
 const BGP_DISABLE_AFTER_CEASE_HEADER = /^\s*disable\s+after\s+cease\s*\{/iu;
 const BLOCK_END = /^\s*\}\s*;?/u;
 const BGP_CEASE_FLAG_LINE =
-  /^\s*(?:cease|prefix\s+limit\s+hit|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\s*,?/iu;
+  /^\s*(?:cease|prefix\s+limit\s+hit|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\b\s*,?/iu;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 

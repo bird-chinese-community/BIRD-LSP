@@ -769,6 +769,7 @@ const parseChannelEntries = (
       if (
         phraseTexts[0] === "base" &&
         phraseTexts[1] === "table" &&
+        phraseNodes.length <= 3 &&
         isPresentNode(phraseNodes[2])
       ) {
         const tableNameNode = phraseNodes[2];
