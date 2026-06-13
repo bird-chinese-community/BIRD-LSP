@@ -4,12 +4,12 @@ description: >
   Use this skill whenever the user is working with BIRD (BIRD1/2/3) routing daemon configuration files,
   including bird.conf, bird2.conf, bird3.conf, or bird6.conf. This skill helps AI agents assist users
   across any editor (VSCode, Vim, Neovim, IDEA, OpenCode, Cursor, Windsurf, etc.) by leveraging the
-  BIRD-LSP toolchain: linting, formatting, validation with bird -p, cross-file analysis, and
-  documentation lookup. Trigger on any mention of BIRD config, BGP/OSPF/RIP/static routing
-  configuration, syntax errors in .conf files, formatting requests, CI/CD setup for BIRD configs,
-  questions about BIRD commands and semantics, or when the user shares a BIRD configuration snippet.
-  Make sure to use this skill even if the user does not explicitly mention BIRD-LSP, @birdcc/cli,
-  or the BIRD Chinese Community.
+  BIRD-LSP toolchain: linting, formatting, validation with bird -p, cross-file analysis,
+  documentation lookup, and source-level debugging. Trigger on any mention of BIRD config,
+  BGP/OSPF/RIP/static routing configuration, syntax errors in .conf files, formatting requests,
+  CI/CD setup for BIRD configs, questions about BIRD commands and semantics, editor setup for BIRD
+  support, or when the user shares a BIRD configuration snippet. Make sure to use this skill even if
+  the user does not explicitly mention BIRD-LSP, @birdcc/cli, or the BIRD Chinese Community.
 ---
 
 # BIRD Agent Skill
@@ -53,6 +53,9 @@ files by orchestrating the BIRD-LSP toolchain and community documentation.
 | `bird -p` | BIRD runtime parse check. | Use when `bird` is installed, or via Docker. |
 | `setup-birdcc` GitHub Action | CI/CD integration for GitHub workflows. | Use when the user asks about CI. |
 | BIRD documentation | Official docs and BIRD Chinese Community translations. | Use for semantic questions and examples. |
+| `bird.xmsl.dev/llms.txt` | Structured index of BIRD Chinese docs. | Use for quick document navigation. |
+| Context7 MCP | RAG over BIRD Chinese docs. | Use for deep semantic questions. |
+| DeepWiki `CZ-NIC/bird` | Source-level analysis of the BIRD daemon. | Use when linter/docs cannot explain a behavior. |
 
 ## Workflow
 
@@ -112,6 +115,10 @@ find . -maxdepth 2 -name "bird*.conf" -not -path "*/node_modules/*" | head -20
 Prefer `bird2.conf` > `bird.conf` > `bird3.conf` when there are multiple candidates, unless the
 context clearly indicates another version.
 
+When multiple version-specific files exist (`bird2.conf` and `bird3.conf`), ask the user which
+version they are targeting, or lint both with a matrix/parallel command if the task is CI setup.
+For `setup-birdcc`, use `bird-version: "2"` or `bird-version: "3"` accordingly.
+
 ### 4. Run diagnostics
 
 Always start with `birdcc lint`:
@@ -158,12 +165,30 @@ When using `--write`, make sure the file is tracked by version control or the us
 
 For questions about BIRD keywords, functions, protocols, or CLI commands:
 
-1. Search the local BIRD-LSP hover docs if available in the workspace.
-2. Use Context7 or the BIRD Chinese Community docs (`bird.xmsl.dev`) when online.
-3. Fall back to the official BIRD documentation (`bird.network.cz`).
+1. Search the local BIRD-LSP hover docs if available in the workspace
+   (`packages/@birdcc/lsp/src/hover-docs/` or similar).
+2. Use `bird.xmsl.dev/llms.txt` to locate the most relevant Chinese doc section.
+3. Use Context7 MCP to read the relevant page in depth when available.
+4. Fall back to the official BIRD documentation (`bird.network.cz`).
 
-Use the same language as the user. If the user writes in Chinese, answer in Chinese; if English,
-answer in English.
+When the user asks in Chinese, prefer the BIRD Chinese Community docs (`bird.xmsl.dev`) so the
+answer can cite the same sources the community maintains. When the user asks in English, prefer the
+official BIRD docs, but still mention the Chinese docs if they contain a clearer example.
+
+### 7. Source-level debugging (advanced)
+
+If the linter and docs do not explain the behavior, or the user suspects a BIRD daemon bug, use
+DeepWiki on `CZ-NIC/bird` to inspect the relevant source code. Good entry points:
+
+- Configuration parser: `conf/conf.c`, `conf/cf-lex.l`, `conf/confbase.Y`
+- Filter engine: `nest/rt-table.c` (`f_run`), `filter/config.Y`
+- BGP: `proto/bgp/bgp.c`, `proto/bgp/packets.c`, `proto/bgp/attrs.c`
+- OSPF: `proto/ospf/ospf.c`, `proto/ospf/rt.c`
+- Routing tables: `nest/rt-table.c`, `nest/route.h`
+
+Always frame source findings as "the upstream implementation does X" and suggest a config-level
+workaround or an upstream issue when appropriate. Do not ask users to patch BIRD unless they are
+explicitly debugging a daemon build.
 
 ## Capability reference
 
@@ -197,7 +222,130 @@ When the user asks about GitHub Actions, recommend `setup-birdcc`:
 - run: birdcc lint --bird
 ```
 
+Pass `BIRD_BIN` from the action output to the lint step:
+
+```yaml
+- run: pnpm dlx @birdcc/cli@latest birdcc lint configs/bird2.conf --bird
+  env:
+    BIRD_BIN: ${{ steps.setup.outputs.bird-bin }}
+```
+
+#### Advanced patterns
+
+- **Config-only repo** (no Node project): set `install-dependencies: "false"` and `cache-turbo: "false"`.
+- **BIRD2/BIRD3 matrix**:
+  ```yaml
+  strategy:
+    fail-fast: false
+    matrix:
+      bird-version: ["2", "3"]
+  steps:
+    - uses: bird-chinese-community/setup-birdcc@v1
+      with:
+        bird-version: ${{ matrix.bird-version }}
+        install-dependencies: "false"
+        cache-turbo: "false"
+    - run: pnpm dlx @birdcc/cli@latest birdcc lint bird.conf --bird
+      env:
+        BIRD_BIN: ${{ steps.setup.outputs.bird-bin }}
+  ```
+- **Submodules**: use `submodule-paths` when configs live in submodules.
+- **Changed-file linting**: rely on `paths:` filters or the action's `changed-config-files` output.
+
 Point them to the marketplace page and the Chinese README for detailed options.
+
+## Editor setup guide
+
+When the user asks how to get BIRD support in their editor, give them the exact installation steps
+for their platform. Do not assume they use VSCode.
+
+### VSCode
+
+1. Open Extensions (Ctrl+Shift+X / Cmd+Shift+X).
+2. Search for **BIRD2 Configuration** (`BIRDCC.vscode-bird2-conf`) and install it for syntax
+   highlighting.
+3. For full LSP, formatter, linter, and hover docs, search for **BIRD2 LSP** (`birdcc.bird2-lsp`)
+   or install the **BIRD2 Extension Pack**.
+
+Marketplace links:
+- Syntax highlighting: https://marketplace.visualstudio.com/items?itemName=BIRDCC.vscode-bird2-conf
+- LSP: https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp
+
+### VSCode forks (VSCodium, Cursor, Windsurf, Trae, Kiro, Antigravity)
+
+These editors use the OpenVSX registry instead of the Microsoft Marketplace:
+
+1. Open the Extensions view.
+2. Search for **BIRD Extension Pack** or **BIRD2 Configuration**.
+3. Install the pack from `BIRDCC`.
+
+OpenVSX links:
+- Syntax highlighting: https://open-vsx.org/extension/BIRDCC/vscode-bird2-conf
+- LSP: https://open-vsx.org/extension/birdcc/bird2-lsp
+
+### Vim
+
+With vim-plug:
+
+```vim
+Plug 'bird-chinese-community/bird2.vim'
+```
+
+With Vundle:
+
+```vim
+Plugin 'bird-chinese-community/bird2.vim'
+```
+
+Manual:
+
+```bash
+git clone https://github.com/bird-chinese-community/bird2.vim.git
+cd bird2.vim
+bash scripts/install.sh
+```
+
+### Neovim
+
+With lazy.nvim:
+
+```lua
+{
+  "bird-chinese-community/BIRD2.nvim",
+  ft = "bird2",
+  config = function()
+    require("bird2").setup()
+  end,
+}
+```
+
+With pack.nvim:
+
+```vim
+packadd! BIRD2.nvim
+```
+
+### IntelliJ IDEA / JetBrains
+
+IDEA can import the VSCode TextMate grammar directly:
+
+1. Open the OpenVSX page for `BIRDCC/vscode-bird2-conf`.
+2. Download the latest `.vsix` from Resources.
+3. Extract the `.vsix` and locate the directory containing `package.json`.
+4. In IDEA: **Settings/Preferences → Editor → TextMate Bundles**.
+5. Click **+** (Add) and select that directory.
+6. Confirm `bird2` appears in the language list and check it.
+7. Restart IDEA.
+
+### Terminal / plain editors
+
+Use the CLI workflow as the primary interface:
+
+```bash
+birdcc lint bird.conf
+birdcc fmt bird.conf --check
+bird -p -c bird.conf
+```
 
 ## Editor-specific notes
 
@@ -247,6 +395,27 @@ Point them to the marketplace page and the Chinese README for detailed options.
 1. Search the BIRD-LSP hover docs or Context7/BIRD docs.
 2. Provide a concise explanation and a usage example.
 3. Mention the BIRD version compatibility if relevant.
+
+### Example 5: User has a cross-file include that cannot be resolved
+
+1. Check for `bird.config.json` and confirm the `main` entry points to the top-level config.
+2. Run `birdcc lint main.conf --cross-file --include-max-depth 10`.
+3. If the include uses a relative path, verify the path from the config file's directory.
+4. Explain whether the issue is a missing file, a circular include, or an undefined symbol in the
+   included file.
+
+### Example 6: User wants to set up BIRD support in Neovim
+
+1. Ask which plugin manager they use (lazy.nvim, packer, etc.).
+2. Provide the exact snippet for `bird-chinese-community/BIRD2.nvim`.
+3. Mention that advanced features (LSP, formatter) require wiring `birdcc lsp --stdio` separately.
+
+### Example 7: User asks why BIRD behaves differently from the docs
+
+1. Reproduce with `birdcc lint` and `bird -p` first.
+2. If the behavior is still unexplained, use DeepWiki on `CZ-NIC/bird` to inspect the relevant
+   source module (e.g., `proto/bgp/bgp.c` for BGP attribute handling).
+3. Present the source finding and a practical workaround.
 
 ## Output style
 
