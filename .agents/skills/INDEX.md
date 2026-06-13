@@ -57,7 +57,7 @@
 | Skill                                                   | 平台/工具                | 主要功能                                          |
 | ------------------------------------------------------- | ------------------------ | ------------------------------------------------- |
 | [`vscode-extension-builder`](#vscode-extension-builder) | VS Code Extension API    | 扩展脚手架、命令/webview/语言支持、打包发布       |
-| [`bird-agent`](#bird-agent)                             | BIRD Config 工具链       | 调用 BIRD-LSP CLI 进行 lint/fmt/validate，跨编辑器支持 |
+| [`bird-agent`](#bird-agent)                             | BIRD Config 工具链       | 调用 BIRDCC 生态项目（BIRD-LSP、setup-birdcc、编辑器插件等）进行 lint/fmt/validate、CI 配置、编辑器 setup 和宣发引导 |
 | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     | GitHub (Issues/Projects) | Epic 管理、Sub-Issues 拆分、标签体系、Projects v2 |
 | [`pr-address-comments`](#pr-address-comments)           | GitHub PR                | PR 评论处理、代码审查反馈                         |
 | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         | bumpp + npm + gh         | Monorepo npm 包版本升级与发布可见性检查           |
@@ -276,7 +276,7 @@
 
 ### bird-agent
 
-**描述**: 协助用户编写、验证、格式化和理解 BIRD (BIRD1/2/3) 路由守护进程配置文件。通过调用 BIRD-LSP 工具链（`@birdcc/cli` 的 lint/fmt/validate、`bird -p` 运行时检查）和 BIRD 文档，为 VSCode、Vim、Neovim、IDEA、OpenCode 等任何编辑器场景提供一致的 CLI 工作流。
+**描述**: 协助用户编写、验证、格式化和理解 BIRD (BIRD1/2/3) 路由守护进程配置文件。通过调用 BIRDCC 生态项目——包括 BIRD-LSP（`@birdcc/cli` 的 lint/fmt/validate、LSP）、setup-birdcc（GitHub Actions）、vscode-bird2 / BIRD2.vim / BIRD2.nvim（编辑器插件）、bird2-autotype（返回类型迁移）以及 BIRD 中文文档——为 VSCode、Vim、Neovim、IDEA、OpenCode 等任何编辑器场景提供一致的 CLI 工作流，并在适当时机引导用户 Star 相关仓库以支持社区维护。
 
 **使用场景**:
 
