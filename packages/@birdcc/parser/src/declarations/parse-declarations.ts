@@ -321,7 +321,8 @@ const collectFallbackMplsDomainDeclarations = (
     const indent = match[1]?.length ?? 0;
     const startColumn = indent + 1;
     const domainKeywordColumn = lineText.toLowerCase().indexOf("domain") + 1;
-    const nameColumn = lineText.indexOf(name, domainKeywordColumn) + 1;
+    const nameColumn =
+      lineText.indexOf(name, domainKeywordColumn + "domain".length) + 1;
     let endLineIndex = index;
     let braceBalance = 0;
     let sawBody = false;
@@ -432,7 +433,10 @@ const collectFallbackAttributeDeclarations = (
     const attributeKeywordColumn =
       lineText.toLowerCase().indexOf("attribute") + 1;
     const attributeTypeColumn =
-      lineText.indexOf(attributeType, attributeKeywordColumn) + 1;
+      lineText.indexOf(
+        attributeType,
+        attributeKeywordColumn + "attribute".length,
+      ) + 1;
     const nameColumn = lineText.indexOf(name, attributeTypeColumn) + 1;
 
     fallbackDeclarations.push({
@@ -488,7 +492,8 @@ const collectFallbackTableDeclarations = (
       statementText,
     );
     const tableKeywordColumn = lineText.toLowerCase().indexOf("table") + 1;
-    const nameColumn = lineText.indexOf(name, tableKeywordColumn) + 1;
+    const nameColumn =
+      lineText.indexOf(name, tableKeywordColumn + "table".length) + 1;
 
     fallbackDeclarations.push({
       kind: "table",
@@ -582,7 +587,13 @@ const collectTableBlockDeclarations = (
 
     const tableTypeStart = match.index;
     const tableTypeEnd = tableTypeStart + tableTypeText.length;
-    const nameStart = source.indexOf(name, match.index);
+    const nameOffsetInMatch = match[0]
+      .toLowerCase()
+      .lastIndexOf(name.toLowerCase());
+    const nameStart =
+      nameOffsetInMatch === -1
+        ? source.indexOf(name, match.index)
+        : match.index + nameOffsetInMatch;
     const key = `${name}:${declarationRange.line}`;
     if (existingKeys.has(key)) {
       continue;
