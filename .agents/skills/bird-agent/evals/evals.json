@@ -1,0 +1,43 @@
+{
+  "skill_name": "bird-agent",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a BIRD2 config file at /Users/nana/Documents/code/BIRDCC/BIRD-LSP/.worktrees/feat/agent-skills/.agents/skills/bird-agent-workspace/fixtures/bird.conf. When I run `bird -p -c bird.conf` it fails with a syntax error but I don't understand the message. Can you help me find and fix the problem?",
+      "expected_output": "Run birdcc lint on the file, identify the missing semicolon after 'router id 192.0.2.1', and propose a corrected snippet.",
+      "files": ["../bird-agent-workspace/fixtures/bird.conf"],
+      "assertions": [
+        { "name": "ran_birdcc_lint", "description": "The agent invoked birdcc lint on the fixture file.", "check": "file_contains", "target": "transcript.md", "expected": "node /Users/nana/Documents/code/BIRDCC/BIRD-LSP/packages/@birdcc/cli/dist/cli.js lint" },
+        { "name": "identified_missing_semicolon", "description": "The agent identified the root cause as a missing semicolon after router id 192.0.2.1.", "check": "file_contains", "target": "transcript.md", "expected": "router id 192.0.2.1;" },
+        { "name": "provided_corrected_snippet", "description": "The agent provided a corrected config snippet with the semicolon added.", "check": "file_contains", "target": "transcript.md", "expected": "router id 192.0.2.1;" },
+        { "name": "explained_bird_error", "description": "The agent explained why bird -p reported the error at line 3 instead of line 1.", "check": "file_contains_any", "target": "transcript.md", "expected": ["unexpected PROTOCOL", "expecting ';'", "missing semicolon"] },
+        { "name": "did_not_modify_fixture", "description": "The agent did not modify the original fixture file.", "check": "file_contains", "target": "transcript.md", "expected": "original fixture" }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Please format my BIRD config at /Users/nana/Documents/code/BIRDCC/BIRD-LSP/.worktrees/feat/agent-skills/.agents/skills/bird-agent-workspace/fixtures/bird-unformatted.conf. I want to see what changes the formatter would make before you actually write them.",
+      "expected_output": "Run birdcc fmt --check on the file, show the diff or formatted output, and ask for confirmation before running birdcc fmt --write.",
+      "files": ["../bird-agent-workspace/fixtures/bird-unformatted.conf"],
+      "assertions": [
+        { "name": "ran_fmt_check", "description": "The agent invoked birdcc fmt --check on the target file.", "check": "file_contains", "target": "transcript.md", "expected": "fmt" },
+        { "name": "showed_diff_or_formatted_output", "description": "The agent displayed a diff or the formatted output so the user can preview changes.", "check": "file_contains_any", "target": "transcript.md", "expected": ["diff", "formatted", "--- ", "+++ "] },
+        { "name": "indentation_normalized", "description": "The preview shows the neighbor line being indented to match the local as line.", "check": "file_contains", "target": "transcript.md", "expected": "neighbor 203.0.113.1 as 6939;" },
+        { "name": "did_not_write_without_confirmation", "description": "The agent did not modify the original file before receiving explicit confirmation.", "check": "file_contains_any", "target": "transcript.md", "expected": ["not modified", "not write", "awaiting", "confirmation", "No.", "before writing"] }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "How do I add a GitHub Actions workflow to automatically lint and validate BIRD2 configs in my repo? We use pnpm and the main config is at configs/bird2.conf.",
+      "expected_output": "Provide a working GitHub Actions workflow using setup-birdcc that installs the toolchain, runs birdcc fmt --check, and runs birdcc lint --bird on the specified config path.",
+      "files": [],
+      "assertions": [
+        { "name": "uses_setup_birdcc_action", "description": "The workflow uses the bird-chinese-community/setup-birdcc GitHub Action.", "check": "file_contains", "target": "workflow.md", "expected": "bird-chinese-community/setup-birdcc" },
+        { "name": "includes_birdcc_lint", "description": "The workflow runs birdcc lint with --bird for runtime validation.", "check": "file_contains", "target": "workflow.md", "expected": "birdcc lint" },
+        { "name": "includes_fmt_check", "description": "The workflow runs birdcc fmt --check to verify formatting.", "check": "file_contains", "target": "workflow.md", "expected": "birdcc fmt" },
+        { "name": "targets_correct_config_path", "description": "The workflow lints and formats configs/bird2.conf as requested.", "check": "file_contains", "target": "workflow.md", "expected": "configs/bird2.conf" },
+        { "name": "uses_pnpm", "description": "The workflow uses pnpm for package management as requested.", "check": "file_contains_any", "target": "workflow.md", "expected": ["pnpm", "PNPM"] }
+      ]
+    }
+  ]
+}
