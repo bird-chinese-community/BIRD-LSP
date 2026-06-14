@@ -66,6 +66,101 @@ export const PROTOCOL_STATEMENT_TYPES = new Set([
   "expression_statement",
 ]);
 
+export const splitTopLevelStatements = (body: string): string[] => {
+  const statements: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    const nextChar = body[index + 1];
+
+    // Single-line comments (# or //)
+    if (char === "#" || (char === "/" && nextChar === "/")) {
+      while (index < body.length && body[index] !== "\n") {
+        index += 1;
+      }
+      if (depth === 0) {
+        start = index < body.length ? index + 1 : body.length;
+      }
+      continue;
+    }
+
+    // Multi-line comments (/* ... */)
+    if (char === "/" && nextChar === "*") {
+      index += 2;
+      while (index < body.length - 1) {
+        if (body[index] === "*" && body[index + 1] === "/") {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    // Quoted strings
+    if (char === '"' || char === "'") {
+      const quote = char;
+      index += 1;
+      while (index < body.length) {
+        if (body[index] === "\\") {
+          index += 1;
+        } else if (body[index] === quote) {
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        statements.push(body.slice(start, index + 1));
+        start = index + 1;
+        while (
+          start < body.length &&
+          (body[start] === ";" || /\s/u.test(body[start] ?? ""))
+        ) {
+          start += 1;
+        }
+        index = start - 1;
+      }
+      continue;
+    }
+
+    if (char === ";" && depth === 0) {
+      statements.push(body.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  const tail = body.slice(start).trim();
+  if (tail.length > 0) {
+    statements.push(tail);
+  }
+
+  return statements;
+};
+
+/**
+ * Remove trailing line comments (`#`, `//`) and block comments (`/* ... *\/`) while preserving quoted strings.
+ * Useful when parsing statement text that may contain inline comments.
+ */
+export const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\/.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
+
 export const TABLE_TYPES = new Set([
   "routing",
   "ipv4",

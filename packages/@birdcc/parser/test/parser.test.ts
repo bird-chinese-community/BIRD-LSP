@@ -813,8 +813,8 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(`
       protocol bgp edge {
         disable after cease {
-          cease,
-          prefix limit hit,
+          cease, # keep this neighbor down on generic cease
+          prefix limit, # standard BIRD 2 keyword (no hit)
           administrative shutdown
         };
       }
@@ -834,8 +834,8 @@ describe("@birdcc/parser tree-sitter", () => {
             kind: "bgp-option",
             option: "disable-after-cease",
             value: "flags",
-            flags: ["cease", "prefix-limit-hit", "administrative-shutdown"],
-            flagsText: "cease, prefix limit hit, administrative shutdown",
+            flags: ["cease", "prefix-limit", "administrative-shutdown"],
+            flagsText: "cease, prefix limit, administrative shutdown",
           }),
         ]),
       );
@@ -845,6 +845,39 @@ describe("@birdcc/parser tree-sitter", () => {
             item.kind === "other" && /\bdisable after cease\b/.test(item.text),
         ),
       ).toBe(false);
+    }
+  });
+
+  it("parses BGP disable-after-cease flag sets with block comments", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge {
+        disable after cease {
+          cease, /* keep this neighbor down on generic cease */
+          prefix limit, /* standard BIRD 2 keyword (no hit) */
+          administrative shutdown
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "bgp-option",
+            option: "disable-after-cease",
+            value: "flags",
+            flags: ["cease", "prefix-limit", "administrative-shutdown"],
+            flagsText: "cease, prefix limit, administrative shutdown",
+          }),
+        ]),
+      );
     }
   });
 
@@ -3875,7 +3908,7 @@ describe("@birdcc/parser tree-sitter", () => {
               192.0.2.1 eligible;
               192.0.2.2;
             };
-            password "secret";
+            password "secret"; # interface auth password
           };
         };
       }
@@ -3951,6 +3984,48 @@ describe("@birdcc/parser tree-sitter", () => {
                     }),
                   ]),
                 }),
+                expect.objectContaining({
+                  kind: "password",
+                  value: "secret",
+                  valueText: '"secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("strips block comments from OSPF interface passwords", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            password "secret"; /* interface auth password */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
                 expect.objectContaining({
                   kind: "password",
                   value: "secret",
@@ -4048,7 +4123,7 @@ describe("@birdcc/parser tree-sitter", () => {
             dead 40;
             dead count 4;
             authentication simple;
-            password "secret";
+            password "secret"; # virtual link auth password
           };
         };
       }
@@ -4122,6 +4197,250 @@ describe("@birdcc/parser tree-sitter", () => {
               item.kind === "other" && /\bvirtual\s+link\b/i.test(item.text),
           ),
         ).toBe(false);
+      }
+    }
+  });
+
+  it("strips block comments from OSPF virtual link passwords", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 1 {
+          virtual link 192.0.2.1 {
+            authentication simple;
+            password "secret"; /* virtual link auth password */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "virtual-link",
+              routerId: "192.0.2.1",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "password",
+                  value: "secret",
+                  valueText: '"secret"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("strips comments from OSPF interface options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            cost 10; /* interface cost */
+            hello 5; # hello interval
+            authentication simple; /* auth method */
+            rx buffer large; # rx buffer size
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "cost",
+                  value: "10",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "simple",
+                }),
+                expect.objectContaining({
+                  kind: "rx-buffer",
+                  value: "large",
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("strips comments from OSPF virtual link options", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 1 {
+          virtual link 192.0.2.1 {
+            hello 5; /* hello interval */
+            transmit delay 7; # tx delay
+            authentication cryptographic; /* auth method */
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "virtual-link",
+              routerId: "192.0.2.1",
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "hello",
+                  value: "5",
+                }),
+                expect.objectContaining({
+                  kind: "timer",
+                  option: "transmit-delay",
+                  value: "7",
+                }),
+                expect.objectContaining({
+                  kind: "authentication",
+                  value: "cryptographic",
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("filters comment-only statements from OSPF interface and virtual link", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            # only a comment
+            /* block comment */
+            cost 10;
+          };
+          virtual link 192.0.2.1 {
+            # another comment
+            /* another block comment */
+            hello 5;
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(
+          area.entries.some(
+            (entry) =>
+              entry.kind === "interface" &&
+              entry.entries.some((item) => item.kind === "other"),
+          ),
+        ).toBe(false);
+        expect(
+          area.entries.some(
+            (entry) =>
+              entry.kind === "virtual-link" &&
+              entry.entries.some((item) => item.kind === "other"),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("does not strip password value when it contains comment-like characters", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            authentication cryptographic;
+            password "sec#ret//value";
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "password",
+                  value: "sec#ret//value",
+                  valueText: '"sec#ret//value"',
+                }),
+              ]),
+            }),
+          ]),
+        );
       }
     }
   });
@@ -4510,6 +4829,61 @@ describe("@birdcc/parser tree-sitter", () => {
             item.valueText === "KBR_SRC_STATIC",
         ),
       ).toBe(true);
+    }
+  });
+
+  it("does not treat comparison expressions as assignments", async () => {
+    const parsed = await parseBirdConfig(`
+      filter compare_only {
+        if (bgp_med == 100) then accept;
+        bgp_med != 100;
+        bgp_med <= 100;
+        bgp_med >= 100;
+        reject;
+      }
+    `);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.statements.some(
+          (item) =>
+            item.kind === "assignment" && item.valueText.startsWith("="),
+        ),
+      ).toBe(false);
+      expect(
+        filter.statements.some(
+          (item) => item.kind === "assignment" && item.targetText === "bgp_med",
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("does not extract BIRD keywords as function calls", async () => {
+    const parsed = await parseBirdConfig(`
+      filter keyword_calls {
+        if (1 = 1) then accept;
+        reject;
+      }
+    `);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+
+    expect(filter).toBeDefined();
+    if (filter?.kind === "filter") {
+      expect(
+        filter.calls.some((call) =>
+          ["if", "then", "else", "case", "accept", "reject"].includes(
+            call.name.toLowerCase(),
+          ),
+        ),
+      ).toBe(false);
     }
   });
 

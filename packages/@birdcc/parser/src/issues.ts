@@ -167,7 +167,7 @@ const RPKI_LOCAL_ADDRESS = /^\s*local\s+address\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
 const BFD_ACCEPT = /^\s*accept(?:\s+(?:ipv4|ipv6|direct|multihop))*\s*;\s*$/i;
 const BFD_NEIGHBOR =
-  /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;\s*$/i;
+  /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;?\s*$/i;
 const BFD_PROFILE_HEADER = /^\s*(?:interface\b.+|multihop\s*)\{\s*$/i;
 const BFD_PROFILE_ITEM =
   /^\s*(?:interval|min\s+rx\s+interval|min\s+tx\s+interval|idle\s+tx\s+interval|multiplier|passive|authentication|password|graceful)\b.*;\s*$/i;
@@ -180,10 +180,11 @@ const MPLS_DOMAIN_BLOCK_END = /^\s*}\s*;?\s*$/;
 const COMPOUND_CHANNEL_PHRASE =
   /\b(?:ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/i;
 const BITWISE_FILTER_TERM = /\bbt_assert\s*\([^)]*\s[&|]\s[^)]*\)\s*;/i;
-const BGP_DISABLE_AFTER_CEASE_HEADER = /^\s*disable\s+after\s+cease\s*\{\s*$/i;
-const BLOCK_END = /^\s*\}\s*;?\s*$/u;
+const BGP_DISABLE_AFTER_CEASE_HEADER =
+  /^\s*disable\s+after\s+cease\s*\{\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/iu;
+const BLOCK_END = /^\s*\}\s*;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/u;
 const BGP_CEASE_FLAG_LINE =
-  /^\s*(?:cease|prefix\s+limit\s+hit|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\s*,?\s*$/i;
+  /^\s*(?:cease|prefix\s+limit(?:\s+hit)?|administrative\s+shutdown|peer\s+deconfigured|administrative\s+reset|connection\s+rejected|configuration\s+change|connection\s+collision|out\s+of\s+resources)\b\s*,?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/iu;
 
 const linesOf = (source: string): string[] => source.split(/\r?\n/);
 

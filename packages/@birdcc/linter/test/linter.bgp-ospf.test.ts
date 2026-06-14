@@ -282,14 +282,27 @@ describe("@birdcc/linter bgp+ospf rules", () => {
   it("hits ospf/asbr-stub-area", async () => {
     const codes = await codesOf(`
       protocol ospf core {
+        asbr;
         area 1 {
           stub;
-          asbr on;
         };
       }
     `);
 
     expect(codes).toContain("ospf/asbr-stub-area");
+  });
+
+  it("does not hit ospf/asbr-stub-area when ASBR is disabled at protocol level", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        asbr no;
+        area 1 {
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("ospf/asbr-stub-area");
   });
 
   it("accepts area 0.0.0.0 as backbone area id", async () => {

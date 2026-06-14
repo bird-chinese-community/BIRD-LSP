@@ -13,7 +13,16 @@ import type {
   StaticRouteStatement,
 } from "../types.js";
 import { pushMissingFieldIssue } from "../issues.js";
-import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
+import {
+  findMatchingBraceIndex,
+  indexToRange,
+  isPresentNode,
+  lineStartsOf,
+  mergeRanges,
+  rangeContains,
+  textOf,
+  toRange,
+} from "../tree.js";
 import {
   CHANNEL_DIRECTIONS,
   PROTOCOL_STATEMENT_TYPES,
@@ -22,6 +31,8 @@ import {
   normalizeChannelType,
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
+  splitTopLevelStatements,
+  stripTrailingComment,
 } from "./shared.js";
 import {
   parseRadvCustomOptionTextStatement,
@@ -33,84 +44,6 @@ import {
 
 const COMPOUND_CHANNEL_HEADER =
   /\b(ipv6\s+sadr|ipv4\s+mpls|ipv6\s+mpls|vpn4\s+mpls|vpn6\s+mpls)\s*\{/gi;
-
-const lineStartsOf = (source: string): number[] => {
-  const starts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === "\n") {
-      starts.push(index + 1);
-    }
-  }
-  return starts;
-};
-
-const indexToRange = (
-  source: string,
-  lineStarts: number[],
-  startIndex: number,
-  endIndex: number,
-): SourceRange => {
-  const positionOf = (index: number): { line: number; column: number } => {
-    let lineIndex = 0;
-    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
-      const start = lineStarts[cursor] ?? 0;
-      if (start > index) {
-        break;
-      }
-      lineIndex = cursor;
-    }
-
-    const lineStart = lineStarts[lineIndex] ?? 0;
-    return {
-      line: lineIndex + 1,
-      column: index - lineStart + 1,
-    };
-  };
-
-  const start = positionOf(startIndex);
-  const end = positionOf(endIndex);
-  return {
-    line: start.line,
-    column: start.column,
-    endLine: end.line,
-    endColumn: end.column,
-  };
-};
-
-const findMatchingBraceIndex = (
-  source: string,
-  openBraceIndex: number,
-): number => {
-  let balance = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      balance += 1;
-      continue;
-    }
-
-    if (char !== "}") {
-      continue;
-    }
-
-    balance -= 1;
-    if (balance === 0) {
-      return index;
-    }
-  }
-
-  return -1;
-};
-
-const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
-  const startsBefore =
-    outer.line < inner.line ||
-    (outer.line === inner.line && outer.column <= inner.column);
-  const endsAfter =
-    outer.endLine > inner.endLine ||
-    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
-  return startsBefore && endsAfter;
-};
 
 const fallbackEntryRange = (
   source: string,
@@ -126,20 +59,21 @@ const fallbackEntryRange = (
     bodyStartIndex + matchIndex + matchText.length,
   );
 
+const tokenStartInMatch = (matchText: string, token: string): number =>
+  matchText.toLowerCase().lastIndexOf(token.toLowerCase());
+
 const fallbackTokenRange = (
   source: string,
   lineStarts: number[],
-  entryStartIndex: number,
+  tokenStartIndex: number,
   token: string,
-): SourceRange => {
-  const tokenStart = source.indexOf(token, entryStartIndex);
-  return indexToRange(
+): SourceRange =>
+  indexToRange(
     source,
     lineStarts,
-    tokenStart,
-    tokenStart + token.length,
+    tokenStartIndex,
+    tokenStartIndex + token.length,
   );
-};
 
 const parseFallbackChannelEntries = (
   source: string,
@@ -169,13 +103,15 @@ const parseFallbackChannelEntries = (
 
     const domainName = match[2];
     if (domainName) {
+      const domainNameStart =
+        entryStart + tokenStartInMatch(match[0], domainName);
       entries.push({
         kind: "domain",
         domainName,
         domainNameRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          domainNameStart,
           domainName,
         ),
         ...entryRange,
@@ -185,13 +121,15 @@ const parseFallbackChannelEntries = (
 
     const tableName = match[4];
     if (tableName) {
+      const tableNameStart =
+        entryStart + tokenStartInMatch(match[0], tableName);
       entries.push({
         kind: "table",
         tableName,
         tableNameRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          tableNameStart,
           tableName,
         ),
         ...entryRange,
@@ -201,13 +139,15 @@ const parseFallbackChannelEntries = (
 
     const labelRange = match[7];
     if (labelRange) {
+      const labelRangeStart =
+        entryStart + tokenStartInMatch(match[0], labelRange);
       entries.push({
         kind: "label-range",
         range: labelRange,
         rangeRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          labelRangeStart,
           labelRange,
         ),
         ...entryRange,
@@ -218,6 +158,8 @@ const parseFallbackChannelEntries = (
     const labelPolicy = match[10];
     if (labelPolicy) {
       const policy = labelPolicy.toLowerCase();
+      const labelPolicyStart =
+        entryStart + tokenStartInMatch(match[0], labelPolicy);
       entries.push({
         kind: "label-policy",
         policy:
@@ -230,7 +172,7 @@ const parseFallbackChannelEntries = (
         policyRange: fallbackTokenRange(
           source,
           lineStarts,
-          entryStart,
+          labelPolicyStart,
           labelPolicy,
         ),
         ...entryRange,
@@ -738,38 +680,40 @@ const parseChannelEntries = (
         continue;
       }
 
+      const nextHopPreferMode = phraseTexts[3];
       if (
         phraseTexts[0] === "next" &&
         phraseTexts[1] === "hop" &&
         phraseTexts[2] === "prefer" &&
-        (phraseTexts[3] === "global" || phraseTexts[3] === "local") &&
+        (nextHopPreferMode === "global" || nextHopPreferMode === "local") &&
         phraseNodes.length <= 4
       ) {
         const modeNode = phraseNodes[3];
         entries.push({
           kind: "bgp-next-hop-prefer",
-          mode: phraseTexts[3],
+          mode: nextHopPreferMode,
           modeRange: toRange(modeNode, source),
           ...entryRange,
         });
         continue;
       }
 
+      const linkLocalNextHopFormat = phraseTexts[5];
       if (
         phraseTexts[0] === "link" &&
         phraseTexts[1] === "local" &&
         phraseTexts[2] === "next" &&
         phraseTexts[3] === "hop" &&
         phraseTexts[4] === "format" &&
-        (phraseTexts[5] === "native" ||
-          phraseTexts[5] === "single" ||
-          phraseTexts[5] === "double") &&
+        (linkLocalNextHopFormat === "native" ||
+          linkLocalNextHopFormat === "single" ||
+          linkLocalNextHopFormat === "double") &&
         phraseNodes.length <= 6
       ) {
         const formatNode = phraseNodes[5];
         entries.push({
           kind: "bgp-link-local-next-hop-format",
-          format: phraseTexts[5],
+          format: linkLocalNextHopFormat,
           formatRange: toRange(formatNode, source),
           ...entryRange,
         });
@@ -828,6 +772,7 @@ const parseChannelEntries = (
       if (
         phraseTexts[0] === "base" &&
         phraseTexts[1] === "table" &&
+        phraseNodes.length <= 3 &&
         isPresentNode(phraseNodes[2])
       ) {
         const tableNameNode = phraseNodes[2];
@@ -1263,23 +1208,26 @@ const parseBgpDisableAfterCeaseFlagSet = (
     return undefined;
   }
 
-  const flagsText = textOf(bodyNode, source)
-    .trim()
-    .replace(/^\{\s*/u, "")
-    .replace(/\s*\}$/u, "")
+  const rawFlags = stripTrailingComment(
+    textOf(bodyNode, source)
+      .trim()
+      .replace(/^\{\s*/u, "")
+      .replace(/\s*\}$/u, ""),
+  )
     .split(",")
     .map((item) => item.trim())
-    .filter(Boolean)
-    .join(", ");
-  if (!flagsText) {
+    .filter(Boolean);
+  if (rawFlags.length === 0) {
     return undefined;
   }
+
+  const flagsText = rawFlags.join(", ");
 
   return {
     kind: "bgp-option",
     option: "disable-after-cease",
     value: "flags",
-    flags: flagsText.split(",").map(normalizeBgpCeaseFlag),
+    flags: rawFlags.map(normalizeBgpCeaseFlag),
     flagsText,
     flagsRange: toRange(bodyNode, source),
     ...statementRange,
@@ -2070,13 +2018,17 @@ const parseKernelOptionStatement = (
   }
 
   if (first === "merge" && second === "paths" && phraseNodes.length <= 5) {
-    const valueNode = phraseNodes[2];
+    const hasExplicitBool = phraseTextAt(phraseNodes, 2, source) !== "limit";
+    const valueNode = hasExplicitBool ? phraseNodes[2] : undefined;
     const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
-    const value = parseBoolToken(valueText);
+    const value = valueText !== undefined ? parseBoolToken(valueText) : true;
     if (value !== undefined) {
-      const limitNode =
-        phraseTextAt(phraseNodes, 3, source) === "limit"
+      const limitNode = hasExplicitBool
+        ? phraseTextAt(phraseNodes, 3, source) === "limit"
           ? phraseNodes[4]
+          : undefined
+        : phraseTextAt(phraseNodes, 2, source) === "limit"
+          ? phraseNodes[3]
           : undefined;
       const limit = isNode(limitNode) ? textOf(limitNode, source) : undefined;
       return {
@@ -3446,10 +3398,12 @@ const parseOspfAreaInterfaceEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item.trim()))
     .filter(Boolean)
-    .map((item) => {
-      const valueMatch = item.match(/^(cost|priority|ecmp\s+weight)\s+(.+)$/iu);
+    .map((cleanItem) => {
+      const valueMatch = cleanItem.match(
+        /^(cost|priority|ecmp\s+weight)\s+(.+)$/iu,
+      );
       if (valueMatch?.[1] && valueMatch[2]) {
         const option = valueMatch[1].toLowerCase().replace(/\s+/gu, "-");
         const value = valueMatch[2].trim();
@@ -3464,7 +3418,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+      const deadCountMatch = cleanItem.match(/^dead\s+count\s+(.+)$/iu);
       if (deadCountMatch?.[1]) {
         const value = deadCountMatch[1].trim();
         return {
@@ -3476,7 +3430,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const timerMatch = item.match(
+      const timerMatch = cleanItem.match(
         /^(hello|poll|retransmit|wait|dead)\s+(.+)$/iu,
       );
       if (timerMatch?.[1] && timerMatch[2]) {
@@ -3495,7 +3449,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      const transmitDelayMatch = cleanItem.match(/^transmit\s+delay\s+(.+)$/iu);
       if (transmitDelayMatch?.[1]) {
         const value = transmitDelayMatch[1].trim();
         return {
@@ -3507,7 +3461,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const typeMatch = item.match(/^type\s+(\S+)$/iu);
+      const typeMatch = cleanItem.match(/^type\s+(\S+)$/iu);
       if (typeMatch?.[1]) {
         const valueText = typeMatch[1].toLowerCase();
         const knownTypes = [
@@ -3531,7 +3485,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const ttlSecurityTxOnlyMatch = item.match(
+      const ttlSecurityTxOnlyMatch = cleanItem.match(
         /^ttl\s+security\s+tx\s+only$/iu,
       );
       if (ttlSecurityTxOnlyMatch) {
@@ -3544,7 +3498,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const boolMatch = item.match(
+      const boolMatch = cleanItem.match(
         /^(strict\s+nonbroadcast|stub|check\s+link|real\s+broadcast|ptp\s+netmask|ptp\s+address|link\s+lsa\s+suppression|ttl\s+security|bfd)\s+(\S+)$/iu,
       );
       if (boolMatch?.[1] && boolMatch[2]) {
@@ -3553,7 +3507,7 @@ const parseOspfAreaInterfaceEntries = (
         if (value === undefined) {
           return {
             kind: "other",
-            text: item,
+            text: cleanItem,
             ...bodyRange,
           };
         }
@@ -3576,7 +3530,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      const authenticationMatch = cleanItem.match(/^authentication\s+(\S+)$/iu);
       if (authenticationMatch?.[1]) {
         const valueText = authenticationMatch[1].toLowerCase();
         return {
@@ -3593,7 +3547,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
         return {
@@ -3605,7 +3559,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const rxBufferMatch = item.match(/^rx\s+buffer\s+(.+)$/iu);
+      const rxBufferMatch = cleanItem.match(/^rx\s+buffer\s+(.+)$/iu);
       if (rxBufferMatch?.[1]) {
         const value = rxBufferMatch[1].trim().toLowerCase();
         return {
@@ -3616,7 +3570,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const txMatch = item.match(/^tx\s+(tos|priority|length)\s+(.+)$/iu);
+      const txMatch = cleanItem.match(/^tx\s+(tos|priority|length)\s+(.+)$/iu);
       if (txMatch?.[1] && txMatch[2]) {
         const value = txMatch[2].trim();
         return {
@@ -3628,7 +3582,7 @@ const parseOspfAreaInterfaceEntries = (
         };
       }
 
-      const neighborsMatch = item.match(/^neighbors\s+(\{[\s\S]*\})$/iu);
+      const neighborsMatch = cleanItem.match(/^neighbors\s+(\{[\s\S]*\})$/iu);
       if (neighborsMatch?.[1]) {
         const neighborsBodyText = neighborsMatch[1];
         const neighborsBodyRange = tokenRange(neighborsBodyText);
@@ -3647,7 +3601,7 @@ const parseOspfAreaInterfaceEntries = (
 
       return {
         kind: "other",
-        text: item,
+        text: cleanItem,
         ...bodyRange,
       };
     });
@@ -3666,10 +3620,10 @@ const parseOspfAreaVirtualLinkEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item.trim()))
     .filter(Boolean)
-    .map((item) => {
-      const deadCountMatch = item.match(/^dead\s+count\s+(.+)$/iu);
+    .map((cleanItem) => {
+      const deadCountMatch = cleanItem.match(/^dead\s+count\s+(.+)$/iu);
       if (deadCountMatch?.[1]) {
         const value = deadCountMatch[1].trim();
         return {
@@ -3681,7 +3635,9 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const timerMatch = item.match(/^(hello|retransmit|wait|dead)\s+(.+)$/iu);
+      const timerMatch = cleanItem.match(
+        /^(hello|retransmit|wait|dead)\s+(.+)$/iu,
+      );
       if (timerMatch?.[1] && timerMatch[2]) {
         const value = timerMatch[2].trim();
         return {
@@ -3697,7 +3653,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const transmitDelayMatch = item.match(/^transmit\s+delay\s+(.+)$/iu);
+      const transmitDelayMatch = cleanItem.match(/^transmit\s+delay\s+(.+)$/iu);
       if (transmitDelayMatch?.[1]) {
         const value = transmitDelayMatch[1].trim();
         return {
@@ -3709,7 +3665,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const authenticationMatch = item.match(/^authentication\s+(\S+)$/iu);
+      const authenticationMatch = cleanItem.match(/^authentication\s+(\S+)$/iu);
       if (authenticationMatch?.[1]) {
         const valueText = authenticationMatch[1].toLowerCase();
         return {
@@ -3726,7 +3682,7 @@ const parseOspfAreaVirtualLinkEntries = (
         };
       }
 
-      const passwordMatch = item.match(/^password\s+(.+)$/iu);
+      const passwordMatch = cleanItem.match(/^password\s+(.+)$/iu);
       if (passwordMatch?.[1]) {
         const valueText = passwordMatch[1].trim();
         return {
@@ -3740,7 +3696,7 @@ const parseOspfAreaVirtualLinkEntries = (
 
       return {
         kind: "other",
-        text: item,
+        text: cleanItem,
         ...bodyRange,
       };
     });
@@ -4277,37 +4233,6 @@ const parseBabelInterfaceTextStatement = (
   };
 };
 
-const splitTopLevelStatements = (body: string): string[] => {
-  const statements: string[] = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  const tail = body.slice(start).trim();
-  if (tail.length > 0) {
-    statements.push(tail);
-  }
-
-  return statements;
-};
-
 const parseRipOptionTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -4572,14 +4497,14 @@ const parseProtocolInterfaceEntries = (
           address,
           addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
           addressRange: tokenRange(address),
-          ...bodyRange,
+          ...tokenRange(item),
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...tokenRange(item),
       };
     });
 };
@@ -5068,6 +4993,31 @@ const parseRpkiTransportEntries = (
     parseRpkiTransportEntry(statementText, tokenRange),
   );
 
+const RPKI_TEXT_ENTRY_PATTERNS = [
+  {
+    kind: "bird-private-key" as const,
+    pattern: new RegExp(
+      `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "remote-public-key" as const,
+    pattern: new RegExp(
+      `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "password" as const,
+    pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+  {
+    kind: "user" as const,
+    pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+];
+
 const parseRpkiTransportEntry = (
   statementText: string,
   tokenRange: (token: string) => SourceRange,
@@ -5086,32 +5036,7 @@ const parseRpkiTransportEntry = (
     };
   }
 
-  const textEntryPatterns = [
-    {
-      kind: "bird-private-key",
-      pattern: new RegExp(
-        `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "remote-public-key",
-      pattern: new RegExp(
-        `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "password",
-      pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-    {
-      kind: "user",
-      pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-  ] as const;
-
-  for (const entryPattern of textEntryPatterns) {
+  for (const entryPattern of RPKI_TEXT_ENTRY_PATTERNS) {
     const match = trimmed.match(entryPattern.pattern);
     if (!match?.[1]) {
       continue;
@@ -5397,6 +5322,38 @@ const mergeNeighborTailStatements = (
   });
 };
 
+const nearestFollowingOtherIndex = (
+  statements: ProtocolStatement[],
+  index: number,
+  statement: Extract<ProtocolStatement, { kind: "other" }>,
+): number => {
+  let nearestIndex = -1;
+  let nearestColumn = Number.POSITIVE_INFINITY;
+  for (
+    let candidateIndex = 0;
+    candidateIndex < statements.length;
+    candidateIndex += 1
+  ) {
+    if (candidateIndex === index) {
+      continue;
+    }
+
+    const candidate = statements[candidateIndex];
+    if (
+      candidate &&
+      candidate.kind === "other" &&
+      candidate.line === statement.line &&
+      candidate.column >= statement.endColumn &&
+      candidate.column < nearestColumn
+    ) {
+      nearestIndex = candidateIndex;
+      nearestColumn = candidate.column;
+    }
+  }
+
+  return nearestIndex;
+};
+
 const mergeRpkiLocalAddressStatements = (
   statements: ProtocolStatement[],
 ): ProtocolStatement[] => {
@@ -5411,13 +5368,7 @@ const mergeRpkiLocalAddressStatements = (
       continue;
     }
 
-    const nextIndex = statements.findIndex(
-      (candidate, candidateIndex) =>
-        candidateIndex !== index &&
-        candidate.kind === "other" &&
-        candidate.line === statement.line &&
-        candidate.column === statement.endColumn + 1,
-    );
+    const nextIndex = nearestFollowingOtherIndex(statements, index, statement);
     const next = statements[nextIndex];
     if (next?.kind !== "other") {
       continue;
@@ -5458,13 +5409,7 @@ const mergeBmpLocalAddressStatements = (
       continue;
     }
 
-    const nextIndex = statements.findIndex(
-      (candidate, candidateIndex) =>
-        candidateIndex !== index &&
-        candidate.kind === "other" &&
-        candidate.line === statement.line &&
-        candidate.column === statement.endColumn + 1,
-    );
+    const nextIndex = nearestFollowingOtherIndex(statements, index, statement);
     const next = statements[nextIndex];
     if (next?.kind !== "other") {
       continue;
