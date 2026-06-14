@@ -416,21 +416,25 @@ export const parseRadvInterfaceTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = stripTrailingComment(statementText)
-    .trim()
-    .replace(/;\s*$/u, "");
+  const trimmed = statementText.trim();
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
   const rest = (interfaceMatch?.[1] ?? "").trim();
   if (!rest) {
     return undefined;
   }
 
-  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
+  const cleanedRest = rest
+    .replace(/\s*;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*$/u, "")
+    .trim();
+  const bodyMatch = cleanedRest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
   const rawPatternText = bodyText
-    ? rest.slice(0, rest.indexOf(bodyText)).trim()
-    : rest;
-  const patternText = stripTrailingComment(rawPatternText);
+    ? cleanedRest.slice(0, cleanedRest.indexOf(bodyText)).trim()
+    : cleanedRest;
+  const patternText = stripTrailingComment(rawPatternText).replace(
+    /;\s*$/u,
+    "",
+  );
   const patternMatches = [
     ...patternText.matchAll(/"[^"]+"|'[^']+'|,|[^,\s]+/gu),
   ].filter((match) => match[0] !== ",");
@@ -457,10 +461,9 @@ export const parseRadvOptionTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = stripTrailingComment(statementText)
-    .trim()
-    .replace(/;\s*$/u, "");
-  const propagateRoutesMatch = trimmed.match(/^propagate\s+routes\s+(\S+)$/iu);
+  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const cleaned = stripTrailingComment(trimmed);
+  const propagateRoutesMatch = cleaned.match(/^propagate\s+routes\s+(\S+)$/iu);
   if (propagateRoutesMatch?.[1]) {
     const valueText = propagateRoutesMatch[1];
     return {
@@ -473,7 +476,7 @@ export const parseRadvOptionTextStatement = (
     };
   }
 
-  const triggerMatch = trimmed.match(/^trigger\s+(\S+)$/iu);
+  const triggerMatch = cleaned.match(/^trigger\s+(\S+)$/iu);
   if (triggerMatch?.[1]) {
     const prefix = triggerMatch[1];
     return {
@@ -492,15 +495,15 @@ export const parseRadvPrefixTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = stripTrailingComment(statementText)
-    .trim()
-    .replace(/;\s*$/u, "");
-  const prefixMatch = trimmed.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
+  const trimmed = statementText.trim();
+  const prefixMatch = trimmed.match(
+    /^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?\s*(?:;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*)?$/iu,
+  );
   if (!prefixMatch?.[1]) {
     return undefined;
   }
 
-  const prefix = prefixMatch[1];
+  const prefix = stripTrailingComment(prefixMatch[1]).replace(/;\s*$/u, "");
   const bodyText = prefixMatch[2];
   const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
   return {
@@ -522,10 +525,10 @@ export const parseRadvDnsTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = stripTrailingComment(statementText)
-    .trim()
-    .replace(/;\s*$/u, "");
-  const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
+  const trimmed = statementText.trim();
+  const dnsBlockMatch = trimmed.match(
+    /^(rdnss|dnssl)\s+(\{[\s\S]*\})\s*(?:;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*)?$/iu,
+  );
   if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
     const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
     const bodyText = dnsBlockMatch[2];
@@ -539,7 +542,8 @@ export const parseRadvDnsTextStatement = (
     };
   }
 
-  const dnsShorthandMatch = trimmed.match(
+  const cleaned = stripTrailingComment(trimmed).replace(/;\s*$/u, "");
+  const dnsShorthandMatch = cleaned.match(
     /^(rdnss|dnssl)\s+(\S+|"[^"]+"|'[^']+')$/iu,
   );
   if (!dnsShorthandMatch?.[1] || !dnsShorthandMatch[2]) {
@@ -561,10 +565,7 @@ export const parseRadvCustomOptionTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = stripTrailingComment(statementText)
-    .trim()
-    .replace(/;\s*$/u, "");
-  const customOption = parseRadvCustomOptionParts(trimmed, tokenRange);
+  const customOption = parseRadvCustomOptionParts(statementText, tokenRange);
   if (!customOption) {
     return undefined;
   }

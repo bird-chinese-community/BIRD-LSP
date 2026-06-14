@@ -87,11 +87,7 @@ export const splitTopLevelStatements = (body: string): string[] => {
       while (index < body.length && body[index] !== "\n") {
         index += 1;
       }
-      if (depth === 0) {
-        const preComment = body.slice(start, commentStart).trim();
-        if (preComment.length > 0) {
-          statements.push(preComment);
-        }
+      if (depth === 0 && body.slice(start, commentStart).trim().length === 0) {
         start = index < body.length ? index + 1 : body.length;
       }
       continue;
@@ -108,11 +104,7 @@ export const splitTopLevelStatements = (body: string): string[] => {
         }
         index += 1;
       }
-      if (depth === 0) {
-        const preComment = body.slice(start, commentStart).trim();
-        if (preComment.length > 0) {
-          statements.push(preComment);
-        }
+      if (depth === 0 && body.slice(start, commentStart).trim().length === 0) {
         start = index + 1;
       }
       continue;
