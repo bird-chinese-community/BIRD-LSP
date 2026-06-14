@@ -4354,6 +4354,97 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("filters comment-only statements from OSPF interface and virtual link", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            # only a comment
+            /* block comment */
+            cost 10;
+          };
+          virtual link 192.0.2.1 {
+            # another comment
+            /* another block comment */
+            hello 5;
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(
+          area.entries.some(
+            (entry) =>
+              entry.kind === "interface" &&
+              entry.entries.some((item) => item.kind === "other"),
+          ),
+        ).toBe(false);
+        expect(
+          area.entries.some(
+            (entry) =>
+              entry.kind === "virtual-link" &&
+              entry.entries.some((item) => item.kind === "other"),
+          ),
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("does not strip password value when it contains comment-like characters", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol ospf core {
+        area 0 {
+          interface "eth0" {
+            authentication cryptographic;
+            password "sec#ret//value";
+          };
+        };
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const area = protocol.statements.find(
+        (item) => item.kind === "ospf-area",
+      );
+      expect(area?.kind).toBe("ospf-area");
+      if (area?.kind === "ospf-area") {
+        expect(area.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "interface",
+              patterns: ["eth0"],
+              entries: expect.arrayContaining([
+                expect.objectContaining({
+                  kind: "password",
+                  value: "sec#ret//value",
+                  valueText: '"sec#ret//value"',
+                }),
+              ]),
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
   it("parses OSPF area networks and stubnets", async () => {
     const parsed = await parseBirdConfig(`
       protocol ospf core {
