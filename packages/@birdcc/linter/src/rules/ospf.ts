@@ -1,5 +1,11 @@
 import type { BirdDiagnostic } from "@birdcc/core";
-import type { SourceRange } from "@birdcc/parser";
+import type {
+  ParsedBirdDocument,
+  ProtocolDeclaration,
+  ProtocolStatement,
+  SourceRange,
+  TemplateDeclaration,
+} from "@birdcc/parser";
 import {
   createProtocolDiagnostic,
   createRuleDiagnostic,
@@ -24,25 +30,142 @@ const normalizeAreaId = (value: string): string => value.trim().toLowerCase();
 const isBackboneArea = (value: string): boolean =>
   BACKBONE_AREA_IDS.has(normalizeAreaId(value));
 
-const isAsbrEnabled = (text: string): boolean => {
-  const normalized = text.trim().toLowerCase();
-  if (!/\basbr\b/i.test(normalized)) {
-    return false;
-  }
+const stripComments = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\*[\s\S]*?\*\/)/gu,
+      "",
+    )
+    .trim();
 
-  // Disabled forms: "no asbr", "asbr no", "asbr off", "asbr false".
-  return (
-    !/^\s*no\s+asbr\b/i.test(normalized) &&
-    !/\basbr\s+(?:no|off|false)\b/i.test(normalized)
-  );
+const stripNestedBlocks = (value: string): string => {
+  const cleaned = stripComments(value);
+  const hasOuterBraces = cleaned.trimStart().startsWith("{");
+  const targetDepth = hasOuterBraces ? 1 : 0;
+  let result = "";
+  let depth = 0;
+  for (let index = 0; index < cleaned.length; index += 1) {
+    const char = cleaned[index];
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (depth === targetDepth) {
+      result += char;
+    }
+  }
+  return result;
 };
 
+const splitStatements = (text: string): string[] =>
+  text
+    .split(/[;\n]+/u)
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
+
+const getAsbrStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
+  const statements = splitStatements(stripNestedBlocks(text));
+  for (let index = statements.length - 1; index >= 0; index -= 1) {
+    const statement = statements[index] ?? "";
+    if (!/\basbr\b/i.test(statement)) {
+      continue;
+    }
+
+    const isDisabled =
+      /^\s*no\s+asbr\b/i.test(statement) ||
+      /\basbr\s+(?:no|off|false)\b/i.test(statement);
+
+    return isDisabled ? "disabled" : "enabled";
+  }
+  return "none";
+};
+
+const isAsbrEnabled = (text: string): boolean =>
+  getAsbrStateInBlock(text) === "enabled";
+
+const getStubStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
+  const statements = splitStatements(stripNestedBlocks(text));
+  for (let index = statements.length - 1; index >= 0; index -= 1) {
+    const statement = statements[index] ?? "";
+    if (!/\bstub\b/i.test(statement)) {
+      continue;
+    }
+
+    const isDisabled =
+      /^\s*no\s+stub\b/i.test(statement) ||
+      /\bstub\s+(?:no|off|false)\b/i.test(statement);
+
+    return isDisabled ? "disabled" : "enabled";
+  }
+  return "none";
+};
+
+const isStubEnabled = (text: string): boolean =>
+  getStubStateInBlock(text) === "enabled";
+
 const hasProtocolAsbr = (
-  declaration: Parameters<typeof protocolOtherTextEntries>[0],
-): boolean =>
-  declaration.statements.some(
-    (statement) => statement.kind === "other" && isAsbrEnabled(statement.text),
-  );
+  declaration: ProtocolDeclaration,
+  parsed: ParsedBirdDocument,
+): boolean => {
+  const declarations = parsed.program.declarations;
+  const visited = new Set<string>();
+  let current: ProtocolDeclaration | TemplateDeclaration | undefined =
+    declaration;
+  let depth = 0;
+  const maxDepth = 10;
+
+  while (current && depth < maxDepth) {
+    if (current.kind === "protocol") {
+      const asbrStatements = current.statements.filter(
+        (
+          statement,
+        ): statement is Extract<ProtocolStatement, { kind: "other" }> =>
+          statement.kind === "other",
+      );
+      for (let index = asbrStatements.length - 1; index >= 0; index -= 1) {
+        const state = getAsbrStateInBlock(asbrStatements[index]?.text ?? "");
+        if (state === "enabled") {
+          return true;
+        }
+        if (state === "disabled") {
+          return false;
+        }
+      }
+    } else if (current.kind === "template") {
+      const bodyText = current.bodyText ?? "";
+      const state = getAsbrStateInBlock(bodyText);
+      if (state === "enabled") {
+        return true;
+      }
+      if (state === "disabled") {
+        return false;
+      }
+    }
+
+    const templateName = current.fromTemplate;
+    if (!templateName) {
+      break;
+    }
+
+    const key = templateName.toLowerCase();
+    if (visited.has(key)) {
+      break;
+    }
+    visited.add(key);
+
+    current = declarations.find(
+      (decl): decl is TemplateDeclaration =>
+        decl.kind === "template" && decl.name.toLowerCase() === key,
+    );
+    depth += 1;
+  }
+
+  return false;
+};
 
 const parseAreaSegments = (
   text: string,
@@ -191,7 +314,7 @@ const ospfBackboneStubRule: BirdRule = ({ parsed }) => {
     for (const area of areas) {
       if (
         !isBackboneArea(area.areaId) ||
-        !(area.hasStub ?? /\bstub\b/i.test(area.text))
+        !(area.hasStub ?? isStubEnabled(area.text))
       ) {
         continue;
       }
@@ -250,14 +373,14 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       continue;
     }
 
-    const protocolAsbr = hasProtocolAsbr(declaration);
+    const protocolAsbr = hasProtocolAsbr(declaration, parsed);
     const areas = collectAreas(declaration);
     for (const area of areas) {
       if (isBackboneArea(area.areaId)) {
         continue;
       }
 
-      const hasStub = area.hasStub ?? /\bstub\b/i.test(area.text);
+      const hasStub = area.hasStub ?? isStubEnabled(area.text);
       const hasAsbr = protocolAsbr || isAsbrEnabled(area.text);
       if (!hasStub || !hasAsbr) {
         continue;

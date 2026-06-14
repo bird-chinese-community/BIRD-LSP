@@ -276,6 +276,16 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
         ),
       );
     }
+
+    if (hold === 0 && keepalive !== null && keepalive !== 0) {
+      diagnostics.push(
+        createProtocolDiagnostic(
+          "bgp/timer-invalid",
+          `BGP protocol '${declaration.name}' keepalive (${keepalive}) must be 0 when hold time is disabled`,
+          declaration,
+        ),
+      );
+    }
   }
 
   return diagnostics;

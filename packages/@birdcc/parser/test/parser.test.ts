@@ -3054,6 +3054,33 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("parses Babel interface without a body", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol babel edge {
+        interface "eth0";
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      const iface = protocol.statements.find(
+        (item) => item.kind === "babel-interface",
+      );
+      expect(iface).toEqual(
+        expect.objectContaining({
+          kind: "babel-interface",
+          patterns: ["eth0"],
+          entries: [],
+        }),
+      );
+    }
+  });
+
   it("preserves RADV interface body entries", async () => {
     const sample = `
       protocol radv ra1 {
