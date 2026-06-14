@@ -199,11 +199,11 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
         const value = numericValue(statement.value);
         if (statement.option === "hold-time") {
           hold = value;
-          if (value !== null && (value < 3 || value > 65_535)) {
+          if (value !== null && value !== 0 && (value < 3 || value > 65_535)) {
             diagnostics.push(
               createRuleDiagnostic(
                 "bgp/timer-invalid",
-                `BGP protocol '${declaration.name}' hold time must be in range 3..65535`,
+                `BGP protocol '${declaration.name}' hold time must be in range 3..65535 or 0 to disable`,
                 statement.valueRange,
               ),
             );
@@ -212,11 +212,11 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
 
         if (statement.option === "keepalive-time") {
           keepalive = value;
-          if (value !== null && (value < 1 || value > 65_535)) {
+          if (value !== null && value !== 0 && (value < 1 || value > 65_535)) {
             diagnostics.push(
               createRuleDiagnostic(
                 "bgp/timer-invalid",
-                `BGP protocol '${declaration.name}' keepalive must be in range 1..65535`,
+                `BGP protocol '${declaration.name}' keepalive must be in range 1..65535 or 0 to disable`,
                 statement.valueRange,
               ),
             );
@@ -236,11 +236,11 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
 
       if (holdValue !== null) {
         hold = holdValue;
-        if (hold < 3 || hold > 65_535) {
+        if (hold !== 0 && (hold < 3 || hold > 65_535)) {
           diagnostics.push(
             createRuleDiagnostic(
               "bgp/timer-invalid",
-              `BGP protocol '${declaration.name}' hold time must be in range 3..65535`,
+              `BGP protocol '${declaration.name}' hold time must be in range 3..65535 or 0 to disable`,
               statement,
             ),
           );
@@ -249,11 +249,11 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
 
       if (keepaliveValue !== null) {
         keepalive = keepaliveValue;
-        if (keepalive < 1 || keepalive > 65_535) {
+        if (keepalive !== 0 && (keepalive < 1 || keepalive > 65_535)) {
           diagnostics.push(
             createRuleDiagnostic(
               "bgp/timer-invalid",
-              `BGP protocol '${declaration.name}' keepalive must be in range 1..65535`,
+              `BGP protocol '${declaration.name}' keepalive must be in range 1..65535 or 0 to disable`,
               statement,
             ),
           );
@@ -261,7 +261,13 @@ const bgpTimerInvalidRule: BirdRule = ({ parsed }) => {
       }
     }
 
-    if (hold !== null && keepalive !== null && keepalive >= hold) {
+    if (
+      hold !== null &&
+      keepalive !== null &&
+      hold !== 0 &&
+      keepalive !== 0 &&
+      keepalive >= hold
+    ) {
       diagnostics.push(
         createProtocolDiagnostic(
           "bgp/timer-invalid",

@@ -1,4 +1,5 @@
 import type { ProtocolStatement, SourceRange } from "../types.js";
+import { splitTopLevelStatements, stripTrailingComment } from "./shared.js";
 
 type TokenRange = (token: string) => SourceRange;
 
@@ -21,37 +22,6 @@ const parseBoolToken = (value: string | undefined): boolean | undefined => {
   return undefined;
 };
 
-const splitTopLevelStatements = (body: string): string[] => {
-  const statements: string[] = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  const tail = body.slice(start).trim();
-  if (tail.length > 0) {
-    statements.push(tail);
-  }
-
-  return statements;
-};
-
 const parseRadvCustomOptionParts = (
   statementText: string,
   tokenRange: TokenRange,
@@ -66,7 +36,7 @@ const parseRadvCustomOptionParts = (
   const customOptionMatch = statementText.match(
     /^custom\s+option\s+type\s+(.+?)\s+value\s+(.+)$/iu,
   );
-  if (!customOptionMatch?.[1] || !customOptionMatch[2]) {
+  if (!customOptionMatch || !customOptionMatch[1] || !customOptionMatch[2]) {
     return undefined;
   }
 
@@ -94,7 +64,7 @@ const parseRadvDnsBlockEntries = (
     .replace(/\s*\}$/u, "");
 
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
       const dnsEntryMatch = item.match(
@@ -147,7 +117,7 @@ const parseRadvDnsShorthandEntry = (
   if (blockKind === "rdnss") {
     return {
       kind: "ns",
-      value: valueText,
+      value: stripQuotedText(valueText),
       valueText,
       valueRange: tokenRange(valueText),
       ...tokenRange(valueText),
@@ -176,9 +146,10 @@ const parseRadvPrefixEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const boolMatch = item.match(
         /^(skip|onlink|autonomous|pd\s+preferred)(?:\s+(\S+))?$/iu,
       );
@@ -190,7 +161,7 @@ const parseRadvPrefixEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -211,14 +182,14 @@ const parseRadvPrefixEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -234,9 +205,10 @@ const parseRadvInterfaceEntries = (
     .replace(/\s*\}$/u, "");
   const statements = splitTopLevelStatements(body);
   return statements
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const prefixMatch = item.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
       if (prefixMatch?.[1]) {
         const prefix = prefixMatch[1];
@@ -248,12 +220,17 @@ const parseRadvInterfaceEntries = (
           kind: "prefix",
           prefix,
           prefixRange: tokenRange(prefix),
-          entries: prefixBodyText
-            ? parseRadvPrefixEntries(prefixBodyText, bodyRange, tokenRange)
-            : [],
+          entries:
+            prefixBodyText && prefixBodyRange
+              ? parseRadvPrefixEntries(
+                  prefixBodyText,
+                  prefixBodyRange,
+                  tokenRange,
+                )
+              : [],
           bodyText: prefixBodyText,
           bodyRange: prefixBodyRange,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -270,7 +247,7 @@ const parseRadvInterfaceEntries = (
             | "min-delay",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -289,7 +266,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -307,7 +284,7 @@ const parseRadvInterfaceEntries = (
             | "current-hop-limit",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -327,7 +304,7 @@ const parseRadvInterfaceEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -343,7 +320,7 @@ const parseRadvInterfaceEntries = (
             | "route-linger-time",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -362,7 +339,7 @@ const parseRadvInterfaceEntries = (
             | "route-preference",
           value,
           valueRange: tokenRange(preferenceMatch[2]),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -381,7 +358,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -394,7 +371,7 @@ const parseRadvInterfaceEntries = (
           entries: parseRadvDnsBlockEntries(kind, dnsBodyText, tokenRange),
           bodyText: dnsBodyText,
           bodyRange: tokenRange(dnsBodyText),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -407,7 +384,7 @@ const parseRadvInterfaceEntries = (
         return {
           kind,
           entries: [parseRadvDnsShorthandEntry(kind, valueText, tokenRange)],
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -416,14 +393,14 @@ const parseRadvInterfaceEntries = (
         return {
           kind: "custom-option",
           ...customOption,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -435,7 +412,7 @@ export const parseRadvInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
-  const rest = interfaceMatch?.[1]?.trim();
+  const rest = stripTrailingComment((interfaceMatch?.[1] ?? "").trim()).trim();
   if (!rest) {
     return undefined;
   }
@@ -446,7 +423,7 @@ export const parseRadvInterfaceTextStatement = (
     ? rest.slice(0, rest.indexOf(bodyText)).trim()
     : rest;
   const patternMatches = [
-    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|\S+/gu),
+    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|[^,\s]+/gu),
   ].filter((match) => match[0] !== ",");
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
@@ -517,9 +494,10 @@ export const parseRadvPrefixTextStatement = (
     kind: "radv-prefix",
     prefix,
     prefixRange: tokenRange(prefix),
-    entries: bodyText
-      ? parseRadvPrefixEntries(bodyText, statementRange, tokenRange)
-      : [],
+    entries:
+      bodyText && bodyRange
+        ? parseRadvPrefixEntries(bodyText, bodyRange, tokenRange)
+        : [],
     bodyText,
     bodyRange,
     ...statementRange,

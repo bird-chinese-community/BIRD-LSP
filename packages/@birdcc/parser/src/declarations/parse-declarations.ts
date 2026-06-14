@@ -27,7 +27,13 @@ import {
   parseTimeformatFromStatement,
   parseWatchdogFromStatement,
 } from "./top-level.js";
-import { normalizeTableType } from "./shared.js";
+import { normalizeTableType, stripTrailingComment } from "./shared.js";
+import {
+  findMatchingBraceIndex,
+  indexToRange,
+  lineStartsOf,
+  rangeContains,
+} from "../tree.js";
 
 const IPV6_SADR_TABLE_LINE =
   /^(\s*)ipv6\s+sadr\s+table\s+([A-Za-z_][A-Za-z0-9_-]*)(?:\s+.*)?;\s*$/i;
@@ -47,84 +53,6 @@ const sourceRangeForLineSlice = (
   endLine: line,
   endColumn: startColumn + text.length,
 });
-
-const countChar = (text: string, char: string): number => {
-  let count = 0;
-  for (const current of text) {
-    if (current === char) {
-      count += 1;
-    }
-  }
-  return count;
-};
-
-const lineStartsOf = (source: string): number[] => {
-  const starts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === "\n") {
-      starts.push(index + 1);
-    }
-  }
-  return starts;
-};
-
-const indexToRange = (
-  source: string,
-  lineStarts: number[],
-  startIndex: number,
-  endIndex: number,
-): SourceRange => {
-  const positionOf = (index: number): { line: number; column: number } => {
-    let lineIndex = 0;
-    for (let cursor = 0; cursor < lineStarts.length; cursor += 1) {
-      const start = lineStarts[cursor] ?? 0;
-      if (start > index) {
-        break;
-      }
-      lineIndex = cursor;
-    }
-
-    const lineStart = lineStarts[lineIndex] ?? 0;
-    return {
-      line: lineIndex + 1,
-      column: index - lineStart + 1,
-    };
-  };
-
-  const start = positionOf(startIndex);
-  const end = positionOf(endIndex);
-  return {
-    line: start.line,
-    column: start.column,
-    endLine: end.line,
-    endColumn: end.column,
-  };
-};
-
-const findMatchingBraceIndex = (
-  source: string,
-  openBraceIndex: number,
-): number => {
-  let balance = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      balance += 1;
-      continue;
-    }
-
-    if (char !== "}") {
-      continue;
-    }
-
-    balance -= 1;
-    if (balance === 0) {
-      return index;
-    }
-  }
-
-  return -1;
-};
 
 const valueRangeInStatement = (
   source: string,
@@ -161,7 +89,7 @@ const parseTableOptionEntries = (
     }
 
     const rawStatement = statementMatch[1] ?? "";
-    const statementText = rawStatement.trim();
+    const statementText = stripTrailingComment(rawStatement).trim();
     if (statementText.length === 0) {
       continue;
     }
@@ -365,6 +293,7 @@ const collectFallbackMplsDomainDeclarations = (
   );
   const fallbackDeclarations: MplsDomainDeclaration[] = [];
   const lines = source.split(/\r?\n/);
+  const lineStarts = lineStartsOf(source);
 
   for (let index = 0; index < lines.length; index += 1) {
     const lineText = lines[index] ?? "";
@@ -382,29 +311,47 @@ const collectFallbackMplsDomainDeclarations = (
 
     const indent = match[1]?.length ?? 0;
     const startColumn = indent + 1;
-    const nameColumn = lineText.indexOf(name) + 1;
+    const domainKeywordColumn = lineText.toLowerCase().indexOf("domain") + 1;
+    const nameColumn =
+      lineText.indexOf(name, domainKeywordColumn + "domain".length) + 1;
     let endLineIndex = index;
-    let braceBalance = 0;
-    let sawBody = false;
+    let bodyText: string | undefined;
+    let bodyRange: SourceRange | undefined;
 
-    for (let cursor = index; cursor < lines.length; cursor += 1) {
-      const currentLine = lines[cursor] ?? "";
-      braceBalance += countChar(currentLine, "{");
-      braceBalance -= countChar(currentLine, "}");
-      sawBody ||= currentLine.includes("{");
+    const lineStartIndex = lineStarts[index] ?? 0;
+    const headerEndIndex = lineStartIndex + match[0].length;
+    const openBraceIndex = source.indexOf("{", headerEndIndex);
+    const semicolonIndex = source.indexOf(";", headerEndIndex);
 
-      if (sawBody) {
-        if (braceBalance <= 0) {
-          endLineIndex = cursor;
-          break;
-        }
-        continue;
+    if (
+      openBraceIndex !== -1 &&
+      (semicolonIndex === -1 || openBraceIndex < semicolonIndex)
+    ) {
+      const closeBraceIndex = findMatchingBraceIndex(source, openBraceIndex);
+      if (closeBraceIndex !== -1) {
+        const closeBraceRange = indexToRange(
+          source,
+          lineStarts,
+          closeBraceIndex,
+          closeBraceIndex + 1,
+        );
+        endLineIndex = closeBraceRange.line - 1;
+        bodyText = source.slice(openBraceIndex, closeBraceIndex + 1);
+        bodyRange = indexToRange(
+          source,
+          lineStarts,
+          openBraceIndex,
+          closeBraceIndex + 1,
+        );
       }
-
-      if (currentLine.includes(";")) {
-        endLineIndex = cursor;
-        break;
-      }
+    } else if (semicolonIndex !== -1) {
+      const semicolonRange = indexToRange(
+        source,
+        lineStarts,
+        semicolonIndex,
+        semicolonIndex + 1,
+      );
+      endLineIndex = semicolonRange.line - 1;
     }
 
     const endLineText = lines[endLineIndex] ?? "";
@@ -414,32 +361,6 @@ const collectFallbackMplsDomainDeclarations = (
       endLine: endLineIndex + 1,
       endColumn: endLineText.trimEnd().length + 1,
     };
-
-    let bodyText: string | undefined;
-    let bodyRange: SourceRange | undefined;
-    const joinedText = lines.slice(index, endLineIndex + 1).join("\n");
-    const bodyStartOffset = joinedText.indexOf("{");
-    const bodyEndOffset = joinedText.lastIndexOf("}");
-    if (bodyStartOffset !== -1 && bodyEndOffset > bodyStartOffset) {
-      bodyText = joinedText.slice(bodyStartOffset, bodyEndOffset + 1);
-      const bodyLinesBefore = joinedText.slice(0, bodyStartOffset).split("\n");
-      const bodyEndLinesBefore = joinedText
-        .slice(0, bodyEndOffset + 1)
-        .split("\n");
-      const bodyStartLine = line + bodyLinesBefore.length - 1;
-      const bodyEndLine = line + bodyEndLinesBefore.length - 1;
-      const bodyStartColumn =
-        bodyLinesBefore.length === 1
-          ? startColumn + bodyStartOffset
-          : (bodyLinesBefore.at(-1)?.length ?? 0) + 1;
-      const bodyEndColumn = bodyEndLinesBefore.at(-1)?.length ?? 0;
-      bodyRange = {
-        line: bodyStartLine,
-        column: bodyStartColumn,
-        endLine: bodyEndLine,
-        endColumn: bodyEndColumn + 1,
-      };
-    }
 
     fallbackDeclarations.push({
       kind: "mpls-domain",
@@ -490,7 +411,13 @@ const collectFallbackAttributeDeclarations = (
       startColumn,
       statementText,
     );
-    const attributeTypeColumn = lineText.indexOf(attributeType) + 1;
+    const attributeKeywordColumn =
+      lineText.toLowerCase().indexOf("attribute") + 1;
+    const attributeTypeColumn =
+      lineText.indexOf(
+        attributeType,
+        attributeKeywordColumn + "attribute".length,
+      ) + 1;
     const nameColumn = lineText.indexOf(name, attributeTypeColumn) + 1;
 
     fallbackDeclarations.push({
@@ -545,7 +472,9 @@ const collectFallbackTableDeclarations = (
       startColumn,
       statementText,
     );
-    const nameColumn = lineText.indexOf(name) + 1;
+    const tableKeywordColumn = lineText.toLowerCase().indexOf("table") + 1;
+    const nameColumn =
+      lineText.indexOf(name, tableKeywordColumn + "table".length) + 1;
 
     fallbackDeclarations.push({
       kind: "table",
@@ -639,7 +568,13 @@ const collectTableBlockDeclarations = (
 
     const tableTypeStart = match.index;
     const tableTypeEnd = tableTypeStart + tableTypeText.length;
-    const nameStart = source.indexOf(name, match.index);
+    const nameOffsetInMatch = match[0]
+      .toLowerCase()
+      .lastIndexOf(name.toLowerCase());
+    const nameStart =
+      nameOffsetInMatch === -1
+        ? source.indexOf(name, match.index)
+        : match.index + nameOffsetInMatch;
     const key = `${name}:${declarationRange.line}`;
     if (existingKeys.has(key)) {
       continue;
@@ -670,16 +605,6 @@ const collectTableBlockDeclarations = (
   }
 
   return blockDeclarations;
-};
-
-const rangeContains = (outer: SourceRange, inner: SourceRange): boolean => {
-  const startsBefore =
-    outer.line < inner.line ||
-    (outer.line === inner.line && outer.column <= inner.column);
-  const endsAfter =
-    outer.endLine > inner.endLine ||
-    (outer.endLine === inner.endLine && outer.endColumn >= inner.endColumn);
-  return startsBefore && endsAfter;
 };
 
 const removeTablesCoveredByBlockTables = (

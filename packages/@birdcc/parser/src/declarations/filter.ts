@@ -12,13 +12,16 @@ import {
   type FunctionDeclaration,
   type MatchExpression,
   isStrictIpLiteral,
+  stripTrailingComment,
 } from "./shared.js";
 
 const parseFilterSegmentStatement = (
   segment: string,
   range: ReturnType<typeof toRange>,
 ): FilterBodyStatement | undefined => {
-  const normalizedSegment = segment.trim().replace(/;\s*$/u, "");
+  const normalizedSegment = stripTrailingComment(segment)
+    .trim()
+    .replace(/;\s*$/u, "");
   const normalizedPrintMatch = normalizedSegment.match(/^print(n)?\s+(.+)$/iu);
   if (normalizedPrintMatch) {
     return {
@@ -38,8 +41,11 @@ const parseFilterSegmentStatement = (
     };
   }
 
+  // Match plain assignments like `target = value`, but reject comparison
+  // operators (`==`, `!=`, `<=`, `>=`) so bare comparison expression
+  // statements are not misclassified as assignments.
   const assignmentMatch = normalizedSegment.match(
-    /^([A-Za-z_][A-Za-z0-9_.]*(?:\[[^\]]+\])?)\s*=\s*(.+)$/u,
+    /^([A-Za-z_][A-Za-z0-9_.]*(?:\[[^\]]+\])?)\s*(?<![<>!=])=(?!=)\s*(.+)$/u,
   );
   if (assignmentMatch) {
     return {
@@ -285,6 +291,23 @@ const collectFunctionLeadingDeclarations = (
   return statements;
 };
 
+const FILTER_KEYWORD_DENYLIST = new Set([
+  "if",
+  "then",
+  "else",
+  "case",
+  "for",
+  "do",
+  "while",
+  "return",
+  "accept",
+  "reject",
+  "print",
+  "printn",
+  "unset",
+  "in",
+]);
+
 const collectLiteralsAndMatches = (
   bodyNode: SyntaxNode,
   source: string,
@@ -313,6 +336,9 @@ const collectLiteralsAndMatches = (
     }
 
     const name = nameMatch[1];
+    if (FILTER_KEYWORD_DENYLIST.has(name.toLowerCase())) {
+      return;
+    }
     calls.push({
       name,
       nameRange: {
@@ -339,10 +365,21 @@ const collectLiteralsAndMatches = (
     return matched?.[0] ?? null;
   };
 
-  const collectNode = (node: SyntaxNode): void => {
-    const namedChildren = node.namedChildren;
+  const collectNode = (rootNode: SyntaxNode): void => {
+    type Frame = { node: SyntaxNode; index: number };
+    const stack: Frame[] = [{ node: rootNode, index: 0 }];
 
-    for (let index = 0; index < namedChildren.length; index += 1) {
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      const { node, index } = frame;
+      const namedChildren = node.namedChildren;
+
+      if (index >= namedChildren.length) {
+        stack.pop();
+        continue;
+      }
+
+      frame.index += 1;
       const current = namedChildren[index];
       if (!current) {
         continue;
@@ -453,7 +490,9 @@ const collectLiteralsAndMatches = (
         });
       }
 
-      collectNode(current);
+      if (current.namedChildren.length > 0) {
+        stack.push({ node: current, index: 0 });
+      }
     }
   };
 
@@ -461,23 +500,18 @@ const collectLiteralsAndMatches = (
 
   const bodyText = textOf(bodyNode, source);
   const bodyRange = toRange(bodyNode, source);
-  const sourceLines = source.split(/\r?\n/);
   const bodyLines = bodyText.split(/\r?\n/);
   const callPattern = /\b([A-Za-z_][A-Za-z0-9_]*)\s*\(([^();{}]*)\)/gu;
   for (let lineOffset = 0; lineOffset < bodyLines.length; lineOffset += 1) {
     const lineText = bodyLines[lineOffset] ?? "";
     const sourceLine = bodyRange.line + lineOffset;
-    const sourceLineText = sourceLines[sourceLine - 1] ?? "";
-    const lineStartColumn =
-      lineOffset === 0
-        ? bodyRange.column
-        : sourceLineText.indexOf(lineText) + 1;
+    const lineStartColumn = lineOffset === 0 ? bodyRange.column : 1;
 
     callPattern.lastIndex = 0;
     let match = callPattern.exec(lineText);
     while (match) {
       const matchedText = match[0];
-      const startColumn = Math.max(1, lineStartColumn + match.index);
+      const startColumn = lineStartColumn + match.index;
       pushTextCall(matchedText, {
         line: sourceLine,
         column: startColumn,
