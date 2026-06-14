@@ -2844,7 +2844,7 @@ const parseBfdProfileTextStatement = (
     return undefined;
   }
 
-  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
+  const patternText = rest.slice(0, bodyMatch.index).trim();
   const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
@@ -4196,9 +4196,7 @@ const parseBabelInterfaceTextStatement = (
 
   const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
-  const patternText = bodyText
-    ? rest.slice(0, rest.indexOf(bodyText)).trim()
-    : rest;
+  const patternText = bodyMatch ? rest.slice(0, bodyMatch.index).trim() : rest;
   const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
   if (patternMatches.length === 0) {
     return undefined;
