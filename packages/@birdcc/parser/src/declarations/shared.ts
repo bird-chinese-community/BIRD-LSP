@@ -56,6 +56,12 @@ export type MatchExpression = FilterDeclaration["matches"][number];
 
 type ChannelStatement = Extract<ProtocolStatement, { kind: "channel" }>;
 
+export const stripQuotedText = (value: string): string =>
+  (value.startsWith('"') && value.endsWith('"')) ||
+  (value.startsWith("'") && value.endsWith("'"))
+    ? value.slice(1, -1)
+    : value;
+
 export const PROTOCOL_STATEMENT_TYPES = new Set([
   "local_role_statement",
   "local_as_statement",
@@ -65,6 +71,97 @@ export const PROTOCOL_STATEMENT_TYPES = new Set([
   "channel_statement",
   "expression_statement",
 ]);
+
+export const splitTopLevelStatements = (body: string): string[] => {
+  const statements: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body[index];
+    const nextChar = body[index + 1];
+
+    // Single-line comments (# or //)
+    if (char === "#" || (char === "/" && nextChar === "/")) {
+      const commentStart = index;
+      while (index < body.length && body[index] !== "\n") {
+        index += 1;
+      }
+      if (depth === 0 && body.slice(start, commentStart).trim().length === 0) {
+        start = index < body.length ? index + 1 : body.length;
+      }
+      continue;
+    }
+
+    // Multi-line comments (/* ... */)
+    if (char === "/" && nextChar === "*") {
+      const commentStart = index;
+      index += 2;
+      while (index < body.length - 1) {
+        if (body[index] === "*" && body[index + 1] === "/") {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      if (depth === 0 && body.slice(start, commentStart).trim().length === 0) {
+        start = index + 1;
+      }
+      continue;
+    }
+
+    // Quoted strings
+    if (char === '"' || char === "'") {
+      const quote = char;
+      index += 1;
+      while (index < body.length) {
+        if (body[index] === "\\") {
+          index += 1;
+        } else if (body[index] === quote) {
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) {
+        statements.push(body.slice(start, index + 1));
+        start = index + 1;
+        while (
+          start < body.length &&
+          (body[start] === ";" || /\s/u.test(body[start] ?? ""))
+        ) {
+          start += 1;
+        }
+        index = start - 1;
+      }
+      continue;
+    }
+
+    if (char === ";" && depth === 0) {
+      const statement = body.slice(start, index).trim();
+      if (statement.length > 0) {
+        statements.push(statement);
+      }
+      start = index + 1;
+    }
+  }
+
+  const tail = body.slice(start).trim();
+  if (tail.length > 0) {
+    statements.push(tail);
+  }
+
+  return statements;
+};
 
 export const TABLE_TYPES = new Set([
   "routing",

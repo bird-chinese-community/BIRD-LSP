@@ -31,6 +31,8 @@ import {
   normalizeChannelType,
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
+  splitTopLevelStatements,
+  stripQuotedText,
 } from "./shared.js";
 import {
   parseRadvCustomOptionTextStatement,
@@ -991,12 +993,6 @@ const STATIC_ROUTE_DESTINATIONS = new Set([
 
 const isNode = (node: SyntaxNode | undefined): node is SyntaxNode =>
   node !== undefined;
-
-const stripQuotedText = (value: string): string =>
-  (value.startsWith('"') && value.endsWith('"')) ||
-  (value.startsWith("'") && value.endsWith("'"))
-    ? value.slice(1, -1)
-    : value;
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -2010,13 +2006,17 @@ const parseKernelOptionStatement = (
   }
 
   if (first === "merge" && second === "paths" && phraseNodes.length <= 5) {
-    const valueNode = phraseNodes[2];
+    const hasExplicitBool = phraseTextAt(phraseNodes, 2, source) !== "limit";
+    const valueNode = hasExplicitBool ? phraseNodes[2] : undefined;
     const valueText = isNode(valueNode) ? textOf(valueNode, source) : undefined;
-    const value = parseBoolToken(valueText);
+    const value = valueText !== undefined ? parseBoolToken(valueText) : true;
     if (value !== undefined) {
-      const limitNode =
-        phraseTextAt(phraseNodes, 3, source) === "limit"
+      const limitNode = hasExplicitBool
+        ? phraseTextAt(phraseNodes, 3, source) === "limit"
           ? phraseNodes[4]
+          : undefined
+        : phraseTextAt(phraseNodes, 2, source) === "limit"
+          ? phraseNodes[3]
           : undefined;
       const limit = isNode(limitNode) ? textOf(limitNode, source) : undefined;
       return {
@@ -4220,37 +4220,6 @@ const parseBabelInterfaceTextStatement = (
   };
 };
 
-const splitTopLevelStatements = (body: string): string[] => {
-  const statements: string[] = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  const tail = body.slice(start).trim();
-  if (tail.length > 0) {
-    statements.push(tail);
-  }
-
-  return statements;
-};
-
 const parseRipOptionTextStatement = (
   statementText: string,
   statementRange: SourceRange,
@@ -4471,7 +4440,7 @@ const parseRipInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(
-    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+    /^interface\b([\s\S]*?)(\{[\s\S]*\})$/iu,
   );
   if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
     return undefined;
@@ -4515,14 +4484,14 @@ const parseProtocolInterfaceEntries = (
           address,
           addressKind: isIpLiteralCandidate(address) ? "ip" : "other",
           addressRange: tokenRange(address),
-          ...bodyRange,
+          ...tokenRange(item),
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...tokenRange(item),
       };
     });
 };
@@ -4534,7 +4503,7 @@ const parseProtocolInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(
-    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+    /^interface\b([\s\S]*?)(\{[\s\S]*\})$/iu,
   );
   if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
     return undefined;
@@ -4734,16 +4703,20 @@ const parseStaticRouteOptions = (
     }
 
     if (optionText === "onlink" || optionText === "bfd") {
+      const boolValue = parseBoolToken(valueText);
       options.push({
         kind: optionText,
-        value: parseBoolToken(valueText) ?? true,
-        valueText,
-        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
-        ...(isNode(valueNode)
+        value: boolValue ?? true,
+        valueText: boolValue !== undefined ? valueText : undefined,
+        valueRange:
+          boolValue !== undefined && isNode(valueNode)
+            ? toRange(valueNode, source)
+            : undefined,
+        ...(boolValue !== undefined && isNode(valueNode)
           ? mergeRanges(toRange(optionNode, source), toRange(valueNode, source))
           : toRange(optionNode, source)),
       });
-      if (isNode(valueNode) && parseBoolToken(valueText) !== undefined) {
+      if (boolValue !== undefined) {
         index += 1;
       }
     }
@@ -4825,6 +4798,11 @@ const unquoteProtocolToken = (value: string): string =>
 
 const quotedOrBareToken = "\"[^\"]+\"|'[^']+'|\\S+";
 
+const RPKI_REMOTE_PATTERN = new RegExp(
+  `^remote\\s+(${quotedOrBareToken})(?:\\s+port\\s+(\\S+))?$`,
+  "iu",
+);
+
 const rangeForStatementToken = (
   source: string,
   statementNode: SyntaxNode,
@@ -4877,12 +4855,7 @@ const parseRpkiOtherTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
 
-  const remoteMatch = trimmed.match(
-    new RegExp(
-      `^remote\\s+(${quotedOrBareToken})(?:\\s+port\\s+(\\S+))?$`,
-      "iu",
-    ),
-  );
+  const remoteMatch = trimmed.match(RPKI_REMOTE_PATTERN);
   if (remoteMatch) {
     const addressText = remoteMatch[1] ?? "";
     const address = unquoteProtocolToken(addressText);
@@ -5011,6 +4984,31 @@ const parseRpkiTransportEntries = (
     parseRpkiTransportEntry(statementText, tokenRange),
   );
 
+const RPKI_TEXT_ENTRY_PATTERNS = [
+  {
+    kind: "bird-private-key" as const,
+    pattern: new RegExp(
+      `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "remote-public-key" as const,
+    pattern: new RegExp(
+      `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
+      "iu",
+    ),
+  },
+  {
+    kind: "password" as const,
+    pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+  {
+    kind: "user" as const,
+    pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
+  },
+];
+
 const parseRpkiTransportEntry = (
   statementText: string,
   tokenRange: (token: string) => SourceRange,
@@ -5029,32 +5027,7 @@ const parseRpkiTransportEntry = (
     };
   }
 
-  const textEntryPatterns = [
-    {
-      kind: "bird-private-key",
-      pattern: new RegExp(
-        `^bird\\s+private\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "remote-public-key",
-      pattern: new RegExp(
-        `^remote\\s+public\\s+key\\s+(${quotedOrBareToken})$`,
-        "iu",
-      ),
-    },
-    {
-      kind: "password",
-      pattern: new RegExp(`^password\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-    {
-      kind: "user",
-      pattern: new RegExp(`^user\\s+(${quotedOrBareToken})$`, "iu"),
-    },
-  ] as const;
-
-  for (const entryPattern of textEntryPatterns) {
+  for (const entryPattern of RPKI_TEXT_ENTRY_PATTERNS) {
     const match = trimmed.match(entryPattern.pattern);
     if (!match?.[1]) {
       continue;

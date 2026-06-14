@@ -1,9 +1,15 @@
 import type { ProtocolStatement, SourceRange } from "../types.js";
+import { splitTopLevelStatements, stripQuotedText } from "./shared.js";
 
 type TokenRange = (token: string) => SourceRange;
 
-const stripQuotedText = (value: string): string =>
-  value.replace(/^(['"])(.*)\1$/u, "$2");
+const stripTrailingComment = (value: string): string =>
+  value
+    .replace(
+      /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|(#.*|\/\/.*|\/\*[\s\S]*?\*\/)/gu,
+      (match, group) => (group ? "" : match),
+    )
+    .trim();
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (!value) {
@@ -21,37 +27,6 @@ const parseBoolToken = (value: string | undefined): boolean | undefined => {
   return undefined;
 };
 
-const splitTopLevelStatements = (body: string): string[] => {
-  const statements: string[] = [];
-  let depth = 0;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if (char === "{") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === "}") {
-      depth = Math.max(0, depth - 1);
-      continue;
-    }
-
-    if (char === ";" && depth === 0) {
-      statements.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  const tail = body.slice(start).trim();
-  if (tail.length > 0) {
-    statements.push(tail);
-  }
-
-  return statements;
-};
-
 const parseRadvCustomOptionParts = (
   statementText: string,
   tokenRange: TokenRange,
@@ -63,10 +38,11 @@ const parseRadvCustomOptionParts = (
       valueRange: SourceRange;
     }
   | undefined => {
-  const customOptionMatch = statementText.match(
+  const cleaned = stripTrailingComment(statementText).replace(/;\s*$/u, "");
+  const customOptionMatch = cleaned.match(
     /^custom\s+option\s+type\s+(.+?)\s+value\s+(.+)$/iu,
   );
-  if (!customOptionMatch?.[1] || !customOptionMatch[2]) {
+  if (!customOptionMatch || !customOptionMatch[1] || !customOptionMatch[2]) {
     return undefined;
   }
 
@@ -147,7 +123,7 @@ const parseRadvDnsShorthandEntry = (
   if (blockKind === "rdnss") {
     return {
       kind: "ns",
-      value: valueText,
+      value: stripQuotedText(valueText),
       valueText,
       valueRange: tokenRange(valueText),
       ...tokenRange(valueText),
@@ -179,6 +155,7 @@ const parseRadvPrefixEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const boolMatch = item.match(
         /^(skip|onlink|autonomous|pd\s+preferred)(?:\s+(\S+))?$/iu,
       );
@@ -190,7 +167,7 @@ const parseRadvPrefixEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -211,14 +188,14 @@ const parseRadvPrefixEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -237,6 +214,7 @@ const parseRadvInterfaceEntries = (
     .map((item) => item.trim())
     .filter(Boolean)
     .map((item) => {
+      const itemRange = tokenRange(item);
       const prefixMatch = item.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
       if (prefixMatch?.[1]) {
         const prefix = prefixMatch[1];
@@ -248,12 +226,17 @@ const parseRadvInterfaceEntries = (
           kind: "prefix",
           prefix,
           prefixRange: tokenRange(prefix),
-          entries: prefixBodyText
-            ? parseRadvPrefixEntries(prefixBodyText, bodyRange, tokenRange)
-            : [],
+          entries:
+            prefixBodyText && prefixBodyRange
+              ? parseRadvPrefixEntries(
+                  prefixBodyText,
+                  prefixBodyRange,
+                  tokenRange,
+                )
+              : [],
           bodyText: prefixBodyText,
           bodyRange: prefixBodyRange,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -270,7 +253,7 @@ const parseRadvInterfaceEntries = (
             | "min-delay",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -289,7 +272,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -307,7 +290,7 @@ const parseRadvInterfaceEntries = (
             | "current-hop-limit",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -327,7 +310,7 @@ const parseRadvInterfaceEntries = (
           sensitive: parseBoolToken(sensitiveText),
           sensitiveText,
           sensitiveRange: sensitiveText ? tokenRange(sensitiveText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -343,7 +326,7 @@ const parseRadvInterfaceEntries = (
             | "route-linger-time",
           value,
           valueRange: tokenRange(value),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -362,7 +345,7 @@ const parseRadvInterfaceEntries = (
             | "route-preference",
           value,
           valueRange: tokenRange(preferenceMatch[2]),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -381,7 +364,7 @@ const parseRadvInterfaceEntries = (
           value: parseBoolToken(valueText) ?? true,
           valueText,
           valueRange: valueText ? tokenRange(valueText) : undefined,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -394,7 +377,7 @@ const parseRadvInterfaceEntries = (
           entries: parseRadvDnsBlockEntries(kind, dnsBodyText, tokenRange),
           bodyText: dnsBodyText,
           bodyRange: tokenRange(dnsBodyText),
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -407,7 +390,7 @@ const parseRadvInterfaceEntries = (
         return {
           kind,
           entries: [parseRadvDnsShorthandEntry(kind, valueText, tokenRange)],
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
@@ -416,14 +399,14 @@ const parseRadvInterfaceEntries = (
         return {
           kind: "custom-option",
           ...customOption,
-          ...bodyRange,
+          ...itemRange,
         };
       }
 
       return {
         kind: "other",
         text: item,
-        ...bodyRange,
+        ...itemRange,
       };
     });
 };
@@ -433,20 +416,27 @@ export const parseRadvInterfaceTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = statementText.trim();
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
-  const rest = interfaceMatch?.[1]?.trim();
+  const rest = (interfaceMatch?.[1] ?? "").trim();
   if (!rest) {
     return undefined;
   }
 
-  const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
+  const cleanedRest = rest
+    .replace(/\s*;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/u, "")
+    .trim();
+  const bodyMatch = cleanedRest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
-  const patternText = bodyText
-    ? rest.slice(0, rest.indexOf(bodyText)).trim()
-    : rest;
+  const rawPatternText = bodyText
+    ? cleanedRest.slice(0, cleanedRest.indexOf(bodyText)).trim()
+    : cleanedRest;
+  const patternText = stripTrailingComment(rawPatternText).replace(
+    /;\s*$/u,
+    "",
+  );
   const patternMatches = [
-    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|\S+/gu),
+    ...patternText.matchAll(/"[^"]+"|'[^']+'|,|[^,\s]+/gu),
   ].filter((match) => match[0] !== ",");
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
@@ -472,7 +462,8 @@ export const parseRadvOptionTextStatement = (
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const propagateRoutesMatch = trimmed.match(/^propagate\s+routes\s+(\S+)$/iu);
+  const cleaned = stripTrailingComment(trimmed);
+  const propagateRoutesMatch = cleaned.match(/^propagate\s+routes\s+(\S+)$/iu);
   if (propagateRoutesMatch?.[1]) {
     const valueText = propagateRoutesMatch[1];
     return {
@@ -485,7 +476,7 @@ export const parseRadvOptionTextStatement = (
     };
   }
 
-  const triggerMatch = trimmed.match(/^trigger\s+(\S+)$/iu);
+  const triggerMatch = cleaned.match(/^trigger\s+(\S+)$/iu);
   if (triggerMatch?.[1]) {
     const prefix = triggerMatch[1];
     return {
@@ -504,22 +495,25 @@ export const parseRadvPrefixTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const prefixMatch = trimmed.match(/^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?$/iu);
+  const trimmed = statementText.trim();
+  const prefixMatch = trimmed.match(
+    /^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?\s*(?:;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*)?$/iu,
+  );
   if (!prefixMatch?.[1]) {
     return undefined;
   }
 
-  const prefix = prefixMatch[1];
+  const prefix = stripTrailingComment(prefixMatch[1]).replace(/;\s*$/u, "");
   const bodyText = prefixMatch[2];
   const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
   return {
     kind: "radv-prefix",
     prefix,
     prefixRange: tokenRange(prefix),
-    entries: bodyText
-      ? parseRadvPrefixEntries(bodyText, statementRange, tokenRange)
-      : [],
+    entries:
+      bodyText && bodyRange
+        ? parseRadvPrefixEntries(bodyText, bodyRange, tokenRange)
+        : [],
     bodyText,
     bodyRange,
     ...statementRange,
@@ -531,8 +525,10 @@ export const parseRadvDnsTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
+  const trimmed = statementText.trim();
+  const dnsBlockMatch = trimmed.match(
+    /^(rdnss|dnssl)\s+(\{[\s\S]*\})\s*(?:;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*)?$/iu,
+  );
   if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
     const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
     const bodyText = dnsBlockMatch[2];
@@ -546,7 +542,8 @@ export const parseRadvDnsTextStatement = (
     };
   }
 
-  const dnsShorthandMatch = trimmed.match(
+  const cleaned = stripTrailingComment(trimmed).replace(/;\s*$/u, "");
+  const dnsShorthandMatch = cleaned.match(
     /^(rdnss|dnssl)\s+(\S+|"[^"]+"|'[^']+')$/iu,
   );
   if (!dnsShorthandMatch?.[1] || !dnsShorthandMatch[2]) {
@@ -568,8 +565,7 @@ export const parseRadvCustomOptionTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
-  const customOption = parseRadvCustomOptionParts(trimmed, tokenRange);
+  const customOption = parseRadvCustomOptionParts(statementText, tokenRange);
   if (!customOption) {
     return undefined;
   }

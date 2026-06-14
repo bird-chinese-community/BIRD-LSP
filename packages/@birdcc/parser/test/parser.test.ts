@@ -2415,6 +2415,7 @@ describe("@birdcc/parser tree-sitter", () => {
         igp table master4;
         route 192.0.2.0/24 via 198.51.100.1 dev "eth0" onlink yes weight 2 bfd no mpls 16000;
         route 198.51.100.0/24 via 192.0.2.1 bfd yes weight 1 via 192.0.2.2 weight 2;
+        route 203.0.113.0/24 via 198.51.100.2 onlink weight 3;
       }
     `);
 
@@ -2459,6 +2460,17 @@ describe("@birdcc/parser tree-sitter", () => {
               target: "192.0.2.2",
               options: [{ kind: "weight", value: "2" }],
             },
+          ],
+        },
+        {
+          kind: "static-route",
+          routeTarget: "203.0.113.0/24",
+          destinationType: "via",
+          nextHop: "198.51.100.2",
+          optionsText: "onlink weight 3",
+          options: [
+            { kind: "onlink", value: true },
+            { kind: "weight", value: "3" },
           ],
         },
       ]);
@@ -3321,6 +3333,33 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("strips trailing comments from RADV interface declarations", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0"; # trailing comment
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-interface",
+            patterns: ["eth0"],
+            entries: [],
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses comma-separated RADV interface patterns", async () => {
     const sample = `
       protocol radv ra1 {
@@ -3480,6 +3519,44 @@ describe("@birdcc/parser tree-sitter", () => {
           skip no;
           valid lifetime 3600 sensitive yes;
         };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-prefix",
+            prefix: "2001:db8:2::/64",
+            entries: expect.arrayContaining([
+              expect.objectContaining({ kind: "skip", value: false }),
+              expect.objectContaining({
+                kind: "lifetime",
+                option: "valid-lifetime",
+                value: "3600",
+                sensitive: true,
+              }),
+            ]),
+          }),
+        ]),
+      );
+    }
+  });
+
+  it("parses RADV protocol prefix blocks with trailing comments", async () => {
+    const sample = `
+      protocol radv ra1 {
+        prefix 2001:db8:2::/64 { # prefix block
+          skip no;
+          valid lifetime 3600 sensitive yes;
+        }; # end prefix
       }
     `;
 
@@ -3730,6 +3807,53 @@ describe("@birdcc/parser tree-sitter", () => {
               kind: "custom-option",
               optionType: "(90 + 9)",
               value: "hex:01:02:03",
+            }),
+          ]),
+        );
+      }
+    }
+  });
+
+  it("strips trailing comments from RADV custom option statements", async () => {
+    const sample = `
+      protocol radv ra1 {
+        custom option type 42 value 0102; # protocol-level comment
+
+        interface "eth0" {
+          custom option type 99 value 0xCAFE; # interface-level comment
+        };
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol).toBeDefined();
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-custom-option",
+            optionType: "42",
+            value: "0102",
+          }),
+        ]),
+      );
+
+      const iface = protocol.statements.find(
+        (item) => item.kind === "radv-interface",
+      );
+      expect(iface?.kind).toBe("radv-interface");
+      if (iface?.kind === "radv-interface") {
+        expect(iface.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: "custom-option",
+              optionType: "99",
+              value: "0xCAFE",
             }),
           ]),
         );
