@@ -1,10 +1,7 @@
 import type { ProtocolStatement, SourceRange } from "../types.js";
-import { splitTopLevelStatements } from "./shared.js";
+import { splitTopLevelStatements, stripQuotedText } from "./shared.js";
 
 type TokenRange = (token: string) => SourceRange;
-
-const stripQuotedText = (value: string): string =>
-  value.replace(/^(['"])(.*)\1$/u, "$2");
 
 const stripTrailingComment = (value: string): string =>
   value

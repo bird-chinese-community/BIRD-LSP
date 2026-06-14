@@ -32,6 +32,7 @@ import {
   protocolTypeTextAndRange,
   protocolStatementNodesOf,
   splitTopLevelStatements,
+  stripQuotedText,
 } from "./shared.js";
 import {
   parseRadvCustomOptionTextStatement,
@@ -992,12 +993,6 @@ const STATIC_ROUTE_DESTINATIONS = new Set([
 
 const isNode = (node: SyntaxNode | undefined): node is SyntaxNode =>
   node !== undefined;
-
-const stripQuotedText = (value: string): string =>
-  (value.startsWith('"') && value.endsWith('"')) ||
-  (value.startsWith("'") && value.endsWith("'"))
-    ? value.slice(1, -1)
-    : value;
 
 const parseBoolToken = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -4442,7 +4437,7 @@ const parseRipInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(
-    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+    /^interface\b([\s\S]*?)(\{[\s\S]*\})$/iu,
   );
   if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
     return undefined;
@@ -4505,7 +4500,7 @@ const parseProtocolInterfaceTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(
-    /^interface\b([\s\S]*?)\s+(\{[\s\S]*\})$/iu,
+    /^interface\b([\s\S]*?)(\{[\s\S]*\})$/iu,
   );
   if (!interfaceMatch?.[1] || !interfaceMatch[2]) {
     return undefined;
@@ -4800,6 +4795,11 @@ const unquoteProtocolToken = (value: string): string =>
 
 const quotedOrBareToken = "\"[^\"]+\"|'[^']+'|\\S+";
 
+const RPKI_REMOTE_PATTERN = new RegExp(
+  `^remote\\s+(${quotedOrBareToken})(?:\\s+port\\s+(\\S+))?$`,
+  "iu",
+);
+
 const rangeForStatementToken = (
   source: string,
   statementNode: SyntaxNode,
@@ -4852,12 +4852,7 @@ const parseRpkiOtherTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim().replace(/;\s*$/u, "");
 
-  const remoteMatch = trimmed.match(
-    new RegExp(
-      `^remote\\s+(${quotedOrBareToken})(?:\\s+port\\s+(\\S+))?$`,
-      "iu",
-    ),
-  );
+  const remoteMatch = trimmed.match(RPKI_REMOTE_PATTERN);
   if (remoteMatch) {
     const addressText = remoteMatch[1] ?? "";
     const address = unquoteProtocolToken(addressText);

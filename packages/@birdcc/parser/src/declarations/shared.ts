@@ -56,6 +56,12 @@ export type MatchExpression = FilterDeclaration["matches"][number];
 
 type ChannelStatement = Extract<ProtocolStatement, { kind: "channel" }>;
 
+export const stripQuotedText = (value: string): string =>
+  (value.startsWith('"') && value.endsWith('"')) ||
+  (value.startsWith("'") && value.endsWith("'"))
+    ? value.slice(1, -1)
+    : value;
+
 export const PROTOCOL_STATEMENT_TYPES = new Set([
   "local_role_statement",
   "local_as_statement",
