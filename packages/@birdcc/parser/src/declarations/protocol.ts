@@ -2839,10 +2839,10 @@ const parseBfdProfileTextStatement = (
   const profileType = profileMatch[1].toLowerCase() as "interface" | "multihop";
   const rest = profileMatch[2].trim();
   const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
-  const bodyText = bodyMatch?.[0];
-  if (!bodyText) {
+  if (!bodyMatch) {
     return undefined;
   }
+  const bodyText = bodyMatch[0];
 
   const patternText = rest.slice(0, bodyMatch.index).trim();
   const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
