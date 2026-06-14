@@ -91,6 +91,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     root = args.root.resolve()
+    if not root.is_dir():
+        json.dump(
+            {"error": f"root is not a directory: {root}"},
+            sys.stderr,
+            indent=2,
+            ensure_ascii=False,
+        )
+        sys.stderr.write("\n")
+        return 2
+
     workspace_signals = detect_workspace_signals(root)
     home_signals = detect_home_signals() if args.include_home else {}
 

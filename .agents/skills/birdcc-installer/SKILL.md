@@ -47,7 +47,8 @@ Guide users through installing BIRDCC ecosystem tools for editors, CLI, and CI/C
 ## Available scripts
 
 These scripts are bundled with the skill. Run them with `uv run scripts/<script>.py` from the skill
-root. They use only the Python standard library and produce structured JSON output on stdout.
+root. They use only the Python standard library, produce structured JSON output on stdout, and do
+not modify the system.
 
 - [`scripts/detect_editor.py`](scripts/detect_editor.py) — Scan the workspace and optionally the
   home directory for editor signals. Use this to decide which installation guide to show.

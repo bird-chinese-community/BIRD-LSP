@@ -46,6 +46,8 @@ files by orchestrating the BIRD-LSP toolchain and community documentation.
    user a configuration is valid.
 5. **Respect sensitive data.** BIRD configs contain ASNs, IPs, passwords, and session secrets.
    Warn the user to sanitize configs before sharing them publicly or committing them.
+6. **Never auto-write formatted files.** `run_birdcc.py fmt` defaults to `--check`. Only use
+   `--write --confirmed` after the user explicitly agrees to modify their config.
 
 
 ## Available scripts
@@ -57,7 +59,9 @@ root. They use only the Python standard library and produce structured JSON outp
   `bird*.conf`, `bird.config.json`, and `birdcc` availability. Use this before deciding which file
   to lint or format.
 - [`scripts/run_birdcc.py`](scripts/run_birdcc.py) — Run `birdcc lint` or `birdcc fmt` and return
-  JSON output. Use this for consistent, parseable diagnostics.
+  JSON output. `fmt` defaults to `--check`; to actually write changes you must pass
+  `--write --confirmed` after the user explicitly approves. Config paths are validated to
+  stay inside `--root`.
 
 ## Reference guide
 

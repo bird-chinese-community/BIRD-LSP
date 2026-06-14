@@ -15,16 +15,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-BIRD_FILENAMES = [
-    "bird.conf",
-    "bird2.conf",
-    "bird3.conf",
-    "bird6.conf",
-    "bird2.config.json",
-    "bird.config.json",
-]
-
 VERSION_RE = re.compile(r"bird(\d+|6)?\.conf$")
+
+# Do not read files larger than this when sampling for BIRD keywords.
+MAX_SAMPLE_BYTES = 10 * 1024 * 1024
 
 
 def version_from_filename(path: Path) -> str | None:
@@ -36,6 +30,15 @@ def version_from_filename(path: Path) -> str | None:
     if hint == "6":
         return "2"  # bird6.conf is typically BIRD2 IPv6
     return hint
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    """Return True if path is the same as or inside root after resolving symlinks."""
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
 
 
 def find_bird_configs(root: Path, max_depth: int = 3) -> list[dict[str, object]]:
@@ -52,6 +55,15 @@ def find_bird_configs(root: Path, max_depth: int = 3) -> list[dict[str, object]]
             if not path.is_file():
                 continue
             if path.name in {"nginx.conf", "haproxy.conf", "my.cnf"}:
+                continue
+            # Guard against symlink escapes and unusual filesystem entries.
+            if not _is_within_root(path, root):
+                continue
+            try:
+                st = path.stat(follow_symlinks=True)
+            except OSError:
+                continue
+            if st.st_size > MAX_SAMPLE_BYTES:
                 continue
             # Heuristic: require at least one BIRD keyword in the first 2 KB.
             try:
@@ -78,7 +90,7 @@ def find_bird_config_json(root: Path) -> str | None:
     """Find bird.config.json or bird2.config.json near the root."""
     for name in ("bird.config.json", "bird2.config.json"):
         candidate = root / name
-        if candidate.is_file():
+        if candidate.is_file() and _is_within_root(candidate, root):
             return str(candidate.relative_to(root))
     return None
 
