@@ -5340,9 +5340,10 @@ const nearestFollowingOtherIndex = (
 
     const candidate = statements[candidateIndex];
     if (
-      candidate?.kind === "other" &&
+      candidate &&
+      candidate.kind === "other" &&
       candidate.line === statement.line &&
-      candidate.column > statement.endColumn &&
+      candidate.column >= statement.endColumn &&
       candidate.column < nearestColumn
     ) {
       nearestIndex = candidateIndex;
@@ -5408,13 +5409,7 @@ const mergeBmpLocalAddressStatements = (
       continue;
     }
 
-    const nextIndex = statements.findIndex(
-      (candidate, candidateIndex) =>
-        candidateIndex !== index &&
-        candidate.kind === "other" &&
-        candidate.line === statement.line &&
-        candidate.column === statement.endColumn + 1,
-    );
+    const nextIndex = nearestFollowingOtherIndex(statements, index, statement);
     const next = statements[nextIndex];
     if (next?.kind !== "other") {
       continue;

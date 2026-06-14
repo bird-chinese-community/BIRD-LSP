@@ -278,6 +278,10 @@ export const parseTableFromStatement = (
 
 const TIMEFORMAT_SCOPES = new Set(["route", "protocol", "base", "log"]);
 
+const isTimeformatScope = (
+  value: string,
+): value is TimeformatDeclaration["scope"] => TIMEFORMAT_SCOPES.has(value);
+
 const tokenLikeFromNode = (
   node: SyntaxNode | null,
   source: string,
@@ -317,20 +321,23 @@ export const parseTimeformatFromStatement = (
     return null;
   }
 
-  const scopeToken =
-    tokenLikeFromNode(statementNode.childForFieldName("scope"), source) ??
-    tokens[1];
-  const formatToken =
-    tokenLikeFromNode(statementNode.childForFieldName("format"), source) ??
-    tokens[2];
-  const limitToken =
-    tokenLikeFromNode(statementNode.childForFieldName("limit"), source) ??
-    tokens[3];
-  const fallbackFormatToken =
-    tokenLikeFromNode(
-      statementNode.childForFieldName("fallback_format"),
-      source,
-    ) ?? tokens[4];
+  const isStrictTimeformat = statementNode.type === "timeformat_statement";
+
+  const scopeToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("scope"), source)
+    : tokens[1];
+  const formatToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("format"), source)
+    : tokens[2];
+  const limitToken = isStrictTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("limit"), source)
+    : tokens[3];
+  const fallbackFormatToken = isStrictTimeformat
+    ? tokenLikeFromNode(
+        statementNode.childForFieldName("fallback_format"),
+        source,
+      )
+    : tokens[4];
 
   if (!scopeToken) {
     issues.push({
@@ -348,9 +355,16 @@ export const parseTimeformatFromStatement = (
     });
   }
 
-  const scope = TIMEFORMAT_SCOPES.has(scopeToken?.lowered ?? "")
-    ? (scopeToken?.lowered as TimeformatDeclaration["scope"])
-    : "unknown";
+  if (limitToken && !fallbackFormatToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing fallback format for timeformat declaration with limit",
+      ...(limitToken?.range ?? declarationRange),
+    });
+  }
+
+  const scopeText = scopeToken?.lowered ?? "";
+  const scope = isTimeformatScope(scopeText) ? scopeText : "unknown";
   const formatText = formatToken?.text ?? "";
 
   return {
@@ -373,6 +387,10 @@ export const parseTimeformatFromStatement = (
 
 const WATCHDOG_OPTIONS = new Set(["warning", "timeout"]);
 
+const isWatchdogOption = (
+  value: string,
+): value is WatchdogDeclaration["option"] => WATCHDOG_OPTIONS.has(value);
+
 export const parseWatchdogFromStatement = (
   statementNode: SyntaxNode,
   source: string,
@@ -388,10 +406,32 @@ export const parseWatchdogFromStatement = (
     return null;
   }
 
-  const optionToken =
-    tokenLikeFromNode(statementNode.childForFieldName("option"), source) ??
-    tokens[1];
-  const valueTokenStart = statementNode.type === "watchdog_statement" ? 0 : 2;
+  const isStrictWatchdog = statementNode.type === "watchdog_statement";
+
+  const optionToken = isStrictWatchdog
+    ? tokenLikeFromNode(statementNode.childForFieldName("option"), source)
+    : tokens[1];
+  // In strict statements the keyword and option are anonymous. Locate the
+  // first token that begins at or after the option ends so the value always
+  // starts at the actual value token, regardless of whether the option is
+  // included in the token list.
+  const optionEndLine = optionToken?.range.endLine ?? declarationRange.line;
+  const optionEndColumn =
+    optionToken?.range.endColumn ?? declarationRange.column;
+  const strictValueTokenStart = isStrictWatchdog
+    ? tokens.findIndex(
+        (token) =>
+          token.range.line > optionEndLine ||
+          (token.range.line === optionEndLine &&
+            token.range.column >= optionEndColumn),
+      )
+    : -1;
+  const valueTokenStart =
+    strictValueTokenStart === -1
+      ? isStrictWatchdog
+        ? tokens.length
+        : 2
+      : strictValueTokenStart;
   const valueTokens = tokens.slice(valueTokenStart);
   const value = valueTokens
     .map((token) => token.text)
@@ -420,9 +460,8 @@ export const parseWatchdogFromStatement = (
     });
   }
 
-  const option = WATCHDOG_OPTIONS.has(optionToken?.lowered ?? "")
-    ? (optionToken?.lowered as WatchdogDeclaration["option"])
-    : "unknown";
+  const optionText = optionToken?.lowered ?? "";
+  const option = isWatchdogOption(optionText) ? optionText : "unknown";
 
   return {
     kind: "watchdog",

@@ -758,6 +758,7 @@ export const parseDeclarations = (
       );
       if (watchdogFromTopLevel) {
         declarations.push(watchdogFromTopLevel);
+        continue;
       }
     }
   }
