@@ -3306,6 +3306,33 @@ describe("@birdcc/parser tree-sitter", () => {
     }
   });
 
+  it("strips trailing comments from RADV interface declarations", async () => {
+    const sample = `
+      protocol radv ra1 {
+        interface "eth0"; # trailing comment
+      }
+    `;
+
+    const parsed = await parseBirdConfig(sample);
+    expect(parsed.issues).toHaveLength(0);
+
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      expect(protocol.statements).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "radv-interface",
+            patterns: ["eth0"],
+            entries: [],
+          }),
+        ]),
+      );
+    }
+  });
+
   it("parses comma-separated RADV interface patterns", async () => {
     const sample = `
       protocol radv ra1 {

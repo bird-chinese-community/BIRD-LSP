@@ -416,7 +416,9 @@ export const parseRadvInterfaceTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = stripTrailingComment(statementText)
+    .trim()
+    .replace(/;\s*$/u, "");
   const interfaceMatch = trimmed.match(/^interface\b(.*)$/isu);
   const rest = (interfaceMatch?.[1] ?? "").trim();
   if (!rest) {
@@ -455,7 +457,9 @@ export const parseRadvOptionTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = stripTrailingComment(statementText)
+    .trim()
+    .replace(/;\s*$/u, "");
   const propagateRoutesMatch = trimmed.match(/^propagate\s+routes\s+(\S+)$/iu);
   if (propagateRoutesMatch?.[1]) {
     const valueText = propagateRoutesMatch[1];
@@ -518,7 +522,9 @@ export const parseRadvDnsTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = stripTrailingComment(statementText)
+    .trim()
+    .replace(/;\s*$/u, "");
   const dnsBlockMatch = trimmed.match(/^(rdnss|dnssl)\s+(\{[\s\S]*\})$/iu);
   if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
     const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
@@ -555,7 +561,9 @@ export const parseRadvCustomOptionTextStatement = (
   statementRange: SourceRange,
   tokenRange: TokenRange,
 ): ProtocolStatement | undefined => {
-  const trimmed = statementText.trim().replace(/;\s*$/u, "");
+  const trimmed = stripTrailingComment(statementText)
+    .trim()
+    .replace(/;\s*$/u, "");
   const customOption = parseRadvCustomOptionParts(trimmed, tokenRange);
   if (!customOption) {
     return undefined;
