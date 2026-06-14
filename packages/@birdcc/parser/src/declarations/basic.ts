@@ -378,6 +378,7 @@ export const parseTemplateDeclaration = (
       : inferredFromTemplate
         ? declarationRange
         : undefined,
+    bodyText: isPresentNode(bodyNode) ? textOf(bodyNode, source) : undefined,
     ...declarationRange,
   };
 };

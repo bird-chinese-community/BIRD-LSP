@@ -211,6 +211,19 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).toContain("bgp/timer-invalid");
   });
 
+  it("hits bgp/timer-invalid when keepalive is non-zero while hold is disabled", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 as 65001;
+        hold 0;
+        keepalive 10;
+      }
+    `);
+
+    expect(codes).toContain("bgp/timer-invalid");
+  });
+
   it("hits ospf/missing-area", async () => {
     const codes = await codesOf(`
       protocol ospf core {
@@ -282,14 +295,70 @@ describe("@birdcc/linter bgp+ospf rules", () => {
   it("hits ospf/asbr-stub-area", async () => {
     const codes = await codesOf(`
       protocol ospf core {
+        asbr;
         area 1 {
           stub;
-          asbr on;
         };
       }
     `);
 
     expect(codes).toContain("ospf/asbr-stub-area");
+  });
+
+  it("does not hit ospf/asbr-stub-area when ASBR is disabled at protocol level", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        asbr no;
+        area 1 {
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("ospf/asbr-stub-area");
+  });
+
+  it("hits ospf/asbr-stub-area when ASBR is inherited from template", async () => {
+    const codes = await codesOf(`
+      template ospf base_tpl {
+        asbr;
+      }
+      protocol ospf core from base_tpl {
+        area 1 {
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).toContain("ospf/asbr-stub-area");
+  });
+
+  it("ignores comments when detecting disabled ASBR", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        area 1 {
+          asbr no; # disabled
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("ospf/asbr-stub-area");
+  });
+
+  it("ignores ASBR in nested block descriptions", async () => {
+    const codes = await codesOf(`
+      protocol ospf core {
+        area 1 {
+          interface "eth0" {
+            description "This is our ASBR router";
+          };
+          stub;
+        };
+      }
+    `);
+
+    expect(codes).not.toContain("ospf/asbr-stub-area");
   });
 
   it("accepts area 0.0.0.0 as backbone area id", async () => {

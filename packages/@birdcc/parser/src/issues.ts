@@ -167,7 +167,7 @@ const RPKI_LOCAL_ADDRESS = /^\s*local\s+address\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
 const BFD_ACCEPT = /^\s*accept(?:\s+(?:ipv4|ipv6|direct|multihop))*\s*;\s*$/i;
 const BFD_NEIGHBOR =
-  /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;\s*$/i;
+  /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;?\s*$/i;
 const BFD_PROFILE_HEADER = /^\s*(?:interface\b.+|multihop\s*)\{\s*$/i;
 const BFD_PROFILE_ITEM =
   /^\s*(?:interval|min\s+rx\s+interval|min\s+tx\s+interval|idle\s+tx\s+interval|multiplier|passive|authentication|password|graceful)\b.*;\s*$/i;
