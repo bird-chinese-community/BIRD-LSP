@@ -64,7 +64,7 @@ const parseRadvDnsBlockEntries = (
     .replace(/\s*\}$/u, "");
 
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
       const dnsEntryMatch = item.match(
@@ -146,7 +146,7 @@ const parseRadvPrefixEntries = (
     .replace(/^\{\s*/u, "")
     .replace(/\s*\}$/u, "");
   return splitTopLevelStatements(body)
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
       const itemRange = tokenRange(item);
@@ -205,7 +205,7 @@ const parseRadvInterfaceEntries = (
     .replace(/\s*\}$/u, "");
   const statements = splitTopLevelStatements(body);
   return statements
-    .map((item) => item.trim())
+    .map((item) => stripTrailingComment(item).trim())
     .filter(Boolean)
     .map((item) => {
       const itemRange = tokenRange(item);
