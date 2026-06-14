@@ -30,7 +30,7 @@ export default grammar({
       ),
 
     comment: () =>
-      token(choice(seq("#", /.*/), seq("/*", /[^*]*\*+([^/*][^*]*\*+)*/, "/"))),
+      token(choice(seq("#", /.*/), seq("/*", /[^*]*\*+([^/\*][^*]*\*+)*/, "/"))),
 
     string: () =>
       token(
