@@ -61,27 +61,11 @@ const stripNestedBlocks = (value: string): string => {
   return result;
 };
 
-const splitStatements = (text: string): string[] => {
-  const statements: string[] = [];
-  let current = "";
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (char === ";" || char === "\n") {
-      const trimmed = current.trim();
-      if (trimmed.length > 0) {
-        statements.push(trimmed);
-      }
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-  const trimmed = current.trim();
-  if (trimmed.length > 0) {
-    statements.push(trimmed);
-  }
-  return statements;
-};
+const splitStatements = (text: string): string[] =>
+  text
+    .split(/[;\n]+/u)
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
 
 const getAsbrStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
   const statements = splitStatements(stripNestedBlocks(text));
