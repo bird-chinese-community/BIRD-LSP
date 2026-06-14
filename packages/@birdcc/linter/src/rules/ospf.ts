@@ -39,10 +39,11 @@ const stripComments = (value: string): string =>
     .trim();
 
 const stripNestedBlocks = (value: string): string => {
+  const cleaned = stripComments(value);
   let result = "";
   let depth = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
+  for (let index = 0; index < cleaned.length; index += 1) {
+    const char = cleaned[index];
     if (char === "{") {
       depth += 1;
       continue;
@@ -73,6 +74,15 @@ const getAsbrState = (text: string): "enabled" | "disabled" | "none" => {
 
 const isAsbrEnabled = (text: string): boolean =>
   getAsbrState(text) === "enabled";
+
+const isStubEnabled = (text: string): boolean => {
+  const normalized = stripComments(text).toLowerCase();
+  if (!/\bstub\b/i.test(normalized)) {
+    return false;
+  }
+
+  return !/\bstub\s+(?:no|off|false)\b/i.test(normalized);
+};
 
 const hasProtocolAsbr = (
   declaration: ProtocolDeclaration,
@@ -281,7 +291,7 @@ const ospfBackboneStubRule: BirdRule = ({ parsed }) => {
     for (const area of areas) {
       if (
         !isBackboneArea(area.areaId) ||
-        !(area.hasStub ?? /\bstub\b/i.test(area.text))
+        !(area.hasStub ?? isStubEnabled(area.text))
       ) {
         continue;
       }
@@ -347,8 +357,9 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
         continue;
       }
 
-      const hasStub = area.hasStub ?? /\bstub\b/i.test(area.text);
-      const hasAsbr = protocolAsbr || isAsbrEnabled(area.text);
+      const hasStub = area.hasStub ?? isStubEnabled(area.text);
+      const hasAsbr =
+        protocolAsbr || isAsbrEnabled(stripNestedBlocks(area.text));
       if (!hasStub || !hasAsbr) {
         continue;
       }

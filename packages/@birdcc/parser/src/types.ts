@@ -1555,8 +1555,8 @@ export interface BabelInterfaceStatement extends StatementBase {
   patterns: string[];
   patternRanges: SourceRange[];
   entries: BabelInterfaceEntry[];
-  bodyText: string;
-  bodyRange: SourceRange;
+  bodyText?: string;
+  bodyRange?: SourceRange;
 }
 
 interface RadvInterfaceEntryBase extends SourceRange {

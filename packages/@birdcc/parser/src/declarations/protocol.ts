@@ -4196,21 +4196,26 @@ const parseBabelInterfaceTextStatement = (
 
   const bodyMatch = rest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
-  if (!bodyText) {
+  const patternText = bodyText
+    ? rest.slice(0, rest.indexOf(bodyText)).trim()
+    : rest;
+  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
+  if (patternMatches.length === 0) {
     return undefined;
   }
 
-  const patternText = rest.slice(0, rest.indexOf(bodyText)).trim();
-  const patternMatches = [...patternText.matchAll(/"[^"]+"|'[^']+'|\S+/gu)];
   const patterns = patternMatches.map((match) => stripQuotedText(match[0]));
   const patternRanges = patternMatches.map((match) => tokenRange(match[0]));
-  const bodyRange = tokenRange(bodyText);
+  const bodyRange = bodyText ? tokenRange(bodyText) : undefined;
 
   return {
     kind: "babel-interface",
     patterns,
     patternRanges,
-    entries: parseBabelInterfaceEntries(bodyText, bodyRange, tokenRange),
+    entries:
+      bodyText && bodyRange
+        ? parseBabelInterfaceEntries(bodyText, bodyRange, tokenRange)
+        : [],
     bodyText,
     bodyRange,
     ...statementRange,
