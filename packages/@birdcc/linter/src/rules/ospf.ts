@@ -61,30 +61,69 @@ const stripNestedBlocks = (value: string): string => {
   return result;
 };
 
-const getAsbrState = (text: string): "enabled" | "disabled" | "none" => {
-  const normalized = stripComments(text).toLowerCase();
-  if (!/\basbr\b/i.test(normalized)) {
-    return "none";
+const splitStatements = (text: string): string[] => {
+  const statements: string[] = [];
+  let current = "";
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === ";" || char === "\n") {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) {
+        statements.push(trimmed);
+      }
+      current = "";
+      continue;
+    }
+    current += char;
   }
+  const trimmed = current.trim();
+  if (trimmed.length > 0) {
+    statements.push(trimmed);
+  }
+  return statements;
+};
 
-  const isDisabled =
-    /\bno\s+asbr\b/i.test(normalized) ||
-    /\basbr\s+(?:no|off|false)\b/i.test(normalized);
+const getAsbrStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
+  const statements = splitStatements(stripNestedBlocks(text));
+  for (let index = statements.length - 1; index >= 0; index -= 1) {
+    const statement = statements[index] ?? "";
+    const normalized = statement.toLowerCase();
+    if (!/\basbr\b/i.test(normalized)) {
+      continue;
+    }
 
-  return isDisabled ? "disabled" : "enabled";
+    const isDisabled =
+      /^\s*no\s+asbr\b/i.test(statement) ||
+      /\basbr\s+(?:no|off|false)\b/i.test(statement);
+
+    return isDisabled ? "disabled" : "enabled";
+  }
+  return "none";
 };
 
 const isAsbrEnabled = (text: string): boolean =>
-  getAsbrState(text) === "enabled";
+  getAsbrStateInBlock(text) === "enabled";
 
-const isStubEnabled = (text: string): boolean => {
-  const normalized = stripComments(text).toLowerCase();
-  if (!/\bstub\b/i.test(normalized)) {
-    return false;
+const getStubStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
+  const statements = splitStatements(stripNestedBlocks(text));
+  for (let index = statements.length - 1; index >= 0; index -= 1) {
+    const statement = statements[index] ?? "";
+    const normalized = statement.toLowerCase();
+    if (!/\bstub\b/i.test(normalized)) {
+      continue;
+    }
+
+    const isDisabled =
+      /^\s*no\s+stub\b/i.test(statement) ||
+      /\bstub\s+(?:no|off|false)\b/i.test(statement);
+
+    return isDisabled ? "disabled" : "enabled";
   }
-
-  return !/\bstub\s+(?:no|off|false)\b/i.test(normalized);
+  return "none";
 };
+
+const isStubEnabled = (text: string): boolean =>
+  getStubStateInBlock(text) === "enabled";
 
 const hasProtocolAsbr = (
   declaration: ProtocolDeclaration,
@@ -106,7 +145,7 @@ const hasProtocolAsbr = (
           statement.kind === "other",
       );
       for (let index = asbrStatements.length - 1; index >= 0; index -= 1) {
-        const state = getAsbrState(asbrStatements[index]?.text ?? "");
+        const state = getAsbrStateInBlock(asbrStatements[index]?.text ?? "");
         if (state === "enabled") {
           return true;
         }
@@ -116,7 +155,7 @@ const hasProtocolAsbr = (
       }
     } else if (current.kind === "template") {
       const bodyText = current.bodyText ?? "";
-      const state = getAsbrState(stripNestedBlocks(bodyText));
+      const state = getAsbrStateInBlock(bodyText);
       if (state === "enabled") {
         return true;
       }
@@ -360,8 +399,7 @@ const ospfAsbrStubAreaRule: BirdRule = ({ parsed }) => {
       }
 
       const hasStub = area.hasStub ?? isStubEnabled(area.text);
-      const hasAsbr =
-        protocolAsbr || isAsbrEnabled(stripNestedBlocks(area.text));
+      const hasAsbr = protocolAsbr || isAsbrEnabled(area.text);
       if (!hasStub || !hasAsbr) {
         continue;
       }
