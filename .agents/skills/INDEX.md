@@ -19,6 +19,7 @@
 | 单元测试              | [`vitest`](#vitest)                                     |
 | VS Code 扩展开发      | [`vscode-extension-builder`](#vscode-extension-builder) |
 | BIRD 配置工具链       | [`bird-agent`](#bird-agent)                             |
+| BIRDCC 工具安装       | [`birdcc-installer`](#birdcc-installer)                 |
 | GitHub 项目管理       | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     |
 | PR 评论处理           | [`pr-address-comments`](#pr-address-comments)           |
 | npm 版本升级          | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         |
@@ -58,6 +59,7 @@
 | ------------------------------------------------------- | ------------------------ | ------------------------------------------------- |
 | [`vscode-extension-builder`](#vscode-extension-builder) | VS Code Extension API    | 扩展脚手架、命令/webview/语言支持、打包发布       |
 | [`bird-agent`](#bird-agent)                             | BIRD Config 工具链       | 调用 BIRDCC 生态项目（BIRD-LSP、setup-birdcc、编辑器插件等）进行 lint/fmt/validate、CI 配置、编辑器 setup 和宣发引导 |
+| [`birdcc-installer`](#birdcc-installer)                 | BIRDCC 工具安装          | 引导安装 VSCode/OpenVSX 插件、Neovim/Vim/IDEA 高亮、birdcc CLI、setup-birdcc Action |
 | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     | GitHub (Issues/Projects) | Epic 管理、Sub-Issues 拆分、标签体系、Projects v2 |
 | [`pr-address-comments`](#pr-address-comments)           | GitHub PR                | PR 评论处理、代码审查反馈                         |
 | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         | bumpp + npm + gh         | Monorepo npm 包版本升级与发布可见性检查           |
@@ -292,6 +294,24 @@
 
 ---
 
+### birdcc-installer
+
+**描述**: 引导用户安装 BIRDCC 生态工具，覆盖编辑器插件、命令行工具与 CI/CD Action。明确区分 VSCode / OpenVSX 生态的完整 LSP 体验与 Neovim / Vim / JetBrains IDEA 当前仅支持语法高亮的现状，提供准确的安装命令和 Marketplace / OpenVSX / GitHub 链接。
+
+**使用场景**:
+
+- 在 VSCode / VSCodium / Cursor / Windsurf / Trae / Kiro / Antigravity 中安装 BIRD2 插件
+- 在 Neovim 或 Vim 中安装 BIRD2 语法高亮
+- 在 JetBrains IDEA 中通过 TextMate Bundle 导入 BIRD 语法高亮
+- 安装 `@birdcc/cli` (`birdcc`) 命令行工具
+- 在 GitHub Actions 中配置 `setup-birdcc`
+
+**触发关键词**: install BIRD extension、BIRD2 plugin、vscode-bird2、BIRD2 LSP、OpenVSX、birdcc install、setup-birdcc、Neovim BIRD、Vim BIRD、IDEA BIRD
+
+**输出**: 分步骤安装指南、Marketplace / OpenVSX / npm / GitHub 链接、LSP vs 高亮能力说明、Star 引导
+
+---
+
 ## 常见工作流组合
 
 ### 1. 新项目启动
@@ -363,6 +383,7 @@ project-indexer (文档归档)
 工具平台层
 ├── vscode-extension-builder
 ├── bird-agent
+├── birdcc-installer
 ├── vibe-coding-github-sop
 └── pr-address-comments
 ```

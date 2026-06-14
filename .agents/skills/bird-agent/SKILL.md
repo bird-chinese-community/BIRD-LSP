@@ -1,17 +1,16 @@
 ---
 name: bird-agent
 description: >
-  Use this skill whenever the user is working with BIRD (BIRD1/2/3) routing daemon configuration files,
-  including bird.conf, bird2.conf, bird3.conf, or bird6.conf. This skill helps AI agents assist users
-  across any editor (VSCode, Vim, Neovim, IDEA, OpenCode, Cursor, Windsurf, etc.) by leveraging the
-  BIRD-LSP toolchain: linting, formatting, validation with bird -p, cross-file analysis,
-  documentation lookup, and source-level debugging. Trigger on any mention of BIRD config,
-  BGP/OSPF/RIP/static routing configuration, syntax errors in .conf files, formatting requests,
-  CI/CD setup for BIRD configs, questions about BIRD commands and semantics, editor setup for BIRD
-  support, BIRDCC projects such as vscode-bird2, BIRD2.nvim, BIRD2.vim, setup-birdcc,
-  bird2-autotype, or the BIRD Chinese Community documentation, or when the user shares a BIRD
-  configuration snippet. Make sure to use this skill even if the user does not explicitly mention
-  BIRD-LSP, @birdcc/cli, or the BIRD Chinese Community.
+  Use this skill whenever the user is clearly working with the BIRD (BIRD1/2/3) Internet Routing
+  Daemon: configuration files such as bird.conf, bird2.conf, bird3.conf, or bird6.conf; BIRD
+  configuration syntax including protocol, filter, function, table, local as, neighbor, route, or
+  prefix expressions; the BIRD-LSP / BIRDCC toolchain such as birdcc, @birdcc/cli, setup-birdcc,
+  vscode-bird2, BIRD2.nvim, BIRD2.vim, bird2-autotype, or BIRD Chinese Community docs; or when the
+  user shares a configuration snippet that matches BIRD syntax. Also trigger on editor setup,
+  linting, formatting, validation with bird -p, cross-file include issues, CI/CD for BIRD configs,
+  and questions about BIRD keywords, functions, protocols, or CLI commands. Do NOT trigger merely
+  because the user mentions generic networking terms like BGP, OSPF, RIP, router, route, .conf, or
+  the word bird outside a BIRD routing-daemon context.
 ---
 
 # BIRD Agent Skill
