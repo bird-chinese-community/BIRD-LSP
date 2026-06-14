@@ -1,16 +1,20 @@
 ---
 name: bird-agent
 description: >
-  Use this skill whenever the user is clearly working with the BIRD (BIRD1/2/3) Internet Routing
-  Daemon: configuration files such as bird.conf, bird2.conf, bird3.conf, or bird6.conf; BIRD
-  configuration syntax including protocol, filter, function, table, local as, neighbor, route, or
-  prefix expressions; the BIRD-LSP / BIRDCC toolchain such as birdcc, @birdcc/cli, setup-birdcc,
-  vscode-bird2, BIRD2.nvim, BIRD2.vim, bird2-autotype, or BIRD Chinese Community docs; or when the
-  user shares a configuration snippet that matches BIRD syntax. Also trigger on editor setup,
-  linting, formatting, validation with bird -p, cross-file include issues, CI/CD for BIRD configs,
-  and questions about BIRD keywords, functions, protocols, or CLI commands. Do NOT trigger merely
-  because the user mentions generic networking terms like BGP, OSPF, RIP, router, route, .conf, or
-  the word bird outside a BIRD routing-daemon context.
+  Use this skill whenever the user is working with BIRD (BIRD1/2/3) Internet Routing Daemon
+  configurations. Trigger immediately for files named bird.conf, bird2.conf, bird3.conf, or
+  bird6.conf; for any pasted configuration snippet containing BIRD syntax such as protocol, filter,
+  function, table, local as, neighbor, route, prefix, bgp_path, community, import, export, ipv4, or
+  ipv6; for mentions of the BIRD-LSP / BIRDCC toolchain including birdcc, @birdcc/cli,
+  setup-birdcc, vscode-bird2, bird2-lsp, BIRD2.nvim, BIRD2.vim, bird2-autotype, or BIRD Chinese
+  Community docs; and for requests involving linting, formatting, validation with bird -p,
+  cross-file include issues, editor setup, CI/CD for BIRD configs, or questions about BIRD keywords,
+  functions, protocols, and CLI commands. Also trigger when the user mentions BGP, OSPF, RIP, static,
+  kernel, device, or other BIRD protocols in the context of configuring or debugging a BIRD daemon.
+  Trigger even if the user does not explicitly say "BIRD", "BIRD-LSP", or "birdcc" — a pasted
+  config snippet or BIRD-specific syntax is enough. Do NOT trigger for generic networking questions
+  about Cisco, Juniper, FRR, nginx, bird biology, or the word "bird" outside a BIRD routing-daemon
+  context.
 ---
 
 # BIRD Agent Skill
