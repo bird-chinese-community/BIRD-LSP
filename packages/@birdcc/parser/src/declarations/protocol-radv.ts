@@ -424,7 +424,7 @@ export const parseRadvInterfaceTextStatement = (
   }
 
   const cleanedRest = rest
-    .replace(/\s*;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*$/u, "")
+    .replace(/\s*;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*$/u, "")
     .trim();
   const bodyMatch = cleanedRest.match(/\{[\s\S]*\}$/u);
   const bodyText = bodyMatch?.[0];
@@ -497,7 +497,7 @@ export const parseRadvPrefixTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim();
   const prefixMatch = trimmed.match(
-    /^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?\s*(?:;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*)?$/iu,
+    /^prefix\s+(\S+)(?:\s+(\{[\s\S]*\}))?\s*(?:;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*)?$/iu,
   );
   if (!prefixMatch?.[1]) {
     return undefined;
@@ -527,7 +527,7 @@ export const parseRadvDnsTextStatement = (
 ): ProtocolStatement | undefined => {
   const trimmed = statementText.trim();
   const dnsBlockMatch = trimmed.match(
-    /^(rdnss|dnssl)\s+(\{[\s\S]*\})\s*(?:;?\s*(?:#.*|\/\/.*|\/[\s\S]*?\*\/)?\s*)?$/iu,
+    /^(rdnss|dnssl)\s+(\{[\s\S]*\})\s*(?:;?\s*(?:#.*|\/\/.*|\/\*[\s\S]*?\*\/)?\s*)?$/iu,
   );
   if (dnsBlockMatch?.[1] && dnsBlockMatch[2]) {
     const block = dnsBlockMatch[1].toLowerCase() as "rdnss" | "dnssl";
