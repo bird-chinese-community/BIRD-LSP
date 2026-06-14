@@ -29,7 +29,8 @@ export default grammar({
         $.top_level_statement,
       ),
 
-    comment: () => token(choice(seq("#", /.*/), seq("/*", /[\s\S]*?/, "*/"))),
+    comment: () =>
+      token(choice(seq("#", /.*/), seq("/*", /[^*]*\*+([^/*][^*]*\*+)*/, "/"))),
 
     string: () =>
       token(
