@@ -1208,11 +1208,12 @@ const parseBgpDisableAfterCeaseFlagSet = (
     return undefined;
   }
 
-  const rawFlags = textOf(bodyNode, source)
-    .trim()
-    .replace(/^\{\s*/u, "")
-    .replace(/\s*\}$/u, "")
-    .replace(/(?:#|\/\/)[^\n]*|\/\*[\s\S]*?\*\//gu, "")
+  const rawFlags = stripTrailingComment(
+    textOf(bodyNode, source)
+      .trim()
+      .replace(/^\{\s*/u, "")
+      .replace(/\s*\}$/u, ""),
+  )
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
