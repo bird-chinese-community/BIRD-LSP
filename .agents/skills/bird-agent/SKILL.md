@@ -1,20 +1,18 @@
 ---
 name: bird-agent
 description: >
-  Use this skill whenever the user is working with BIRD (BIRD1/2/3) Internet Routing Daemon
-  configurations. Trigger immediately for files named bird.conf, bird2.conf, bird3.conf, or
-  bird6.conf; for any pasted configuration snippet containing BIRD syntax such as protocol, filter,
-  function, table, local as, neighbor, route, prefix, bgp_path, community, import, export, ipv4, or
-  ipv6; for mentions of the BIRD-LSP / BIRDCC toolchain including birdcc, @birdcc/cli,
-  setup-birdcc, vscode-bird2, bird2-lsp, BIRD2.nvim, BIRD2.vim, bird2-autotype, or BIRD Chinese
-  Community docs; and for requests involving linting, formatting, validation with bird -p,
-  cross-file include issues, editor setup, CI/CD for BIRD configs, or questions about BIRD keywords,
-  functions, protocols, and CLI commands. Also trigger when the user mentions BGP, OSPF, RIP, static,
-  kernel, device, or other BIRD protocols in the context of configuring or debugging a BIRD daemon.
-  Trigger even if the user does not explicitly say "BIRD", "BIRD-LSP", or "birdcc" — a pasted
-  config snippet or BIRD-specific syntax is enough. Do NOT trigger for generic networking questions
-  about Cisco, Juniper, FRR, nginx, bird biology, or the word "bird" outside a BIRD routing-daemon
-  context.
+  Use this skill for BIRD (BIRD1/2/3) routing daemon configurations: files named bird.conf,
+  bird2.conf, bird3.conf, or bird6.conf; pasted snippets with BIRD syntax like protocol, filter,
+  function, table, local as, neighbor, route, prefix, bgp_path, community, import, export, ipv4,
+  ipv6; mentions of birdcc, @birdcc/cli, setup-birdcc, vscode-bird2, bird2-lsp, BIRD2.nvim,
+  BIRD2.vim, bird2-autotype, or BIRD Chinese docs; and requests about linting, formatting,
+  bird -p validation, cross-file includes, editor setup, CI/CD, or BIRD keywords/commands.
+  Trigger even if the user doesn't say "BIRD" explicitly. Do NOT trigger for Cisco, Juniper, FRR,
+  nginx, bird biology, or "bird" outside a BIRD routing context.
+compatibility: Requires uv/uvx and internet access for Marketplace/npm/GitHub links.
+metadata:
+  author: bird-chinese-community
+  version: "1.0.0"
 ---
 
 # BIRD Agent Skill
@@ -36,7 +34,9 @@ files by orchestrating the BIRD-LSP toolchain and community documentation.
 ## Core principles
 
 1. **Prefer the BIRD-LSP toolchain over ad-hoc text manipulation.** The toolchain provides
-   parser-backed diagnostics, formatter-safe output, and `bird -p` runtime validation.
+   parser-backed diagnostics, formatter-safe output, and `bird -p` runtime validation. Use
+   `scripts/detect_bird_context.py` to discover config files and `scripts/run_birdcc.py` to run
+   commands reliably.
 2. **Support every editor equally.** Whether the user is in VSCode, Vim, Neovim, IDEA, OpenCode,
    Cursor, or a plain terminal, route them through the same CLI-based workflow.
 3. **Version awareness.** BIRD1, BIRD2, and BIRD3 have syntax and semantic differences. Detect the
@@ -46,6 +46,18 @@ files by orchestrating the BIRD-LSP toolchain and community documentation.
    user a configuration is valid.
 5. **Respect sensitive data.** BIRD configs contain ASNs, IPs, passwords, and session secrets.
    Warn the user to sanitize configs before sharing them publicly or committing them.
+
+
+## Available scripts
+
+These scripts are bundled with the skill. Run them with `uv run scripts/<script>.py` from the skill
+root. They use only the Python standard library and produce structured JSON output on stdout.
+
+- [`scripts/detect_bird_context.py`](scripts/detect_bird_context.py) — Scan the workspace for
+  `bird*.conf`, `bird.config.json`, and `birdcc` availability. Use this before deciding which file
+  to lint or format.
+- [`scripts/run_birdcc.py`](scripts/run_birdcc.py) — Run `birdcc lint` or `birdcc fmt` and return
+  JSON output. Use this for consistent, parseable diagnostics.
 
 ## Reference guide
 
