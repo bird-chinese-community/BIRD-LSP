@@ -4705,16 +4705,20 @@ const parseStaticRouteOptions = (
     }
 
     if (optionText === "onlink" || optionText === "bfd") {
+      const boolValue = parseBoolToken(valueText);
       options.push({
         kind: optionText,
-        value: parseBoolToken(valueText) ?? true,
-        valueText,
-        valueRange: isNode(valueNode) ? toRange(valueNode, source) : undefined,
-        ...(isNode(valueNode)
+        value: boolValue ?? true,
+        valueText: boolValue !== undefined ? valueText : undefined,
+        valueRange:
+          boolValue !== undefined && isNode(valueNode)
+            ? toRange(valueNode, source)
+            : undefined,
+        ...(boolValue !== undefined && isNode(valueNode)
           ? mergeRanges(toRange(optionNode, source), toRange(valueNode, source))
           : toRange(optionNode, source)),
       });
-      if (isNode(valueNode) && parseBoolToken(valueText) !== undefined) {
+      if (boolValue !== undefined) {
         index += 1;
       }
     }
