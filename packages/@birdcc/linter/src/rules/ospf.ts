@@ -40,6 +40,8 @@ const stripComments = (value: string): string =>
 
 const stripNestedBlocks = (value: string): string => {
   const cleaned = stripComments(value);
+  const hasOuterBraces = cleaned.trimStart().startsWith("{");
+  const targetDepth = hasOuterBraces ? 1 : 0;
   let result = "";
   let depth = 0;
   for (let index = 0; index < cleaned.length; index += 1) {
@@ -52,7 +54,7 @@ const stripNestedBlocks = (value: string): string => {
       depth = Math.max(0, depth - 1);
       continue;
     }
-    if (depth <= 1) {
+    if (depth === targetDepth) {
       result += char;
     }
   }
