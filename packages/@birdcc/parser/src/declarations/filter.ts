@@ -12,14 +12,14 @@ import {
   type FunctionDeclaration,
   type MatchExpression,
   isStrictIpLiteral,
+  stripTrailingComment,
 } from "./shared.js";
 
 const parseFilterSegmentStatement = (
   segment: string,
   range: ReturnType<typeof toRange>,
 ): FilterBodyStatement | undefined => {
-  const normalizedSegment = segment
-    .replace(/#.*$/gu, "")
+  const normalizedSegment = stripTrailingComment(segment)
     .trim()
     .replace(/;\s*$/u, "");
   const normalizedPrintMatch = normalizedSegment.match(/^print(n)?\s+(.+)$/iu);

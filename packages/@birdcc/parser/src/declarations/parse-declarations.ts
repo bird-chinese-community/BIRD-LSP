@@ -27,7 +27,7 @@ import {
   parseTimeformatFromStatement,
   parseWatchdogFromStatement,
 } from "./top-level.js";
-import { normalizeTableType } from "./shared.js";
+import { normalizeTableType, stripTrailingComment } from "./shared.js";
 import {
   findMatchingBraceIndex,
   indexToRange,
@@ -89,7 +89,7 @@ const parseTableOptionEntries = (
     }
 
     const rawStatement = statementMatch[1] ?? "";
-    const statementText = rawStatement.replace(/#.*$/gu, "").trim();
+    const statementText = stripTrailingComment(rawStatement).trim();
     if (statementText.length === 0) {
       continue;
     }
