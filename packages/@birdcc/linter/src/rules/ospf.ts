@@ -71,8 +71,7 @@ const getAsbrStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
   const statements = splitStatements(stripNestedBlocks(text));
   for (let index = statements.length - 1; index >= 0; index -= 1) {
     const statement = statements[index] ?? "";
-    const normalized = statement.toLowerCase();
-    if (!/\basbr\b/i.test(normalized)) {
+    if (!/\basbr\b/i.test(statement)) {
       continue;
     }
 
@@ -92,8 +91,7 @@ const getStubStateInBlock = (text: string): "enabled" | "disabled" | "none" => {
   const statements = splitStatements(stripNestedBlocks(text));
   for (let index = statements.length - 1; index >= 0; index -= 1) {
     const statement = statements[index] ?? "";
-    const normalized = statement.toLowerCase();
-    if (!/\bstub\b/i.test(normalized)) {
+    if (!/\bstub\b/i.test(statement)) {
       continue;
     }
 
