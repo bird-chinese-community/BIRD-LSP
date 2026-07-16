@@ -80,6 +80,7 @@ interface TypeHintCacheEntry {
 
 interface EligibilityCacheEntry {
   version: number;
+  projectConfigGeneration: number;
   eligible: boolean;
 }
 
@@ -130,6 +131,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const announcedInfoNotifications = new Set<string>();
   let workspaceRootUris: string[] = [];
   let supportsDynamicFileWatching = false;
+  let projectConfigGeneration = 0;
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
   const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
@@ -218,10 +220,14 @@ export const startLspServer = (options?: LspServerOptions): void => {
     project?: ProjectAnalysisOptions,
   ): Promise<boolean> => {
     const cached = eligibilityByUri.get(document.uri);
-    if (cached?.version === document.version) {
+    if (
+      cached?.version === document.version &&
+      cached.projectConfigGeneration === projectConfigGeneration
+    ) {
       return cached.eligible;
     }
 
+    const evaluationGeneration = projectConfigGeneration;
     const resolvedProject =
       project ?? (await resolveProjectForDocument(document));
     const eligibility = await evaluateLspDocumentEligibility(
@@ -229,10 +235,13 @@ export const startLspServer = (options?: LspServerOptions): void => {
       document.uri,
       resolvedProject,
     );
-    eligibilityByUri.set(document.uri, {
-      version: document.version,
-      eligible: eligibility.eligible,
-    });
+    if (evaluationGeneration === projectConfigGeneration) {
+      eligibilityByUri.set(document.uri, {
+        version: document.version,
+        projectConfigGeneration: evaluationGeneration,
+        eligible: eligibility.eligible,
+      });
+    }
     return eligibility.eligible;
   };
 
@@ -240,30 +249,40 @@ export const startLspServer = (options?: LspServerOptions): void => {
     document: TextDocument,
   ): Promise<GraphCacheEntry> => {
     const lintResult = await lintBirdConfig("", { uri: document.uri });
-    const graph: GraphCacheEntry = {
+    return {
       entryUri: document.uri,
       visitedUris: new Set([document.uri]),
       symbolTable: lintResult.core.symbolTable,
       byUri: { [document.uri]: lintResult },
     };
-
-    clearEntryTracking(document.uri);
-    parsedByUri.delete(document.uri);
-    typeHintsByUri.delete(document.uri);
-    graphByUri.set(document.uri, graph);
-    return graph;
   };
 
   const analyzeDocument = async (
     document: TextDocument,
     options: { publishRelatedDiagnostics: boolean },
   ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
+    const analysisGeneration = projectConfigGeneration;
     const project = await resolveProjectForDocument(document);
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
+    }
 
-    if (!(await isDocumentEligible(document, project))) {
+    const eligible = await isDocumentEligible(document, project);
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
+    }
+    if (!eligible) {
+      const graph = await createEmptyGraph(document);
+      if (analysisGeneration !== projectConfigGeneration) {
+        return analyzeDocument(document, options);
+      }
+      clearEntryTracking(document.uri);
+      parsedByUri.delete(document.uri);
+      typeHintsByUri.delete(document.uri);
+      graphByUri.set(document.uri, graph);
       return {
         entryDiagnostics: [],
-        graph: await createEmptyGraph(document),
+        graph,
       };
     }
 
@@ -298,6 +317,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const lintResult = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
+      if (analysisGeneration !== projectConfigGeneration) {
+        return analyzeDocument(document, options);
+      }
       const graph: GraphCacheEntry = {
         entryUri: document.uri,
         visitedUris: new Set([document.uri]),
@@ -338,6 +360,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       lintGraph.byUri[document.uri] = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
+    }
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
     }
     const visitedUris = new Set(
       crossFile.visitedUris.length > 0
@@ -421,7 +446,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
     try {
       return await promise;
     } finally {
-      pendingGraphByUri.delete(document.uri);
+      if (pendingGraphByUri.get(document.uri) === promise) {
+        pendingGraphByUri.delete(document.uri);
+      }
     }
   };
 
@@ -534,6 +561,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return;
     }
 
+    projectConfigGeneration += 1;
     eligibilityByUri.clear();
     graphByUri.clear();
     pendingGraphByUri.clear();
