@@ -69,9 +69,13 @@ const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
 export const createBirdDocumentEligibilityGate =
   (): BirdDocumentEligibilityGate => {
     const cache = new Map<string, EligibilityCacheEntry>();
+    const explicitMainByUri = new Map<string, boolean>();
     const pending = new Map<string, Promise<boolean>>();
+    let generation = 0;
     const clear = (): void => {
+      generation += 1;
       cache.clear();
+      explicitMainByUri.clear();
       pending.clear();
     };
 
@@ -85,7 +89,9 @@ export const createBirdDocumentEligibilityGate =
       configWatcher.onDidDelete(clear),
       workspace.onDidChangeWorkspaceFolders(clear),
       workspace.onDidCloseTextDocument((document) => {
-        cache.delete(document.uri.toString());
+        const uri = document.uri.toString();
+        cache.delete(uri);
+        explicitMainByUri.delete(uri);
       }),
     ];
 
@@ -102,19 +108,29 @@ export const createBirdDocumentEligibilityGate =
         return pendingResult;
       }
 
+      const taskGeneration = generation;
       const task = (async (): Promise<boolean> => {
+        let explicitMain = explicitMainByUri.get(uri);
+        if (explicitMain === undefined) {
+          explicitMain = await findExplicitMain(document);
+          if (taskGeneration === generation) {
+            explicitMainByUri.set(uri, explicitMain);
+          }
+        }
         const eligibility = await evaluateBirdDocumentEligibility(
           document.getText(),
           {
             filePath:
               document.uri.scheme === "file" ? document.uri.fsPath : undefined,
-            explicitMain: await findExplicitMain(document),
+            explicitMain,
           },
         );
-        cache.set(uri, {
-          version: document.version,
-          eligible: eligibility.eligible,
-        });
+        if (taskGeneration === generation) {
+          cache.set(uri, {
+            version: document.version,
+            eligible: eligibility.eligible,
+          });
+        }
         return eligibility.eligible;
       })();
 

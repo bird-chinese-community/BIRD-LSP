@@ -1,4 +1,11 @@
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,5 +76,29 @@ describe("birdcc init detector integration", () => {
     expect(result.candidates).toContainEqual(
       expect.objectContaining({ path: "nginx.conf", qualified: false }),
     );
+  });
+
+  it("writes workspaces without a main for independent entries", async () => {
+    await rm(join(root, "nginx.conf"));
+    await mkdir(join(root, "tokyo"));
+    await mkdir(join(root, "osaka"));
+    await writeFile(
+      join(root, "tokyo", "bird.conf"),
+      "router id 192.0.2.1;\nprotocol device {}\n",
+      "utf8",
+    );
+    await writeFile(
+      join(root, "osaka", "bird.conf"),
+      "router id 192.0.2.2;\nprotocol device {}\n",
+      "utf8",
+    );
+
+    await runInit(root, { ...baseOptions, write: true });
+
+    const config = JSON.parse(
+      await readFile(join(root, "bird.config.json"), "utf8"),
+    ) as { main?: string; workspaces?: string[] };
+    expect(config.main).toBeUndefined();
+    expect(config.workspaces).toEqual(["osaka/", "tokyo/"]);
   });
 });

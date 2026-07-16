@@ -6,6 +6,7 @@ import {
   selectAutoDetectedEntry,
   sniffProjectEntrypoints,
 } from "../src/detection/index.js";
+import { getCandidateDirectory } from "../src/detection/topology.js";
 
 /**
  * Helper: create a temp directory with a given file structure.
@@ -542,5 +543,14 @@ protocol device {}
       expect.arrayContaining(["bird.conf", "sites/asia/tokyo/bird.conf"]),
     );
     expect(selectAutoDetectedEntry(result)).toBeNull();
+  });
+});
+
+describe("candidate path normalization", () => {
+  it("returns stable POSIX directories for Windows candidate paths", () => {
+    expect(getCandidateDirectory("sites\\tokyo\\bird.conf")).toBe(
+      "sites/tokyo",
+    );
+    expect(getCandidateDirectory("sites/tokyo/bird.conf")).toBe("sites/tokyo");
   });
 });

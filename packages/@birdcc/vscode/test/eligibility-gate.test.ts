@@ -91,4 +91,30 @@ describe("VS Code BIRD document eligibility gate", () => {
 
     gate.dispose();
   });
+
+  it("caches explicit-main lookup until project configuration is invalidated", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const explicitPath = join(mocks.workspaceRoot, "custom.conf");
+    const configPath = join(mocks.workspaceRoot, "bird.config.json");
+    await writeFile(
+      configPath,
+      JSON.stringify({ main: "custom.conf" }),
+      "utf8",
+    );
+
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 1)),
+    ).resolves.toBe(true);
+    await writeFile(configPath, JSON.stringify({}), "utf8");
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 2)),
+    ).resolves.toBe(true);
+
+    gate.clear();
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 3)),
+    ).resolves.toBe(false);
+
+    gate.dispose();
+  });
 });

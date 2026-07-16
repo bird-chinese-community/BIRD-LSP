@@ -11,6 +11,7 @@ import {
 } from "@birdcc/core";
 import {
   createConnection,
+  DidChangeWatchedFilesNotification,
   type Diagnostic,
   type InlayHint,
   type InitializeResult,
@@ -128,6 +129,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const announcedProjectConfigs = new Set<string>();
   const announcedInfoNotifications = new Set<string>();
   let workspaceRootUris: string[] = [];
+  let supportsDynamicFileWatching = false;
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
   const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
@@ -424,6 +426,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
 
   connection.onInitialize((params): InitializeResult => {
+    supportsDynamicFileWatching = Boolean(
+      params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration,
+    );
     workspaceRootUris =
       params.workspaceFolders
         ?.map((folder) => folder.uri)
@@ -454,6 +459,23 @@ export const startLspServer = (options?: LspServerOptions): void => {
   });
 
   connection.onInitialized(() => {
+    if (supportsDynamicFileWatching) {
+      void connection.client
+        .register(DidChangeWatchedFilesNotification.type, {
+          watchers: [
+            { globPattern: "**/bird.config.json" },
+            { globPattern: "**/birdcc.config.json" },
+          ],
+        })
+        .catch((error) => {
+          connection.console.log(
+            `[project] failed to watch configuration files: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
+
     void (async () => {
       for (const workspaceRootUri of workspaceRootUris) {
         if (hasShutdownBeenRequested) {
@@ -496,6 +518,34 @@ export const startLspServer = (options?: LspServerOptions): void => {
     publish: ({ uri, version, diagnostics }) => {
       publishDiagnostics(connection, uri, diagnostics, version);
     },
+  });
+
+  connection.onDidChangeWatchedFiles((params) => {
+    const projectConfigChanged = params.changes.some((change) => {
+      try {
+        return PROJECT_CONFIG_FILE_NAMES.includes(
+          basename(fileURLToPath(change.uri)),
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (!projectConfigChanged) {
+      return;
+    }
+
+    eligibilityByUri.clear();
+    graphByUri.clear();
+    pendingGraphByUri.clear();
+    for (const publishedUris of publishedUrisByEntry.values()) {
+      clearDiagnosticsMany(connection, publishedUris);
+    }
+    publishedUrisByEntry.clear();
+    announcedProjectConfigs.clear();
+    noConfigTipAnnounced = false;
+    for (const document of documents.all()) {
+      scheduler.schedule(document);
+    }
   });
 
   documents.onDidOpen((event) => {

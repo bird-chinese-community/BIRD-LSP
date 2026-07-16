@@ -14,6 +14,10 @@ import type {
 const PROPAGATION_DECAY = 0.8;
 const MAX_PROPAGATION_DEPTH = 3;
 
+/** Return a stable, POSIX-style directory for a candidate on every platform. */
+export const getCandidateDirectory = (filePath: string): string =>
+  dirname(filePath.replaceAll("\\", "/")).replaceAll("\\", "/");
+
 /**
  * Propagate positive signal scores from included files back to their includers.
  *
@@ -151,7 +155,7 @@ export const detectMonorepoMode = (
       if (candidate.role !== "library") continue;
       const fileName = candidate.path.split("/").at(-1) ?? candidate.path;
       const directories = libraryGroups.get(fileName) ?? new Set<string>();
-      directories.add(dirname(candidate.path));
+      directories.add(getCandidateDirectory(candidate.path));
       libraryGroups.set(fileName, directories);
     }
 
@@ -164,7 +168,7 @@ export const detectMonorepoMode = (
           ...new Set(
             allCandidates
               .filter((candidate) => candidate.role === "library")
-              .map((candidate) => dirname(candidate.path)),
+              .map((candidate) => getCandidateDirectory(candidate.path)),
           ),
         ].sort(),
         warnings,
@@ -179,7 +183,7 @@ export const detectMonorepoMode = (
   // Group by immediate parent directory
   const dirGroups = new Map<string, EntryCandidate[]>();
   for (const entry of entries) {
-    const dir = dirname(entry.path);
+    const dir = getCandidateDirectory(entry.path);
     if (!dirGroups.has(dir)) {
       dirGroups.set(dir, []);
     }
@@ -228,7 +232,7 @@ export const detectMonorepoMode = (
   if (dominant.length === 1 && sorted.length > 1) {
     // Check if non-dominant files are variable/library files
     const others = sorted.slice(1);
-    const otherDirs = new Set(others.map((o) => dirname(o.path)));
+    const otherDirs = new Set(others.map((o) => getCandidateDirectory(o.path)));
     if (otherDirs.size > 1) {
       return {
         kind: "monorepo-multi-role",
@@ -240,7 +244,9 @@ export const detectMonorepoMode = (
 
   // Fallback to multi-entry if multiple high-score entries exist
   if (entries.length > 1 && dirGroups.size > 1) {
-    const workspaces = [...new Set(entries.map((e) => dirname(e.path)))].sort();
+    const workspaces = [
+      ...new Set(entries.map((entry) => getCandidateDirectory(entry.path))),
+    ].sort();
     return { kind: "monorepo-multi-entry", workspaces, warnings };
   }
 

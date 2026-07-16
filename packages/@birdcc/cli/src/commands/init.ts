@@ -3,7 +3,7 @@
  */
 
 import { access, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   selectAutoDetectedEntry,
   sniffProjectEntrypoints,
@@ -53,16 +53,23 @@ const existingConfigHasEntry = async (configPath: string): Promise<boolean> => {
  */
 const buildConfig = async (
   root: string,
-  selectedEntry: EntryCandidate,
+  selectedEntry: EntryCandidate | null,
+  workspaces: string[],
 ): Promise<Record<string, unknown>> => {
   const config: Record<string, unknown> = {
     $schema: SCHEMA_URL,
-    main: `./${selectedEntry.path}`,
   };
 
-  const indentResult = await detectIndentSizeFromFiles(root, [
-    selectedEntry.path,
-  ]);
+  if (workspaces.length > 0) {
+    config.workspaces = workspaces;
+  } else if (selectedEntry) {
+    config.main = `./${selectedEntry.path}`;
+  }
+
+  const indentCandidates = selectedEntry
+    ? [selectedEntry.path]
+    : workspaces.map((workspacePath) => `${workspacePath}bird.conf`);
+  const indentResult = await detectIndentSizeFromFiles(root, indentCandidates);
   if (indentResult.indentSize !== undefined) {
     config.formatter = {
       indentSize: indentResult.indentSize,
@@ -70,6 +77,31 @@ const buildConfig = async (
   }
 
   return config;
+};
+
+const collectDetectedWorkspaces = (result: DetectionResult): string[] => {
+  if (result.kind !== "monorepo-multi-entry") {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      result.candidates
+        .filter(
+          (candidate) =>
+            candidate.qualified !== false &&
+            candidate.score > 0 &&
+            (candidate.includedByCount ?? 0) === 0 &&
+            candidate.role !== "library" &&
+            candidate.role !== "fragment" &&
+            candidate.role !== "external",
+        )
+        .map((candidate) => {
+          const directory = dirname(candidate.path).replaceAll("\\", "/");
+          return directory === "." ? "./" : `${directory}/`;
+        }),
+    ),
+  ].sort();
 };
 
 /**
@@ -96,8 +128,9 @@ const formatDryRunOutput = async (
   lines.push(`Conclusion: ${result.kind} (confidence: ${result.confidence}%)`);
 
   const selectedEntry = selectAutoDetectedEntry(result);
-  if (selectedEntry) {
-    const config = await buildConfig(root, selectedEntry);
+  const workspaces = collectDetectedWorkspaces(result);
+  if (selectedEntry || workspaces.length > 0) {
+    const config = await buildConfig(root, selectedEntry, workspaces);
     lines.push(`→ Will write: ${JSON.stringify(config)}`);
   }
 
@@ -148,13 +181,18 @@ export const runInit = async (
     exclude: options.ignore,
   });
   const selectedEntry = selectAutoDetectedEntry(result);
+  const workspaces = collectDetectedWorkspaces(result);
 
   // JSON output mode
   if (options.json) {
     console.log(JSON.stringify(result, null, 2));
 
-    if (!options.dryRun && options.write && selectedEntry) {
-      const config = await buildConfig(root, selectedEntry);
+    if (
+      !options.dryRun &&
+      options.write &&
+      (selectedEntry || workspaces.length > 0)
+    ) {
+      const config = await buildConfig(root, selectedEntry, workspaces);
       await writeFile(
         configPath,
         JSON.stringify(config, null, 2) + "\n",
@@ -181,7 +219,7 @@ export const runInit = async (
 
   // Write mode
   if (options.write || !process.stdout.isTTY) {
-    if (!selectedEntry) {
+    if (!selectedEntry && workspaces.length === 0) {
       console.error(
         "Could not safely select a BIRD entry point. Review the candidates or configure main explicitly.",
       );
@@ -189,7 +227,7 @@ export const runInit = async (
       return;
     }
 
-    const config = await buildConfig(root, selectedEntry);
+    const config = await buildConfig(root, selectedEntry, workspaces);
     const configContent = JSON.stringify(config, null, 2) + "\n";
 
     if (!options.force && (await fileExists(configPath))) {
@@ -202,8 +240,9 @@ export const runInit = async (
 
     await writeFile(configPath, configContent, "utf8");
     console.log(`Created ${options.configName}`);
+    const entrySummary = selectedEntry?.path ?? workspaces.join(", ");
     console.log(
-      `  Entry: ${selectedEntry.path} (${result.kind}, confidence: ${result.confidence}%)`,
+      `  Entry: ${entrySummary} (${result.kind}, confidence: ${result.confidence}%)`,
     );
     return;
   }
@@ -217,7 +256,7 @@ export const runInit = async (
     );
   }
 
-  if (selectedEntry) {
+  if (selectedEntry || workspaces.length > 0) {
     console.log(`\nRun with --write to create ${options.configName}`);
   }
 };

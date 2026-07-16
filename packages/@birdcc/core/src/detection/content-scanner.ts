@@ -133,10 +133,10 @@ const extractParsedContentSignals = (
         ),
       ),
     hasProtocolDevice: protocols.some(
-      (protocol) => protocol.protocolType.toLowerCase() === "device",
+      (protocol) => protocol.protocolType?.toLowerCase() === "device",
     ),
     hasProtocolKernel: protocols.some(
-      (protocol) => protocol.protocolType.toLowerCase() === "kernel",
+      (protocol) => protocol.protocolType?.toLowerCase() === "kernel",
     ),
     hasLogDirective: legacySignals.hasLogDirective,
     hasProtocolBlock: protocols.length > 0,
@@ -163,14 +163,18 @@ export const analyzeFileContent = async (
   const content = await readFileHead(join(root, relativePath));
   if (content === null) return null;
 
-  const parsed = await parseBirdConfig(content);
-  return {
-    signals: extractParsedContentSignals(content, parsed),
-    eligibility: evaluateParsedBirdDocumentEligibility(parsed, {
-      filePath: relativePath,
-      explicitMain,
-    }),
-  };
+  try {
+    const parsed = await parseBirdConfig(content);
+    return {
+      signals: extractParsedContentSignals(content, parsed),
+      eligibility: evaluateParsedBirdDocumentEligibility(parsed, {
+        filePath: relativePath,
+        explicitMain,
+      }),
+    };
+  } catch {
+    return null;
+  }
 };
 
 /**

@@ -69,11 +69,11 @@ export const collectBirdDeclarationEvidence = (
       continue;
     }
 
-    if (
-      declaration.kind === "protocol" &&
-      !BIRD_PROTOCOL_TYPES.has(declaration.protocolType.toLowerCase())
-    ) {
-      continue;
+    if (declaration.kind === "protocol") {
+      const protocolType = declaration.protocolType?.toLowerCase();
+      if (!protocolType || !BIRD_PROTOCOL_TYPES.has(protocolType)) {
+        continue;
+      }
     }
 
     evidence.add(declaration.kind);

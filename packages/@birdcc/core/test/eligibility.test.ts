@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { ParsedBirdDocument } from "@birdcc/parser";
 import {
+  collectBirdDeclarationEvidence,
   evaluateBirdDocumentEligibility,
   isCanonicalBirdConfigPath,
 } from "../src/detection/index.js";
@@ -70,5 +72,15 @@ describe("BIRD document eligibility", () => {
       eligible: true,
       reason: "explicit-main",
     });
+  });
+
+  it("ignores malformed protocol declarations without a protocol type", () => {
+    const parsed = {
+      program: {
+        declarations: [{ kind: "protocol", statements: [] }],
+      },
+    } as unknown as ParsedBirdDocument;
+
+    expect(collectBirdDeclarationEvidence(parsed)).toEqual([]);
   });
 });
