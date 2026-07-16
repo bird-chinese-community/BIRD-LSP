@@ -143,7 +143,9 @@ export const createBirdDocumentEligibilityGate =
       try {
         return await task;
       } finally {
-        pending.delete(pendingKey);
+        if (pending.get(pendingKey) === task) {
+          pending.delete(pendingKey);
+        }
       }
     };
 

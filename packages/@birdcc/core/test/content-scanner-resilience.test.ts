@@ -30,4 +30,18 @@ describe("content scanner resilience", () => {
 
     await expect(analyzeFileContent(root, "broken.conf")).resolves.toBeNull();
   });
+
+  it("ignores a recovered include declaration without a string path", async () => {
+    root = await mkdtemp(join(tmpdir(), "birdcc-content-scan-"));
+    await writeFile(join(root, "recovered.conf"), "include;", "utf8");
+    mocks.parseBirdConfig.mockResolvedValueOnce({
+      program: {
+        declarations: [{ kind: "include", path: undefined }],
+      },
+    });
+
+    const analysis = await analyzeFileContent(root, "recovered.conf");
+
+    expect(analysis?.signals.includeStatements).toEqual([]);
+  });
 });

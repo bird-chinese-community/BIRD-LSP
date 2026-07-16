@@ -143,9 +143,11 @@ const extractParsedContentSignals = (
     hasDefine: parsed.program.declarations.some(
       (declaration) => declaration.kind === "define",
     ),
-    includeStatements: parsed.program.declarations
-      .filter((declaration) => declaration.kind === "include")
-      .map((declaration) => declaration.path),
+    includeStatements: parsed.program.declarations.flatMap((declaration) =>
+      declaration.kind === "include" && typeof declaration.path === "string"
+        ? [declaration.path]
+        : [],
+    ),
     commentedIncludes: legacySignals.commentedIncludes,
   };
 };
