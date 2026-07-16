@@ -75,7 +75,11 @@ const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
         const mainPath = isAbsolute(parsed.main)
           ? parsed.main
           : resolve(current, parsed.main);
-        return pathsReferToSameLocation(mainPath, documentPath);
+        if (await pathsReferToSameLocation(mainPath, documentPath)) {
+          return true;
+        }
+        // A non-matching main does not disqualify the document: keep checking
+        // other config filenames and parent directories for an explicit match.
       } catch {
         // Missing or invalid project configuration does not authorize the file.
       }
