@@ -92,6 +92,27 @@ describe("VS Code BIRD document eligibility gate", () => {
     gate.dispose();
   });
 
+  it("continues searching after a non-matching project configuration", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const explicitPath = join(mocks.workspaceRoot, "custom.conf");
+    await writeFile(
+      join(mocks.workspaceRoot, "bird.config.json"),
+      JSON.stringify({ main: "other.conf" }),
+      "utf8",
+    );
+    await writeFile(
+      join(mocks.workspaceRoot, "birdcc.config.json"),
+      JSON.stringify({ main: "custom.conf" }),
+      "utf8",
+    );
+
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 1)),
+    ).resolves.toBe(true);
+
+    gate.dispose();
+  });
+
   it("matches explicit-main casing according to the host file system", async () => {
     const gate = createBirdDocumentEligibilityGate();
     const explicitPath = join(mocks.workspaceRoot, "Custom.conf");
