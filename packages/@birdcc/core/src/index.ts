@@ -49,8 +49,19 @@ export {
 } from "./type-inference.js";
 
 export { parseBirdValidationOutput } from "./bird-validation-parser.js";
-export { sniffProjectEntrypoints } from "./detection/index.js";
+export {
+  collectBirdDeclarationEvidence,
+  evaluateBirdDocumentEligibility,
+  evaluateParsedBirdDocumentEligibility,
+  isCanonicalBirdConfigPath,
+  selectAutoDetectedEntry,
+  sniffProjectEntrypoints,
+} from "./detection/index.js";
 export type {
+  BirdDeclarationEvidence,
+  BirdDocumentEligibility,
+  BirdDocumentEligibilityOptions,
+  BirdDocumentEligibilityReason,
   ContentSignals,
   DetectionKind,
   DetectionOptions,

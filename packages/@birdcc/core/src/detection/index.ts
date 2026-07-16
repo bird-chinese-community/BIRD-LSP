@@ -7,6 +7,10 @@
 
 export type {
   ContentSignals,
+  BirdDeclarationEvidence,
+  BirdDocumentEligibility,
+  BirdDocumentEligibilityOptions,
+  BirdDocumentEligibilityReason,
   DetectionKind,
   DetectionOptions,
   DetectionResult,
@@ -17,11 +21,22 @@ export type {
   SignalRecord,
 } from "./types.js";
 
+export {
+  collectBirdDeclarationEvidence,
+  evaluateBirdDocumentEligibility,
+  evaluateParsedBirdDocumentEligibility,
+  isCanonicalBirdConfigPath,
+} from "./eligibility.js";
+
 import { collectWithShallowPriority } from "./collector.js";
-import { scanFileContent } from "./content-scanner.js";
+import { analyzeFileContent } from "./content-scanner.js";
 import { classifyFileRole } from "./role-classifier.js";
 import { scoreWithContent } from "./scorer.js";
 import { analyzeIncludeGraphExtras } from "./graph-extras.js";
+import {
+  collectReachableIncludes,
+  resolveIncludeGraph,
+} from "./include-graph.js";
 import {
   applyGraphStats,
   detectMonorepoMode,
@@ -36,6 +51,13 @@ import type {
 } from "./types.js";
 
 const AMBIGUITY_THRESHOLD = 30;
+const AUTO_SELECTION_CONFIDENCE = 70;
+
+const compareCandidates = (a: EntryCandidate, b: EntryCandidate): number =>
+  b.score - a.score || a.path.localeCompare(b.path);
+
+const normalizeRelativePath = (path: string): string =>
+  path.replaceAll("\\", "/").replace(/^\.\//, "");
 
 /**
  * Detect BIRD2 project entry points by scanning the file system.
@@ -74,12 +96,24 @@ export const sniffProjectEntrypoints = async (
 
   // Trim to maxCandidates (prefer shallow + canonical)
   const sortedFiles = [...collected.files].sort((a, b) => {
+    const explicitMain = opts?.explicitMain
+      ? normalizeRelativePath(opts.explicitMain)
+      : undefined;
+    const aIsExplicit = explicitMain === a.relativePath;
+    const bIsExplicit = explicitMain === b.relativePath;
+    if (aIsExplicit !== bIsExplicit) return aIsExplicit ? -1 : 1;
     // Canonical first
     if (a.isCanonical !== b.isCanonical) return a.isCanonical ? -1 : 1;
     // Then by depth (shallower first)
-    return a.depth - b.depth;
+    return a.depth - b.depth || a.relativePath.localeCompare(b.relativePath);
   });
   const trimmedFiles = sortedFiles.slice(0, maxCandidates);
+  if (collected.files.length > maxCandidates) {
+    warnings.push({
+      code: "detection/candidate-limit-reached",
+      message: `Only the first ${maxCandidates} of ${collected.files.length} configuration candidates were analyzed.`,
+    });
+  }
 
   // ── Phase 2: Content scanning + scoring ───────────────────────────
   const signalsMap = new Map<string, ContentSignals>();
@@ -91,79 +125,142 @@ export const sniffProjectEntrypoints = async (
     const batch = trimmedFiles.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
       batch.map(async (file) => {
-        const signals = await scanFileContent(root, file.relativePath);
-        return { file, signals };
+        const analysis = await analyzeFileContent(
+          root,
+          file.relativePath,
+          opts?.explicitMain !== undefined &&
+            normalizeRelativePath(opts.explicitMain) ===
+              normalizeRelativePath(file.relativePath),
+        );
+        return { file, analysis };
       }),
     );
 
-    for (const { file, signals } of results) {
-      if (signals) {
-        signalsMap.set(file.relativePath, signals);
+    for (const { file, analysis } of results) {
+      const signals = analysis?.signals ?? null;
+      if (analysis) {
+        signalsMap.set(
+          normalizeRelativePath(file.relativePath),
+          analysis.signals,
+        );
       }
 
-      const role = classifyFileRole(file.relativePath, signals);
+      let role = classifyFileRole(file.relativePath, signals);
+      const declarationKinds = analysis?.eligibility.declarationKinds ?? [];
+      if (
+        role === "unknown" &&
+        declarationKinds.length > 0 &&
+        declarationKinds.every((kind) =>
+          ["define", "filter", "function", "table", "template"].includes(kind),
+        )
+      ) {
+        role = "library";
+      }
       const candidate = scoreWithContent(file, signals, role);
+      candidate.qualified = analysis?.eligibility.eligible ?? false;
+      candidate.declarationKinds = declarationKinds;
+      candidate.includedByCount = 0;
+
+      if (analysis?.eligibility.eligible) {
+        const delta = file.isCanonical ? 0 : 15;
+        candidate.score += delta;
+        candidate.signals.push({
+          name: `bird-eligibility(${analysis.eligibility.reason})`,
+          delta,
+        });
+      } else {
+        candidate.role = "external";
+        candidate.signals.push({
+          name: "rejected-no-bird-evidence",
+          delta: 0,
+        });
+      }
       candidates.push(candidate);
     }
   }
 
   // ── Phase 3: Include-graph analysis ───────────────────────────────
+  const includeGraph = resolveIncludeGraph(root, signalsMap);
   if (signalsMap.size > 0) {
     // Graph extras: escape detection, cycle detection
-    const graphAnalysis = analyzeIncludeGraphExtras(signalsMap);
+    const graphAnalysis = analyzeIncludeGraphExtras(
+      signalsMap,
+      2,
+      includeGraph.edges,
+    );
     warnings.push(...graphAnalysis.warnings);
+
+    for (const candidate of candidates) {
+      candidate.includedByCount =
+        includeGraph.includedByCount.get(candidate.path) ?? 0;
+    }
 
     // Filter to viable entry candidates for graph analysis
     const viableEntries = candidates
-      .filter((c) => c.role !== "library" && c.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .filter((c) => c.qualified && c.role !== "library" && c.score > 0)
+      .sort(compareCandidates)
       .slice(0, 5);
 
     // For top candidates, compute cross-file stats from their include lists
     for (const candidate of viableEntries) {
-      const signals = signalsMap.get(candidate.path);
-      if (signals) {
-        // Count include coverage (simplified — full graph would use resolveCrossFileReferences)
-        const visited = new Set<string>();
-        const queue = [...signals.includeStatements];
+      const visited = collectReachableIncludes(
+        candidate.path,
+        includeGraph.edges,
+      );
+      const missingIncludes = [candidate.path, ...visited].reduce(
+        (count, path) => count + (includeGraph.missingBySource.get(path) ?? 0),
+        0,
+      );
 
-        while (queue.length > 0) {
-          const inc = queue.shift()!;
-          if (visited.has(inc)) continue;
-          visited.add(inc);
-
-          const incSignals = signalsMap.get(inc);
-          if (incSignals) {
-            queue.push(...incSignals.includeStatements);
-          }
-        }
-
-        const missingIncludes = signals.includeStatements.filter(
-          (inc) => !signalsMap.has(inc),
-        ).length;
-
-        applyGraphStats(candidate, visited.size, missingIncludes, false);
-      }
+      applyGraphStats(candidate, visited.size, missingIncludes, false);
     }
 
     // Propagate scores along include edges
-    propagateScores(candidates, signalsMap);
+    propagateScores(candidates, includeGraph.edges);
   }
 
   // ── Decision ──────────────────────────────────────────────────────
   // Sort by score descending
-  candidates.sort((a, b) => b.score - a.score);
+  candidates.sort(compareCandidates);
+
+  const qualifiedCandidates = candidates.filter((candidate) =>
+    Boolean(candidate.qualified),
+  );
+  if (qualifiedCandidates.length === 0) {
+    return {
+      kind: "not-found",
+      confidence: 100,
+      primary: null,
+      candidates,
+      warnings: [
+        ...warnings,
+        {
+          code: "detection/no-bird-evidence",
+          message:
+            "Configuration files were found, but none contained parsed BIRD declarations.",
+        },
+      ],
+    };
+  }
 
   // Remove library/fragment from entry competition (but keep in candidates list)
   const entryContenders = candidates.filter(
-    (c) => c.role !== "library" && c.role !== "fragment",
+    (c) =>
+      c.qualified &&
+      (c.includedByCount ?? 0) === 0 &&
+      (c.signals.some(
+        (signal) =>
+          signal.name === "canonical-name" ||
+          signal.name === "bird-eligibility(explicit-main)",
+      ) ||
+        (c.role !== "library" && c.role !== "fragment")),
   );
 
   if (entryContenders.length === 0) {
     return {
       kind: "not-found",
       confidence: 50,
-      primary: candidates[0] ?? null,
+      primary: null,
       candidates,
       warnings: [
         ...warnings,
@@ -177,7 +274,11 @@ export const sniffProjectEntrypoints = async (
   }
 
   // Check for monorepo patterns
-  const monoCheck = detectMonorepoMode(entryContenders, signalsMap);
+  const monoCheck = detectMonorepoMode(
+    entryContenders,
+    includeGraph.edges,
+    qualifiedCandidates,
+  );
   if (
     monoCheck.kind === "monorepo-multi-entry" ||
     monoCheck.kind === "monorepo-multi-role"
@@ -219,4 +320,24 @@ export const sniffProjectEntrypoints = async (
     candidates,
     warnings,
   };
+};
+
+/**
+ * Return an entry only when a detection result is safe for unattended use.
+ */
+export const selectAutoDetectedEntry = (
+  result: DetectionResult,
+): EntryCandidate | null => {
+  if (
+    result.kind === "single" &&
+    result.confidence >= AUTO_SELECTION_CONFIDENCE
+  ) {
+    return result.primary;
+  }
+
+  if (result.kind === "monorepo-multi-role") {
+    return result.primary;
+  }
+
+  return null;
 };
