@@ -38,7 +38,13 @@ const pathsReferToSameLocation = async (
     return true;
   }
 
-  if (process.platform !== "win32" && process.platform !== "darwin") {
+  const isCaseInsensitive =
+    process.platform === "win32" || process.platform === "darwin";
+  if (isCaseInsensitive && left.toLowerCase() === right.toLowerCase()) {
+    return true;
+  }
+
+  if (!isCaseInsensitive) {
     return false;
   }
 
