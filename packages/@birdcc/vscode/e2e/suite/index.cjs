@@ -46,9 +46,13 @@ const resolveConfigurationTarget = (vscode) =>
     ? vscode.ConfigurationTarget.Workspace
     : vscode.ConfigurationTarget.Global;
 
-const openTempBirdDocument = async (vscode, content) => {
+const openTempBirdDocument = async (
+  vscode,
+  content,
+  fileName = "e2e.bird2.conf",
+) => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "bird2-lsp-e2e-"));
-  const filePath = path.join(tempDir, "e2e.bird2.conf");
+  const filePath = path.join(tempDir, fileName);
   await writeFile(filePath, content, "utf8");
 
   const document = await vscode.workspace.openTextDocument(
@@ -121,7 +125,11 @@ const testLanguageAndFormatting = async (vscode) => {
     "",
   ].join("\n");
 
-  const { document, cleanup } = await openTempBirdDocument(vscode, sample);
+  const { document, cleanup } = await openTempBirdDocument(
+    vscode,
+    sample,
+    "bird.conf",
+  );
   const config = vscode.workspace.getConfiguration("bird2-lsp");
   const target = resolveConfigurationTarget(vscode);
   const originalFormatterEngine = config.get("formatter.engine");
@@ -188,6 +196,52 @@ const testLanguageAndFormatting = async (vscode) => {
   }
 };
 
+const testForeignConfigurationGuard = async (vscode) => {
+  for (const [fileName, content] of [
+    ["nginx.conf", "events {}\nhttp { server { listen 80; } }\n"],
+    [
+      "apache.conf",
+      "<VirtualHost *:80>\nServerName example.test\n</VirtualHost>\n",
+    ],
+  ]) {
+    const { document, cleanup } = await openTempBirdDocument(
+      vscode,
+      content,
+      fileName,
+    );
+    try {
+      assert.equal(
+        document.languageId,
+        "bird2",
+        `${fileName} should keep the existing .conf language association`,
+      );
+      const edits = await vscode.commands.executeCommand(
+        "vscode.executeFormatDocumentProvider",
+        document.uri,
+        { insertSpaces: true, tabSize: 2 },
+      );
+      assert.ok(
+        edits === undefined || Array.isArray(edits),
+        "format provider should return no result or an edit list",
+      );
+      assert.equal(
+        edits?.length ?? 0,
+        0,
+        `${fileName} must not be formatted as BIRD`,
+      );
+
+      await wait(500);
+      assert.equal(
+        vscode.languages.getDiagnostics(document.uri).length,
+        0,
+        `${fileName} must not receive BIRD diagnostics`,
+      );
+    } finally {
+      await cleanup();
+    }
+  }
+};
+
 const testConfigurationCommands = async (vscode) => {
   const workspaceFolder = await ensureWorkspaceFolder(vscode);
   const config = vscode.workspace.getConfiguration("bird2-lsp");
@@ -231,6 +285,7 @@ async function run() {
 
   await testCommandRegistration(vscode);
   await testLanguageAndFormatting(vscode);
+  await testForeignConfigurationGuard(vscode);
   await testConfigurationCommands(vscode);
 }
 

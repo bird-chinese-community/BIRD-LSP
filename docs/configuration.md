@@ -21,6 +21,19 @@ Minimal example:
 }
 ```
 
+### Automatic entry detection
+
+Without a project file, `birdcc init` and editor integrations only auto-select
+configuration files that contain Tree-sitter-parsed BIRD declarations. File
+names and directory depth rank eligible candidates but do not establish BIRD
+language identity by themselves. Canonical names such as `bird.conf`,
+`bird2.conf`, `bird3.conf`, and `bird6.conf` remain valid while empty or
+temporarily invalid, and an explicit `main` value always records user intent.
+
+Ambiguous and multi-entry layouts are reported for review instead of being
+silently written as `main`. Relative and glob includes are resolved from the
+including file, and only existing reachable files contribute to entry ranking.
+
 ## VS Code Extension Settings
 
 ### Large File Guard

@@ -38,4 +38,28 @@ describe("extension manifest menus", () => {
       "onCommand:bird2-lsp.formatActiveDocument",
     );
   });
+
+  it("preserves broad .conf language association and activation", async () => {
+    const manifest = await readExtensionManifest();
+    const activationEvents = (manifest.activationEvents as string[]) ?? [];
+    const contributes = manifest.contributes as
+      | {
+          languages?: Array<{
+            id?: string;
+            extensions?: string[];
+            filenames?: string[];
+          }>;
+        }
+      | undefined;
+    const birdLanguage = contributes?.languages?.find(
+      (language) => language.id === "bird2",
+    );
+
+    expect(birdLanguage?.extensions).toContain(".conf");
+    expect(birdLanguage?.filenames).toEqual(
+      expect.arrayContaining(["bird.conf", "bird2.conf"]),
+    );
+    expect(activationEvents).toContain("onLanguage:bird2");
+    expect(activationEvents).toContain("workspaceContains:**/*.conf");
+  });
 });

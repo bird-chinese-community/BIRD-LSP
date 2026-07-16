@@ -58,6 +58,14 @@
 - File extensions: `.conf`, `.bird`, `.bird2`, `.bird3`, `.bird2.conf`, `.bird3.conf`
 - Filenames: `bird.conf`, `bird2.conf`
 
+The broad `.conf` association is preserved for compatibility with existing
+workspaces and syntax highlighting. BIRD diagnostics, navigation, type hints,
+fallback validation, and formatting are enabled only when the document has
+parsed BIRD declarations, uses a canonical BIRD filename, or is selected by
+`bird.config.json.main`. Files such as `nginx.conf` and `apache.conf` therefore
+keep their current language association without being analyzed or rewritten as
+BIRD configuration.
+
 ---
 
 ## Installation
@@ -103,8 +111,8 @@ code --install-extension bird2-lsp-0.1.0-alpha.vsix
 
 ### Quick Start
 
-1. After installing the extension, open any `.conf` or `.bird` file
-2. The extension will automatically recognize BIRD2 configuration files
+1. After installing the extension, open a BIRD `.conf` or `.bird` file
+2. The extension will recognize parsed BIRD declarations and canonical filenames
 3. Enjoy intelligent suggestions, real-time diagnostics, and code formatting
 
 ### Validate Configuration
@@ -273,11 +281,12 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 ## 🙏 Acknowledgements
 
 <!-- CI START -->
+
 We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:
 
 - [`PoemaIX/IX-BIRD-RS-Generator`](https://github.com/PoemaIX/IX-BIRD-RS-Generator)
 - [`HuJK-Data/JKNET-BIRD`](https://github.com/HuJK-Data/JKNET-BIRD)
-- [`@LaunchPad-Network`](https://github.com/LaunchPad-Network) *(private feed)*
+- [`@LaunchPad-Network`](https://github.com/LaunchPad-Network) _(private feed)_
 - [`186526/net186-config`](https://github.com/186526/net186-config)
 - [`SunyzNET/bird-config`](https://github.com/SunyzNET/bird-config)
 - [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)

@@ -37,4 +37,26 @@ describe("detectWorkspaceEntry", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("does not suggest a foreign configuration as a workspace entry", async () => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-lsp-init-foreign-"));
+    try {
+      await writeFile(
+        join(root, "nginx.conf"),
+        "events {}\nhttp { server { listen 80; } }\n",
+        "utf8",
+      );
+
+      const result = await detectWorkspaceEntry(
+        pathToFileURL(root).toString(),
+        createMockConnection(),
+      );
+
+      expect(result.detectionResult.kind).toBe("not-found");
+      expect(result.detectionResult.primary).toBeNull();
+      expect(result.suggestedEntryUri).toBeNull();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });

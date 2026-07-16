@@ -1,0 +1,94 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TextDocument } from "vscode";
+
+const mocks = vi.hoisted(() => ({
+  workspaceRoot: "",
+}));
+
+const disposable = () => ({ dispose: vi.fn() });
+
+vi.mock("vscode", () => ({
+  workspace: {
+    getWorkspaceFolder: () => ({
+      uri: { fsPath: mocks.workspaceRoot },
+    }),
+    createFileSystemWatcher: () => ({
+      ...disposable(),
+      onDidCreate: () => disposable(),
+      onDidChange: () => disposable(),
+      onDidDelete: () => disposable(),
+    }),
+    onDidChangeWorkspaceFolders: () => disposable(),
+    onDidCloseTextDocument: () => disposable(),
+  },
+}));
+
+import { createBirdDocumentEligibilityGate } from "../src/eligibility/gate.js";
+
+const createDocument = (
+  filePath: string,
+  text: string,
+  version: number,
+): TextDocument =>
+  ({
+    uri: {
+      scheme: "file",
+      fsPath: filePath,
+      toString: () => `file://${filePath}`,
+    },
+    version,
+    getText: () => text,
+  }) as unknown as TextDocument;
+
+describe("VS Code BIRD document eligibility gate", () => {
+  beforeEach(async () => {
+    mocks.workspaceRoot = await mkdtemp(join(tmpdir(), "birdcc-vscode-gate-"));
+  });
+
+  afterEach(async () => {
+    await rm(mocks.workspaceRoot, { recursive: true, force: true });
+  });
+
+  it("re-evaluates by URI and document version", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const filePath = join(mocks.workspaceRoot, "nginx.conf");
+
+    await expect(
+      gate.isEligible(
+        createDocument(
+          filePath,
+          "events {}\nhttp { server { listen 80; } }",
+          1,
+        ),
+      ),
+    ).resolves.toBe(false);
+    await expect(
+      gate.isEligible(createDocument(filePath, "protocol device {}", 2)),
+    ).resolves.toBe(true);
+
+    gate.dispose();
+  });
+
+  it("accepts canonical and explicitly configured empty documents", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const canonicalPath = join(mocks.workspaceRoot, "bird3.conf");
+    const explicitPath = join(mocks.workspaceRoot, "custom.conf");
+    await writeFile(
+      join(mocks.workspaceRoot, "bird.config.json"),
+      JSON.stringify({ main: "custom.conf" }),
+      "utf8",
+    );
+
+    await expect(
+      gate.isEligible(createDocument(canonicalPath, "", 1)),
+    ).resolves.toBe(true);
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 1)),
+    ).resolves.toBe(true);
+
+    gate.dispose();
+  });
+});
