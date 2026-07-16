@@ -244,9 +244,7 @@ export const detectMonorepoMode = (
 
   // Fallback to multi-entry if multiple high-score entries exist
   if (entries.length > 1 && dirGroups.size > 1) {
-    const workspaces = [
-      ...new Set(entries.map((entry) => getCandidateDirectory(entry.path))),
-    ].sort();
+    const workspaces = [...dirGroups.keys()].sort();
     return { kind: "monorepo-multi-entry", workspaces, warnings };
   }
 
