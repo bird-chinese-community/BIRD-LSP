@@ -4,7 +4,12 @@
 
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
+import {
+  selectAutoDetectedEntry,
+  sniffProjectEntrypoints,
+  type DetectionResult,
+  type EntryCandidate,
+} from "@birdcc/core";
 import { detectIndentSizeFromFiles } from "./init-indent.js";
 
 const SCHEMA_URL =
@@ -46,64 +51,22 @@ const existingConfigHasEntry = async (configPath: string): Promise<boolean> => {
 /**
  * Generate config object from detection result.
  */
-const collectIndentProbePaths = (result: DetectionResult): string[] => {
-  if (result.kind === "monorepo-multi-entry") {
-    return result.candidates
-      .filter(
-        (candidate) =>
-          candidate.role === "entry" || candidate.role === "unknown",
-      )
-      .slice(0, 5)
-      .map((candidate) => candidate.path);
-  }
-
-  return result.primary ? [result.primary.path] : [];
-};
-
 const buildConfig = async (
   root: string,
-  result: DetectionResult,
+  selectedEntry: EntryCandidate,
 ): Promise<Record<string, unknown>> => {
   const config: Record<string, unknown> = {
     $schema: SCHEMA_URL,
+    main: `./${selectedEntry.path}`,
   };
 
-  if (result.kind === "monorepo-multi-entry" && result.candidates.length > 0) {
-    // Extract workspace directories from entry candidates
-    const entryDirs = new Set<string>();
-    for (const candidate of result.candidates) {
-      if (candidate.role === "entry" || candidate.role === "unknown") {
-        const dir = candidate.path.split("/").slice(0, -1).join("/");
-        if (dir) {
-          entryDirs.add(dir + "/");
-        } else {
-          // Root-level entry — include "." as a workspace dir
-          entryDirs.add(".");
-        }
-      }
-    }
-    if (entryDirs.size > 0) {
-      config.workspaces = [...entryDirs].sort();
-    }
-    // Also set main to the primary entry for clarity
-    if (result.primary) {
-      config.main = `./${result.primary.path}`;
-    }
-  } else if (result.primary) {
-    config.main = `./${result.primary.path}`;
-  }
-
-  const indentProbePaths = collectIndentProbePaths(result);
-  if (indentProbePaths.length > 0) {
-    const indentResult = await detectIndentSizeFromFiles(
-      root,
-      indentProbePaths,
-    );
-    if (indentResult.indentSize !== undefined) {
-      config.formatter = {
-        indentSize: indentResult.indentSize,
-      };
-    }
+  const indentResult = await detectIndentSizeFromFiles(root, [
+    selectedEntry.path,
+  ]);
+  if (indentResult.indentSize !== undefined) {
+    config.formatter = {
+      indentSize: indentResult.indentSize,
+    };
   }
 
   return config;
@@ -132,8 +95,9 @@ const formatDryRunOutput = async (
   lines.push("");
   lines.push(`Conclusion: ${result.kind} (confidence: ${result.confidence}%)`);
 
-  if (result.primary) {
-    const config = await buildConfig(root, result);
+  const selectedEntry = selectAutoDetectedEntry(result);
+  if (selectedEntry) {
+    const config = await buildConfig(root, selectedEntry);
     lines.push(`→ Will write: ${JSON.stringify(config)}`);
   }
 
@@ -183,13 +147,14 @@ export const runInit = async (
     maxFiles: options.maxFiles,
     exclude: options.ignore,
   });
+  const selectedEntry = selectAutoDetectedEntry(result);
 
   // JSON output mode
   if (options.json) {
     console.log(JSON.stringify(result, null, 2));
 
-    if (!options.dryRun && options.write && result.primary) {
-      const config = await buildConfig(root, result);
+    if (!options.dryRun && options.write && selectedEntry) {
+      const config = await buildConfig(root, selectedEntry);
       await writeFile(
         configPath,
         JSON.stringify(config, null, 2) + "\n",
@@ -216,13 +181,15 @@ export const runInit = async (
 
   // Write mode
   if (options.write || !process.stdout.isTTY) {
-    if (!result.primary && result.kind !== "monorepo-multi-entry") {
-      console.error("Could not determine a primary entry point.");
+    if (!selectedEntry) {
+      console.error(
+        "Could not safely select a BIRD entry point. Review the candidates or configure main explicitly.",
+      );
       process.exitCode = 1;
       return;
     }
 
-    const config = await buildConfig(root, result);
+    const config = await buildConfig(root, selectedEntry);
     const configContent = JSON.stringify(config, null, 2) + "\n";
 
     if (!options.force && (await fileExists(configPath))) {
@@ -236,7 +203,7 @@ export const runInit = async (
     await writeFile(configPath, configContent, "utf8");
     console.log(`Created ${options.configName}`);
     console.log(
-      `  Entry: ${result.primary?.path ?? "workspaces"} (${result.kind}, confidence: ${result.confidence}%)`,
+      `  Entry: ${selectedEntry.path} (${result.kind}, confidence: ${result.confidence}%)`,
     );
     return;
   }
@@ -250,7 +217,7 @@ export const runInit = async (
     );
   }
 
-  if (result.primary || result.kind === "monorepo-multi-entry") {
+  if (selectedEntry) {
     console.log(`\nRun with --write to create ${options.configName}`);
   }
 };

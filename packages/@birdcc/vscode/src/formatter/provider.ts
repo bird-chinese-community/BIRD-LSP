@@ -29,6 +29,8 @@ const getFormatterModule = (): Promise<typeof import("@birdcc/formatter")> => {
 export const createBirdFormattingProvider = (
   getConfiguration: () => ExtensionConfiguration,
   outputChannel: OutputChannel,
+  isDocumentEligible: (document: TextDocument) => Promise<boolean> = async () =>
+    true,
 ): DocumentFormattingEditProvider & DocumentRangeFormattingEditProvider => {
   const warningCache = new Set<string>();
 
@@ -52,6 +54,9 @@ export const createBirdFormattingProvider = (
   return {
     provideDocumentFormattingEdits: async (document) => {
       if (document.languageId !== LANGUAGE_ID) {
+        return [];
+      }
+      if (!(await isDocumentEligible(document))) {
         return [];
       }
 
@@ -88,6 +93,9 @@ export const createBirdFormattingProvider = (
     },
     provideDocumentRangeFormattingEdits: async (document, range) => {
       if (document.languageId !== LANGUAGE_ID) {
+        return [];
+      }
+      if (!(await isDocumentEligible(document))) {
         return [];
       }
 

@@ -38,8 +38,12 @@ import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
-import { resolveProjectAnalysisOptions } from "./project-config.js";
+import {
+  resolveProjectAnalysisOptions,
+  type ProjectAnalysisOptions,
+} from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
+import { evaluateLspDocumentEligibility } from "./document-eligibility.js";
 import {
   clearDiagnostics,
   clearDiagnosticsMany,
@@ -71,6 +75,11 @@ interface GraphCacheEntry {
 interface TypeHintCacheEntry {
   version: number;
   hints: readonly FunctionReturnHint[];
+}
+
+interface EligibilityCacheEntry {
+  version: number;
+  eligible: boolean;
 }
 
 const warmupParserRuntime = async (): Promise<void> => {
@@ -112,6 +121,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const parsedByUri = new Map<string, ParsedCacheEntry>();
   const graphByUri = new Map<string, GraphCacheEntry>();
   const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
+  const eligibilityByUri = new Map<string, EligibilityCacheEntry>();
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
@@ -189,11 +199,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   };
 
-  const analyzeDocument = async (
+  const resolveProjectForDocument = (
     document: TextDocument,
-    options: { publishRelatedDiagnostics: boolean },
-  ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
-    const project = await resolveProjectAnalysisOptions({
+  ): Promise<ProjectAnalysisOptions> =>
+    resolveProjectAnalysisOptions({
       documentUri: document.uri,
       workspaceRootUris,
       defaults: {
@@ -201,6 +210,60 @@ export const startLspServer = (options?: LspServerOptions): void => {
         maxFiles: INCLUDE_MAX_FILES,
       },
     });
+
+  const isDocumentEligible = async (
+    document: TextDocument,
+    project?: ProjectAnalysisOptions,
+  ): Promise<boolean> => {
+    const cached = eligibilityByUri.get(document.uri);
+    if (cached?.version === document.version) {
+      return cached.eligible;
+    }
+
+    const resolvedProject =
+      project ?? (await resolveProjectForDocument(document));
+    const eligibility = await evaluateLspDocumentEligibility(
+      document.getText(),
+      document.uri,
+      resolvedProject,
+    );
+    eligibilityByUri.set(document.uri, {
+      version: document.version,
+      eligible: eligibility.eligible,
+    });
+    return eligibility.eligible;
+  };
+
+  const createEmptyGraph = async (
+    document: TextDocument,
+  ): Promise<GraphCacheEntry> => {
+    const lintResult = await lintBirdConfig("", { uri: document.uri });
+    const graph: GraphCacheEntry = {
+      entryUri: document.uri,
+      visitedUris: new Set([document.uri]),
+      symbolTable: lintResult.core.symbolTable,
+      byUri: { [document.uri]: lintResult },
+    };
+
+    clearEntryTracking(document.uri);
+    parsedByUri.delete(document.uri);
+    typeHintsByUri.delete(document.uri);
+    graphByUri.set(document.uri, graph);
+    return graph;
+  };
+
+  const analyzeDocument = async (
+    document: TextDocument,
+    options: { publishRelatedDiagnostics: boolean },
+  ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
+    const project = await resolveProjectForDocument(document);
+
+    if (!(await isDocumentEligible(document, project))) {
+      return {
+        entryDiagnostics: [],
+        graph: await createEmptyGraph(document),
+      };
+    }
 
     if (
       project.configPath &&
@@ -447,6 +510,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
     parsedByUri.delete(event.document.uri);
     clearEntryTracking(event.document.uri);
     typeHintsByUri.delete(event.document.uri);
+    eligibilityByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
   });
 
@@ -493,6 +557,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDocumentSymbol(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       const parsed = await getParsedDocument(document);
       return createDocumentSymbolsFromParsed(parsed);
     }),
@@ -500,6 +567,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onHover(async (params) =>
     withDocument(documents, params.textDocument.uri, null, async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return null;
+      }
       // Try ASN hover first (more specific)
       if (asnIntel.available) {
         const lineText = getLineText(document, params.position.line);
@@ -514,6 +584,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDefinition(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const graph = await getGraphForDocument(document);
         return createDefinitionLocations(
@@ -530,6 +603,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onReferences(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const graph = await getGraphForDocument(document);
         return createReferenceLocations(
@@ -546,6 +622,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onCompletion(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       const parsed = await getParsedDocument(document);
       const linePrefix = document.getText({
         start: { line: params.position.line, character: 0 },
@@ -575,6 +654,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDocumentFormatting(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const text = document.getText();
         const result = await formatBirdConfig(text);
@@ -611,6 +693,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       params.textDocument.uri,
       [],
       async (document): Promise<InlayHint[]> => {
+        if (!(await isDocumentEligible(document))) {
+          return [];
+        }
         const text = document.getText();
         const results: InlayHint[] = [];
 

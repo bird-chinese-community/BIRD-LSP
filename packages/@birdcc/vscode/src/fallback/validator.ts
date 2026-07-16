@@ -138,6 +138,8 @@ const checkFilePermission = async (
 export const createFallbackValidator = (
   getConfiguration: () => ExtensionConfiguration,
   outputChannel: OutputChannel,
+  isDocumentEligible: (document: TextDocument) => Promise<boolean> = async () =>
+    true,
 ): FallbackValidator => {
   const diagnosticCollection =
     languages.createDiagnosticCollection("bird2-fallback");
@@ -209,6 +211,12 @@ export const createFallbackValidator = (
     }
 
     if (!isBirdDocument(document)) {
+      return;
+    }
+    if (!(await isDocumentEligible(document))) {
+      if (isLatestValidationTicket(uri, ticket)) {
+        clearDocumentDiagnostics(document);
+      }
       return;
     }
 
