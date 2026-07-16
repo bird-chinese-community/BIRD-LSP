@@ -54,11 +54,13 @@ export const resolveIncludeGraph = (
         continue;
       }
 
-      const matches = /[*?]/.test(relativePattern)
-        ? knownPaths.filter((path) => globToRegExp(relativePattern).test(path))
-        : knownPathSet.has(relativePattern)
-          ? [relativePattern]
-          : [];
+      let matches: string[];
+      if (/[*?]/.test(relativePattern)) {
+        const pattern = globToRegExp(relativePattern);
+        matches = knownPaths.filter((path) => pattern.test(path));
+      } else {
+        matches = knownPathSet.has(relativePattern) ? [relativePattern] : [];
+      }
 
       if (matches.length === 0) {
         missing += 1;
