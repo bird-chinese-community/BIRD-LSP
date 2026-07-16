@@ -123,26 +123,26 @@ export const evaluateBirdDocumentEligibility = async (
   text: string,
   options?: BirdDocumentEligibilityOptions,
 ): Promise<BirdDocumentEligibility> => {
+  if (options?.explicitMain) {
+    return {
+      eligible: true,
+      reason: "explicit-main",
+      declarationKinds: [],
+    };
+  }
+
+  if (options?.filePath && isCanonicalBirdConfigPath(options.filePath)) {
+    return {
+      eligible: true,
+      reason: "canonical-filename",
+      declarationKinds: [],
+    };
+  }
+
   try {
     const parsed = await parseBirdConfig(text);
     return evaluateParsedBirdDocumentEligibility(parsed, options);
   } catch {
-    if (options?.explicitMain) {
-      return {
-        eligible: true,
-        reason: "explicit-main",
-        declarationKinds: [],
-      };
-    }
-
-    if (options?.filePath && isCanonicalBirdConfigPath(options.filePath)) {
-      return {
-        eligible: true,
-        reason: "canonical-filename",
-        declarationKinds: [],
-      };
-    }
-
     return {
       eligible: false,
       reason: "no-evidence",

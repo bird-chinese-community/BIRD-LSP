@@ -91,7 +91,7 @@ export const collectReachableIncludes = (
   const queue = [...(edges.get(entryPath) ?? [])];
 
   while (queue.length > 0) {
-    const current = queue.shift()!;
+    const current = queue.pop()!;
     if (current === entryPath || visited.has(current)) {
       continue;
     }

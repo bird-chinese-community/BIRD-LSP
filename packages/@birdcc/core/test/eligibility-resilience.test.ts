@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   parseBirdConfig: vi.fn(),
@@ -11,6 +11,10 @@ vi.mock("@birdcc/parser", () => ({
 import { evaluateBirdDocumentEligibility } from "../src/detection/eligibility.js";
 
 describe("BIRD document eligibility resilience", () => {
+  beforeEach(() => {
+    mocks.parseBirdConfig.mockReset();
+  });
+
   it("rejects an ordinary document when the parser fails", async () => {
     mocks.parseBirdConfig.mockRejectedValueOnce(new Error("parser failed"));
 
@@ -33,7 +37,7 @@ describe("BIRD document eligibility resilience", () => {
       "explicit-main",
     ],
   ])(
-    "preserves the %s escape hatch when the parser fails",
+    "uses the %s escape hatch without invoking the parser",
     async (_name, options, reason) => {
       mocks.parseBirdConfig.mockRejectedValueOnce(new Error("parser failed"));
 
@@ -44,6 +48,7 @@ describe("BIRD document eligibility resilience", () => {
         reason,
         declarationKinds: [],
       });
+      expect(mocks.parseBirdConfig).not.toHaveBeenCalled();
     },
   );
 });
