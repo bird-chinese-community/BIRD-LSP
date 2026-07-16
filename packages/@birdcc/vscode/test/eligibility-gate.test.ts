@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -88,6 +88,32 @@ describe("VS Code BIRD document eligibility gate", () => {
     await expect(
       gate.isEligible(createDocument(explicitPath, "", 1)),
     ).resolves.toBe(true);
+
+    gate.dispose();
+  });
+
+  it("matches explicit-main casing according to the host file system", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const explicitPath = join(mocks.workspaceRoot, "Custom.conf");
+    const caseVariantPath = join(mocks.workspaceRoot, "custom.conf");
+    await writeFile(explicitPath, "", "utf8");
+    await writeFile(
+      join(mocks.workspaceRoot, "bird.config.json"),
+      JSON.stringify({ main: "custom.conf" }),
+      "utf8",
+    );
+
+    const caseVariantExists = await realpath(caseVariantPath).then(
+      () => true,
+      () => false,
+    );
+    const shouldMatch =
+      (process.platform === "win32" || process.platform === "darwin") &&
+      caseVariantExists;
+
+    await expect(
+      gate.isEligible(createDocument(explicitPath, "", 1)),
+    ).resolves.toBe(shouldMatch);
 
     gate.dispose();
   });

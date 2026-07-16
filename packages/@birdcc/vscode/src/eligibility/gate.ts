@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, normalize, resolve } from "node:path";
 import { evaluateBirdDocumentEligibility } from "@birdcc/core";
 import { workspace, type Disposable, type TextDocument } from "vscode";
@@ -25,9 +25,32 @@ export interface BirdDocumentEligibilityGate extends Disposable {
   clear: () => void;
 }
 
-const normalizeForComparison = (filePath: string): string => {
-  const normalized = normalize(resolve(filePath));
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+const normalizePath = (filePath: string): string =>
+  normalize(resolve(filePath));
+
+const pathsReferToSameLocation = async (
+  leftPath: string,
+  rightPath: string,
+): Promise<boolean> => {
+  const left = normalizePath(leftPath);
+  const right = normalizePath(rightPath);
+  if (left === right) {
+    return true;
+  }
+
+  if (process.platform !== "win32" && process.platform !== "darwin") {
+    return false;
+  }
+
+  try {
+    const [realLeft, realRight] = await Promise.all([
+      realpath(left),
+      realpath(right),
+    ]);
+    return normalizePath(realLeft) === normalizePath(realRight);
+  } catch {
+    return false;
+  }
 };
 
 const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
@@ -35,11 +58,9 @@ const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
     return false;
   }
 
-  const documentPath = normalizeForComparison(document.uri.fsPath);
+  const documentPath = normalizePath(document.uri.fsPath);
   const workspaceRoot = workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
-  const stopPath = workspaceRoot
-    ? normalizeForComparison(workspaceRoot)
-    : undefined;
+  const stopPath = workspaceRoot ? normalizePath(workspaceRoot) : undefined;
   let current = dirname(documentPath);
 
   while (true) {
@@ -54,13 +75,13 @@ const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
         const mainPath = isAbsolute(parsed.main)
           ? parsed.main
           : resolve(current, parsed.main);
-        return normalizeForComparison(mainPath) === documentPath;
+        return pathsReferToSameLocation(mainPath, documentPath);
       } catch {
         // Missing or invalid project configuration does not authorize the file.
       }
     }
 
-    if (stopPath && normalizeForComparison(current) === stopPath) {
+    if (stopPath && (await pathsReferToSameLocation(current, stopPath))) {
       return false;
     }
     const parent = dirname(current);
