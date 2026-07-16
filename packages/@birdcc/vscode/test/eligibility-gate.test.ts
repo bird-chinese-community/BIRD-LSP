@@ -117,4 +117,23 @@ describe("VS Code BIRD document eligibility gate", () => {
 
     gate.dispose();
   });
+
+  it.each(["null", "[]", '"bird.conf"'])(
+    "ignores non-object project configuration %s",
+    async (configContent) => {
+      const gate = createBirdDocumentEligibilityGate();
+      const customPath = join(mocks.workspaceRoot, "custom.conf");
+      await writeFile(
+        join(mocks.workspaceRoot, "bird.config.json"),
+        configContent,
+        "utf8",
+      );
+
+      await expect(
+        gate.isEligible(createDocument(customPath, "", 1)),
+      ).resolves.toBe(false);
+
+      gate.dispose();
+    },
+  );
 });

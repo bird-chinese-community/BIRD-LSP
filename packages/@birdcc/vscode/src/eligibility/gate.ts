@@ -10,6 +10,16 @@ interface EligibilityCacheEntry {
   readonly eligible: boolean;
 }
 
+interface BirdConfigWithMain {
+  readonly main: string;
+}
+
+const isBirdConfigWithMain = (value: unknown): value is BirdConfigWithMain =>
+  typeof value === "object" &&
+  value !== null &&
+  "main" in value &&
+  typeof value.main === "string";
+
 export interface BirdDocumentEligibilityGate extends Disposable {
   isEligible: (document: TextDocument) => Promise<boolean>;
   clear: () => void;
@@ -36,13 +46,8 @@ const findExplicitMain = async (document: TextDocument): Promise<boolean> => {
     for (const fileName of CONFIG_FILE_NAMES) {
       try {
         const configPath = resolve(current, fileName);
-        const parsed = JSON.parse(await readFile(configPath, "utf8")) as {
-          main?: unknown;
-        };
-        if (
-          typeof parsed.main !== "string" ||
-          parsed.main.trim().length === 0
-        ) {
+        const parsed: unknown = JSON.parse(await readFile(configPath, "utf8"));
+        if (!isBirdConfigWithMain(parsed) || parsed.main.trim().length === 0) {
           continue;
         }
 
