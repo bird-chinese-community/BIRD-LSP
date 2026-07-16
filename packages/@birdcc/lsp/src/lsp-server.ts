@@ -124,6 +124,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const graphByUri = new Map<string, GraphCacheEntry>();
   const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
   const eligibilityByUri = new Map<string, EligibilityCacheEntry>();
+  const pendingEligibilityByKey = new Map<string, Promise<boolean>>();
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
@@ -228,21 +229,38 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
 
     const evaluationGeneration = projectConfigGeneration;
-    const resolvedProject =
-      project ?? (await resolveProjectForDocument(document));
-    const eligibility = await evaluateLspDocumentEligibility(
-      document.getText(),
-      document.uri,
-      resolvedProject,
-    );
-    if (evaluationGeneration === projectConfigGeneration) {
-      eligibilityByUri.set(document.uri, {
-        version: document.version,
-        projectConfigGeneration: evaluationGeneration,
-        eligible: eligibility.eligible,
-      });
+    const pendingKey = `${document.uri}@${document.version}@${evaluationGeneration}`;
+    const pending = pendingEligibilityByKey.get(pendingKey);
+    if (pending) {
+      return pending;
     }
-    return eligibility.eligible;
+
+    const task = (async (): Promise<boolean> => {
+      const resolvedProject =
+        project ?? (await resolveProjectForDocument(document));
+      const eligibility = await evaluateLspDocumentEligibility(
+        document.getText(),
+        document.uri,
+        resolvedProject,
+      );
+      if (evaluationGeneration === projectConfigGeneration) {
+        eligibilityByUri.set(document.uri, {
+          version: document.version,
+          projectConfigGeneration: evaluationGeneration,
+          eligible: eligibility.eligible,
+        });
+      }
+      return eligibility.eligible;
+    })();
+
+    pendingEligibilityByKey.set(pendingKey, task);
+    try {
+      return await task;
+    } finally {
+      if (pendingEligibilityByKey.get(pendingKey) === task) {
+        pendingEligibilityByKey.delete(pendingKey);
+      }
+    }
   };
 
   const createEmptyGraph = async (
@@ -563,6 +581,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
     projectConfigGeneration += 1;
     eligibilityByUri.clear();
+    pendingEligibilityByKey.clear();
     graphByUri.clear();
     pendingGraphByUri.clear();
     for (const publishedUris of publishedUrisByEntry.values()) {
