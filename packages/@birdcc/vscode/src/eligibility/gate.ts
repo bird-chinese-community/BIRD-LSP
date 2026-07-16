@@ -131,10 +131,15 @@ export const createBirdDocumentEligibilityGate =
           },
         );
         if (taskGeneration === generation) {
-          cache.set(uri, {
-            version: document.version,
-            eligible: eligibility.eligible,
-          });
+          // Guard against out-of-order completions: only overwrite the cache
+          // when this task evaluated a newer (or the same) document version.
+          const currentCached = cache.get(uri);
+          if (!currentCached || currentCached.version < document.version) {
+            cache.set(uri, {
+              version: document.version,
+              eligible: eligibility.eligible,
+            });
+          }
         }
         return eligibility.eligible;
       })();

@@ -7,7 +7,10 @@ import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
 import { scanBraceDepth } from "./brace-scanner.js";
-import { evaluateParsedBirdDocumentEligibility } from "./eligibility.js";
+import {
+  evaluateParsedBirdDocumentEligibility,
+  isCanonicalBirdConfigPath,
+} from "./eligibility.js";
 import type { BirdDocumentEligibility, ContentSignals } from "./types.js";
 
 /** Maximum bytes to read per file for content scanning */
@@ -175,6 +178,19 @@ export const analyzeFileContent = async (
       }),
     };
   } catch {
+    // A parser crash (syntax error, WASM limits) must not silently drop files
+    // that are eligible by explicit main or canonical filename. Fall back to
+    // regex-based signals so LSP/formatting stay active through transient errors.
+    if (explicitMain || isCanonicalBirdConfigPath(relativePath)) {
+      return {
+        signals: extractContentSignals(content),
+        eligibility: {
+          eligible: true,
+          reason: explicitMain ? "explicit-main" : "canonical-filename",
+          declarationKinds: [],
+        },
+      };
+    }
     return null;
   }
 };

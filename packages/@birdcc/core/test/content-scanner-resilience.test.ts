@@ -31,6 +31,27 @@ describe("content scanner resilience", () => {
     await expect(analyzeFileContent(root, "broken.conf")).resolves.toBeNull();
   });
 
+  it.each([
+    ["canonical filename", "bird.conf", false, "canonical-filename"],
+    ["explicit main", "custom.conf", true, "explicit-main"],
+  ])(
+    "preserves the %s escape hatch when the parser fails",
+    async (_name, fileName, explicitMain, reason) => {
+      root = await mkdtemp(join(tmpdir(), "birdcc-content-scan-"));
+      await writeFile(join(root, fileName), "protocol device {", "utf8");
+      mocks.parseBirdConfig.mockRejectedValueOnce(new Error("parser failed"));
+
+      const analysis = await analyzeFileContent(root, fileName, explicitMain);
+
+      expect(analysis?.eligibility).toEqual({
+        eligible: true,
+        reason,
+        declarationKinds: [],
+      });
+      expect(analysis?.signals.hasProtocolDevice).toBe(true);
+    },
+  );
+
   it("ignores a recovered include declaration without a string path", async () => {
     root = await mkdtemp(join(tmpdir(), "birdcc-content-scan-"));
     await writeFile(join(root, "recovered.conf"), "include;", "utf8");

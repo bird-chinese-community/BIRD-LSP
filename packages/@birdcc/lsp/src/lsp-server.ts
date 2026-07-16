@@ -244,11 +244,20 @@ export const startLspServer = (options?: LspServerOptions): void => {
         resolvedProject,
       );
       if (evaluationGeneration === projectConfigGeneration) {
-        eligibilityByUri.set(document.uri, {
-          version: document.version,
-          projectConfigGeneration: evaluationGeneration,
-          eligible: eligibility.eligible,
-        });
+        // Guard against out-of-order completions: only overwrite the cache when
+        // this task evaluated a newer (or the same) document version.
+        const currentCached = eligibilityByUri.get(document.uri);
+        if (
+          !currentCached ||
+          currentCached.projectConfigGeneration !== evaluationGeneration ||
+          currentCached.version < document.version
+        ) {
+          eligibilityByUri.set(document.uri, {
+            version: document.version,
+            projectConfigGeneration: evaluationGeneration,
+            eligible: eligibility.eligible,
+          });
+        }
       }
       return eligibility.eligible;
     })();
