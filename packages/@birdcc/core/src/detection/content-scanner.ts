@@ -119,11 +119,10 @@ const extractParsedContentSignals = (
   parsed: ParsedBirdDocument,
 ): ContentSignals => {
   const legacySignals = extractContentSignals(content);
-  const declarations = parsed?.program?.declarations ?? [];
-  const protocols = declarations.filter(
+  const protocols = parsed.program.declarations.filter(
     (declaration) => declaration.kind === "protocol",
   );
-  const hasGlobalRouterId = declarations.some(
+  const hasGlobalRouterId = parsed.program.declarations.some(
     (declaration) => declaration.kind === "router-id",
   );
 
@@ -132,7 +131,7 @@ const extractParsedContentSignals = (
     hasProtocolRouterIdOnly:
       !hasGlobalRouterId &&
       protocols.some((protocol) =>
-        protocol.statements?.some(
+        protocol.statements.some(
           (statement) => statement.kind === "protocol-router-id",
         ),
       ),
@@ -144,10 +143,10 @@ const extractParsedContentSignals = (
     ),
     hasLogDirective: legacySignals.hasLogDirective,
     hasProtocolBlock: protocols.length > 0,
-    hasDefine: declarations.some(
+    hasDefine: parsed.program.declarations.some(
       (declaration) => declaration.kind === "define",
     ),
-    includeStatements: declarations.flatMap((declaration) =>
+    includeStatements: parsed.program.declarations.flatMap((declaration) =>
       declaration.kind === "include" && typeof declaration.path === "string"
         ? [declaration.path]
         : [],
