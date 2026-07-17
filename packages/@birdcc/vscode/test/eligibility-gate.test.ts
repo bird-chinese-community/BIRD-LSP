@@ -139,6 +139,22 @@ describe("VS Code BIRD document eligibility gate", () => {
     gate.dispose();
   });
 
+  it("does not authorize an unresolved case-only path match", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const virtualDocumentPath = join(mocks.workspaceRoot, "Virtual.conf");
+    await writeFile(
+      join(mocks.workspaceRoot, "bird.config.json"),
+      JSON.stringify({ main: "virtual.conf" }),
+      "utf8",
+    );
+
+    await expect(
+      gate.isEligible(createDocument(virtualDocumentPath, "", 1)),
+    ).resolves.toBe(false);
+
+    gate.dispose();
+  });
+
   it("caches explicit-main lookup until project configuration is invalidated", async () => {
     const gate = createBirdDocumentEligibilityGate();
     const explicitPath = join(mocks.workspaceRoot, "custom.conf");

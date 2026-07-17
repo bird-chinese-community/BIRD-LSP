@@ -38,16 +38,6 @@ const pathsReferToSameLocation = async (
     return true;
   }
 
-  const isCaseInsensitive =
-    process.platform === "win32" || process.platform === "darwin";
-  if (isCaseInsensitive && left.toLowerCase() === right.toLowerCase()) {
-    return true;
-  }
-
-  if (!isCaseInsensitive) {
-    return false;
-  }
-
   try {
     const [realLeft, realRight] = await Promise.all([
       realpath(left),
