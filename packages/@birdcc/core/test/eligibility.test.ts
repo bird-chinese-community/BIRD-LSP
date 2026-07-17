@@ -74,32 +74,15 @@ describe("BIRD document eligibility", () => {
     });
   });
 
-  it("skips evidence parsing for oversized non-canonical documents", async () => {
+  it("keeps semantic eligibility independent of document size", async () => {
     const oversized = `protocol device {}\n${"# padding\n".repeat(120_000)}`;
     expect(oversized.length).toBeGreaterThan(1024 * 1024);
 
     await expect(
       evaluateBirdDocumentEligibility(oversized, { filePath: "custom.conf" }),
     ).resolves.toMatchObject({
-      eligible: false,
-      reason: "no-evidence",
-    });
-
-    // Trusted escape hatches are checked before the size limit and stay eligible.
-    await expect(
-      evaluateBirdDocumentEligibility(oversized, { filePath: "bird.conf" }),
-    ).resolves.toMatchObject({
       eligible: true,
-      reason: "canonical-filename",
-    });
-    await expect(
-      evaluateBirdDocumentEligibility(oversized, {
-        filePath: "custom.conf",
-        explicitMain: true,
-      }),
-    ).resolves.toMatchObject({
-      eligible: true,
-      reason: "explicit-main",
+      reason: "semantic-evidence",
     });
   });
 
