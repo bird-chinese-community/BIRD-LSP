@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0
+
+### Patch Changes
+
+- [#147](https://github.com/bird-chinese-community/BIRD-LSP/pull/147) [`e9ddd80`](https://github.com/bird-chinese-community/BIRD-LSP/commit/e9ddd80ab5e5adf4a54a959ff3c7708324c3dd21) Thanks [@Alice39s](https://github.com/Alice39s)! - Harden automatic BIRD project entry detection with parsed language evidence,
+  resolved include topology, safe auto-selection, and foreign `.conf` guards.
+- Updated dependencies [[`c2b5061`](https://github.com/bird-chinese-community/BIRD-LSP/commit/c2b506177125deffba32db8e2add1ce6deca87f8), [`e9ddd80`](https://github.com/bird-chinese-community/BIRD-LSP/commit/e9ddd80ab5e5adf4a54a959ff3c7708324c3dd21)]:
+  - @birdcc/linter@0.1.0
+  - @birdcc/core@0.1.0
+  - @birdcc/lsp@0.1.0
+  - @birdcc/formatter@0.1.0
+
 All notable changes to `@birdcc/cli` will be documented in this file.
 
 ## [0.1.0-beta.1] - 2026-05-02
@@ -83,7 +95,6 @@ All notable changes to `@birdcc/cli` will be documented in this file.
 ### 🔧 Changed / 变更
 
 - ⬆️ **依赖升级** / **Dependency upgrades**
-
   - `cac` 从 `^6.7.14` 升级至 `^7.0.0`（零依赖、纯 ESM、无 breaking change 影响本项目）
   - 新增 `yoctocolors` 用于彩色终端输出
 
