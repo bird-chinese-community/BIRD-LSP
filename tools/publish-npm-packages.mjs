@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { execFileSync, spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
 const SUMMARY_PATH = path.join(".tmp", "npm-release-summary.json");
+const PACK_DIRECTORY = path.join(".tmp", "npm-packs");
 
 const parseBoolean = (value, fallback) => {
   if (value === undefined) {
@@ -74,6 +75,14 @@ const FORBIDDEN_RELEASE_PACKAGES = new Map([
     "@birdcc/intel",
     "Publish @birdcc/intel via the 'Intel ASN Database Update (Weekly)' workflow instead of the manual NPM Release job.",
   ],
+  [
+    "@birdcc/vscode",
+    "Publish @birdcc/vscode via the VS Code Marketplace workflow instead of npm.",
+  ],
+  [
+    "bird2-extension-pack",
+    "Publish bird2-extension-pack via the VS Code Marketplace workflow instead of npm.",
+  ],
 ]);
 
 const runCommand = (command, args) =>
@@ -128,6 +137,8 @@ const publishOnePackage = async (workspacePackage, options) => {
   const packageJsonPath = path.join(workspacePackage.path, "package.json");
   const originalContent = await readFile(packageJsonPath, "utf8");
   const originalManifest = JSON.parse(originalContent);
+  const tarballName = `${workspacePackage.name.replace(/^@/, "").replaceAll("/", "-")}-${originalManifest.version}.tgz`;
+  const tarballPath = path.resolve(PACK_DIRECTORY, tarballName);
   let patchedPrivate = false;
 
   try {
@@ -150,24 +161,36 @@ const publishOnePackage = async (workspacePackage, options) => {
       patchedPrivate = true;
     }
 
-    await runCommand("pnpm", ["--filter", `${workspacePackage.name}...`, "build"]);
-
-    const publishArgs = [
+    await runCommand("pnpm", [
+      "--filter",
+      `${workspacePackage.name}...`,
+      "build",
+    ]);
+    await mkdir(PACK_DIRECTORY, { recursive: true });
+    await runCommand("pnpm", [
       "--filter",
       workspacePackage.name,
+      "pack",
+      "--out",
+      tarballPath,
+    ]);
+
+    const publishArgs = [
       "publish",
+      tarballPath,
       "--access",
       "public",
       "--tag",
       options.npmTag,
-      "--no-git-checks",
     ];
 
-    if (options.dryRun) {
-      publishArgs.push("--dry-run");
+    if (!options.dryRun) {
+      await runCommand("npm", publishArgs);
+    } else {
+      console.log(
+        `Dry run: packed ${workspacePackage.name} without publishing.`,
+      );
     }
-
-    await runCommand("pnpm", publishArgs);
 
     return {
       name: workspacePackage.name,
@@ -178,6 +201,7 @@ const publishOnePackage = async (workspacePackage, options) => {
       publishedAt: new Date().toISOString(),
     };
   } finally {
+    await rm(tarballPath, { force: true });
     if (patchedPrivate) {
       await writeFile(packageJsonPath, originalContent, "utf8");
     }
@@ -188,7 +212,9 @@ const main = async () => {
   const options = parseArgs();
 
   if (options.packages.length === 0) {
-    throw new Error("No packages selected. Pass --packages <comma-separated-names>.");
+    throw new Error(
+      "No packages selected. Pass --packages <comma-separated-names>.",
+    );
   }
 
   for (const name of options.packages) {
@@ -198,14 +224,10 @@ const main = async () => {
     }
   }
 
-  if (!options.dryRun && !process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN) {
-    throw new Error(
-      "Missing npm auth token. Set NODE_AUTH_TOKEN or NPM_TOKEN for non-dry-run publish.",
-    );
-  }
-
   const workspacePackages = listWorkspacePackages();
-  const missing = options.packages.filter((name) => !workspacePackages.has(name));
+  const missing = options.packages.filter(
+    (name) => !workspacePackages.has(name),
+  );
   if (missing.length > 0) {
     throw new Error(`Unknown workspace package(s): ${missing.join(", ")}`);
   }

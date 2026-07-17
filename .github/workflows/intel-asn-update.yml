@@ -14,11 +14,12 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   update-asn-db:
     name: Update ASN Database
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +34,9 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.18.0
 
       - run: pnpm install --frozen-lockfile
 
@@ -77,42 +81,10 @@ jobs:
       - name: Build package
         run: pnpm --filter @birdcc/intel build
 
-      - name: Verify npm publish token
-        if: ${{ inputs.dry_run != true }}
-        working-directory: packages/@birdcc/intel
-        run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN is not configured for this repository."
-            exit 1
-          fi
-
-          NPM_USER="$(npm whoami --registry=https://registry.npmjs.org)"
-          export NPM_USER
-          echo "npm publisher identity: ${NPM_USER}"
-
-          npm access list packages "${NPM_USER}" --json > /tmp/npm-access.json
-          node -e "
-            const fs = require('node:fs');
-            const access = JSON.parse(fs.readFileSync('/tmp/npm-access.json', 'utf8'));
-            const permission = access['@birdcc/intel'];
-            if (permission !== 'read-write') {
-              console.error(
-                '::error::npm user ' + process.env.NPM_USER +
-                  ' does not have read-write access to @birdcc/intel. Update the repository NPM_TOKEN secret to a token owned by an npm user or team that can publish @birdcc/intel.'
-              );
-              process.exit(1);
-            }
-            console.log('npm package access: @birdcc/intel=' + permission);
-          "
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to npm
         if: ${{ inputs.dry_run != true }}
         working-directory: packages/@birdcc/intel
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Commit updated database
         if: ${{ inputs.dry_run != true }}
