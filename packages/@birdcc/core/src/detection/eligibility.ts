@@ -63,8 +63,9 @@ export const collectBirdDeclarationEvidence = (
   parsed: ParsedBirdDocument,
 ): BirdDeclarationEvidence[] => {
   const evidence = new Set<BirdDeclarationEvidence>();
+  const declarations = parsed?.program?.declarations ?? [];
 
-  for (const declaration of parsed.program.declarations) {
+  for (const declaration of declarations) {
     if (!isQualifyingDeclarationKind(declaration.kind)) {
       continue;
     }
