@@ -104,6 +104,32 @@ describe("@birdcc/linter bgp+ospf rules", () => {
     expect(codes).not.toContain("bgp/missing-remote-as");
   });
 
+  it("accepts BGP peer roles without an AS clause", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor 192.0.2.1 internal;
+        neighbor 192.0.2.2 external onlink;
+      }
+    `);
+
+    expect(codes).not.toContain("bgp/missing-remote-as");
+    expect(codes).not.toContain("cfg/syntax-error");
+  });
+
+  it("accepts prefix addresses for BGP neighbor ranges", async () => {
+    const codes = await codesOf(`
+      protocol bgp edge {
+        local as 65001;
+        neighbor range 192.0.2.0/24 external as 65000 onlink;
+      }
+    `);
+
+    expect(codes).not.toContain("cfg/incompatible-type");
+    expect(codes).not.toContain("bgp/missing-remote-as");
+    expect(codes).not.toContain("cfg/syntax-error");
+  });
+
   it("does not hit bgp/missing-remote-as when neighbor uses scoped interface with ASN", async () => {
     const codes = await codesOf(`
       protocol bgp edge {

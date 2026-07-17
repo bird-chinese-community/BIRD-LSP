@@ -478,13 +478,20 @@ const cfgIncompatibleTypeRule: BirdRule = ({ parsed }) => {
 
   for (const declaration of protocolDeclarations(parsed)) {
     for (const statement of declaration.statements) {
-      if (statement.kind === "neighbor" && statement.addressKind !== "ip") {
+      if (
+        statement.kind === "neighbor" &&
+        ((statement.isRange && statement.addressKind !== "prefix") ||
+          (!statement.isRange && statement.addressKind !== "ip"))
+      ) {
+        const expectedAddressType = statement.isRange
+          ? "an IP prefix"
+          : "an IP literal";
         pushUniqueDiagnostic(
           diagnostics,
           seen,
           createRuleDiagnostic(
             "cfg/incompatible-type",
-            `Protocol '${declaration.name}' neighbor address must be an IP literal`,
+            `Protocol '${declaration.name}' neighbor address must be ${expectedAddressType}`,
             statement.addressRange,
           ),
         );

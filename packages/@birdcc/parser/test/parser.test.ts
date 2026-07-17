@@ -71,6 +71,8 @@ describe("@birdcc/parser tree-sitter", () => {
       router id 192.0.2.1;
       router id 12345;
       router id from routing;
+      router id from ROUTING;
+      router id from "Lo*";
       router id 999.0.0.1;
       routing table master;
       ipv4 table edge4;
@@ -87,7 +89,7 @@ describe("@birdcc/parser tree-sitter", () => {
       (item) => item.kind === "table",
     );
 
-    expect(routerDeclarations).toHaveLength(4);
+    expect(routerDeclarations).toHaveLength(6);
     expect(tableDeclarations).toHaveLength(4);
 
     const firstRouter = routerDeclarations[0];
@@ -102,7 +104,19 @@ describe("@birdcc/parser tree-sitter", () => {
       expect(fromRouter.fromSource).toBe("routing");
     }
 
-    const invalidRouter = routerDeclarations[3];
+    const uppercaseInterfaceRouter = routerDeclarations[3];
+    if (uppercaseInterfaceRouter?.kind === "router-id") {
+      expect(uppercaseInterfaceRouter.valueKind).toBe("from");
+      expect(uppercaseInterfaceRouter.fromSource).toBe("ROUTING");
+    }
+
+    const fromInterfaceRouter = routerDeclarations[4];
+    if (fromInterfaceRouter?.kind === "router-id") {
+      expect(fromInterfaceRouter.valueKind).toBe("from");
+      expect(fromInterfaceRouter.fromSource).toBe("Lo*");
+    }
+
+    const invalidRouter = routerDeclarations[5];
     if (invalidRouter?.kind === "router-id") {
       expect(invalidRouter.valueKind).toBe("unknown");
       expect(invalidRouter.value).toBe("999.0.0.1");
@@ -163,6 +177,10 @@ describe("@birdcc/parser tree-sitter", () => {
     const parsed = await parseBirdConfig(`
       timeformat route "%T.%3f" 72000 "%F";
       timeformat log "%F %T";
+      timeformat route iso short;
+      timeformat protocol iso short ms;
+      timeformat log iso long us;
+      timeformat iso long ms;
     `);
 
     const declarations = parsed.program.declarations.filter(
@@ -170,7 +188,7 @@ describe("@birdcc/parser tree-sitter", () => {
     );
 
     expect(parsed.issues).toEqual([]);
-    expect(declarations).toHaveLength(2);
+    expect(declarations).toHaveLength(5);
 
     expect(declarations[0]).toMatchObject({
       kind: "timeformat",
@@ -188,6 +206,42 @@ describe("@birdcc/parser tree-sitter", () => {
       format: "%F %T",
       formatText: '"%F %T"',
     });
+
+    expect(declarations[2]).toMatchObject({
+      kind: "timeformat",
+      scope: "route",
+      format: "iso",
+      formatText: "iso short",
+      limit: undefined,
+      fallbackFormat: undefined,
+    });
+
+    expect(declarations[3]).toMatchObject({
+      kind: "timeformat",
+      scope: "protocol",
+      format: "iso",
+      formatText: "iso short ms",
+      limit: undefined,
+      fallbackFormat: undefined,
+    });
+
+    expect(declarations[4]).toMatchObject({
+      kind: "timeformat",
+      scope: "log",
+      format: "iso",
+      formatText: "iso long us",
+      limit: undefined,
+      fallbackFormat: undefined,
+    });
+  });
+
+  it("reports incomplete ISO timeformat declarations", async () => {
+    const parsed = await parseBirdConfig("timeformat base iso;");
+
+    expect(parsed.program.declarations).toHaveLength(0);
+    expect(parsed.issues.map((item) => item.code)).toContain(
+      "parser/syntax-error",
+    );
   });
 
   it("parses watchdog declarations", async () => {
@@ -490,6 +544,64 @@ describe("@birdcc/parser tree-sitter", () => {
         ).toBe(true);
       }
     }
+  });
+
+  it("parses BGP neighbor ranges and repeated options in source order", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol bgp edge_peer {
+        local as 65001;
+        neighbor range 192.0.2.0/24 external as 65000 onlink port 1179 as 65002 port 179;
+        neighbor 192.0.2.1 internal;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+    const protocol = parsed.program.declarations.find(
+      (item) => item.kind === "protocol",
+    );
+    expect(protocol?.kind).toBe("protocol");
+    if (protocol?.kind === "protocol") {
+      const neighbors = protocol.statements.filter(
+        (item) => item.kind === "neighbor",
+      );
+      expect(neighbors).toMatchObject([
+        {
+          kind: "neighbor",
+          isRange: true,
+          address: "192.0.2.0/24",
+          addressKind: "prefix",
+          asn: "65002",
+          port: "179",
+          peerType: "external",
+          onlink: true,
+        },
+        {
+          kind: "neighbor",
+          isRange: false,
+          address: "192.0.2.1",
+          addressKind: "ip",
+          peerType: "internal",
+          onlink: false,
+        },
+      ]);
+    }
+  });
+
+  it("parses RIP NG protocol variants", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol rip ng rip6 {
+        ipv6;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+    expect(parsed.program.declarations).toContainEqual(
+      expect.objectContaining({
+        kind: "protocol",
+        protocolType: "rip ng",
+        name: "rip6",
+      }),
+    );
   });
 
   it("parses RIP top-level protocol options", async () => {
@@ -1733,6 +1845,7 @@ describe("@birdcc/parser tree-sitter", () => {
   it("parses BFD protocol option statements", async () => {
     const parsed = await parseBirdConfig(`
       protocol bfd edge_bfd {
+        accept;
         accept ipv4 direct;
         accept ipv6 multihop;
         strict bind yes;
@@ -1751,6 +1864,12 @@ describe("@birdcc/parser tree-sitter", () => {
     if (protocol?.kind === "protocol") {
       expect(protocol.protocolType).toBe("bfd");
       expect(protocol.statements).toMatchObject([
+        {
+          kind: "bfd-option",
+          option: "accept",
+          families: [],
+          sessionTypes: [],
+        },
         {
           kind: "bfd-option",
           option: "accept",
@@ -1782,6 +1901,47 @@ describe("@birdcc/parser tree-sitter", () => {
               )),
         ),
       ).toBe(false);
+    }
+  });
+
+  it("reports accept options outside their valid contexts", async () => {
+    const parsed = await parseBirdConfig(`
+      filter invalid_filter {
+        accept ipv4;
+      }
+
+      protocol bgp invalid_bgp {
+        accept multihop;
+      }
+
+      protocol bfd invalid_bfd {
+        accept from "2026-01-01";
+      }
+
+      protocol bgp valid_password_bounds {
+        password "secret" {
+          accept from "2026-01-01";
+          accept to "2026-12-31";
+        };
+      }
+    `);
+
+    expect(
+      parsed.issues.filter((item) => item.code === "parser/syntax-error"),
+    ).toMatchObject([
+      { message: "Accept options are not valid in filter statements" },
+      { message: "Accept statements are not valid protocol options here" },
+      { message: "Password accept bounds are not valid BFD options" },
+    ]);
+
+    const filter = parsed.program.declarations.find(
+      (item) => item.kind === "filter",
+    );
+    expect(filter?.kind).toBe("filter");
+    if (filter?.kind === "filter") {
+      expect(filter.statements).not.toContainEqual(
+        expect.objectContaining({ kind: "accept" }),
+      );
     }
   });
 
@@ -2399,6 +2559,10 @@ describe("@birdcc/parser tree-sitter", () => {
         route 198.51.100.0/24 blackhole;
         route 203.0.113.0/24 recursive 192.0.2.254;
         route aspa 65000 providers 64496, 64497;
+        route flow4 {
+          dst 10.0.0.0/8;
+          port > 24 && < 30;
+        };
       }
     `);
 
@@ -2437,8 +2601,27 @@ describe("@birdcc/parser tree-sitter", () => {
           destinationType: "providers",
           optionsText: "64496 64497",
         },
+        {
+          kind: "static-route",
+          routeTarget: "flow4",
+          destinationType: "other",
+        },
       ]);
     }
+  });
+
+  it("reports unsupported top-level FlowSpec blocks", async () => {
+    const parsed = await parseBirdConfig(`
+      flow4 {
+        dst 10.0.0.0/8;
+      };
+    `);
+
+    expect(parsed.issues).toContainEqual(
+      expect.objectContaining({
+        code: "parser/syntax-error",
+      }),
+    );
   });
 
   it("parses static protocol options without BGP option fallback", async () => {

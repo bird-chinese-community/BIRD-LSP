@@ -12,6 +12,7 @@ import {
   type TemplateDeclaration,
   isStrictIpv4Literal,
   nodeOrSelf,
+  normalizeRouterIdFromSource,
   normalizeTableType,
 } from "./shared.js";
 
@@ -128,9 +129,9 @@ export const parseRouterIdDeclaration = (
   if (valueNode.type === "router_id_from_clause") {
     const fromSourceNode = valueNode.childForFieldName("from_source");
     const fromSourceText = isPresentNode(fromSourceNode)
-      ? textOf(fromSourceNode, source).toLowerCase()
+      ? normalizeRouterIdFromSource(textOf(fromSourceNode, source))
       : "";
-    if (fromSourceText !== "routing" && fromSourceText !== "dynamic") {
+    if (fromSourceText.length === 0) {
       return {
         kind: "router-id",
         value: textOf(valueNode, source),

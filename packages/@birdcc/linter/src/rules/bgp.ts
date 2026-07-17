@@ -97,6 +97,8 @@ const bgpMissingRemoteAsRule: BirdRule = ({ parsed }) => {
       }
 
       if (
+        statement.peerType === "internal" ||
+        statement.peerType === "external" ||
         isInternalSession(statement.asn) ||
         isExternalSession(statement.asn)
       ) {
@@ -146,7 +148,8 @@ const bgpAsMismatchRule: BirdRule = ({ parsed }) => {
 
     const hasInternalNeighbor = declaration.statements.some(
       (statement) =>
-        statement.kind === "neighbor" && isInternalSession(statement.asn),
+        statement.kind === "neighbor" &&
+        (statement.peerType === "internal" || isInternalSession(statement.asn)),
     );
 
     if (!hasInternalNeighbor) {

@@ -54,7 +54,7 @@ export interface RouterIdDeclaration extends DeclarationBase {
   value: string;
   valueKind: "ip" | "number" | "from" | "unknown";
   valueRange: SourceRange;
-  fromSource?: "routing" | "dynamic";
+  fromSource?: string;
 }
 
 export interface GracefulRestartWaitDeclaration extends DeclarationBase {
@@ -283,15 +283,20 @@ export interface LocalAsStatement extends StatementBase {
 
 export interface NeighborStatement extends StatementBase {
   kind: "neighbor";
+  isRange: boolean;
   address: string;
   addressRange: SourceRange;
-  addressKind: "ip" | "other";
+  addressKind: "ip" | "prefix" | "other";
   interface?: string;
   interfaceRange?: SourceRange;
   asn?: string;
   asnRange?: SourceRange;
   port?: string;
   portRange?: SourceRange;
+  peerType?: "internal" | "external";
+  peerTypeRange?: SourceRange;
+  onlink: boolean;
+  onlinkRange?: SourceRange;
 }
 
 export interface ImportStatement extends StatementBase {
