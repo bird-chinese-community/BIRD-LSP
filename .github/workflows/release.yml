@@ -59,10 +59,10 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
+          version: pnpm changeset:version
           publish: pnpm run release:publish
           title: "chore(release): version packages"
-          commit: "chore(release): version packages"
+          commit: "chore(release): Version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
