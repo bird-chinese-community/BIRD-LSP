@@ -6,6 +6,7 @@ import type { TextDocument } from "vscode";
 
 const mocks = vi.hoisted(() => ({
   workspaceRoot: "",
+  openDocuments: [] as { uri: { toString(): string } }[],
 }));
 
 const disposable = () => ({ dispose: vi.fn() });
@@ -23,6 +24,9 @@ vi.mock("vscode", () => ({
     }),
     onDidChangeWorkspaceFolders: () => disposable(),
     onDidCloseTextDocument: () => disposable(),
+    get textDocuments() {
+      return mocks.openDocuments;
+    },
   },
 }));
 
@@ -32,8 +36,8 @@ const createDocument = (
   filePath: string,
   text: string,
   version: number,
-): TextDocument =>
-  ({
+): TextDocument => {
+  const document = {
     uri: {
       scheme: "file",
       fsPath: filePath,
@@ -41,10 +45,16 @@ const createDocument = (
     },
     version,
     getText: () => text,
-  }) as unknown as TextDocument;
+  } as unknown as TextDocument;
+  // Register the document as open so the eligibility gate's "still open" guard
+  // (workspace.textDocuments) treats it like a live editor document.
+  mocks.openDocuments.push(document);
+  return document;
+};
 
 describe("VS Code BIRD document eligibility gate", () => {
   beforeEach(async () => {
+    mocks.openDocuments = [];
     mocks.workspaceRoot = await mkdtemp(join(tmpdir(), "birdcc-vscode-gate-"));
   });
 

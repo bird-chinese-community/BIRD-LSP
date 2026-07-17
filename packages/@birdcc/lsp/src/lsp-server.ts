@@ -243,9 +243,14 @@ export const startLspServer = (options?: LspServerOptions): void => {
         document.uri,
         resolvedProject,
       );
-      if (evaluationGeneration === projectConfigGeneration) {
+      if (
+        evaluationGeneration === projectConfigGeneration &&
+        documents.get(document.uri)
+      ) {
         // Guard against out-of-order completions: only overwrite the cache when
-        // this task evaluated a newer (or the same) document version.
+        // this task evaluated a newer (or the same) document version. Skip the
+        // write entirely if the document was closed while this task was pending,
+        // so a resolved promise can't resurrect a deleted cache entry.
         const currentCached = eligibilityByUri.get(document.uri);
         if (
           !currentCached ||

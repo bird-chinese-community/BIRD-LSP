@@ -8,6 +8,14 @@ import type {
 
 const CANONICAL_BIRD_CONFIG_RE = /^\.?bird(?:2|3|6)?\.conf$/i;
 
+// Cap the amount of text handed to the Tree-sitter parser when deciding
+// eligibility on evidence alone. Files above this size (e.g. logs or SQL dumps
+// that happen to carry a `.conf` extension) would waste parse time and risk
+// exhausting the extension host, so treat them as having no evidence. Trusted
+// canonical filenames and explicit `main` entries are handled before this and
+// are never subject to the limit.
+const MAX_EVIDENCE_PARSE_LENGTH = 1024 * 1024;
+
 const BIRD_PROTOCOL_TYPES = new Set([
   "aggregator",
   "babel",
@@ -135,6 +143,14 @@ export const evaluateBirdDocumentEligibility = async (
     return {
       eligible: true,
       reason: "canonical-filename",
+      declarationKinds: [],
+    };
+  }
+
+  if (text.length > MAX_EVIDENCE_PARSE_LENGTH) {
+    return {
+      eligible: false,
+      reason: "no-evidence",
       declarationKinds: [],
     };
   }

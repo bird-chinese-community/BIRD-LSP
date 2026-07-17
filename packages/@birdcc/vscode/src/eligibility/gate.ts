@@ -151,9 +151,14 @@ export const createBirdDocumentEligibilityGate =
             explicitMain,
           },
         );
-        if (taskGeneration === generation) {
+        if (
+          taskGeneration === generation &&
+          workspace.textDocuments.some((doc) => doc.uri.toString() === uri)
+        ) {
           // Guard against out-of-order completions: only overwrite the cache
           // when this task evaluated a newer (or the same) document version.
+          // Skip the write if the document was closed while this task was
+          // pending, so a resolved promise can't resurrect a deleted entry.
           const currentCached = cache.get(uri);
           if (!currentCached || currentCached.version < document.version) {
             cache.set(uri, {
