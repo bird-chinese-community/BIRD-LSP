@@ -3,8 +3,13 @@
  */
 
 import { access, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
+import { dirname, join } from "node:path";
+import {
+  selectAutoDetectedEntry,
+  sniffProjectEntrypoints,
+  type DetectionResult,
+  type EntryCandidate,
+} from "@birdcc/core";
 import { detectIndentSizeFromFiles } from "./init-indent.js";
 
 const SCHEMA_URL =
@@ -46,67 +51,57 @@ const existingConfigHasEntry = async (configPath: string): Promise<boolean> => {
 /**
  * Generate config object from detection result.
  */
-const collectIndentProbePaths = (result: DetectionResult): string[] => {
-  if (result.kind === "monorepo-multi-entry") {
-    return result.candidates
-      .filter(
-        (candidate) =>
-          candidate.role === "entry" || candidate.role === "unknown",
-      )
-      .slice(0, 5)
-      .map((candidate) => candidate.path);
-  }
-
-  return result.primary ? [result.primary.path] : [];
-};
-
 const buildConfig = async (
   root: string,
-  result: DetectionResult,
+  selectedEntry: EntryCandidate | null,
+  workspaces: string[],
 ): Promise<Record<string, unknown>> => {
   const config: Record<string, unknown> = {
     $schema: SCHEMA_URL,
   };
 
-  if (result.kind === "monorepo-multi-entry" && result.candidates.length > 0) {
-    // Extract workspace directories from entry candidates
-    const entryDirs = new Set<string>();
-    for (const candidate of result.candidates) {
-      if (candidate.role === "entry" || candidate.role === "unknown") {
-        const dir = candidate.path.split("/").slice(0, -1).join("/");
-        if (dir) {
-          entryDirs.add(dir + "/");
-        } else {
-          // Root-level entry — include "." as a workspace dir
-          entryDirs.add(".");
-        }
-      }
-    }
-    if (entryDirs.size > 0) {
-      config.workspaces = [...entryDirs].sort();
-    }
-    // Also set main to the primary entry for clarity
-    if (result.primary) {
-      config.main = `./${result.primary.path}`;
-    }
-  } else if (result.primary) {
-    config.main = `./${result.primary.path}`;
+  if (workspaces.length > 0) {
+    config.workspaces = workspaces;
+  } else if (selectedEntry) {
+    config.main = `./${selectedEntry.path}`;
   }
 
-  const indentProbePaths = collectIndentProbePaths(result);
-  if (indentProbePaths.length > 0) {
-    const indentResult = await detectIndentSizeFromFiles(
-      root,
-      indentProbePaths,
-    );
-    if (indentResult.indentSize !== undefined) {
-      config.formatter = {
-        indentSize: indentResult.indentSize,
-      };
-    }
+  const indentCandidates = selectedEntry
+    ? [selectedEntry.path]
+    : workspaces.map((workspacePath) => `${workspacePath}bird.conf`);
+  const indentResult = await detectIndentSizeFromFiles(root, indentCandidates);
+  if (indentResult.indentSize !== undefined) {
+    config.formatter = {
+      indentSize: indentResult.indentSize,
+    };
   }
 
   return config;
+};
+
+const collectDetectedWorkspaces = (result: DetectionResult): string[] => {
+  if (result.kind !== "monorepo-multi-entry") {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      result.candidates
+        .filter(
+          (candidate) =>
+            candidate.qualified !== false &&
+            candidate.score > 0 &&
+            (candidate.includedByCount ?? 0) === 0 &&
+            candidate.role !== "library" &&
+            candidate.role !== "fragment" &&
+            candidate.role !== "external",
+        )
+        .map((candidate) => {
+          const directory = dirname(candidate.path).replaceAll("\\", "/");
+          return directory === "." ? "./" : `${directory}/`;
+        }),
+    ),
+  ].sort();
 };
 
 /**
@@ -132,8 +127,10 @@ const formatDryRunOutput = async (
   lines.push("");
   lines.push(`Conclusion: ${result.kind} (confidence: ${result.confidence}%)`);
 
-  if (result.primary) {
-    const config = await buildConfig(root, result);
+  const selectedEntry = selectAutoDetectedEntry(result);
+  const workspaces = collectDetectedWorkspaces(result);
+  if (selectedEntry || workspaces.length > 0) {
+    const config = await buildConfig(root, selectedEntry, workspaces);
     lines.push(`→ Will write: ${JSON.stringify(config)}`);
   }
 
@@ -183,13 +180,19 @@ export const runInit = async (
     maxFiles: options.maxFiles,
     exclude: options.ignore,
   });
+  const selectedEntry = selectAutoDetectedEntry(result);
+  const workspaces = collectDetectedWorkspaces(result);
 
   // JSON output mode
   if (options.json) {
     console.log(JSON.stringify(result, null, 2));
 
-    if (!options.dryRun && options.write && result.primary) {
-      const config = await buildConfig(root, result);
+    if (
+      !options.dryRun &&
+      options.write &&
+      (selectedEntry || workspaces.length > 0)
+    ) {
+      const config = await buildConfig(root, selectedEntry, workspaces);
       await writeFile(
         configPath,
         JSON.stringify(config, null, 2) + "\n",
@@ -216,13 +219,15 @@ export const runInit = async (
 
   // Write mode
   if (options.write || !process.stdout.isTTY) {
-    if (!result.primary && result.kind !== "monorepo-multi-entry") {
-      console.error("Could not determine a primary entry point.");
+    if (!selectedEntry && workspaces.length === 0) {
+      console.error(
+        "Could not safely select a BIRD entry point. Review the candidates or configure main explicitly.",
+      );
       process.exitCode = 1;
       return;
     }
 
-    const config = await buildConfig(root, result);
+    const config = await buildConfig(root, selectedEntry, workspaces);
     const configContent = JSON.stringify(config, null, 2) + "\n";
 
     if (!options.force && (await fileExists(configPath))) {
@@ -235,8 +240,9 @@ export const runInit = async (
 
     await writeFile(configPath, configContent, "utf8");
     console.log(`Created ${options.configName}`);
+    const entrySummary = selectedEntry?.path ?? workspaces.join(", ");
     console.log(
-      `  Entry: ${result.primary?.path ?? "workspaces"} (${result.kind}, confidence: ${result.confidence}%)`,
+      `  Entry: ${entrySummary} (${result.kind}, confidence: ${result.confidence}%)`,
     );
     return;
   }
@@ -250,7 +256,7 @@ export const runInit = async (
     );
   }
 
-  if (result.primary || result.kind === "monorepo-multi-entry") {
+  if (selectedEntry || workspaces.length > 0) {
     console.log(`\nRun with --write to create ${options.configName}`);
   }
 };

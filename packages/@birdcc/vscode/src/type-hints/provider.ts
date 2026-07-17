@@ -26,6 +26,7 @@ import { createTypeHintCache } from "./cache.js";
 export interface BirdTypeHintRegistrationContext {
   readonly getConfiguration: () => ExtensionConfiguration;
   readonly outputChannel: OutputChannel;
+  readonly isDocumentEligible?: (document: TextDocument) => Promise<boolean>;
 }
 
 interface CachedHintSnapshot {
@@ -74,6 +75,7 @@ const appendReturnDetails = (
 export const registerBirdTypeHintProviders = ({
   getConfiguration,
   outputChannel,
+  isDocumentEligible = async () => true,
 }: BirdTypeHintRegistrationContext): readonly Disposable[] => {
   const cache = createTypeHintCache<FunctionReturnHint>({
     maxEntries: TYPE_HINT_CACHE_MAX_ENTRIES,
@@ -127,6 +129,9 @@ export const registerBirdTypeHintProviders = ({
           !configuration.typeHintsHoverEnabled ||
           !isBirdDocument(document)
         ) {
+          return null;
+        }
+        if (!(await isDocumentEligible(document))) {
           return null;
         }
 
@@ -207,6 +212,9 @@ export const registerBirdTypeHintProviders = ({
           !configuration.typeHintsInlayEnabled ||
           !isBirdDocument(document)
         ) {
+          return [];
+        }
+        if (!(await isDocumentEligible(document))) {
           return [];
         }
 

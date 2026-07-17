@@ -82,6 +82,7 @@ export const detectCycles = (
 export const analyzeIncludeGraphExtras = (
   signalsMap: Map<string, ContentSignals>,
   maxParentEscape: number = 2,
+  resolvedEdges?: Map<string, string[]>,
 ): { extras: IncludeGraphExtras; warnings: DetectionWarning[] } => {
   const externalIncludes = new Map<string, string[]>();
   const commentedIncludes = new Map<string, string[]>();
@@ -111,7 +112,7 @@ export const analyzeIncludeGraphExtras = (
   }
 
   // Detect cycles
-  const edges = buildIncludeEdges(signalsMap);
+  const edges = resolvedEdges ?? buildIncludeEdges(signalsMap);
   const cycleWarnings = detectCycles(edges);
   for (const [from, to] of cycleWarnings) {
     warnings.push({

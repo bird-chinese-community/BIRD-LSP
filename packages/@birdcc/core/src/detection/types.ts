@@ -34,6 +34,12 @@ export interface EntryCandidate {
   role: FileRole;
   visitedCount: number;
   missingIncludes: number;
+  /** Whether the file contains parsed BIRD declarations or is explicitly trusted. */
+  qualified?: boolean;
+  /** Parsed declaration kinds used as positive BIRD language evidence. */
+  declarationKinds?: BirdDeclarationEvidence[];
+  /** Number of other scanned files that include this candidate. */
+  includedByCount?: number;
 }
 
 export interface SignalRecord {
@@ -54,6 +60,41 @@ export interface DetectionOptions {
   exclude?: string[]; // additional glob patterns
   forceRescan?: boolean;
   followSymlinks?: boolean; // default: false
+  /** Explicitly configured main file, relative to the detection root. */
+  explicitMain?: string;
+}
+
+export type BirdDeclarationEvidence =
+  | "router-id"
+  | "include"
+  | "define"
+  | "graceful-restart-wait"
+  | "hostname-override"
+  | "attribute"
+  | "table"
+  | "mpls-domain"
+  | "filter"
+  | "function"
+  | "template"
+  | "protocol"
+  | "timeformat"
+  | "watchdog";
+
+export type BirdDocumentEligibilityReason =
+  | "canonical-filename"
+  | "explicit-main"
+  | "semantic-evidence"
+  | "no-evidence";
+
+export interface BirdDocumentEligibility {
+  eligible: boolean;
+  reason: BirdDocumentEligibilityReason;
+  declarationKinds: BirdDeclarationEvidence[];
+}
+
+export interface BirdDocumentEligibilityOptions {
+  filePath?: string;
+  explicitMain?: boolean;
 }
 
 /** Signals extracted from lightweight content scanning (v0.2) */

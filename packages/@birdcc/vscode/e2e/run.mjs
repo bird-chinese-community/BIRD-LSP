@@ -1,4 +1,6 @@
 import path from "node:path";
+import os from "node:os";
+import { mkdtemp, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { runTests } from "@vscode/test-electron";
@@ -10,12 +12,17 @@ const run = async () => {
   const extensionDevelopmentPath = path.resolve(__dirname, "..");
   const extensionTestsPath = path.resolve(__dirname, "suite", "index.cjs");
 
-  await runTests({
-    version: "stable",
-    extensionDevelopmentPath,
-    extensionTestsPath,
-    launchArgs: ["--disable-extensions"],
-  });
+  const userDataDir = await mkdtemp(path.join(os.tmpdir(), "birdcc-vscode-"));
+  try {
+    await runTests({
+      version: "stable",
+      extensionDevelopmentPath,
+      extensionTestsPath,
+      launchArgs: ["--disable-extensions", `--user-data-dir=${userDataDir}`],
+    });
+  } finally {
+    await rm(userDataDir, { recursive: true, force: true });
+  }
 };
 
 run().catch((error) => {

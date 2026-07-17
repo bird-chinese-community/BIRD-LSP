@@ -5,8 +5,13 @@
 
 import { open } from "node:fs/promises";
 import { join } from "node:path";
+import { parseBirdConfig, type ParsedBirdDocument } from "@birdcc/parser";
 import { scanBraceDepth } from "./brace-scanner.js";
-import type { ContentSignals } from "./types.js";
+import {
+  evaluateParsedBirdDocumentEligibility,
+  isCanonicalBirdConfigPath,
+} from "./eligibility.js";
+import type { BirdDocumentEligibility, ContentSignals } from "./types.js";
 
 /** Maximum bytes to read per file for content scanning */
 const MAX_SCAN_BYTES = 64 * 1024;
@@ -109,6 +114,87 @@ export const extractContentSignals = (content: string): ContentSignals => {
   };
 };
 
+const extractParsedContentSignals = (
+  content: string,
+  parsed: ParsedBirdDocument,
+): ContentSignals => {
+  const legacySignals = extractContentSignals(content);
+  const protocols = parsed.program.declarations.filter(
+    (declaration) => declaration.kind === "protocol",
+  );
+  const hasGlobalRouterId = parsed.program.declarations.some(
+    (declaration) => declaration.kind === "router-id",
+  );
+
+  return {
+    hasGlobalRouterId,
+    hasProtocolRouterIdOnly:
+      !hasGlobalRouterId &&
+      protocols.some((protocol) =>
+        protocol.statements.some(
+          (statement) => statement.kind === "protocol-router-id",
+        ),
+      ),
+    hasProtocolDevice: protocols.some(
+      (protocol) => protocol.protocolType?.toLowerCase() === "device",
+    ),
+    hasProtocolKernel: protocols.some(
+      (protocol) => protocol.protocolType?.toLowerCase() === "kernel",
+    ),
+    hasLogDirective: legacySignals.hasLogDirective,
+    hasProtocolBlock: protocols.length > 0,
+    hasDefine: parsed.program.declarations.some(
+      (declaration) => declaration.kind === "define",
+    ),
+    includeStatements: parsed.program.declarations.flatMap((declaration) =>
+      declaration.kind === "include" && typeof declaration.path === "string"
+        ? [declaration.path]
+        : [],
+    ),
+    commentedIncludes: legacySignals.commentedIncludes,
+  };
+};
+
+export interface ScannedFileAnalysis {
+  signals: ContentSignals;
+  eligibility: BirdDocumentEligibility;
+}
+
+export const analyzeFileContent = async (
+  root: string,
+  relativePath: string,
+  explicitMain: boolean = false,
+): Promise<ScannedFileAnalysis | null> => {
+  const content = await readFileHead(join(root, relativePath));
+  if (content === null) return null;
+
+  try {
+    const parsed = await parseBirdConfig(content);
+    return {
+      signals: extractParsedContentSignals(content, parsed),
+      eligibility: evaluateParsedBirdDocumentEligibility(parsed, {
+        filePath: relativePath,
+        explicitMain,
+      }),
+    };
+  } catch {
+    // A parser crash (syntax error, WASM limits) must not silently drop files
+    // that are eligible by explicit main or canonical filename. Fall back to
+    // regex-based signals so LSP/formatting stay active through transient errors.
+    if (explicitMain || isCanonicalBirdConfigPath(relativePath)) {
+      return {
+        signals: extractContentSignals(content),
+        eligibility: {
+          eligible: true,
+          reason: explicitMain ? "explicit-main" : "canonical-filename",
+          declarationKinds: [],
+        },
+      };
+    }
+    return null;
+  }
+};
+
 /**
  * Scan a file: read head + extract signals.
  */
@@ -116,7 +202,6 @@ export const scanFileContent = async (
   root: string,
   relativePath: string,
 ): Promise<ContentSignals | null> => {
-  const content = await readFileHead(join(root, relativePath));
-  if (content === null) return null;
-  return extractContentSignals(content);
+  const analysis = await analyzeFileContent(root, relativePath);
+  return analysis?.signals ?? null;
 };
