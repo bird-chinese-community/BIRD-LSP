@@ -6,13 +6,19 @@ import type { TextDocument } from "vscode";
 
 const mocks = vi.hoisted(() => ({
   workspaceRoot: "",
-  openDocuments: [] as { uri: { toString(): string } }[],
+  textDocuments: [] as TextDocument[],
+  onDidCloseTextDocument: undefined as
+    | ((document: TextDocument) => void)
+    | undefined,
 }));
 
 const disposable = () => ({ dispose: vi.fn() });
 
 vi.mock("vscode", () => ({
   workspace: {
+    get textDocuments() {
+      return mocks.textDocuments;
+    },
     getWorkspaceFolder: () => ({
       uri: { fsPath: mocks.workspaceRoot },
     }),
@@ -23,9 +29,9 @@ vi.mock("vscode", () => ({
       onDidDelete: () => disposable(),
     }),
     onDidChangeWorkspaceFolders: () => disposable(),
-    onDidCloseTextDocument: () => disposable(),
-    get textDocuments() {
-      return mocks.openDocuments;
+    onDidCloseTextDocument: (listener: (document: TextDocument) => void) => {
+      mocks.onDidCloseTextDocument = listener;
+      return disposable();
     },
   },
 }));
@@ -36,8 +42,8 @@ const createDocument = (
   filePath: string,
   text: string,
   version: number,
-): TextDocument => {
-  const document = {
+): TextDocument =>
+  ({
     uri: {
       scheme: "file",
       fsPath: filePath,
@@ -45,20 +51,18 @@ const createDocument = (
     },
     version,
     getText: () => text,
-  } as unknown as TextDocument;
-  // Register the document as open so the eligibility gate's "still open" guard
-  // (workspace.textDocuments) treats it like a live editor document.
-  mocks.openDocuments.push(document);
-  return document;
-};
+  }) as unknown as TextDocument;
 
 describe("VS Code BIRD document eligibility gate", () => {
   beforeEach(async () => {
-    mocks.openDocuments = [];
     mocks.workspaceRoot = await mkdtemp(join(tmpdir(), "birdcc-vscode-gate-"));
+    mocks.textDocuments = [];
+    mocks.onDidCloseTextDocument = undefined;
   });
 
   afterEach(async () => {
+    mocks.textDocuments = [];
+    mocks.onDidCloseTextDocument = undefined;
     await rm(mocks.workspaceRoot, { recursive: true, force: true });
   });
 
@@ -175,18 +179,56 @@ describe("VS Code BIRD document eligibility gate", () => {
       "utf8",
     );
 
-    await expect(
-      gate.isEligible(createDocument(explicitPath, "", 1)),
-    ).resolves.toBe(true);
+    const firstDocument = createDocument(explicitPath, "", 1);
+    mocks.textDocuments = [firstDocument];
+    await expect(gate.isEligible(firstDocument)).resolves.toBe(true);
     await writeFile(configPath, JSON.stringify({}), "utf8");
-    await expect(
-      gate.isEligible(createDocument(explicitPath, "", 2)),
-    ).resolves.toBe(true);
+    const secondDocument = createDocument(explicitPath, "", 2);
+    mocks.textDocuments = [secondDocument];
+    await expect(gate.isEligible(secondDocument)).resolves.toBe(true);
 
     gate.clear();
-    await expect(
-      gate.isEligible(createDocument(explicitPath, "", 3)),
-    ).resolves.toBe(false);
+    const thirdDocument = createDocument(explicitPath, "", 3);
+    mocks.textDocuments = [thirdDocument];
+    await expect(gate.isEligible(thirdDocument)).resolves.toBe(false);
+
+    gate.dispose();
+  });
+
+  it("does not reuse a pending result for a reopened document instance", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const filePath = join(mocks.workspaceRoot, "custom.conf");
+    const closedDocument = createDocument(filePath, "protocol device {}", 1);
+    mocks.textDocuments = [closedDocument];
+
+    const closedResult = gate.isEligible(closedDocument);
+    mocks.textDocuments = [];
+    mocks.onDidCloseTextDocument?.(closedDocument);
+
+    const reopenedDocument = createDocument(filePath, "events {}", 1);
+    mocks.textDocuments = [reopenedDocument];
+    const reopenedResult = gate.isEligible(reopenedDocument);
+
+    await expect(closedResult).resolves.toBe(true);
+    await expect(reopenedResult).resolves.toBe(false);
+
+    gate.dispose();
+  });
+
+  it("does not repopulate caches after a document closes", async () => {
+    const gate = createBirdDocumentEligibilityGate();
+    const filePath = join(mocks.workspaceRoot, "custom.conf");
+    const closedDocument = createDocument(filePath, "protocol device {}", 1);
+    mocks.textDocuments = [closedDocument];
+
+    const closedResult = gate.isEligible(closedDocument);
+    mocks.textDocuments = [];
+    mocks.onDidCloseTextDocument?.(closedDocument);
+    await expect(closedResult).resolves.toBe(true);
+
+    const reopenedDocument = createDocument(filePath, "events {}", 1);
+    mocks.textDocuments = [reopenedDocument];
+    await expect(gate.isEligible(reopenedDocument)).resolves.toBe(false);
 
     gate.dispose();
   });

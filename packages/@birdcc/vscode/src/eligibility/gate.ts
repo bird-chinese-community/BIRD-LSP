@@ -10,6 +10,11 @@ interface EligibilityCacheEntry {
   readonly eligible: boolean;
 }
 
+interface PendingEligibilityEntry {
+  readonly document: TextDocument;
+  readonly promise: Promise<boolean>;
+}
+
 interface BirdConfigWithMain {
   readonly main: string;
 }
@@ -96,7 +101,7 @@ export const createBirdDocumentEligibilityGate =
   (): BirdDocumentEligibilityGate => {
     const cache = new Map<string, EligibilityCacheEntry>();
     const explicitMainByUri = new Map<string, boolean>();
-    const pending = new Map<string, Promise<boolean>>();
+    const pending = new Map<string, PendingEligibilityEntry>();
     let generation = 0;
     const clear = (): void => {
       generation += 1;
@@ -123,15 +128,17 @@ export const createBirdDocumentEligibilityGate =
 
     const isEligible = async (document: TextDocument): Promise<boolean> => {
       const uri = document.uri.toString();
+      const documentVersion = document.version;
+      const documentText = document.getText();
       const cached = cache.get(uri);
-      if (cached?.version === document.version) {
+      if (cached?.version === documentVersion) {
         return cached.eligible;
       }
 
-      const pendingKey = `${uri}@${document.version}`;
-      const pendingResult = pending.get(pendingKey);
-      if (pendingResult) {
-        return pendingResult;
+      const pendingKey = `${uri}@${documentVersion}`;
+      const pendingEntry = pending.get(pendingKey);
+      if (pendingEntry?.document === document) {
+        return pendingEntry.promise;
       }
 
       const taskGeneration = generation;
@@ -139,12 +146,15 @@ export const createBirdDocumentEligibilityGate =
         let explicitMain = explicitMainByUri.get(uri);
         if (explicitMain === undefined) {
           explicitMain = await findExplicitMain(document);
-          if (taskGeneration === generation) {
+          if (
+            taskGeneration === generation &&
+            workspace.textDocuments.includes(document)
+          ) {
             explicitMainByUri.set(uri, explicitMain);
           }
         }
         const eligibility = await evaluateBirdDocumentEligibility(
-          document.getText(),
+          documentText,
           {
             filePath:
               document.uri.scheme === "file" ? document.uri.fsPath : undefined,
@@ -153,16 +163,17 @@ export const createBirdDocumentEligibilityGate =
         );
         if (
           taskGeneration === generation &&
-          workspace.textDocuments.some((doc) => doc.uri.toString() === uri)
+          workspace.textDocuments.includes(document) &&
+          document.version === documentVersion
         ) {
           // Guard against out-of-order completions: only overwrite the cache
           // when this task evaluated a newer (or the same) document version.
           // Skip the write if the document was closed while this task was
           // pending, so a resolved promise can't resurrect a deleted entry.
           const currentCached = cache.get(uri);
-          if (!currentCached || currentCached.version < document.version) {
+          if (!currentCached || currentCached.version < documentVersion) {
             cache.set(uri, {
-              version: document.version,
+              version: documentVersion,
               eligible: eligibility.eligible,
             });
           }
@@ -170,11 +181,11 @@ export const createBirdDocumentEligibilityGate =
         return eligibility.eligible;
       })();
 
-      pending.set(pendingKey, task);
+      pending.set(pendingKey, { document, promise: task });
       try {
         return await task;
       } finally {
-        if (pending.get(pendingKey) === task) {
+        if (pending.get(pendingKey)?.promise === task) {
           pending.delete(pendingKey);
         }
       }

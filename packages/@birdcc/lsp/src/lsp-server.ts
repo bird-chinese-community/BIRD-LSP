@@ -124,7 +124,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const graphByUri = new Map<string, GraphCacheEntry>();
   const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
   const eligibilityByUri = new Map<string, EligibilityCacheEntry>();
-  const pendingEligibilityByKey = new Map<string, Promise<boolean>>();
+  const pendingEligibilityByKey = new Map<
+    string,
+    { document: TextDocument; promise: Promise<boolean> }
+  >();
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
@@ -231,8 +234,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
     const evaluationGeneration = projectConfigGeneration;
     const pendingKey = `${document.uri}@${document.version}@${evaluationGeneration}`;
     const pending = pendingEligibilityByKey.get(pendingKey);
-    if (pending) {
-      return pending;
+    if (pending?.document === document) {
+      return pending.promise;
     }
 
     const task = (async (): Promise<boolean> => {
@@ -245,7 +248,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       );
       if (
         evaluationGeneration === projectConfigGeneration &&
-        documents.get(document.uri)
+        documents.get(document.uri) === document
       ) {
         // Guard against out-of-order completions: only overwrite the cache when
         // this task evaluated a newer (or the same) document version. Skip the
@@ -267,11 +270,11 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return eligibility.eligible;
     })();
 
-    pendingEligibilityByKey.set(pendingKey, task);
+    pendingEligibilityByKey.set(pendingKey, { document, promise: task });
     try {
       return await task;
     } finally {
-      if (pendingEligibilityByKey.get(pendingKey) === task) {
+      if (pendingEligibilityByKey.get(pendingKey)?.promise === task) {
         pendingEligibilityByKey.delete(pendingKey);
       }
     }
