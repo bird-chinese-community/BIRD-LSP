@@ -40,11 +40,9 @@ protocol static flows {
 }
 ```
 
-Additional grammar changes include comma-delimited option blocks, CLI
-`timeformat iso (short | long) [ms | us]` commands, and explicit support for
-`ipv4 multicast` and `ipv6 multicast` channels. Bare top-level `flow4` or
-`flow6` blocks remain invalid; FlowSpec blocks are accepted only as static
-route literals.
+Additional grammar changes include comma-delimited option blocks (e.g.
+`log ... { trace, info };`) and the CLI form of ISO time formats. Bare
+top-level `flow4`/`flow6` blocks are rejected; see Diagnostics below.
 
 ## Parser declarations and public types
 
@@ -61,8 +59,8 @@ route literals.
   `addressKind: "prefix"` variant. Repeated `as` and `port` options follow BIRD
   source order, with the final value exposed through `asn` or `port`.
 - BFD accepts are extracted as `bfd-option` statements for both `accept;` and
-  option-bearing forms. Family and session-type modifiers remain available in
-  the existing `families` and `sessionTypes` arrays.
+  option-bearing forms. Family and session-type modifiers stay in the existing
+  `families` and `sessionTypes` arrays.
 
 TypeScript consumers that construct `NeighborStatement` objects directly must
 now provide `isRange` and `onlink`. Exhaustive checks of `addressKind` should
@@ -74,14 +72,11 @@ also handle the new `"prefix"` variant.
   produce `parser/syntax-error` diagnostics instead of becoming structured
   filter acceptance. Password `accept from` and `accept to` bounds remain valid
   inside password blocks, but are rejected as direct BFD options.
-- Incomplete ISO time formats and unsupported top-level FlowSpec blocks remain
-  syntax errors rather than being silently accepted by generic recovery rules.
+- Incomplete ISO time formats and unsupported top-level FlowSpec blocks are
+  syntax errors.
 - `cfg/incompatible-type` now expects a prefix for `neighbor range` and an IP
   literal for ordinary neighbors.
 - `bgp/missing-remote-as` accepts explicit `internal` or `external` peer types
   without requiring an additional `as` clause, and `bgp/as-mismatch` recognizes
   the structured `internal` peer type.
 
-The bundled Tree-sitter WASM has been regenerated from the synchronized grammar
-so Node.js, browser, LSP, CLI, and VS Code consumers all use the same parser
-artifact.
