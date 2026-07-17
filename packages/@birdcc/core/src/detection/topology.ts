@@ -153,8 +153,7 @@ export const detectMonorepoMode = (
     const libraryGroups = new Map<string, Set<string>>();
     for (const candidate of allCandidates) {
       if (candidate.role !== "library") continue;
-      const segments = candidate.path.split("/");
-      const fileName = segments[segments.length - 1] ?? candidate.path;
+      const fileName = candidate.path.split("/").at(-1) ?? candidate.path;
       const directories = libraryGroups.get(fileName) ?? new Set<string>();
       directories.add(getCandidateDirectory(candidate.path));
       libraryGroups.set(fileName, directories);
