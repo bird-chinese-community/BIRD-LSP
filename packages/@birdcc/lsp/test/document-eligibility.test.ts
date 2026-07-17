@@ -59,4 +59,16 @@ describe("LSP document eligibility", () => {
       ),
     ).resolves.toMatchObject({ eligible: true, reason: "semantic-evidence" });
   });
+
+  it("falls back to semantic evidence for a malformed file URI", async () => {
+    const malformedUri = "file:///workspace/%ZZ.conf";
+
+    await expect(
+      evaluateLspDocumentEligibility(
+        "protocol device {}",
+        malformedUri,
+        createProject(malformedUri),
+      ),
+    ).resolves.toMatchObject({ eligible: true, reason: "semantic-evidence" });
+  });
 });
