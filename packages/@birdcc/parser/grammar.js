@@ -7,6 +7,8 @@ export default grammar({
 
   word: ($) => $.identifier,
 
+  conflicts: ($) => [[$.comma_block, $.phrase_clause]],
+
   rules: {
     // Entry: keep top-level declarations explicit so downstream AST extraction stays stable.
     source_file: ($) => repeat($._top_level_item),
@@ -19,6 +21,9 @@ export default grammar({
         $.attribute_declaration,
         $.table_declaration,
         $.mpls_domain_declaration,
+        $.thread_group_declaration,
+        $.timeformat_iso_statement,
+        $.cli_timeformat_iso_statement,
         $.timeformat_statement,
         $.watchdog_statement,
         $.protocol_declaration,
@@ -118,7 +123,13 @@ export default grammar({
       ),
 
     router_id_from_clause: ($) =>
-      seq("from", field("from_source", choice("routing", "dynamic"))),
+      seq(
+        "from",
+        field(
+          "from_source",
+          choice("routing", "dynamic", $.string, $.identifier),
+        ),
+      ),
 
     attribute_declaration: ($) =>
       seq(
@@ -145,6 +156,12 @@ export default grammar({
           optional(field("name", $.identifier)),
           optional(field("attrs", $.table_attrs)),
           ";",
+        ),
+        seq(
+          "table",
+          field("name", $.identifier),
+          field("body", $.block),
+          optional(";"),
         ),
         seq("table", ";"),
       ),
@@ -222,6 +239,34 @@ export default grammar({
         ";",
       ),
 
+    thread_group_declaration: ($) =>
+      seq(
+        "thread",
+        "group",
+        field("name", $.identifier),
+        field("body", $.block),
+        optional(";"),
+      ),
+
+    timeformat_iso_statement: ($) =>
+      seq(
+        "timeformat",
+        field("scope", choice("route", "protocol", "base", "log")),
+        field("format", "iso"),
+        field("iso_style", choice("long", "short")),
+        optional(field("precision", choice("ms", "us"))),
+        ";",
+      ),
+
+    cli_timeformat_iso_statement: ($) =>
+      seq(
+        "timeformat",
+        field("format", "iso"),
+        field("iso_style", choice("long", "short")),
+        optional(field("precision", choice("ms", "us"))),
+        ";",
+      ),
+
     protocol_declaration: ($) =>
       choice(
         prec(
@@ -258,7 +303,7 @@ export default grammar({
         ),
       ),
 
-    protocol_variant: () => token(prec(1, /v[0-9]+/)),
+    protocol_variant: () => choice(token(prec(1, /v[0-9]+/)), "ng"),
 
     template_declaration: ($) =>
       choice(
@@ -360,11 +405,23 @@ export default grammar({
     top_level_statement: ($) =>
       prec(
         -1,
-        seq(repeat1(choice($._statement_atom, ",")), optional($.block), ";"),
+        seq(
+          repeat1(choice($._statement_atom, ",")),
+          optional(field("body", choice($.block, $.comma_block))),
+          ";",
+        ),
       ),
 
     // Block is intentionally permissive for error recovery (missing brace / incomplete header).
     block: ($) => seq("{", repeat($._block_item), "}"),
+
+    comma_block: ($) =>
+      seq(
+        "{",
+        repeat1($._statement_atom),
+        repeat(seq(",", repeat1($._statement_atom))),
+        "}",
+      ),
 
     _block_item: ($) =>
       choice(
@@ -377,6 +434,7 @@ export default grammar({
         $.export_statement,
         $.channel_statement,
         $.if_statement,
+        $.accept_option_statement,
         $.accept_statement,
         $.reject_statement,
         $.return_statement,
@@ -426,19 +484,34 @@ export default grammar({
     neighbor_port_clause: ($) =>
       seq("port", field("port", choice($.number, $.identifier, $.raw_token))),
 
-    neighbor_as_port_clause: ($) =>
+    neighbor_peer_type_clause: () =>
+      field("peer_type", choice("internal", "external")),
+
+    neighbor_onlink_clause: () => field("onlink", "onlink"),
+
+    neighbor_option: ($) =>
       choice(
-        seq($.neighbor_as_clause, optional($.neighbor_port_clause)),
-        seq($.neighbor_port_clause, optional($.neighbor_as_clause)),
+        $.neighbor_as_clause,
+        $.neighbor_port_clause,
+        $.neighbor_peer_type_clause,
+        $.neighbor_onlink_clause,
       ),
 
     neighbor_statement: ($) =>
       seq(
         "neighbor",
+        optional("range"),
         optional(
           field(
             "address",
-            choice($.ip_literal, $.number, $.identifier, $.string, $.raw_token),
+            choice(
+              $.prefix_literal,
+              $.ip_literal,
+              $.number,
+              $.identifier,
+              $.string,
+              $.raw_token,
+            ),
           ),
         ),
         optional(
@@ -447,7 +520,7 @@ export default grammar({
             field("interface", choice($.identifier, $.string, $.raw_token)),
           ),
         ),
-        optional($.neighbor_as_port_clause),
+        repeat($.neighbor_option),
         ";",
       ),
 
@@ -475,6 +548,8 @@ export default grammar({
       choice(
         "ipv4",
         "ipv6",
+        seq("ipv4", "multicast"),
+        seq("ipv6", "multicast"),
         "ipv4-mpls",
         "ipv6-mpls",
         "vpn4",
@@ -656,6 +731,24 @@ export default grammar({
 
     accept_statement: () => seq("accept", ";"),
 
+    accept_option_statement: ($) =>
+      choice(
+        seq(
+          "accept",
+          repeat1(choice("ipv4", "ipv6", "direct", "multihop")),
+          ";",
+        ),
+        seq(
+          "accept",
+          field("time_bound", choice("from", "to")),
+          field(
+            "time_value",
+            choice($.string, $.number, $.identifier, $.raw_token),
+          ),
+          ";",
+        ),
+      ),
+
     reject_statement: () => seq("reject", ";"),
 
     return_statement: ($) =>
@@ -671,7 +764,11 @@ export default grammar({
     expression_statement: ($) =>
       prec.right(
         choice(
-          seq($.phrase_clause, field("body", $.block), optional(";")),
+          seq(
+            $.phrase_clause,
+            field("body", choice($.block, $.comma_block)),
+            optional(";"),
+          ),
           seq($.phrase_clause, ";"),
         ),
       ),
@@ -686,6 +783,7 @@ export default grammar({
         $.function_call,
         $.member_expression,
         $.set_literal,
+        "filter",
         $.identifier,
         $.raw_token,
       ),

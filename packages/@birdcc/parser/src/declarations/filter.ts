@@ -62,8 +62,10 @@ const parseFilterSegmentStatement = (
 const parseControlStatements = (
   bodyNode: SyntaxNode,
   source: string,
+  issues: ParseIssue[],
 ): FilterBodyStatement[] => {
   const statements: FilterBodyStatement[] = [];
+  let hasInvalidAcceptOption = false;
   const bodyRange = toRange(bodyNode, source);
   const bodyText = textOf(bodyNode, source);
   const tokenTexts = bodyNode.namedChildren.map((node) =>
@@ -74,6 +76,21 @@ const parseControlStatements = (
     const statementRange = toRange(statementNode, source);
     const text = textOf(statementNode, source).trim();
     const lowered = text.toLowerCase();
+
+    if (statementNode.type === "accept_option_statement") {
+      issues.push({
+        code: "parser/syntax-error",
+        message: "Accept options are not valid in filter statements",
+        ...statementRange,
+      });
+      statements.push({
+        kind: "expression",
+        expressionText: text,
+        ...statementRange,
+      });
+      hasInvalidAcceptOption = true;
+      continue;
+    }
 
     if (statementNode.type === "if_statement" || lowered === "if") {
       const thenIndex = lowered.indexOf(" then ");
@@ -176,6 +193,7 @@ const parseControlStatements = (
   if (
     (tokenTexts.includes("accept") ||
       /\baccept\b/.test(bodyText.toLowerCase())) &&
+    !hasInvalidAcceptOption &&
     !statements.some((item) => item.kind === "accept")
   ) {
     statements.push({
@@ -602,7 +620,7 @@ export const parseFilterDeclaration = (
       ? toRange(nameNode, source)
       : declarationRange,
     statements: isPresentNode(bodyNode)
-      ? parseControlStatements(bodyNode, source)
+      ? parseControlStatements(bodyNode, source, issues)
       : [],
     literals: extracted.literals,
     matches: extracted.matches,
@@ -644,7 +662,7 @@ export const parseFunctionDeclaration = (
     ? collectFunctionLeadingDeclarations(declarationNode, bodyNode, source)
     : [];
   const bodyStatements = isPresentNode(bodyNode)
-    ? parseControlStatements(bodyNode, source)
+    ? parseControlStatements(bodyNode, source, issues)
     : [];
 
   return {

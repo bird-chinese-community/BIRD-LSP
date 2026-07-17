@@ -1,6 +1,6 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { ParseIssue } from "../types.js";
-import { stripQuotes, textOf, toRange } from "../tree.js";
+import { mergeRanges, stripQuotes, textOf, toRange } from "../tree.js";
 import {
   TABLE_TYPES,
   type GracefulRestartWaitDeclaration,
@@ -12,6 +12,7 @@ import {
   isNumericToken,
   isStrictIpv4Literal,
   mergedTokenRange,
+  normalizeRouterIdFromSource,
   normalizeTableType,
   topLevelTokensOf,
 } from "./shared.js";
@@ -57,8 +58,8 @@ export const parseRouterIdFromStatement = (
   }
 
   if (valueTokens.length === 2 && valueTokens[0]?.lowered === "from") {
-    const fromSourceToken = valueTokens[1]?.lowered;
-    if (fromSourceToken !== "routing" && fromSourceToken !== "dynamic") {
+    const fromSourceToken = valueTokens[1];
+    if (!fromSourceToken) {
       return {
         kind: "router-id",
         value,
@@ -68,12 +69,13 @@ export const parseRouterIdFromStatement = (
       };
     }
 
+    const fromSourceText = normalizeRouterIdFromSource(fromSourceToken.text);
     return {
       kind: "router-id",
       value,
       valueKind: "from",
       valueRange: valueRange,
-      fromSource: fromSourceToken,
+      fromSource: fromSourceText,
       ...declarationRange,
     };
   }
@@ -315,6 +317,7 @@ export const parseTimeformatFromStatement = (
   const tokens = topLevelTokensOf(statementNode, source);
   const isTimeformatStatement =
     statementNode.type === "timeformat_statement" ||
+    statementNode.type === "timeformat_iso_statement" ||
     tokens[0]?.lowered === "timeformat";
 
   if (!isTimeformatStatement) {
@@ -322,13 +325,17 @@ export const parseTimeformatFromStatement = (
   }
 
   const isStrictTimeformat = statementNode.type === "timeformat_statement";
+  const isStrictIsoTimeformat =
+    statementNode.type === "timeformat_iso_statement";
 
-  const scopeToken = isStrictTimeformat
-    ? tokenLikeFromNode(statementNode.childForFieldName("scope"), source)
-    : tokens[1];
-  const formatToken = isStrictTimeformat
-    ? tokenLikeFromNode(statementNode.childForFieldName("format"), source)
-    : tokens[2];
+  const scopeToken =
+    isStrictTimeformat || isStrictIsoTimeformat
+      ? tokenLikeFromNode(statementNode.childForFieldName("scope"), source)
+      : tokens[1];
+  const formatToken =
+    isStrictTimeformat || isStrictIsoTimeformat
+      ? tokenLikeFromNode(statementNode.childForFieldName("format"), source)
+      : tokens[2];
   const limitToken = isStrictTimeformat
     ? tokenLikeFromNode(statementNode.childForFieldName("limit"), source)
     : tokens[3];
@@ -338,6 +345,18 @@ export const parseTimeformatFromStatement = (
         source,
       )
     : tokens[4];
+  const isoStyleToken = isStrictIsoTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("iso_style"), source)
+    : formatToken?.lowered === "iso"
+      ? limitToken
+      : null;
+  const precisionToken = isStrictIsoTimeformat
+    ? tokenLikeFromNode(statementNode.childForFieldName("precision"), source)
+    : formatToken?.lowered === "iso"
+      ? fallbackFormatToken
+      : null;
+  const isIsoTimeformat =
+    isStrictIsoTimeformat || formatToken?.lowered === "iso";
 
   if (!scopeToken) {
     issues.push({
@@ -355,7 +374,41 @@ export const parseTimeformatFromStatement = (
     });
   }
 
-  if (limitToken && !fallbackFormatToken) {
+  if (isIsoTimeformat && !isoStyleToken) {
+    issues.push({
+      code: "parser/missing-symbol",
+      message: "Missing short or long style for ISO timeformat declaration",
+      ...(formatToken?.range ?? declarationRange),
+    });
+  }
+
+  if (
+    isIsoTimeformat &&
+    isoStyleToken &&
+    isoStyleToken.lowered !== "short" &&
+    isoStyleToken.lowered !== "long"
+  ) {
+    issues.push({
+      code: "parser/syntax-error",
+      message: `Invalid ISO timeformat style '${isoStyleToken.text}'`,
+      ...isoStyleToken.range,
+    });
+  }
+
+  if (
+    isIsoTimeformat &&
+    precisionToken &&
+    precisionToken.lowered !== "ms" &&
+    precisionToken.lowered !== "us"
+  ) {
+    issues.push({
+      code: "parser/syntax-error",
+      message: `Invalid ISO timeformat precision '${precisionToken.text}'`,
+      ...precisionToken.range,
+    });
+  }
+
+  if (!isIsoTimeformat && limitToken && !fallbackFormatToken) {
     issues.push({
       code: "parser/missing-symbol",
       message: "Missing fallback format for timeformat declaration with limit",
@@ -365,22 +418,38 @@ export const parseTimeformatFromStatement = (
 
   const scopeText = scopeToken?.lowered ?? "";
   const scope = isTimeformatScope(scopeText) ? scopeText : "unknown";
-  const formatText = formatToken?.text ?? "";
+  const isoFormatTokens = [formatToken, isoStyleToken, precisionToken].filter(
+    (token): token is NonNullable<typeof token> =>
+      token !== null && token !== undefined,
+  );
+  const formatText = isIsoTimeformat
+    ? isoFormatTokens.map((token) => token.text).join(" ")
+    : (formatToken?.text ?? "");
+  const formatRange =
+    isIsoTimeformat && formatToken && isoFormatTokens.at(-1)
+      ? mergeRanges(
+          formatToken.range,
+          isoFormatTokens.at(-1)?.range ?? formatToken.range,
+        )
+      : (formatToken?.range ?? declarationRange);
 
   return {
     kind: "timeformat",
     scope,
     scopeRange: scopeToken?.range ?? declarationRange,
-    format: stripQuotes(formatText),
+    format: isIsoTimeformat ? "iso" : stripQuotes(formatText),
     formatText,
-    formatRange: formatToken?.range ?? declarationRange,
-    limit: limitToken?.text,
-    limitRange: limitToken?.range,
-    fallbackFormat: fallbackFormatToken
-      ? stripQuotes(fallbackFormatToken.text)
-      : undefined,
-    fallbackFormatText: fallbackFormatToken?.text,
-    fallbackFormatRange: fallbackFormatToken?.range,
+    formatRange,
+    limit: isIsoTimeformat ? undefined : limitToken?.text,
+    limitRange: isIsoTimeformat ? undefined : limitToken?.range,
+    fallbackFormat:
+      !isIsoTimeformat && fallbackFormatToken
+        ? stripQuotes(fallbackFormatToken.text)
+        : undefined,
+    fallbackFormatText: isIsoTimeformat ? undefined : fallbackFormatToken?.text,
+    fallbackFormatRange: isIsoTimeformat
+      ? undefined
+      : fallbackFormatToken?.range,
     ...declarationRange,
   };
 };
