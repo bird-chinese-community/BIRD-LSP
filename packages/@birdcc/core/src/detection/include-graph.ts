@@ -12,6 +12,7 @@ const normalizeRelativePath = (path: string): string =>
 
 const isWithinRoot = (relativePath: string): boolean =>
   relativePath.length > 0 &&
+  relativePath !== ".." &&
   !relativePath.startsWith("../") &&
   !isAbsolute(relativePath);
 
