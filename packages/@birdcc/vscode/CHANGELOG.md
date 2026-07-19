@@ -4,6 +4,20 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.5.2] - 2026-07-19
+
+### Fixed / 修复
+
+- 改进自动项目入口检测，避免将工作区中的外部 `.conf` 文件误判为 BIRD 主配置，并加强显式入口路径匹配。
+- Improved automatic project entry detection to avoid treating unrelated `.conf` files as BIRD entry configurations and hardened explicit entry path matching.
+
+### Changed / 变更
+
+- 同步最新的 BIRD 2.19 / 3.3 解析、诊断和格式化能力。
+- Updated the bundled parser, diagnostics, and formatter for the latest BIRD 2.19 / 3.3 language support.
+- 扩展版本更新现在会自动发布到 VS Code Marketplace 与 Open VSX，并在发布后验证两个注册表中的精确版本。
+- Extension version updates now publish automatically to VS Code Marketplace and Open VSX, with exact-version verification for both registries.
+
 ## [0.5.1] - 2026-05-02
 
 ### 🐛 Fixed / 修复
@@ -360,6 +374,7 @@ ASN-aware autocompletion, hover, and inlay hints using the bundled `@birdcc/inte
 
 ---
 
+[0.5.2]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/bird2-lsp-v0.5.2
 [0.5.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.5.0...vscode-v0.5.1
 [0.5.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.2...vscode-v0.5.0
 [0.3.2]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.1...vscode-v0.3.2

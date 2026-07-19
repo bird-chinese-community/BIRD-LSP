@@ -94,42 +94,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # After npm publish, build and upload VSIX artifacts to GitHub Release
-      - name: Package VSIX extensions
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          pnpm --filter @birdcc/vscode marketplace:package
-          pnpm --filter bird2-extension-pack marketplace:package
-
-      - name: Upload VSIX to GitHub Release
-        if: steps.changesets.outputs.published == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ fromJSON(steps.changesets.outputs.publishedPackages)[0].version }}
-          files: |
-            packages/@birdcc/vscode/release/bird2-lsp.vsix
-            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
-          body: |
-            ## Published Packages
-
-            ${{ steps.changesets.outputs.publishedPackages }}
-
-            ## VS Code Extensions
-
-            Download the `.vsix` files below to install manually, or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp).
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload VSIX artifacts
-        if: steps.changesets.outputs.published == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: vsix-extensions
-          path: |
-            packages/@birdcc/vscode/release/bird2-lsp.vsix
-            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
-          if-no-files-found: error
-
   manual-npm-release:
     name: Publish selected npm packages
     if: github.event_name == 'workflow_dispatch'
