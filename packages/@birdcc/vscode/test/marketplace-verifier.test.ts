@@ -70,4 +70,23 @@ describe("marketplace publication verifier", () => {
     expect(fetchImplementation).toHaveBeenCalledTimes(2);
     expect(sleepImplementation).toHaveBeenCalledOnce();
   });
+
+  it("accepts response bodies without a cancel method", async () => {
+    const fetchImplementation = vi.fn(async () => ({
+      body: {},
+      status: 200,
+    }));
+
+    await expect(
+      verifyMarketplace({
+        registry: "vscode",
+        publisher: "BIRDCC",
+        extensionName: "bird2-lsp",
+        version: "0.5.2",
+        initialDelayMs: 0,
+        maxWaitMs: 0,
+        fetchImplementation,
+      }),
+    ).resolves.toBeUndefined();
+  });
 });
