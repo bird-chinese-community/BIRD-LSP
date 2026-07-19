@@ -115,7 +115,7 @@ export const buildMarketplaceTarget = ({
 const fetchStatus = async (url, fetchImplementation) => {
   try {
     const response = await fetchImplementation(url, { method: "GET" });
-    await response.body?.cancel();
+    await response.body?.cancel?.();
     return response.status;
   } catch (error) {
     console.error(
