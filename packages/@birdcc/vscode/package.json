@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/vscode",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
@@ -377,7 +377,7 @@
     "format": "oxfmt .",
     "coverage": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "marketplace:package": "pnpm --filter @birdcc/vscode... build && node scripts/package-marketplace.mjs",
-    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-lsp.vsix --pat \"$VSCE_PAT\"",
-    "marketplace:publish:ovsx": "pnpm dlx ovsx publish ./release/bird2-lsp.vsix -p \"$OVSX_PAT\""
+    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-lsp.vsix --pat \"$VSCE_PAT\" --skip-duplicate",
+    "marketplace:publish:ovsx": "pnpm dlx ovsx publish --packagePath ./release/bird2-lsp.vsix -p \"$OVSX_PAT\" --skip-duplicate"
   }
 }
