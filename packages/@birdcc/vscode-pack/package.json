@@ -4,7 +4,7 @@
   "description": "Install both BIRD2 LSP and BIRD2 syntax highlighting extensions.",
   "version": "0.1.2",
   "publisher": "BIRDCC",
-  "private": false,
+  "private": true,
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {
