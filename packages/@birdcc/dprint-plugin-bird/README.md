@@ -134,7 +134,7 @@ flowchart TB
     subgraph "Host Environment"
         D1[dprint CLI]
         D2[Editor Plugin]
-        D3[@birdcc/formatter]
+        D3["@birdcc/formatter"]
     end
 
     subgraph "WASM Runtime"

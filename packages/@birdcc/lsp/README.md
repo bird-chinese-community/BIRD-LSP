@@ -179,7 +179,7 @@ flowchart TB
     end
 
     subgraph "LSP Server"
-        S[@birdcc/lsp<br/>LSP Server]
+        S["@birdcc/lsp<br/>LSP Server"]
         SYNC[Document Sync<br/>Incremental]
         DIAG[Diagnostics Handler]
         COMP[Completion Provider]
@@ -188,16 +188,16 @@ flowchart TB
     end
 
     subgraph "Service Layer"
-        LINTER[@birdcc/linter<br/>32+ Rules]
-        FORMATTER[@birdcc/formatter<br/>dprint/builtin]
+        LINTER["@birdcc/linter<br/>32+ Rules"]
+        FORMATTER["@birdcc/formatter<br/>dprint/builtin"]
     end
 
     subgraph "Core Layer"
-        CORE[@birdcc/core<br/>Symbol Table]
+        CORE["@birdcc/core<br/>Symbol Table"]
     end
 
     subgraph "Parser Layer"
-        PARSER[@birdcc/parser<br/>Tree-sitter]
+        PARSER["@birdcc/parser<br/>Tree-sitter"]
     end
 
     E1 --> LSP

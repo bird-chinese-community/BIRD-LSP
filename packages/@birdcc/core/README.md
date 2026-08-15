@@ -234,15 +234,15 @@ interface BirdDiagnostic {
 ```mermaid
 flowchart TB
     subgraph "Rule Engine"
-        A[@birdcc/linter]
+        A["@birdcc/linter"]
     end
 
     subgraph "Semantic Analysis"
-        B[@birdcc/core]
+        B["@birdcc/core"]
     end
 
     subgraph "Syntax Parsing"
-        C[@birdcc/parser]
+        C["@birdcc/parser"]
     end
 
     A -->|uses| B
@@ -262,7 +262,7 @@ flowchart TB
     end
 
     subgraph "Parser Layer"
-        P[@birdcc/parser<br/>Tree-sitter]
+        P["@birdcc/parser<br/>Tree-sitter"]
         AST[AST<br/>Abstract Syntax Tree]
     end
 

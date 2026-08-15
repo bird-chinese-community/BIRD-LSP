@@ -125,11 +125,11 @@ birdcc lsp --stdio
 sequenceDiagram
     autonumber
     participant Editor as 编辑器 (VSCode/Neovim)
-    participant LSP as "@birdcc/lsp"
-    participant Linter as "@birdcc/linter"
-    participant Formatter as "@birdcc/formatter"
-    participant Parser as "@birdcc/parser"
-    participant Core as "@birdcc/core"
+    participant LSP as @birdcc/lsp
+    participant Linter as @birdcc/linter
+    participant Formatter as @birdcc/formatter
+    participant Parser as @birdcc/parser
+    participant Core as @birdcc/core
 
     rect rgb(225, 245, 254)
         Note over Editor,Core: 实时诊断流程

@@ -125,11 +125,11 @@ Search for **"BIRD2 LSP"** in VS Code Marketplace or install from [Open VSX](htt
 sequenceDiagram
     autonumber
     participant Editor as Editor (VSCode/Neovim)
-    participant LSP as "@birdcc/lsp"
-    participant Linter as "@birdcc/linter"
-    participant Formatter as "@birdcc/formatter"
-    participant Parser as "@birdcc/parser"
-    participant Core as "@birdcc/core"
+    participant LSP as @birdcc/lsp
+    participant Linter as @birdcc/linter
+    participant Formatter as @birdcc/formatter
+    participant Parser as @birdcc/parser
+    participant Core as @birdcc/core
 
     rect rgb(225, 245, 254)
         Note over Editor,Core: Real-time Diagnostics Flow

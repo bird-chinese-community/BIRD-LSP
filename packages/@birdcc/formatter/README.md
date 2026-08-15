@@ -190,7 +190,7 @@ flowchart TB
     end
 
     subgraph "dprint Engine"
-        D1[@birdcc/dprint-plugin-bird<br/>Rust/WASM]
+        D1["@birdcc/dprint-plugin-bird<br/>Rust/WASM"]
         D2[Tree-sitter Parser]
         D3[Format Logic]
     end
