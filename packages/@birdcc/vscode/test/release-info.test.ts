@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { validateChangelogEntry } from "../../../../tools/vscode-release-info.mjs";
+import {
+  validateChangelogEntry,
+  validateMarketplaceManifest,
+} from "../../../../tools/vscode-release-info.mjs";
 
 const releaseEntry = {
   changelogPath: "packages/@birdcc/vscode/CHANGELOG.md",
@@ -9,6 +12,19 @@ const releaseEntry = {
 };
 
 describe("VS Code release metadata", () => {
+  it("rejects Marketplace packages that npm can publish", () => {
+    expect(() =>
+      validateMarketplaceManifest(
+        {
+          version: "0.1.2",
+          publisher: "BIRDCC",
+          private: false,
+        },
+        "bird2-extension-pack",
+      ),
+    ).toThrow("must remain private");
+  });
+
   it("rejects a version heading without its link reference", () => {
     expect(() =>
       validateChangelogEntry({

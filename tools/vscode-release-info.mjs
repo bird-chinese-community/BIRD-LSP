@@ -41,6 +41,20 @@ const validateMarketplaceVersion = (version, label) => {
   }
 };
 
+export const validateMarketplaceManifest = (manifest, label) => {
+  validateMarketplaceVersion(manifest.version, label);
+
+  if (manifest.private !== true) {
+    throw new Error(
+      `${label} must remain private to prevent npm publication; use the Marketplace workflow instead`,
+    );
+  }
+
+  if (!manifest.publisher) {
+    throw new Error(`${label} publisher is missing`);
+  }
+};
+
 export const validateChangelogEntry = ({
   changelog,
   changelogPath,
@@ -76,14 +90,10 @@ const loadReleasePackage = async (releasePackage) => {
     "utf8",
   );
 
-  validateMarketplaceVersion(manifest.version, releasePackage.marketplaceName);
+  validateMarketplaceManifest(manifest, releasePackage.marketplaceName);
   const releaseTag = releasePackage.releaseTagPrefix
     ? `${releasePackage.releaseTagPrefix}${manifest.version}`
     : undefined;
-
-  if (!manifest.publisher) {
-    throw new Error(`${releasePackage.marketplaceName} publisher is missing`);
-  }
 
   validateChangelogEntry({
     changelog,
