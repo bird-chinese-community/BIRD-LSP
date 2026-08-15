@@ -126,84 +126,74 @@ sequenceDiagram
     autonumber
     participant Editor as 编辑器 (VSCode/Neovim)
     participant LSP as @birdcc/lsp
-    participant Linter as @birdcc/linter
-    participant Formatter as @birdcc/formatter
     participant Parser as @birdcc/parser
     participant Core as @birdcc/core
+    participant Linter as @birdcc/linter
+    participant Formatter as @birdcc/formatter
 
-    rect rgb(225, 245, 254)
-        Note over Editor,Core: 实时诊断流程
-        Editor->>+LSP: textDocument/didChange
-        LSP->>+Parser: parseBirdConfig(source)
-        Parser-->>-LSP: ParsedBirdDocument
-        LSP->>+Core: buildCoreSnapshot(parsed)
-        Core-->>-LSP: CoreSnapshot
-        LSP->>+Linter: lintBirdConfig(context)
-        Linter-->>-LSP: Diagnostics[]
-        LSP-->>-Editor: textDocument/publishDiagnostics
-    end
+    Note over Editor,Formatter: 实时诊断
+    Editor->>+LSP: textDocument/didChange
+    LSP->>+Parser: parseBirdConfig(source)
+    Parser-->>-LSP: ParsedBirdDocument
+    LSP->>+Core: buildCoreSnapshot(parsed)
+    Core-->>-LSP: CoreSnapshot
+    LSP->>+Linter: lintBirdConfig(context)
+    Linter-->>-LSP: Diagnostics[]
+    LSP-->>-Editor: textDocument/publishDiagnostics
 
-    rect rgb(255, 243, 224)
-        Note over Editor,Core: 格式化流程
-        Editor->>+LSP: textDocument/formatting
-        LSP->>+Formatter: formatBirdConfig(source)
-        Formatter->>+Parser: parseBirdConfig(source)
-        Parser-->>-Formatter: AST
-        Formatter-->>-LSP: Formatted Text
-        LSP-->>-Editor: TextEdit[]
-    end
+    Note over Editor,Formatter: 格式化
+    Editor->>+LSP: textDocument/formatting
+    LSP->>+Formatter: formatBirdConfig(source)
+    Formatter->>+Parser: parseBirdConfig(source)
+    Parser-->>-Formatter: AST
+    Formatter-->>-LSP: Formatted Text
+    LSP-->>-Editor: TextEdit[]
 ```
 
 ### 包依赖图
 
 ```mermaid
 flowchart BT
-    classDef infra fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#000
-    classDef core fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px,color:#000
-    classDef service fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
-    classDef lsp fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
-    classDef user fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
 
-    subgraph Infrastructure [基础设施层]
-        PARSER("@birdcc/parser<br/>Tree-sitter/WASM")
-        DPRINT("@birdcc/dprint-plugin-bird<br/>🦀 Rust")
+    subgraph infra [基础设施层]
+        PARSER["@birdcc/parser<br/>Tree-sitter / WASM"]
+        DPRINT["@birdcc/dprint-plugin-bird<br/>Rust / WASM"]
     end
 
-    subgraph CoreLayer [核心层]
-        CORE("@birdcc/core<br/>符号表 & 类型系统")
+    subgraph core [核心层]
+        CORE["@birdcc/core<br/>符号表 / 类型 / 跨文件"]
     end
 
-    subgraph ServiceLayer [服务层]
-        FORMATTER("@birdcc/formatter<br/>格式引擎")
-        LINTER("@birdcc/linter<br/>配置文件·静态分析引擎")
+    subgraph service [服务层]
+        LINTER["@birdcc/linter<br/>静态分析"]
+        FORMATTER["@birdcc/formatter<br/>格式引擎"]
+        INTEL["@birdcc/intel<br/>ASN 智能"]
     end
 
-    subgraph LspLayer [LSP 适配层]
-        LSP_SERVER("@birdcc/lsp<br/>语言服务器协议")
+    subgraph adapter [LSP 适配层]
+        LSP_SERVER["@birdcc/lsp<br/>语言服务器"]
     end
 
-    subgraph UserLayer [用户接口层]
-        CLI("@birdcc/cli<br/>命令行")
-        VSCODE("@birdcc/vscode<br/>编辑器插件")
+    subgraph ui [用户接口层]
+        CLI["@birdcc/cli"]
+        VSCODE["@birdcc/vscode<br/>编辑器插件"]
     end
 
-
-    %% 基础设施支撑 Formatter（Dprint 是底层引擎）
-    PARSER <--> DPRINT
-    PARSER <--> CORE
-
-    CORE --> FORMATTER
     DPRINT --> FORMATTER
-
-    %% Core 和 Formatter 支撑 Linter
+    PARSER --> FORMATTER
+    PARSER --> CORE
+    CORE --> FORMATTER
     CORE --> LINTER
-    FORMATTER --> LINTER
-
-    %% 所有服务支撑 LSP
-    FORMATTER --> LSP_SERVER
+    CORE --> INTEL
+    CORE --> LSP_SERVER
     LINTER --> LSP_SERVER
-
-    %% LSP 和独立服务支撑用户端
+    FORMATTER --> LSP_SERVER
+    INTEL --> LSP_SERVER
     LSP_SERVER --> CLI
     LSP_SERVER --> VSCODE
     LINTER --> CLI
@@ -211,9 +201,9 @@ flowchart BT
 
     class PARSER,DPRINT infra
     class CORE core
-    class FORMATTER,LINTER service
-    class LSP_SERVER lsp
-    class CLI,VSCODE user
+    class LINTER,FORMATTER,INTEL service
+    class LSP_SERVER adapter
+    class CLI,VSCODE ui
 ```
 
 ---

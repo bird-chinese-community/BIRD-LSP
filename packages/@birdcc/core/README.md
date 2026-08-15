@@ -233,55 +233,66 @@ interface BirdDiagnostic {
 
 ```mermaid
 flowchart TB
-    subgraph "Rule Engine"
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    subgraph rule [Rule Engine]
         A["@birdcc/linter"]
     end
 
-    subgraph "Semantic Analysis"
+    subgraph semantic [Semantic Analysis]
         B["@birdcc/core"]
     end
 
-    subgraph "Syntax Parsing"
+    subgraph syntax [Syntax Parsing]
         C["@birdcc/parser"]
     end
 
     A -->|uses| B
     B -->|uses| C
 
-    style A fill:#e1f5fe
-    style B fill:#fff3e0
-    style C fill:#e8f5e9
+    class A service
+    class B core
+    class C infra
 ```
 
 ### Internal Components
 
 ```mermaid
 flowchart TB
-    subgraph "Input"
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    subgraph input [Input]
         SRC[BIRD Config Source]
     end
 
-    subgraph "Parser Layer"
+    subgraph parser [Parser Layer]
         P["@birdcc/parser<br/>Tree-sitter"]
         AST[AST<br/>Abstract Syntax Tree]
     end
 
-    subgraph "Core Layer"
-        SC[Symbol Collector]
+    subgraph core [Core Layer]
         ST[(Symbol Table)]
-        SEM[Semantic Checker]
+        SEM[Semantic Diagnostics]
+        TYP[Type Checker]
         DIAG[Diagnostics]
     end
 
     SRC --> P
     P --> AST
-    AST --> SC
-    SC --> ST
+    AST --> ST
+    AST --> SEM
     ST --> SEM
     SEM --> DIAG
+    TYP --> DIAG
 
-    style ST fill:#fff3e0
-    style DIAG fill:#ffebee
+    class SRC ui
+    class P infra
+    class ST,SEM,TYP,DIAG core
 ```
 
 ### Symbol Resolution Flow
@@ -290,24 +301,40 @@ flowchart TB
 sequenceDiagram
     participant User as User Code
     participant Core as @birdcc/core
-    participant Collector as SymbolCollector
-    participant Checker as SemanticChecker
-    participant Table as SymbolTable
+    participant SymTab as Symbol Table
+    participant Semantic as Semantic Diagnostics
+    participant TypeCk as Type Checker
 
     User->>Core: buildCoreSnapshot(text)
-    Core->>Collector: collectSymbols(ast)
-    Collector->>Table: addSymbol(protocol)
-    Collector->>Table: addSymbol(template)
-    Collector->>Table: addSymbol(filter)
-    Collector->>Table: addSymbol(function)
-    Table-->>Collector: symbols[]
-    Collector-->>Core: symbols, references
-    Core->>Checker: validate(symbols, references)
-    Checker->>Table: checkDuplicates()
-    Checker->>Table: checkUndefinedRefs()
-    Table-->>Checker: validation results
-    Checker-->>Core: diagnostics[]
+    Core->>SymTab: buildSymbolTableFromParsed(parsed)
+    SymTab-->>Core: SymbolTable
+    Core->>Semantic: collectSemanticDiagnostics(parsed)
+    Core->>Semantic: collectCircularTemplateDiagnostics(parsed)
+    Core->>SymTab: pushSymbolTableDiagnostics(symbolTable)
+    SymTab-->>Core: diagnostics[]
+    Core->>TypeCk: checkTypes(program, symbolTable)
+    TypeCk-->>Core: typeDiagnostics
     Core-->>User: CoreSnapshot
+```
+
+### Cross-file Resolution Flow
+
+```mermaid
+flowchart TB
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    SRC[entry .conf] --> ENSURE[ensureDocument<br/>read + parse + snapshot]
+    ENSURE --> QUEUE[BFS include queue<br/>maxDepth / maxFiles]
+    QUEUE --> GRAPH[Build include graph]
+    GRAPH --> TOPO[Topological order]
+    TOPO --> MERGE[Merge symbol tables]
+    MERGE --> CYCLE[Detect circular templates]
+    CYCLE --> OUT[CrossFileResolutionResult<br/>documents + snapshots + diagnostics]
+
+    class SRC ui
+    class ENSURE,QUEUE,GRAPH,TOPO,MERGE,CYCLE core
+    class OUT ui
 ```
 
 ---

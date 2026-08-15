@@ -131,81 +131,78 @@ const wasmBuffer = getBuffer();
 
 ```mermaid
 flowchart TB
-    subgraph "Host Environment"
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    subgraph host [Host Environment]
         D1[dprint CLI]
         D2[Editor Plugin]
         D3["@birdcc/formatter"]
     end
 
-    subgraph "WASM Runtime"
+    subgraph wasm [WASM Runtime]
         WASM[WASM Module<br/>wasm32-wasip1]
-        HOST[Host Functions]
+        TRAIT[Plugin Trait<br/>plugin_info / resolve_config]
     end
 
-    subgraph "Rust Core"
-        R1[Plugin Entry]
-        R2[Configuration]
-        R3[Format Engine]
+    subgraph rust [Rust Core]
+        FORMAT[format_text]
+        CONFIG[resolve_config]
     end
 
-    subgraph "Parsing"
+    subgraph parse [Parsing]
         P1[Tree-sitter Parser]
-        P2[AST Builder]
+        AST[AST Builder]
     end
 
-    subgraph "Formatting"
-        F1[Layout Engine]
-        F2[Indentation]
-        F3[Line Breaking]
+    subgraph layout [Formatting]
+        LAYOUT[Layout Engine<br/>indent / line-break]
     end
 
-    subgraph "Output"
-        O[Formatted Text]
+    subgraph output [Output]
+        OUT[Formatted Text]
     end
 
     D1 --> WASM
     D2 --> WASM
     D3 --> WASM
-    WASM --> HOST
-    HOST --> R1
-    R1 --> R2
-    R1 --> R3
-    R3 --> P1
-    P1 --> P2
-    P2 --> F1
-    F1 --> F2
-    F1 --> F3
-    F2 --> O
-    F3 --> O
+    WASM --> TRAIT
+    TRAIT --> FORMAT
+    TRAIT --> CONFIG
+    FORMAT --> P1
+    P1 --> AST
+    AST --> LAYOUT
+    LAYOUT --> OUT
 
-    style WASM fill:#f3e5f5
-    style R3 fill:#e8f5e9
+    class D1,D2,D3 ui
+    class WASM,TRAIT,FORMAT,CONFIG,P1,AST infra
+    class LAYOUT service
+    class OUT ui
 ```
 
 ### Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant Host as Host (dprint/formatter)
+    participant Host as dprint Host
     participant WASM as WASM Runtime
-    participant Plugin as Rust Plugin
+    participant Plugin as BIRD Plugin
     participant Parser as Tree-sitter
-    participant Formatter as Format Engine
+    participant Layout as Layout Engine
 
-    Host->>WASM: load_plugin()
-    WASM->>Plugin: initialize()
-    Plugin-->>WASM: plugin info
-    WASM-->>Host: ready
+    Host->>WASM: load plugin (wasm)
+    WASM->>Plugin: plugin_info()
+    Plugin-->>WASM: PluginInfo
+    Host->>WASM: resolve_config(config)
+    WASM-->>Host: resolved config
 
-    Host->>WASM: format_text(source, config)
-    WASM->>Plugin: format_request()
+    Host->>WASM: format(file_text, config)
+    WASM->>Plugin: format()
     Plugin->>Parser: parse_source()
     Parser-->>Plugin: CST/AST
-    Plugin->>Formatter: format_node(node, config)
-    Formatter->>Formatter: compute_layout()
-    Formatter->>Formatter: apply_indentation()
-    Formatter->>Formatter: handle_line_breaks()
-    Formatter-->>Plugin: formatted_text
+    Plugin->>Layout: layout(cst, config)
+    Layout-->>Plugin: formatted text
     Plugin-->>WASM: result
     WASM-->>Host: formatted output
 ```
@@ -214,23 +211,27 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph "Source"
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    subgraph source [Source]
         RS[Rust Source<br/>src/*.rs]
         TS[TypeScript<br/>src/*.ts]
     end
 
-    subgraph "Compile"
+    subgraph compile [Compile]
         RUSTC[Rust Compiler]
         TSC[TypeScript Compiler]
     end
 
-    subgraph "Output"
+    subgraph output [Output]
         WASM[dprint-plugin-bird.wasm]
         JS[index.js]
         DTS[index.d.ts]
     end
 
-    subgraph "Package"
+    subgraph pkg [Package]
         PKG[npm Package]
     end
 
@@ -243,7 +244,9 @@ flowchart LR
     JS --> PKG
     DTS --> PKG
 
-    style WASM fill:#f3e5f5
+    class RS,TS ui
+    class RUSTC,TSC,WASM,JS,DTS infra
+    class PKG service
 ```
 
 ---

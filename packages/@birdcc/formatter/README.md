@@ -181,44 +181,47 @@ type FormatterEngine = "dprint" | "builtin";
 
 ```mermaid
 flowchart TB
-    subgraph "API Layer"
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    subgraph api [API Layer]
         API[formatBirdConfig]
     end
 
-    subgraph "Engine Selection"
-        SEL{Engine Selection}
+    subgraph selection [Engine Selection]
+        SEL{resolveOptions}
     end
 
-    subgraph "dprint Engine"
-        D1["@birdcc/dprint-plugin-bird<br/>Rust/WASM"]
+    subgraph dprint [dprint Engine]
+        D1["@birdcc/dprint-plugin-bird<br/>Rust / WASM"]
         D2[Tree-sitter Parser]
-        D3[Format Logic]
     end
 
-    subgraph "Builtin Engine"
+    subgraph builtin [Builtin Engine]
         B1[TypeScript Implementation]
         B2[Parser Adapter]
-        B3[Format Logic]
     end
 
-    subgraph "Safety Layer"
-        SAFE{Safe Mode}
+    subgraph safety [Safety Layer]
+        SAFE{assertSafeModeSemanticEquivalence}
         AST1[Parse Original]
         AST2[Parse Formatted]
-        CMP[AST Compare]
+        CMP[Fingerprint Compare]
     end
 
-    subgraph "Output"
+    subgraph output [Output]
         OUT[Formatted Text]
     end
 
     API --> SEL
-    SEL -->|priority| D1
-    SEL -->|fallback| B1
-    D1 --> D2 --> D3
-    B1 --> B2 --> B3
-    D3 --> SAFE
-    B3 --> SAFE
+    SEL -->|dprint| D1
+    SEL -->|builtin| B1
+    D1 --> D2
+    B1 --> B2
+    D1 --> SAFE
+    B1 --> SAFE
     SAFE -->|enabled| AST1
     SAFE -->|enabled| AST2
     AST1 --> CMP
@@ -226,9 +229,10 @@ flowchart TB
     CMP -->|verified| OUT
     SAFE -->|disabled| OUT
 
-    style D1 fill:#e8f5e9
-    style B1 fill:#e3f2fd
-    style SAFE fill:#fff3e0
+    class API,SEL,B1,B2 service
+    class D1,D2 infra
+    class SAFE,AST1,AST2,CMP flow
+    class OUT ui
 ```
 
 ### Formatting Pipeline
@@ -236,53 +240,57 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant User as User Code
-    participant API as Formatter API
+    participant API as @birdcc/formatter
     participant Engine as Format Engine
     participant Parser as @birdcc/parser
     participant Safe as Safe Mode
 
     User->>API: formatBirdConfig(source, options)
-    API->>API: selectEngine(options)
+    API->>API: resolveOptions(options)
 
     alt dprint Engine
-        API->>Engine: dprint.format(source)
-        Engine->>Engine: Rust/WASM formatting
+        API->>Engine: formatWithEmbeddedDprint(source)
+        Engine->>Engine: dprint context format
     else builtin Engine
-        API->>Engine: builtin.format(source)
+        API->>Engine: formatWithBuiltin(source)
         Engine->>Parser: parseBirdConfig(source)
-        Parser-->>Engine: AST
-        Engine->>Engine: TypeScript formatting
+        Parser-->>Engine: ParsedBirdDocument
+        Engine->>Engine: normalizeTextWithBuiltin(...)
     end
 
-    Engine-->>API: formattedText
+    Engine-->>API: formatted text
 
-    opt Safe Mode Enabled
-        API->>Safe: verifySemantics(source, formattedText)
+    opt safeMode enabled (both engines)
+        API->>Safe: assertSafeModeSemanticEquivalence(source, formatted)
         Safe->>Parser: parseBirdConfig(source)
-        Parser-->>Safe: ast1
+        Parser-->>Safe: fingerprint 1
         Safe->>Parser: parseBirdConfig(formattedText)
-        Parser-->>Safe: ast2
-        Safe->>Safe: compareAST(ast1, ast2)
-        Safe-->>API: verification result
+        Parser-->>Safe: fingerprint 2
+        Safe->>Safe: compare fingerprints
+        Safe-->>API: verified
     end
 
     API-->>User: BirdFormatResult
 ```
 
-### Engine Fallback Strategy
+### Engine Selection & Fallback
 
 ```mermaid
 flowchart TD
-    START[Format Request] --> CONFIG{Engine Configured?}
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
 
-    CONFIG -->|explicit dprint| TRY_DPRINT[Try dprint]
-    CONFIG -->|explicit builtin| USE_BUILTIN[Use builtin]
-    CONFIG -->|auto| TRY_DPRINT_AUTO[Try dprint]
+    START[formatBirdConfig] --> CONFIG{engine option?}
+
+    CONFIG -->|dprint| TRY_DPRINT[formatWithEmbeddedDprint]
+    CONFIG -->|builtin| USE_BUILTIN[formatWithBuiltin]
+    CONFIG -->|auto| TRY_DPRINT_AUTO[Try dprint first]
 
     TRY_DPRINT --> DPRINT_OK{dprint OK?}
     TRY_DPRINT_AUTO --> DPRINT_OK_AUTO{dprint OK?}
 
-    DPRINT_OK -->|yes| RETURN_DPRINT[Return dprint result]
+    DPRINT_OK -->|yes| RETURN_DPRINT[Return result]
     DPRINT_OK -->|no| ERROR[Throw Error]
 
     DPRINT_OK_AUTO -->|yes| RETURN_DPRINT
@@ -290,20 +298,36 @@ flowchart TD
 
     FALLBACK --> USE_BUILTIN
     USE_BUILTIN --> BUILTIN_OK{builtin OK?}
-    BUILTIN_OK -->|yes| RETURN_BUILTIN[Return builtin result]
+    BUILTIN_OK -->|yes| RETURN_BUILTIN[Return result]
     BUILTIN_OK -->|no| ERROR
 
-    RETURN_DPRINT --> SAFE{Safe Mode?}
-    RETURN_BUILTIN --> SAFE
+    class START,CONFIG,ERROR flow
+    class TRY_DPRINT,DPRINT_OK,DPRINT_OK_AUTO infra
+    class USE_BUILTIN,BUILTIN_OK,FALLBACK,RETURN_BUILTIN service
+```
 
-    SAFE -->|enabled| VERIFY[Verify AST]
-    SAFE -->|disabled| OUTPUT[Output Result]
-    VERIFY -->|pass| OUTPUT
-    VERIFY -->|fail| ERROR
+### Safe Mode Verification
 
-    style TRY_DPRINT fill:#e8f5e9
-    style USE_BUILTIN fill:#e3f2fd
-    style FALLBACK fill:#fff3e0
+```mermaid
+flowchart TD
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+
+    RESULT[Formatted text] --> SAFE{safeMode?}
+
+    SAFE -->|disabled| OUTPUT[Return result]
+    SAFE -->|enabled| VERIFY[assertSafeModeSemanticEquivalence]
+    VERIFY --> PARSE1[parseBirdConfig source]
+    VERIFY --> PARSE2[parseBirdConfig formatted]
+    PARSE1 --> CMP[compare fingerprints]
+    PARSE2 --> CMP
+    CMP -->|equivalent| OUTPUT
+    CMP -->|diverged| ERROR[Throw Error]
+
+    class RESULT service
+    class SAFE,VERIFY,PARSE1,PARSE2,CMP,ERROR flow
+    class OUTPUT ui
 ```
 
 ---

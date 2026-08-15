@@ -163,40 +163,42 @@ interface LspOptions {
 
 ## Architecture
 
-### System Overview
+### Layered Architecture
 
 ```mermaid
 flowchart TB
-    subgraph "Editor Layer"
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+
+    subgraph editor [Editor Layer]
         E1[VS Code]
         E2[Neovim]
         E3[Vim]
         E4[Helix]
     end
 
-    subgraph "LSP Protocol"
+    subgraph protocol [LSP Protocol]
         LSP[LSP Protocol<br/>JSON-RPC]
     end
 
-    subgraph "LSP Server"
-        S["@birdcc/lsp<br/>LSP Server"]
-        SYNC[Document Sync<br/>Incremental]
-        DIAG[Diagnostics Handler]
-        COMP[Completion Provider]
-        HOVER[Hover Provider]
-        DEF[Definition Provider]
+    subgraph server [LSP Server]
+        S["@birdcc/lsp"]
     end
 
-    subgraph "Service Layer"
-        LINTER["@birdcc/linter<br/>32+ Rules"]
-        FORMATTER["@birdcc/formatter<br/>dprint/builtin"]
+    subgraph service [Service Layer]
+        LINTER["@birdcc/linter<br/>Static Analysis"]
+        FORMATTER["@birdcc/formatter"]
+        INTEL["@birdcc/intel<br/>ASN Intelligence"]
     end
 
-    subgraph "Core Layer"
-        CORE["@birdcc/core<br/>Symbol Table"]
+    subgraph core [Core Layer]
+        CORE["@birdcc/core<br/>Symbols / Types"]
     end
 
-    subgraph "Parser Layer"
+    subgraph parser [Parser Layer]
         PARSER["@birdcc/parser<br/>Tree-sitter"]
     end
 
@@ -205,21 +207,60 @@ flowchart TB
     E3 --> LSP
     E4 --> LSP
     LSP --> S
-    S --> SYNC
-    S --> DIAG
-    S --> COMP
-    S --> HOVER
-    S --> DEF
-    DIAG --> LINTER
-    COMP --> CORE
-    HOVER --> CORE
-    DEF --> CORE
-    LINTER --> CORE
+    S --> LINTER
+    S --> FORMATTER
+    S --> INTEL
     FORMATTER --> PARSER
     CORE --> PARSER
 
-    style S fill:#e3f2fd
-    style LSP fill:#f3e5f5
+    class E1,E2,E3,E4 ui
+    class LSP,S adapter
+    class LINTER,FORMATTER,INTEL service
+    class CORE core
+    class PARSER infra
+```
+
+### LSP Server Modules
+
+```mermaid
+flowchart TB
+    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+
+    subgraph server [LSP Server]
+        S["@birdcc/lsp"]
+        SYNC[TextDocuments<br/>Incremental Sync]
+        VALID[Validation Scheduler]
+        COMP[Completion]
+        HOVER[Hover]
+        DEF[Definition]
+        REF[References]
+        SYMBOLS[Document Symbols]
+        INLAY[Inlay Hints<br/>Type / ASN]
+    end
+
+    S --> SYNC
+    S --> VALID
+    S --> COMP
+    S --> HOVER
+    S --> DEF
+    S --> REF
+    S --> SYMBOLS
+    S --> INLAY
+
+    VALID --> LINTER["@birdcc/linter"]
+    VALID --> CORE["@birdcc/core"]
+    COMP --> CORE
+    HOVER --> CORE
+    DEF --> CORE
+    REF --> CORE
+    SYMBOLS --> CORE
+    INLAY --> INTEL["@birdcc/intel"]
+
+    class SYNC,VALID,COMP,HOVER,DEF,REF,SYMBOLS,INLAY adapter
+    class LINTER,INTEL service
+    class CORE core
 ```
 
 ### Request Handling Flow
@@ -229,7 +270,8 @@ sequenceDiagram
     participant Editor as Editor
     participant LSP as LSP Connection
     participant Server as @birdcc/lsp
-    participant Services as Services
+    participant Scheduler as Validation Scheduler
+    participant Linter as @birdcc/linter
     participant Core as @birdcc/core
 
     Editor->>LSP: Initialize Request
@@ -239,24 +281,23 @@ sequenceDiagram
 
     Editor->>LSP: textDocument/didOpen
     LSP->>Server: onDidOpen()
-    Server->>Services: validate(document)
-    Services->>Core: buildCoreSnapshot()
-    Core-->>Services: snapshot
-    Services-->>Server: diagnostics
-    Server->>LSP: publishDiagnostics
+    Server->>Scheduler: schedule(document)
+    Scheduler->>Linter: lintBirdConfig(context)
+    Scheduler->>Core: resolveCrossFileReferences(graph)
+    Linter-->>Scheduler: Diagnostics[]
+    Scheduler-->>Server: publishDiagnostics
+    Server->>LSP: textDocument/publishDiagnostics
     LSP->>Editor: Diagnostics
 
     Editor->>LSP: textDocument/completion
     LSP->>Server: onCompletion()
-    Server->>Core: getSymbols()
-    Core-->>Server: symbols[]
+    Server->>Server: createCompletionItemsFromParsed(parsed)
     Server-->>LSP: CompletionItem[]
     LSP-->>Editor: Completions
 
     Editor->>LSP: textDocument/hover
     LSP->>Server: onHover()
-    Server->>Core: resolveSymbol()
-    Core-->>Server: symbol info
+    Server->>Server: createHoverFromParsed(parsed, position)
     Server-->>LSP: Hover
     LSP-->>Editor: Tooltip
 ```
@@ -265,33 +306,35 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    subgraph "Editor"
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
+    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+
+    subgraph editor [Editor]
         E[Document Changes]
     end
 
-    subgraph "LSP Server"
-        S[Text Documents Manager]
+    subgraph server [LSP Server]
+        S[TextDocuments]
         AST[AST Cache]
-        SYM[Symbol Cache]
+        SYM[Symbol Table]
     end
 
-    subgraph "Validation"
-        V[Validator]
+    subgraph validation [Validation]
+        V[Validation Scheduler]
         D[Diagnostics Engine]
     end
 
-    E -->|didChange| S
-    E -->|didOpen| S
-    E -->|didClose| S
+    E -->|didChange / didOpen / didClose| S
     S -->|parse| AST
     AST -->|analyze| SYM
     SYM -->|validate| V
     V -->|report| D
-    D -->|publish| E
+    D -->|publishDiagnostics| E
 
-    style S fill:#e3f2fd
-    style AST fill:#e8f5e9
-    style SYM fill:#fff3e0
+    class E ui
+    class S,AST,SYM adapter
+    class V,D service
 ```
 
 ### Server Capabilities
