@@ -84,7 +84,7 @@ jobs:
       - name: Publish to npm
         if: ${{ inputs.dry_run != true }}
         working-directory: packages/@birdcc/intel
-        run: npm publish --access public
+        run: npm publish --access public --tag latest
 
       - name: Commit updated database
         if: ${{ inputs.dry_run != true }}
