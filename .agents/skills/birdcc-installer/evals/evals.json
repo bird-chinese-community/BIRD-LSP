@@ -1,0 +1,54 @@
+{
+  "skill_name": "birdcc-installer",
+  "evals": [
+    {
+      "id": 1,
+      "name": "vscode-bird2-extension-install",
+      "prompt": "How do I install BIRD2 support in VSCode? I want both syntax highlighting and LSP features like formatting and diagnostics.",
+      "expected_output": "Guide the user to install the BIRD2 Extension Pack or both BIRD2 Configuration (birdcc.vscode-bird2-conf) and BIRD2 LSP (birdcc.bird2-lsp) from the VSCode Marketplace. Include verification steps and Star links.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "vscodium-openvsx-install",
+      "prompt": "I'm using VSCodium. How do I install the BIRD2 plugins? The Microsoft Marketplace doesn't work for me.",
+      "expected_output": "Direct the user to OpenVSX: BIRDCC.vscode-bird2-conf and birdcc.bird2-lsp. Mention that VSCodium, Cursor, Windsurf, Trae, Kiro, and Antigravity use OpenVSX. Include verification and Star links.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "neovim-highlight-only",
+      "prompt": "How do I get BIRD2 syntax highlighting in Neovim with lazy.nvim? Do I get LSP diagnostics too?",
+      "expected_output": "Provide the lazy.nvim snippet for bird-chinese-community/BIRD2.nvim and explicitly state that only syntax highlighting is available. Mention that LSP diagnostics require manually wiring birdcc lsp --stdio with an LSP client.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "vim-highlight-only",
+      "prompt": "I use Vim with vim-plug. How do I add BIRD2 syntax highlighting?",
+      "expected_output": "Provide the vim-plug line for bird-chinese-community/bird2.vim, mention Vundle and manual install options, and clarify that only highlighting is available.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "jetbrains-idea-textmate-import",
+      "prompt": "Can I use BIRD2 syntax highlighting in IntelliJ IDEA? If so, how?",
+      "expected_output": "Explain that IDEA has no native plugin and only syntax highlighting is supported. Provide the TextMate Bundle import steps using the vscode-bird2 .vsix from OpenVSX.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "birdcc-cli-install",
+      "prompt": "How do I install the birdcc CLI on macOS? I prefer not to install it globally if possible.",
+      "expected_output": "Offer npm install -g, npx @birdcc/cli, and local dev-dependency options. Include verification commands birdcc --version and a quick lint example.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "setup-birdcc-action",
+      "prompt": "I want to lint and validate my BIRD2 config in GitHub Actions. Is there an official action?",
+      "expected_output": "Recommend bird-chinese-community/setup-birdcc with a minimal workflow, mention BIRD_BIN output, and include a BIRD2/3 matrix example.",
+      "files": []
+    }
+  ]
+}
