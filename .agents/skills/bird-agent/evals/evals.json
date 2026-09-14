@@ -1,0 +1,372 @@
+{
+  "skill_name": "bird-agent",
+  "evals": [
+    {
+      "id": 1,
+      "name": "missing-semicolon-diagnosis",
+      "prompt": "I have a BIRD2 config file at /Users/nana/Documents/code/BIRDCC/BIRD-LSP/.worktrees/feat/agent-skills/.agents/skills/bird-agent/evals/fixtures/bird.conf. When I run `bird -p -c bird.conf` it fails with a syntax error but I don't understand the message. Can you help me find and fix the problem?",
+      "expected_output": "Run birdcc lint on the file, identify the missing semicolon after 'router id 192.0.2.1', and propose a corrected snippet.",
+      "files": [
+        "evals/fixtures/bird.conf"
+      ],
+      "assertions": [
+        {
+          "name": "ran_birdcc_lint",
+          "description": "The agent invoked birdcc lint on the fixture file.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "node /Users/nana/Documents/code/BIRDCC/BIRD-LSP/packages/@birdcc/cli/dist/cli.js lint"
+        },
+        {
+          "name": "identified_missing_semicolon",
+          "description": "The agent identified the root cause as a missing semicolon after router id 192.0.2.1.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "router id 192.0.2.1;"
+        },
+        {
+          "name": "provided_corrected_snippet",
+          "description": "The agent provided a corrected config snippet with the semicolon added.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "router id 192.0.2.1;"
+        },
+        {
+          "name": "explained_bird_error",
+          "description": "The agent explained why bird -p reported the error at line 3 instead of line 1.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "unexpected PROTOCOL",
+            "expecting ';'",
+            "missing semicolon"
+          ]
+        },
+        {
+          "name": "did_not_modify_fixture",
+          "description": "The agent did not modify the original fixture file.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "original fixture"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "format-preview",
+      "prompt": "Please format my BIRD config at /Users/nana/Documents/code/BIRDCC/BIRD-LSP/.worktrees/feat/agent-skills/.agents/skills/bird-agent/evals/fixtures/bird-unformatted.conf. I want to see what changes the formatter would make before you actually write them.",
+      "expected_output": "Run birdcc fmt --check on the file, show the diff or formatted output, and ask for confirmation before running birdcc fmt --write.",
+      "files": [
+        "evals/fixtures/bird-unformatted.conf"
+      ],
+      "assertions": [
+        {
+          "name": "ran_fmt_check",
+          "description": "The agent invoked birdcc fmt --check on the target file.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "fmt"
+        },
+        {
+          "name": "showed_diff_or_formatted_output",
+          "description": "The agent displayed a diff or the formatted output so the user can preview changes.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "diff",
+            "formatted",
+            "--- ",
+            "+++ "
+          ]
+        },
+        {
+          "name": "indentation_normalized",
+          "description": "The preview shows the neighbor line being indented to match the local as line.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "neighbor 203.0.113.1 as 6939;"
+        },
+        {
+          "name": "did_not_write_without_confirmation",
+          "description": "The agent did not modify the original file before receiving explicit confirmation.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "not modified",
+            "not write",
+            "awaiting",
+            "confirmation",
+            "No.",
+            "before writing"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "github-actions-workflow",
+      "prompt": "How do I add a GitHub Actions workflow to automatically lint and validate BIRD2 configs in my repo? We use pnpm and the main config is at configs/bird2.conf.",
+      "expected_output": "Provide a working GitHub Actions workflow using setup-birdcc that installs the toolchain, runs birdcc fmt --check, and runs birdcc lint --bird on the specified config path.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "uses_setup_birdcc_action",
+          "description": "The workflow uses the bird-chinese-community/setup-birdcc GitHub Action.",
+          "check": "file_contains",
+          "target": "workflow.md",
+          "expected": "bird-chinese-community/setup-birdcc"
+        },
+        {
+          "name": "includes_birdcc_lint",
+          "description": "The workflow runs birdcc lint with --bird for runtime validation.",
+          "check": "file_contains",
+          "target": "workflow.md",
+          "expected": "birdcc lint"
+        },
+        {
+          "name": "includes_fmt_check",
+          "description": "The workflow runs birdcc fmt --check to verify formatting.",
+          "check": "file_contains",
+          "target": "workflow.md",
+          "expected": "birdcc fmt"
+        },
+        {
+          "name": "targets_correct_config_path",
+          "description": "The workflow lints and formats configs/bird2.conf as requested.",
+          "check": "file_contains",
+          "target": "workflow.md",
+          "expected": "configs/bird2.conf"
+        },
+        {
+          "name": "uses_pnpm",
+          "description": "The workflow uses pnpm for package management as requested.",
+          "check": "file_contains_any",
+          "target": "workflow.md",
+          "expected": [
+            "pnpm",
+            "PNPM"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "cross-file-include-diagnosis",
+      "prompt": "I have a BIRD config at /Users/nana/Documents/code/BIRDCC/BIRD-LSP/.worktrees/feat/agent-skills/.agents/skills/bird-agent/evals/fixtures/cross-file/main.conf. birdcc lint reports errors that seem to come from an included file. Can you tell me which file has the real problem and what the fix is?",
+      "expected_output": "Run birdcc lint on main.conf with cross-file resolution, identify that peers.conf has a missing semicolon after 'local as 64512', and explain that include statements propagate diagnostics from the included file.",
+      "files": [
+        "evals/fixtures/cross-file/main.conf",
+        "evals/fixtures/cross-file/peers.conf"
+      ],
+      "assertions": [
+        {
+          "name": "ran_birdcc_lint_on_main",
+          "description": "The agent invoked birdcc lint on main.conf.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "main.conf"
+        },
+        {
+          "name": "identified_included_file",
+          "description": "The agent identified peers.conf as the source of the error.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "peers.conf"
+        },
+        {
+          "name": "identified_missing_semicolon_in_peers",
+          "description": "The agent identified the missing semicolon after local as 64512 in peers.conf.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "local as 64512"
+        },
+        {
+          "name": "explained_include_propagation",
+          "description": "The agent explained that errors in included files surface through the main file.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "include",
+            "propagat",
+            "surfac",
+            "comes from"
+          ]
+        },
+        {
+          "name": "did_not_modify_fixtures",
+          "description": "The agent did not modify the original fixture files.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "no changes were made",
+            "did not modify",
+            "not modify",
+            "fixture",
+            "original"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "bird-version-selection",
+      "prompt": "My router is still running BIRD 1.6. I want to validate a config using birdcc but I am not sure whether the default settings work for BIRD1. How should I run the linter and formatter so it targets BIRD1 instead of BIRD2?",
+      "expected_output": "Explain that birdcc defaults to BIRD2, demonstrate how to select BIRD1 via CLI flags or bird.config.json, and recommend validating against the actual BIRD1 binary if available.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentioned_bird1_support",
+          "description": "The agent mentioned BIRD1 compatibility in birdcc.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "BIRD1"
+        },
+        {
+          "name": "showed_cli_flag_or_config",
+          "description": "The agent showed how to configure version-specific validation via CLI flag or bird.config.json.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "--target",
+            "--bird-version",
+            "birdVersion",
+            "targetVersion",
+            "--validate-command",
+            "validateCommand",
+            "binaryPath"
+          ]
+        },
+        {
+          "name": "warned_about_default_bird2",
+          "description": "The agent warned that birdcc defaults to BIRD2 semantics.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "default",
+            "BIRD2"
+          ]
+        },
+        {
+          "name": "recommended_runtime_validation",
+          "description": "The agent recommended validating against the actual BIRD1 binary if possible.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "bird"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "neovim-editor-setup",
+      "prompt": "I use Neovim and want LSP support for BIRD2 configs. Can you give me step-by-step instructions to set it up using the BIRD-LSP project?",
+      "expected_output": "Provide editor-agnostic setup steps: install the BIRD-LSP server (npm or source), configure nvim-lspconfig or a minimal Lua setup, set filetype detection for .conf, and point to the BIRD2.vim or BIRD2.nvim tree-sitter grammar if needed.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentioned_lsp_server_install",
+          "description": "The agent explained how to install the BIRD-LSP server.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "npm",
+            "pnpm",
+            "@birdcc/lsp",
+            "birdcc lsp"
+          ]
+        },
+        {
+          "name": "provided_nvim_lspconfig_snippet",
+          "description": "The agent provided a Lua snippet for nvim-lspconfig or equivalent.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "lspconfig",
+            "vim.lsp.start",
+            "capabilities",
+            "on_attach"
+          ]
+        },
+        {
+          "name": "mentioned_filetype_detection",
+          "description": "The agent mentioned filetype detection for .conf files.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "filetype",
+            "ftdetect",
+            "autocmd BufRead"
+          ]
+        },
+        {
+          "name": "mentioned_treesitter_grammar",
+          "description": "The agent referenced a Tree-sitter grammar or syntax plugin for BIRD in Neovim (in transcript.md or neovim-setup.md).",
+          "check": "file_contains_any",
+          "target": "transcript.md or neovim-setup.md",
+          "expected": [
+            "tree-sitter",
+            "BIRD2.nvim",
+            "BIRD2.vim",
+            "nvim-treesitter",
+            "Treesitter",
+            "syntax highlighting"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "docs-semantic-question",
+      "prompt": "In BIRD2 filter language, when should I use `~=` (regex match) versus `~` (prefix match)? Give me an example for each.",
+      "expected_output": "Explain that ~ is the prefix/containment operator and ~= is the regex match operator, then provide a concrete filter example for each (e.g., net ~ 192.0.2.0/24 and bgp_path.last ~= '.*64512$').",
+      "files": [],
+      "assertions": [
+        {
+          "name": "distinguished_operators",
+          "description": "The agent distinguished ~ (prefix/containment) from ~= (regex).",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "prefix",
+            "containment",
+            "regex",
+            "regular expression"
+          ]
+        },
+        {
+          "name": "gave_prefix_example",
+          "description": "The agent gave a concrete prefix match example.",
+          "check": "file_contains",
+          "target": "transcript.md",
+          "expected": "~"
+        },
+        {
+          "name": "addressed_regex_question",
+          "description": "The agent addressed the ~= regex question by either providing a valid ~= example or correctly explaining that ~= is not a BIRD2 operator and giving a working alternative (e.g., shell-like string match with ~).",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "~=",
+            "shell-like",
+            "glob",
+            "not a valid operator",
+            "not valid",
+            "alternative"
+          ]
+        },
+        {
+          "name": "mentioned_documentation_source",
+          "description": "The agent referenced official or project documentation.",
+          "check": "file_contains_any",
+          "target": "transcript.md",
+          "expected": [
+            "bird.xmsl.dev",
+            "docs/",
+            "spec.md",
+            "BIRD",
+            "documentation"
+          ]
+        }
+      ]
+    }
+  ]
+}
