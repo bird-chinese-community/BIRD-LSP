@@ -809,28 +809,31 @@ export default grammar({
             field("right", $.simple_expression),
           ),
         ),
+        // Mirrors BIRD conf/confbase.Y: comparisons < additive < multiplicative.
         prec.left(
           3,
           seq(
             field("left", $.simple_expression),
             field(
               "operator",
-              choice(
-                "~",
-                "=",
-                "!=",
-                "<",
-                ">",
-                "<=",
-                ">=",
-                "&",
-                "|",
-                "+",
-                "-",
-                "*",
-                "/",
-              ),
+              choice("~", "=", "!=", "<", ">", "<=", ">=", "&", "|"),
             ),
+            field("right", $.simple_expression),
+          ),
+        ),
+        prec.left(
+          4,
+          seq(
+            field("left", $.simple_expression),
+            field("operator", choice("+", "-")),
+            field("right", $.simple_expression),
+          ),
+        ),
+        prec.left(
+          5,
+          seq(
+            field("left", $.simple_expression),
+            field("operator", choice("*", "/")),
             field("right", $.simple_expression),
           ),
         ),
