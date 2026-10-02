@@ -2800,6 +2800,35 @@ describe("@birdcc/parser tree-sitter", () => {
     ).toBe(false);
   });
 
+  it("treats omitted kernel switch values as enabled", async () => {
+    const parsed = await parseBirdConfig(`
+      protocol kernel {
+        persist;
+        graceful restart;
+        merge paths;
+        merge paths limit 4;
+      }
+    `);
+
+    expect(parsed.issues).toHaveLength(0);
+
+    const statements = parsed.program.declarations.flatMap((item) =>
+      item.kind === "protocol" ? item.statements : [],
+    );
+
+    expect(statements).toMatchObject([
+      { kind: "kernel-option", option: "persist", value: true },
+      { kind: "kernel-option", option: "graceful-restart", value: true },
+      { kind: "kernel-option", option: "merge-paths", value: true },
+      {
+        kind: "kernel-option",
+        option: "merge-paths",
+        value: true,
+        limit: "4",
+      },
+    ]);
+  });
+
   it("parses bridge protocol options", async () => {
     const parsed = await parseBirdConfig(`
       protocol bridge br0 {

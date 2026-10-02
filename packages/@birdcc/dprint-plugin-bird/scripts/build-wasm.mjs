@@ -15,22 +15,6 @@ const distWasmPath = resolve(packageDir, "dist", "dprint-plugin-bird.wasm");
 
 const rustupAvailable =
   spawnSync("rustup", ["--version"], { encoding: "utf8" }).status === 0;
-const toolchainRustc = rustupAvailable
-  ? spawnSync("rustup", ["which", "rustc", "--toolchain", "stable"], {
-      encoding: "utf8",
-    })
-  : { status: 0, stdout: "", stderr: "" };
-const toolchainBinDir =
-  rustupAvailable && toolchainRustc.status === 0
-    ? dirname(toolchainRustc.stdout.trim())
-    : undefined;
-const rustEnv =
-  rustupAvailable && toolchainBinDir
-    ? {
-        ...process.env,
-        PATH: `${toolchainBinDir}:${process.env.PATH ?? ""}`,
-      }
-    : process.env;
 const ensureTarget = rustupAvailable
   ? spawnSync(
       "rustup",
@@ -50,8 +34,7 @@ if (ensureTarget.status !== 0) {
   throw new Error(`Failed to add wasm32 target: ${reason}`);
 }
 
-const buildCommand = "cargo";
-const buildArgs = [
+const cargoArgs = [
   "build",
   "--release",
   "--target",
@@ -60,10 +43,15 @@ const buildArgs = [
   "wasm",
 ];
 
+// `rustup run` keeps the toolchain's dynamic library paths, which rust-lld
+// needs to locate libLLVM on macOS.
+const [buildCommand, buildArgs] = rustupAvailable
+  ? ["rustup", ["run", "stable", "cargo", ...cargoArgs]]
+  : ["cargo", cargoArgs];
+
 const buildResult = spawnSync(buildCommand, buildArgs, {
   cwd: packageDir,
   encoding: "utf8",
-  env: rustEnv,
 });
 
 if (buildResult.status !== 0) {
