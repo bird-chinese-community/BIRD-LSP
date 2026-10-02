@@ -4,6 +4,13 @@
 
 All notable changes to `@birdcc/vscode` will be documented in this file.
 
+## [0.5.3] - 2026-10-03
+
+### Changed / 变更
+
+- 换用 BIRDCC 新的品牌图标作为扩展图标。
+- Switched the extension icon to the new BIRDCC brand icon.
+
 ## [0.5.2] - 2026-07-19
 
 ### Fixed / 修复
@@ -374,6 +381,7 @@ ASN-aware autocompletion, hover, and inlay hints using the bundled `@birdcc/inte
 
 ---
 
+[0.5.3]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/bird2-lsp-v0.5.3
 [0.5.2]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/bird2-lsp-v0.5.2
 [0.5.1]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.5.0...vscode-v0.5.1
 [0.5.0]: https://github.com/bird-chinese-community/BIRD-LSP/compare/vscode-v0.3.2...vscode-v0.5.0
