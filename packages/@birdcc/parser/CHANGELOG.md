@@ -1,5 +1,11 @@
 # @birdcc/parser
 
+## 0.1.2
+
+### Patch Changes
+
+- [#159](https://github.com/bird-chinese-community/BIRD-LSP/pull/159) [`d124c20`](https://github.com/bird-chinese-community/BIRD-LSP/commit/d124c20028a9adb6a1d6b0bcb8c341b73c8266e2) Thanks [@Alice39s](https://github.com/Alice39s)! - Give filter expressions BIRD's operator precedence: `*` and `/` bind tighter than `+` and `-`, which bind tighter than comparisons and `~`. Previously all of them shared one level and were grouped left to right, so `a + 1 > b * 2` was parsed as `((a + 1) > b) * 2`.
+
 ## 0.1.1
 
 ### Patch Changes
