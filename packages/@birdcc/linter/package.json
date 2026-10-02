@@ -1,6 +1,6 @@
 {
   "name": "@birdcc/linter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {
@@ -24,8 +24,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/core": "0.1.0",
-    "@birdcc/parser": "0.1.0"
+    "@birdcc/core": "0.1.1",
+    "@birdcc/parser": "0.1.1"
   },
   "scripts": {
     "sync:examples": "node scripts/sync-reference-examples.mjs",

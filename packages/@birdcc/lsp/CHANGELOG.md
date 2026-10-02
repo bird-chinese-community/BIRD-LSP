@@ -1,5 +1,17 @@
 # @birdcc/lsp
 
+## 0.1.1
+
+### Patch Changes
+
+- Show each package's new BIRDCC brand icon at the top of its README.
+
+- Updated dependencies []:
+  - @birdcc/parser@0.1.1
+  - @birdcc/core@0.1.1
+  - @birdcc/linter@0.1.1
+  - @birdcc/formatter@0.1.1
+
 ## 0.1.0
 
 ### Patch Changes
