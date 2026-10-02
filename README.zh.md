@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD2 LSP Project
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD2 LSP 图标" />
+
+# BIRD2 LSP Project
 
 </div>
 
@@ -104,16 +106,16 @@ birdcc lsp --stdio
 
 ## 包列表
 
-| 包名                                                                 | 版本        | 描述                    | 文档                                                      |
-| -------------------------------------------------------------------- | ----------- | ----------------------- | --------------------------------------------------------- |
-| [@birdcc/parser](./packages/@birdcc/parser/)                         | 0.1.0-alpha | Tree-sitter 解析器      | [README](./packages/@birdcc/parser/README.md)             |
-| [@birdcc/core](./packages/@birdcc/core/)                             | 0.1.0-alpha | 语义分析引擎            | [README](./packages/@birdcc/core/README.md)               |
-| [@birdcc/linter](./packages/@birdcc/linter/)                         | 0.1.0-alpha | 可插拔 Lint 规则系统    | [README](./packages/@birdcc/linter/README.md)             |
-| [@birdcc/lsp](./packages/@birdcc/lsp/)                               | 0.1.0-alpha | LSP 服务器实现          | [README](./packages/@birdcc/lsp/README.md)                |
-| [@birdcc/formatter](./packages/@birdcc/formatter/)                   | 0.1.0-alpha | 双引擎代码格式化器      | [README](./packages/@birdcc/formatter/README.md)          |
-| [@birdcc/cli](./packages/@birdcc/cli/)                               | 0.1.0-alpha | 命令行工具              | [README](./packages/@birdcc/cli/README.md)                |
-| [@birdcc/vscode](./packages/@birdcc/vscode/)                         | 0.1.0-alpha | VS Code 扩展            | [README](./packages/@birdcc/vscode/README.md)             |
-| [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint 插件 (Rust/WASM) | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
+| 包名                                                                                                                                                                       | 版本        | 描述                    | 文档                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------- | --------------------------------------------------------- |
+| <img src="./packages/@birdcc/parser/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/parser](./packages/@birdcc/parser/)                                     | 0.1.0-alpha | Tree-sitter 解析器      | [README](./packages/@birdcc/parser/README.md)             |
+| <img src="./packages/@birdcc/core/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/core](./packages/@birdcc/core/)                                           | 0.1.0-alpha | 语义分析引擎            | [README](./packages/@birdcc/core/README.md)               |
+| <img src="./packages/@birdcc/linter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/linter](./packages/@birdcc/linter/)                                     | 0.1.0-alpha | 可插拔 Lint 规则系统    | [README](./packages/@birdcc/linter/README.md)             |
+| <img src="./packages/@birdcc/lsp/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/lsp](./packages/@birdcc/lsp/)                                              | 0.1.0-alpha | LSP 服务器实现          | [README](./packages/@birdcc/lsp/README.md)                |
+| <img src="./packages/@birdcc/formatter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/formatter](./packages/@birdcc/formatter/)                            | 0.1.0-alpha | 双引擎代码格式化器      | [README](./packages/@birdcc/formatter/README.md)          |
+| <img src="./packages/@birdcc/cli/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/cli](./packages/@birdcc/cli/)                                              | 0.1.0-alpha | 命令行工具              | [README](./packages/@birdcc/cli/README.md)                |
+| <img src="./packages/@birdcc/vscode/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/vscode](./packages/@birdcc/vscode/)                                     | 0.1.0-alpha | VS Code 扩展            | [README](./packages/@birdcc/vscode/README.md)             |
+| <img src="./packages/@birdcc/dprint-plugin-bird/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint 插件 (Rust/WASM) | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
 
 ---
 

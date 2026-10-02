@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🛠️ BIRD Config CLI (@birdcc/cli)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/cli/assets/icon-256.png" width="128" height="128" alt="@birdcc/cli icon" />
+
+# BIRD Config CLI (@birdcc/cli)
 
 </div>
 

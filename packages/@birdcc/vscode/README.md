@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD2 LSP for VSCode
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD2 LSP icon" />
+
+# BIRD2 LSP for VSCode
 
 </div>
 

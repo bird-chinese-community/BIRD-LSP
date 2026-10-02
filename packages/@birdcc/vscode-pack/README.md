@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD2 Extension Pack
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode-pack/assets/icon-256.png" width="128" height="128" alt="BIRD2 Extension Pack icon" />
+
+# BIRD2 Extension Pack
 
 </div>
 

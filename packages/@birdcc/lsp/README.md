@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD Config LSP (@birdcc/lsp)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/lsp/assets/icon-256.png" width="128" height="128" alt="@birdcc/lsp icon" />
+
+# BIRD Config LSP (@birdcc/lsp)
 
 </div>
 

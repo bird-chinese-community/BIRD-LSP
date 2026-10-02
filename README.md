@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD2 LSP Project
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD2 LSP icon" />
+
+# BIRD2 LSP Project
 
 </div>
 
@@ -104,16 +106,16 @@ Search for **"BIRD2 LSP"** in VS Code Marketplace or install from [Open VSX](htt
 
 ## Packages
 
-| Package                                                              | Version     | Description                  | Documentation                                             |
-| -------------------------------------------------------------------- | ----------- | ---------------------------- | --------------------------------------------------------- |
-| [@birdcc/parser](./packages/@birdcc/parser/)                         | 0.1.0-alpha | Tree-sitter parser for BIRD2 | [README](./packages/@birdcc/parser/README.md)             |
-| [@birdcc/core](./packages/@birdcc/core/)                             | 0.1.0-alpha | Semantic analysis engine     | [README](./packages/@birdcc/core/README.md)               |
-| [@birdcc/linter](./packages/@birdcc/linter/)                         | 0.1.0-alpha | Pluggable lint rule system   | [README](./packages/@birdcc/linter/README.md)             |
-| [@birdcc/lsp](./packages/@birdcc/lsp/)                               | 0.1.0-alpha | LSP server implementation    | [README](./packages/@birdcc/lsp/README.md)                |
-| [@birdcc/formatter](./packages/@birdcc/formatter/)                   | 0.1.0-alpha | Dual-engine code formatter   | [README](./packages/@birdcc/formatter/README.md)          |
-| [@birdcc/cli](./packages/@birdcc/cli/)                               | 0.1.0-alpha | Command-line interface       | [README](./packages/@birdcc/cli/README.md)                |
-| [@birdcc/vscode](./packages/@birdcc/vscode/)                         | 0.1.0-alpha | VS Code extension            | [README](./packages/@birdcc/vscode/README.md)             |
-| [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint plugin (Rust/WASM)    | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
+| Package                                                                                                                                                                    | Version     | Description                  | Documentation                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------- | --------------------------------------------------------- |
+| <img src="./packages/@birdcc/parser/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/parser](./packages/@birdcc/parser/)                                     | 0.1.0-alpha | Tree-sitter parser for BIRD2 | [README](./packages/@birdcc/parser/README.md)             |
+| <img src="./packages/@birdcc/core/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/core](./packages/@birdcc/core/)                                           | 0.1.0-alpha | Semantic analysis engine     | [README](./packages/@birdcc/core/README.md)               |
+| <img src="./packages/@birdcc/linter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/linter](./packages/@birdcc/linter/)                                     | 0.1.0-alpha | Pluggable lint rule system   | [README](./packages/@birdcc/linter/README.md)             |
+| <img src="./packages/@birdcc/lsp/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/lsp](./packages/@birdcc/lsp/)                                              | 0.1.0-alpha | LSP server implementation    | [README](./packages/@birdcc/lsp/README.md)                |
+| <img src="./packages/@birdcc/formatter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/formatter](./packages/@birdcc/formatter/)                            | 0.1.0-alpha | Dual-engine code formatter   | [README](./packages/@birdcc/formatter/README.md)          |
+| <img src="./packages/@birdcc/cli/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/cli](./packages/@birdcc/cli/)                                              | 0.1.0-alpha | Command-line interface       | [README](./packages/@birdcc/cli/README.md)                |
+| <img src="./packages/@birdcc/vscode/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/vscode](./packages/@birdcc/vscode/)                                     | 0.1.0-alpha | VS Code extension            | [README](./packages/@birdcc/vscode/README.md)             |
+| <img src="./packages/@birdcc/dprint-plugin-bird/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint plugin (Rust/WASM)    | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
 
 ---
 

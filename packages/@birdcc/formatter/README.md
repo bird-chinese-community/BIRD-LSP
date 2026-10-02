@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🎨 BIRD Config Formatter (@birdcc/formatter)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/formatter/assets/icon-256.png" width="128" height="128" alt="@birdcc/formatter icon" />
+
+# BIRD Config Formatter (@birdcc/formatter)
 
 </div>
 

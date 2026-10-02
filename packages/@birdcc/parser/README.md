@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD Config Parser (@birdcc/parser)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/parser/assets/icon-256.png" width="128" height="128" alt="@birdcc/parser icon" />
+
+# BIRD Config Parser (@birdcc/parser)
 
 </div>
 

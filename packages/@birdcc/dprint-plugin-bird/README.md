@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🔧 dprint Plugin for BIRD Config (@birdcc/dprint-plugin-bird)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/dprint-plugin-bird/assets/icon-256.png" width="128" height="128" alt="@birdcc/dprint-plugin-bird icon" />
+
+# dprint Plugin for BIRD Config (@birdcc/dprint-plugin-bird)
 
 </div>
 
