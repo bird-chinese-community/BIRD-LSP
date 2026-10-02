@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @birdcc/core@0.1.2
+  - @birdcc/formatter@0.1.2
+  - @birdcc/linter@0.1.2
+  - @birdcc/lsp@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

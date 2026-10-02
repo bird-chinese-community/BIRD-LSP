@@ -51,16 +51,16 @@ importers:
   packages/@birdcc/cli:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../core
       '@birdcc/formatter':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../formatter
       '@birdcc/linter':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../linter
       '@birdcc/lsp':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../lsp
       cac:
         specifier: ^7.0.0
@@ -75,7 +75,7 @@ importers:
   packages/@birdcc/core:
     dependencies:
       '@birdcc/parser':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../parser
       fast-cidr-tools:
         specifier: ^0.3.4
@@ -90,10 +90,10 @@ importers:
   packages/@birdcc/formatter:
     dependencies:
       '@birdcc/dprint-plugin-bird':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../dprint-plugin-bird
       '@birdcc/parser':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../parser
       '@dprint/formatter':
         specifier: ^0.5.1
@@ -115,28 +115,28 @@ importers:
   packages/@birdcc/linter:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../core
       '@birdcc/parser':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../parser
 
   packages/@birdcc/lsp:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../core
       '@birdcc/formatter':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../formatter
       '@birdcc/intel':
         specifier: ^0.0.1-2026-03-05.2
         version: link:../intel
       '@birdcc/linter':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../linter
       '@birdcc/parser':
-        specifier: 0.1.1
+        specifier: 0.1.2
         version: link:../parser
       vscode-languageserver:
         specifier: ^9.0.1
