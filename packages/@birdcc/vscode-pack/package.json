@@ -34,9 +34,9 @@
   "categories": [
     "Extension Packs"
   ],
-  "icon": "assets/favicon-256.png",
+  "icon": "assets/icon-256.png",
   "galleryBanner": {
-    "color": "#0f172a",
+    "color": "#121b1c",
     "theme": "dark"
   },
   "extensionPack": [

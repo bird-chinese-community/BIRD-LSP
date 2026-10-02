@@ -43,7 +43,7 @@
     "workspace",
     "ui"
   ],
-  "icon": "assets/favicon-256.png",
+  "icon": "assets/icon-256.png",
   "files": [
     "dist/**",
     "data/**",
