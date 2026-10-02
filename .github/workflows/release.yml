@@ -68,6 +68,9 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.18.0
+
       - run: pnpm install --frozen-lockfile
 
       # Run full CI checks before any release action
