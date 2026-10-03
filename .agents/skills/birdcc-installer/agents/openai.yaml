@@ -1,0 +1,10 @@
+interface:
+  display_name: "BIRDCC Installer"
+  short_description: "Install BIRDCC editor plugins, CLI, and CI tooling."
+  brand_color: "#3B82F6"
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools: []
