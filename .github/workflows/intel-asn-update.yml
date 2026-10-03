@@ -96,7 +96,7 @@ jobs:
             echo "No changes to commit"
           else
             TODAY=$(date -u +"%Y-%m-%d")
-            git commit -m "chore(intel): update ASN database to ${TODAY}"
+            git commit -m "chore(intel): Update ASN database to ${TODAY}"
             git push
           fi
 

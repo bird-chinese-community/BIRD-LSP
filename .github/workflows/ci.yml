@@ -89,7 +89,8 @@ jobs:
       - name: Commitlint range
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            FROM="${{ github.event.pull_request.base.sha }}"
+            # base.sha can lag behind the base branch; lint only commits it lacks.
+            FROM="origin/${{ github.base_ref }}"
           else
             FROM="${{ github.event.before }}"
           fi
