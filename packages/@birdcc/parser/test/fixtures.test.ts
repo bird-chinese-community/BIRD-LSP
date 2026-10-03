@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseBirdConfig } from "../src/index.js";
 
-const fixtureFiles = [
+const strictFixtureFiles = [
   "basic.conf",
   "bgp_advanced.conf",
+  "bird_2_19_3_3.conf",
   "bogon.conf",
-  "protocol_phrases.conf",
 ] as const;
 
 const readFixture = (name: string): string => {
@@ -18,7 +18,7 @@ const readFixture = (name: string): string => {
 };
 
 describe("@birdcc/parser fixtures", () => {
-  for (const fileName of fixtureFiles) {
+  for (const fileName of strictFixtureFiles) {
     it(`parses fixture ${fileName}`, async () => {
       const text = readFixture(fileName);
       const parsed = await parseBirdConfig(text);
@@ -30,7 +30,7 @@ describe("@birdcc/parser fixtures", () => {
     });
   }
 
-  it("extracts protocol statements from protocol_phrases.conf", async () => {
+  it("extracts protocol statements from the upstream syntax gallery", async () => {
     const text = readFixture("protocol_phrases.conf");
     const parsed = await parseBirdConfig(text);
 

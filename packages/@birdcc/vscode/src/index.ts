@@ -52,6 +52,10 @@ export {
 } from "./fallback/index.js";
 export { createBirdFormattingProvider } from "./formatter/index.js";
 export {
+  createBirdDocumentEligibilityGate,
+  type BirdDocumentEligibilityGate,
+} from "./eligibility/index.js";
+export {
   registerBirdKeywordHoverProvider,
   resolveHoverContextPath,
   loadBirdHoverDocs,

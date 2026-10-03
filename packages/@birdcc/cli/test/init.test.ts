@@ -11,6 +11,9 @@ import {
 
 vi.mock("@birdcc/core", () => ({
   sniffProjectEntrypoints: vi.fn(),
+  selectAutoDetectedEntry: vi.fn(
+    (result: { primary?: unknown }) => result.primary ?? null,
+  ),
 }));
 
 import { sniffProjectEntrypoints } from "@birdcc/core";

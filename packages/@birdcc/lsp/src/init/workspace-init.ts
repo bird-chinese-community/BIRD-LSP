@@ -11,7 +11,11 @@
 
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { sniffProjectEntrypoints, type DetectionResult } from "@birdcc/core";
+import {
+  selectAutoDetectedEntry,
+  sniffProjectEntrypoints,
+  type DetectionResult,
+} from "@birdcc/core";
 import type { Connection } from "vscode-languageserver/node.js";
 import { showInfo, showWarning } from "../utils.js";
 
@@ -57,17 +61,18 @@ export const detectWorkspaceEntry = async (
   // Determine suggested entry and whether confirmation is needed
   let suggestedEntryUri: string | null = null;
   let needsConfirmation = false;
+  const selectedEntry = selectAutoDetectedEntry(result);
 
   switch (result.kind) {
     case "single": {
-      if (result.primary) {
-        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
+      if (selectedEntry) {
+        suggestedEntryUri = toSuggestedEntryUri(selectedEntry.path);
         connection.console.log(
-          `[init] Auto-detected entry: ${result.primary.path} (confidence: ${result.confidence}%)`,
+          `[init] Auto-detected entry: ${selectedEntry.path} (confidence: ${result.confidence}%)`,
         );
         showInfo(
           connection,
-          `Auto-detected BIRD entry: ${result.primary.path} (${result.confidence}% confidence).`,
+          `Auto-detected BIRD entry: ${selectedEntry.path} (${result.confidence}% confidence).`,
         );
       }
       break;
@@ -75,7 +80,6 @@ export const detectWorkspaceEntry = async (
 
     case "single-ambiguous": {
       if (result.primary) {
-        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
         needsConfirmation = true;
         showWarning(
           connection,
@@ -94,11 +98,11 @@ export const detectWorkspaceEntry = async (
     }
 
     case "monorepo-multi-role": {
-      if (result.primary) {
-        suggestedEntryUri = toSuggestedEntryUri(result.primary.path);
+      if (selectedEntry) {
+        suggestedEntryUri = toSuggestedEntryUri(selectedEntry.path);
         showInfo(
           connection,
-          `BIRD project with multiple roles detected. Entry: ${result.primary.path}. Run \`birdcc init --write\` for full configuration.`,
+          `BIRD project with multiple roles detected. Entry: ${selectedEntry.path}. Run \`birdcc init --write\` for full configuration.`,
         );
       }
       break;

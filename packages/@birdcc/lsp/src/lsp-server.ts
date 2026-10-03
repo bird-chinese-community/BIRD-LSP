@@ -11,6 +11,7 @@ import {
 } from "@birdcc/core";
 import {
   createConnection,
+  DidChangeWatchedFilesNotification,
   type Diagnostic,
   type InlayHint,
   type InitializeResult,
@@ -38,8 +39,12 @@ import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
-import { resolveProjectAnalysisOptions } from "./project-config.js";
+import {
+  resolveProjectAnalysisOptions,
+  type ProjectAnalysisOptions,
+} from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
+import { evaluateLspDocumentEligibility } from "./document-eligibility.js";
 import {
   clearDiagnostics,
   clearDiagnosticsMany,
@@ -71,6 +76,12 @@ interface GraphCacheEntry {
 interface TypeHintCacheEntry {
   version: number;
   hints: readonly FunctionReturnHint[];
+}
+
+interface EligibilityCacheEntry {
+  version: number;
+  projectConfigGeneration: number;
+  eligible: boolean;
 }
 
 const warmupParserRuntime = async (): Promise<void> => {
@@ -112,12 +123,19 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const parsedByUri = new Map<string, ParsedCacheEntry>();
   const graphByUri = new Map<string, GraphCacheEntry>();
   const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
+  const eligibilityByUri = new Map<string, EligibilityCacheEntry>();
+  const pendingEligibilityByKey = new Map<
+    string,
+    { document: TextDocument; promise: Promise<boolean> }
+  >();
   const publishedUrisByEntry = new Map<string, Set<string>>();
   /** Dedup in-flight `getGraphForDocument` calls so concurrent requests share one analysis. */
   const pendingGraphByUri = new Map<string, Promise<GraphCacheEntry>>();
   const announcedProjectConfigs = new Set<string>();
   const announcedInfoNotifications = new Set<string>();
   let workspaceRootUris: string[] = [];
+  let supportsDynamicFileWatching = false;
+  let projectConfigGeneration = 0;
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
   const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
@@ -189,11 +207,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   };
 
-  const analyzeDocument = async (
+  const resolveProjectForDocument = (
     document: TextDocument,
-    options: { publishRelatedDiagnostics: boolean },
-  ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
-    const project = await resolveProjectAnalysisOptions({
+  ): Promise<ProjectAnalysisOptions> =>
+    resolveProjectAnalysisOptions({
       documentUri: document.uri,
       workspaceRootUris,
       defaults: {
@@ -201,6 +218,108 @@ export const startLspServer = (options?: LspServerOptions): void => {
         maxFiles: INCLUDE_MAX_FILES,
       },
     });
+
+  const isDocumentEligible = async (
+    document: TextDocument,
+    project?: ProjectAnalysisOptions,
+  ): Promise<boolean> => {
+    const cached = eligibilityByUri.get(document.uri);
+    if (
+      cached?.version === document.version &&
+      cached.projectConfigGeneration === projectConfigGeneration
+    ) {
+      return cached.eligible;
+    }
+
+    const evaluationGeneration = projectConfigGeneration;
+    const pendingKey = `${document.uri}@${document.version}@${evaluationGeneration}`;
+    const pending = pendingEligibilityByKey.get(pendingKey);
+    if (pending?.document === document) {
+      return pending.promise;
+    }
+
+    const task = (async (): Promise<boolean> => {
+      const resolvedProject =
+        project ?? (await resolveProjectForDocument(document));
+      const eligibility = await evaluateLspDocumentEligibility(
+        document.getText(),
+        document.uri,
+        resolvedProject,
+      );
+      if (
+        evaluationGeneration === projectConfigGeneration &&
+        documents.get(document.uri) === document
+      ) {
+        // Guard against out-of-order completions: only overwrite the cache when
+        // this task evaluated a newer (or the same) document version. Skip the
+        // write entirely if the document was closed while this task was pending,
+        // so a resolved promise can't resurrect a deleted cache entry.
+        const currentCached = eligibilityByUri.get(document.uri);
+        if (
+          !currentCached ||
+          currentCached.projectConfigGeneration !== evaluationGeneration ||
+          currentCached.version < document.version
+        ) {
+          eligibilityByUri.set(document.uri, {
+            version: document.version,
+            projectConfigGeneration: evaluationGeneration,
+            eligible: eligibility.eligible,
+          });
+        }
+      }
+      return eligibility.eligible;
+    })();
+
+    pendingEligibilityByKey.set(pendingKey, { document, promise: task });
+    try {
+      return await task;
+    } finally {
+      if (pendingEligibilityByKey.get(pendingKey)?.promise === task) {
+        pendingEligibilityByKey.delete(pendingKey);
+      }
+    }
+  };
+
+  const createEmptyGraph = async (
+    document: TextDocument,
+  ): Promise<GraphCacheEntry> => {
+    const lintResult = await lintBirdConfig("", { uri: document.uri });
+    return {
+      entryUri: document.uri,
+      visitedUris: new Set([document.uri]),
+      symbolTable: lintResult.core.symbolTable,
+      byUri: { [document.uri]: lintResult },
+    };
+  };
+
+  const analyzeDocument = async (
+    document: TextDocument,
+    options: { publishRelatedDiagnostics: boolean },
+  ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
+    const analysisGeneration = projectConfigGeneration;
+    const project = await resolveProjectForDocument(document);
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
+    }
+
+    const eligible = await isDocumentEligible(document, project);
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
+    }
+    if (!eligible) {
+      const graph = await createEmptyGraph(document);
+      if (analysisGeneration !== projectConfigGeneration) {
+        return analyzeDocument(document, options);
+      }
+      clearEntryTracking(document.uri);
+      parsedByUri.delete(document.uri);
+      typeHintsByUri.delete(document.uri);
+      graphByUri.set(document.uri, graph);
+      return {
+        entryDiagnostics: [],
+        graph,
+      };
+    }
 
     if (
       project.configPath &&
@@ -233,6 +352,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const lintResult = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
+      if (analysisGeneration !== projectConfigGeneration) {
+        return analyzeDocument(document, options);
+      }
       const graph: GraphCacheEntry = {
         entryUri: document.uri,
         visitedUris: new Set([document.uri]),
@@ -273,6 +395,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       lintGraph.byUri[document.uri] = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
+    }
+    if (analysisGeneration !== projectConfigGeneration) {
+      return analyzeDocument(document, options);
     }
     const visitedUris = new Set(
       crossFile.visitedUris.length > 0
@@ -356,11 +481,16 @@ export const startLspServer = (options?: LspServerOptions): void => {
     try {
       return await promise;
     } finally {
-      pendingGraphByUri.delete(document.uri);
+      if (pendingGraphByUri.get(document.uri) === promise) {
+        pendingGraphByUri.delete(document.uri);
+      }
     }
   };
 
   connection.onInitialize((params): InitializeResult => {
+    supportsDynamicFileWatching = Boolean(
+      params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration,
+    );
     workspaceRootUris =
       params.workspaceFolders
         ?.map((folder) => folder.uri)
@@ -391,6 +521,23 @@ export const startLspServer = (options?: LspServerOptions): void => {
   });
 
   connection.onInitialized(() => {
+    if (supportsDynamicFileWatching) {
+      void connection.client
+        .register(DidChangeWatchedFilesNotification.type, {
+          watchers: [
+            { globPattern: "**/bird.config.json" },
+            { globPattern: "**/birdcc.config.json" },
+          ],
+        })
+        .catch((error) => {
+          connection.console.log(
+            `[project] failed to watch configuration files: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
+
     void (async () => {
       for (const workspaceRootUri of workspaceRootUris) {
         if (hasShutdownBeenRequested) {
@@ -435,6 +582,36 @@ export const startLspServer = (options?: LspServerOptions): void => {
     },
   });
 
+  connection.onDidChangeWatchedFiles((params) => {
+    const projectConfigChanged = params.changes.some((change) => {
+      try {
+        return PROJECT_CONFIG_FILE_NAMES.includes(
+          basename(fileURLToPath(change.uri)),
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (!projectConfigChanged) {
+      return;
+    }
+
+    projectConfigGeneration += 1;
+    eligibilityByUri.clear();
+    pendingEligibilityByKey.clear();
+    graphByUri.clear();
+    pendingGraphByUri.clear();
+    for (const publishedUris of publishedUrisByEntry.values()) {
+      clearDiagnosticsMany(connection, publishedUris);
+    }
+    publishedUrisByEntry.clear();
+    announcedProjectConfigs.clear();
+    noConfigTipAnnounced = false;
+    for (const document of documents.all()) {
+      scheduler.schedule(document);
+    }
+  });
+
   documents.onDidOpen((event) => {
     scheduler.schedule(event.document);
   });
@@ -447,6 +624,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
     parsedByUri.delete(event.document.uri);
     clearEntryTracking(event.document.uri);
     typeHintsByUri.delete(event.document.uri);
+    eligibilityByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
   });
 
@@ -493,6 +671,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDocumentSymbol(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       const parsed = await getParsedDocument(document);
       return createDocumentSymbolsFromParsed(parsed);
     }),
@@ -500,6 +681,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onHover(async (params) =>
     withDocument(documents, params.textDocument.uri, null, async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return null;
+      }
       // Try ASN hover first (more specific)
       if (asnIntel.available) {
         const lineText = getLineText(document, params.position.line);
@@ -514,6 +698,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDefinition(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const graph = await getGraphForDocument(document);
         return createDefinitionLocations(
@@ -530,6 +717,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onReferences(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const graph = await getGraphForDocument(document);
         return createReferenceLocations(
@@ -546,6 +736,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onCompletion(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       const parsed = await getParsedDocument(document);
       const linePrefix = document.getText({
         start: { line: params.position.line, character: 0 },
@@ -575,6 +768,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onDocumentFormatting(async (params) =>
     withDocument(documents, params.textDocument.uri, [], async (document) => {
+      if (!(await isDocumentEligible(document))) {
+        return [];
+      }
       try {
         const text = document.getText();
         const result = await formatBirdConfig(text);
@@ -611,6 +807,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
       params.textDocument.uri,
       [],
       async (document): Promise<InlayHint[]> => {
+        if (!(await isDocumentEligible(document))) {
+          return [];
+        }
         const text = document.getText();
         const results: InlayHint[] = [];
 

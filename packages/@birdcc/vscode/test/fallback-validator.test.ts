@@ -331,4 +331,21 @@ describe("fallback validator scheduling", () => {
 
     expect(mocks.showErrorMessage).toHaveBeenCalledTimes(1);
   });
+
+  it("does not execute validation for an ineligible foreign document", async () => {
+    const validator = createFallbackValidator(
+      getConfiguration,
+      {
+        appendLine: vi.fn(),
+        dispose: vi.fn(),
+      } as never,
+      async () => false,
+    );
+    const document = createDocument("/tmp/nginx.conf");
+
+    await validator.validateDocument(document);
+
+    expect(mocks.execFile).not.toHaveBeenCalled();
+    expect(mocks.diagnosticDelete).toHaveBeenCalledWith(document.uri);
+  });
 });

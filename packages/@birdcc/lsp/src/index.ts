@@ -21,6 +21,7 @@ export {
 export { createAsnInlayHints } from "./asn-inlay-hints.js";
 export { createAsnHover } from "./asn-hover.js";
 export { startLspServer, type LspServerOptions } from "./lsp-server.js";
+export { evaluateLspDocumentEligibility } from "./document-eligibility.js";
 export {
   toCanonicalKey,
   toLspRange,

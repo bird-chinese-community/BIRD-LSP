@@ -13,7 +13,7 @@
     "format": "turbo run format",
     "coverage": "turbo run coverage",
     "changeset": "changeset",
-    "changeset:version": "changeset version",
+    "changeset:version": "node tools/version-packages.mjs",
     "changeset:status": "changeset status",
     "release:publish": "pnpm build && changeset publish",
     "release:npm": "node tools/publish-npm-packages.mjs",

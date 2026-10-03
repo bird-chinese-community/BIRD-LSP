@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   resolveCrossFileReferences,
+  selectAutoDetectedEntry,
   sniffProjectEntrypoints,
   type BirdDiagnostic,
   type BirdDiagnosticSeverity,
@@ -529,12 +530,13 @@ const resolveAutoProjectContext = async (
       maxDepth: 8,
       maxFiles: 2_000,
     });
-    if (!detection.primary) {
+    const selectedEntry = selectAutoDetectedEntry(detection);
+    if (!selectedEntry) {
       continue;
     }
 
-    const entryPath = resolve(rootPath, detection.primary.path);
-    const score = detection.primary.score;
+    const entryPath = resolve(rootPath, selectedEntry.path);
+    const score = selectedEntry.score;
     if (!best || score > best.score) {
       best = {
         rootPath,

@@ -165,7 +165,6 @@ const LOCAL_ADDRESS_WITH_AS =
   /^\s*local\s+\S+(?:\s+port\s+\S+)?\s+as\s+\S+\s*;\s*$/i;
 const RPKI_LOCAL_ADDRESS = /^\s*local\s+address\s+\S+\s*;\s*$/i;
 const ALLOW_LOCAL_AS = /^\s*allow\s+local\s+as\s*;\s*$/i;
-const BFD_ACCEPT = /^\s*accept(?:\s+(?:ipv4|ipv6|direct|multihop))*\s*;\s*$/i;
 const BFD_NEIGHBOR =
   /^\s*neighbor\s+\S+(?:\s+(?:%\s+\S+|dev\s+(?:"[^"]+"|'[^']+'|\S+)|local\s+\S+|multihop(?:\s+\S+)?))*\s*;?\s*$/i;
 const BFD_PROFILE_HEADER = /^\s*(?:interface\b.+|multihop\s*)\{\s*$/i;
@@ -282,7 +281,6 @@ const isRecoverableSyntaxIssue = (
     LOCAL_ADDRESS_WITH_AS.test(currentLineText) ||
     RPKI_LOCAL_ADDRESS.test(currentLineText) ||
     ALLOW_LOCAL_AS.test(currentLineText) ||
-    BFD_ACCEPT.test(currentLineText) ||
     BFD_NEIGHBOR.test(currentLineText) ||
     BFD_PROFILE_HEADER.test(currentLineText) ||
     BFD_PROFILE_ITEM.test(currentLineText) ||

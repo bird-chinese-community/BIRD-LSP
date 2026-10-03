@@ -5133,31 +5133,25 @@ const collectCompoundChannelFallbacks = (
   return channels;
 };
 
-const findFirstField = (
+const findLastField = (
   node: SyntaxNode,
   fieldName: string,
 ): SyntaxNode | null => {
-  const direct = node.childForFieldName(fieldName);
-  if (isPresentNode(direct)) {
-    return direct;
-  }
-
-  const stack = [...node.namedChildren];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
+  let lastMatch: SyntaxNode | null = null;
+  const visit = (current: SyntaxNode): void => {
+    for (const fieldNode of current.childrenForFieldName(fieldName)) {
+      if (!lastMatch || fieldNode.startIndex >= lastMatch.startIndex) {
+        lastMatch = fieldNode;
+      }
     }
 
-    const nested = current.childForFieldName(fieldName);
-    if (isPresentNode(nested)) {
-      return nested;
+    for (const child of current.namedChildren) {
+      visit(child);
     }
+  };
 
-    stack.push(...current.namedChildren);
-  }
-
-  return null;
+  visit(node);
+  return lastMatch;
 };
 
 const isRangeImmediatelyAfter = (
@@ -5570,10 +5564,15 @@ export const parseProtocolStatements = (
     }
 
     if (statementNode.type === "neighbor_statement") {
-      const addressNode = findFirstField(statementNode, "address");
-      const interfaceNode = findFirstField(statementNode, "interface");
-      const asnNode = findFirstField(statementNode, "asn");
-      const portNode = findFirstField(statementNode, "port");
+      const addressNode = findLastField(statementNode, "address");
+      const interfaceNode = findLastField(statementNode, "interface");
+      const asnNode = findLastField(statementNode, "asn");
+      const portNode = findLastField(statementNode, "port");
+      const peerTypeNode = findLastField(statementNode, "peer_type");
+      const onlinkNode = findLastField(statementNode, "onlink");
+      const isRange = statementNode.children.some(
+        (child) => child.type === "range",
+      );
 
       if (!isPresentNode(addressNode) && !isPresentNode(asnNode)) {
         pushMissingFieldIssue(
@@ -5588,12 +5587,22 @@ export const parseProtocolStatements = (
         ? textOf(addressNode, source)
         : "";
       const addressKind =
-        isPresentNode(addressNode) && isIpLiteralCandidate(addressText)
-          ? "ip"
-          : "other";
+        addressNode?.type === "prefix_literal"
+          ? "prefix"
+          : isPresentNode(addressNode) && isIpLiteralCandidate(addressText)
+            ? "ip"
+            : "other";
+      const peerTypeText = isPresentNode(peerTypeNode)
+        ? textOf(peerTypeNode, source).toLowerCase()
+        : "";
+      const peerType =
+        peerTypeText === "internal" || peerTypeText === "external"
+          ? peerTypeText
+          : undefined;
 
       statements.push({
         kind: "neighbor",
+        isRange,
         address: addressText,
         addressRange: isPresentNode(addressNode)
           ? toRange(addressNode, source)
@@ -5610,6 +5619,14 @@ export const parseProtocolStatements = (
         port: isPresentNode(portNode) ? textOf(portNode, source) : undefined,
         portRange: isPresentNode(portNode)
           ? toRange(portNode, source)
+          : undefined,
+        peerType,
+        peerTypeRange: isPresentNode(peerTypeNode)
+          ? toRange(peerTypeNode, source)
+          : undefined,
+        onlink: isPresentNode(onlinkNode),
+        onlinkRange: isPresentNode(onlinkNode)
+          ? toRange(onlinkNode, source)
           : undefined,
         ...statementRange,
       });
@@ -5665,7 +5682,38 @@ export const parseProtocolStatements = (
       continue;
     }
 
-    if (statementNode.type === "expression_statement") {
+    if (
+      statementNode.type === "expression_statement" ||
+      statementNode.type === "accept_statement" ||
+      statementNode.type === "accept_option_statement"
+    ) {
+      const isAcceptStatement =
+        statementNode.type === "accept_statement" ||
+        statementNode.type === "accept_option_statement";
+      const hasPasswordTimeBound = isPresentNode(
+        statementNode.childForFieldName("time_bound"),
+      );
+
+      if (
+        isAcceptStatement &&
+        (protocolType !== "bfd" || hasPasswordTimeBound)
+      ) {
+        issues.push({
+          code: "parser/syntax-error",
+          message:
+            protocolType === "bfd"
+              ? "Password accept bounds are not valid BFD options"
+              : "Accept statements are not valid protocol options here",
+          ...statementRange,
+        });
+        statements.push({
+          kind: "other",
+          text: textOf(statementNode, source),
+          ...statementRange,
+        });
+        continue;
+      }
+
       if (protocolType === "l3vpn" || protocolType === "evpn") {
         const vpnOption = parseVpnOptionTextStatement(
           textOf(statementNode, source),

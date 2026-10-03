@@ -5,6 +5,7 @@ import {
   Range,
   languages,
   type Disposable,
+  type TextDocument,
 } from "vscode";
 
 import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
@@ -14,6 +15,7 @@ import type { ResolvedHoverTopic } from "./docs.js";
 export interface HoverProviderOptions {
   /** Return `true` when the LSP client is handling hover requests. */
   readonly isLspActive?: () => boolean;
+  readonly isDocumentEligible?: (document: TextDocument) => Promise<boolean>;
 }
 
 const toRange = (
@@ -70,6 +72,12 @@ export const registerBirdKeywordHoverProvider = (
   languages.registerHoverProvider([...BIRD_DOCUMENT_SELECTOR], {
     provideHover: async (document, position) => {
       if (document.languageId !== LANGUAGE_ID) {
+        return null;
+      }
+      if (
+        options?.isDocumentEligible &&
+        !(await options.isDocumentEligible(document))
+      ) {
         return null;
       }
 

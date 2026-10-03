@@ -671,7 +671,10 @@ export const parseDeclarations = (
       continue;
     }
 
-    if (child.type === "timeformat_statement") {
+    if (
+      child.type === "timeformat_statement" ||
+      child.type === "timeformat_iso_statement"
+    ) {
       const timeformat = parseTimeformatFromStatement(child, source, issues);
       if (timeformat) {
         declarations.push(timeformat);

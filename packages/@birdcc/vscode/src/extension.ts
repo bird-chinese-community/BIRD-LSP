@@ -12,6 +12,7 @@ import {
   type FallbackValidator,
 } from "./fallback/index.js";
 import { createBirdFormattingProvider } from "./formatter/index.js";
+import { createBirdDocumentEligibilityGate } from "./eligibility/index.js";
 import { registerBirdKeywordHoverProvider } from "./hover/index.js";
 import { createBirdStatusBarManager } from "./status/index.js";
 import { registerBirdTypeHintProviders } from "./type-hints/index.js";
@@ -86,6 +87,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   );
   void announceProjectConfigGuidance(outputChannel);
   const configurationManager = createConfigurationManager();
+  const eligibilityGate = createBirdDocumentEligibilityGate();
   const statusBarManager = createBirdStatusBarManager();
   let lifecycleState: ClientLifecycleState = "idle";
   const refreshStatus = (): void => {
@@ -108,6 +110,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const formattingProvider = createBirdFormattingProvider(
     () => runtimeState.configuration,
     outputChannel,
+    eligibilityGate.isEligible,
   );
   let workspaceTrustWarningShown = false;
   const createOrGetFallbackValidator = (): FallbackValidator => {
@@ -115,6 +118,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       fallbackValidator = createFallbackValidator(
         () => runtimeState.configuration,
         outputChannel,
+        eligibilityGate.isEligible,
       );
       fallbackValidator.activate();
     }
@@ -178,6 +182,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     const oneShotValidator = createFallbackValidator(
       () => runtimeState.configuration,
       outputChannel,
+      eligibilityGate.isEligible,
     );
     try {
       await oneShotValidator.validateActiveEditor();
@@ -229,12 +234,14 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   context.subscriptions.push(
     registerBirdKeywordHoverProvider({
       isLspActive: () => lifecycleState === "running",
+      isDocumentEligible: eligibilityGate.isEligible,
     }),
   );
   context.subscriptions.push(
     ...registerBirdTypeHintProviders({
       getConfiguration: () => runtimeState.configuration,
       outputChannel,
+      isDocumentEligible: eligibilityGate.isEligible,
     }),
   );
   context.subscriptions.push(
@@ -252,6 +259,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       outputChannel.appendLine("[bird2-lsp] disposing extension");
       statusBarManager.dispose();
       configurationManager.dispose();
+      eligibilityGate.dispose();
       disposeFallbackValidator();
       deactivateTask = lifecycle.dispose();
     },

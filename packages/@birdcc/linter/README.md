@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧩 BIRD Config Linter (@birdcc/linter)
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/linter/assets/icon-256.png" width="128" height="128" alt="@birdcc/linter icon" />
+
+# BIRD Config Linter (@birdcc/linter)
 
 </div>
 

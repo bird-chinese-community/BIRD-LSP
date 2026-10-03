@@ -1,7 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { sniffProjectEntrypoints } from "@birdcc/core";
+import { selectAutoDetectedEntry, sniffProjectEntrypoints } from "@birdcc/core";
 
 const CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"] as const;
 const DEFAULT_WORKSPACE_ENTRY_FILE = "bird.conf";
@@ -321,8 +321,9 @@ export const resolveProjectAnalysisOptions = async (
         maxDepth: 8,
         maxFiles: 20_000,
       });
-      if (detection.primary) {
-        const entryPath = resolve(workspaceRootPath, detection.primary.path);
+      const selectedEntry = selectAutoDetectedEntry(detection);
+      if (selectedEntry) {
+        const entryPath = resolve(workspaceRootPath, selectedEntry.path);
         return {
           entryUri: toFileUri(entryPath),
           workspaceRootUri: resolvedWorkspaceRootUri,

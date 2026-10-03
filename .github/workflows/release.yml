@@ -4,13 +4,41 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Comma-separated package names (example: @birdcc/parser,@birdcc/core)"
+        required: true
+        default: "@birdcc/parser"
+        type: string
+      npm_tag:
+        description: "npm dist-tag to publish under"
+        required: true
+        default: "latest"
+        type: string
+      dry_run:
+        description: "Run publish in dry-run mode"
+        required: true
+        default: true
+        type: boolean
+      allow_private_override:
+        description: "Temporarily patch private=true to private=false during this run"
+        required: true
+        default: false
+        type: boolean
+      skip_checks:
+        description: "Skip lint/test/typecheck before publishing (NOT recommended)"
+        required: true
+        default: false
+        type: boolean
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   release:
     name: Release
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
@@ -40,6 +68,9 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.18.0
+
       - run: pnpm install --frozen-lockfile
 
       # Run full CI checks before any release action
@@ -59,47 +90,70 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
+          version: pnpm changeset:version
           publish: pnpm run release:publish
           title: "chore(release): version packages"
-          commit: "chore(release): version packages"
+          commit: "chore(release): Version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
 
-      # After npm publish, build and upload VSIX artifacts to GitHub Release
-      - name: Package VSIX extensions
-        if: steps.changesets.outputs.published == 'true'
+  manual-npm-release:
+    name: Publish selected npm packages
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize required submodules
         run: |
-          pnpm --filter @birdcc/vscode marketplace:package
-          pnpm --filter bird2-extension-pack marketplace:package
+          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
 
-      - name: Upload VSIX to GitHub Release
-        if: steps.changesets.outputs.published == 'true'
-        uses: softprops/action-gh-release@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          tag_name: v${{ fromJSON(steps.changesets.outputs.publishedPackages)[0].version }}
-          files: |
-            packages/@birdcc/vscode/release/bird2-lsp.vsix
-            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
-          body: |
-            ## Published Packages
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
 
-            ${{ steps.changesets.outputs.publishedPackages }}
-
-            ## VS Code Extensions
-
-            Download the `.vsix` files below to install manually, or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp).
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload VSIX artifacts
-        if: steps.changesets.outputs.published == 'true'
-        uses: actions/upload-artifact@v4
+      - uses: pnpm/action-setup@v4
         with:
-          name: vsix-extensions
-          path: |
-            packages/@birdcc/vscode/release/bird2-lsp.vsix
-            packages/@birdcc/vscode-pack/release/bird2-extension-pack.vsix
+          version: 10.18.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.18.0
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: inputs.skip_checks != true
+        run: pnpm lint
+
+      - name: Test
+        if: inputs.skip_checks != true
+        run: pnpm test
+
+      - name: Typecheck
+        if: inputs.skip_checks != true
+        run: pnpm typecheck
+
+      - name: Publish selected packages
+        run: >
+          node tools/publish-npm-packages.mjs
+          --packages "${{ inputs.packages }}"
+          --tag "${{ inputs.npm_tag }}"
+          --dry-run "${{ inputs.dry_run }}"
+          --allow-private-override "${{ inputs.allow_private_override }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-summary
+          path: .tmp/npm-release-summary.json
           if-no-files-found: error

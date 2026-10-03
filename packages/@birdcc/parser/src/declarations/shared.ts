@@ -5,7 +5,13 @@ import type {
   ProtocolStatement,
   SourceRange,
 } from "../types.js";
-import { isPresentNode, mergeRanges, textOf, toRange } from "../tree.js";
+import {
+  isPresentNode,
+  mergeRanges,
+  stripQuotes,
+  textOf,
+  toRange,
+} from "../tree.js";
 
 export type IncludeDeclaration = Extract<BirdDeclaration, { kind: "include" }>;
 export type DefineDeclaration = Extract<BirdDeclaration, { kind: "define" }>;
@@ -64,6 +70,8 @@ export const PROTOCOL_STATEMENT_TYPES = new Set([
   "export_statement",
   "channel_statement",
   "expression_statement",
+  "accept_statement",
+  "accept_option_statement",
 ]);
 
 export const splitTopLevelStatements = (body: string): string[] => {
@@ -366,6 +374,9 @@ export const isNumericToken = (value: string): boolean => {
 
   return true;
 };
+
+export const normalizeRouterIdFromSource = (raw: string): string =>
+  stripQuotes(raw);
 
 export interface TopLevelToken {
   text: string;

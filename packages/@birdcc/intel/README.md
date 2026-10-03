@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/intel/assets/icon-256.png" width="128" height="128" alt="@birdcc/intel icon" />
+
 # @birdcc/intel
+
+</div>
 
 ASN intelligence database for the BIRD2 LSP toolchain.
 

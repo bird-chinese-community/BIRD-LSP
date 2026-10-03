@@ -32,7 +32,14 @@ const DEFAULT_IGNORE_DIRS = new Set([
 ]);
 
 /** Canonical entry file names (highest priority) */
-const CANONICAL_NAMES = new Set(["bird.conf", "bird6.conf"]);
+const CANONICAL_NAMES = new Set([
+  ".bird2.conf",
+  ".bird3.conf",
+  "bird.conf",
+  "bird2.conf",
+  "bird3.conf",
+  "bird6.conf",
+]);
 
 export interface CollectedFile {
   /** Relative path from root */
@@ -145,7 +152,7 @@ export const collectCandidateFiles = async (
 
       if (isFile && entry.name.endsWith(".conf")) {
         fileCount++;
-        const relativePath = relative(root, fullPath);
+        const relativePath = relative(root, fullPath).replaceAll("\\", "/");
         files.push({
           relativePath,
           depth,
@@ -161,25 +168,10 @@ export const collectCandidateFiles = async (
 };
 
 /**
- * Runs shallow-first collection: first checks depth 0-2 for canonical names,
- * falls back to full scan only if needed.
+ * Collect all bounded candidates. Ranking applies shallow/canonical priority
+ * after collection so a shallow entry cannot hide deeper monorepo instances.
  */
 export const collectWithShallowPriority = async (
   root: string,
   opts?: DetectionOptions,
-): Promise<CollectorResult> => {
-  // First pass: shallow scan (depth 0-2)
-  const shallowResult = await collectCandidateFiles(root, {
-    ...opts,
-    maxDepth: 2,
-  });
-
-  const canonicalShallow = shallowResult.files.filter((f) => f.isCanonical);
-  if (canonicalShallow.length > 0) {
-    return shallowResult;
-  }
-
-  // No canonical entry discovered in shallow scan.
-  // Fall back to full scan to avoid missing deeper entrypoints.
-  return collectCandidateFiles(root, opts);
-};
+): Promise<CollectorResult> => collectCandidateFiles(root, opts);

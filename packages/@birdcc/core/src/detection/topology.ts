@@ -4,8 +4,8 @@
  */
 
 import { dirname } from "node:path";
+import { collectReachableIncludes } from "./include-graph.js";
 import type {
-  ContentSignals,
   DetectionKind,
   DetectionWarning,
   EntryCandidate,
@@ -13,6 +13,10 @@ import type {
 
 const PROPAGATION_DECAY = 0.8;
 const MAX_PROPAGATION_DEPTH = 3;
+
+/** Return a stable, POSIX-style directory for a candidate on every platform. */
+export const getCandidateDirectory = (filePath: string): string =>
+  dirname(filePath.replaceAll("\\", "/")).replaceAll("\\", "/");
 
 /**
  * Propagate positive signal scores from included files back to their includers.
@@ -22,12 +26,12 @@ const MAX_PROPAGATION_DEPTH = 3;
  */
 export const propagateScores = (
   candidates: EntryCandidate[],
-  signalsMap: Map<string, ContentSignals>,
+  edges: Map<string, string[]>,
 ): void => {
   // Build reverse edge map: included → includers
   const reverseEdges = new Map<string, Set<string>>();
-  for (const [filePath, signals] of signalsMap) {
-    for (const inc of signals.includeStatements) {
+  for (const [filePath, includes] of edges) {
+    for (const inc of includes) {
       if (!reverseEdges.has(inc)) {
         reverseEdges.set(inc, new Set());
       }
@@ -133,7 +137,8 @@ export const applyGraphStats = (
  */
 export const detectMonorepoMode = (
   candidates: EntryCandidate[],
-  signalsMap: Map<string, ContentSignals>,
+  edges: Map<string, string[]>,
+  allCandidates: EntryCandidate[] = candidates,
 ): {
   kind: DetectionKind;
   workspaces: string[];
@@ -142,7 +147,34 @@ export const detectMonorepoMode = (
   const warnings: DetectionWarning[] = [];
 
   // Filter to entry-role candidates with viable scores
-  const entries = candidates.filter((c) => c.role === "entry" && c.score > 0);
+  const entries = candidates.filter((candidate) => candidate.score > 0);
+
+  if (entries.length === 1) {
+    const libraryGroups = new Map<string, Set<string>>();
+    for (const candidate of allCandidates) {
+      if (candidate.role !== "library") continue;
+      const fileName = candidate.path.split("/").at(-1) ?? candidate.path;
+      const directories = libraryGroups.get(fileName) ?? new Set<string>();
+      directories.add(getCandidateDirectory(candidate.path));
+      libraryGroups.set(fileName, directories);
+    }
+
+    if (
+      [...libraryGroups.values()].some((directories) => directories.size > 1)
+    ) {
+      return {
+        kind: "monorepo-multi-role",
+        workspaces: [
+          ...new Set(
+            allCandidates
+              .filter((candidate) => candidate.role === "library")
+              .map((candidate) => getCandidateDirectory(candidate.path)),
+          ),
+        ].sort(),
+        warnings,
+      };
+    }
+  }
 
   if (entries.length <= 1) {
     return { kind: "single", workspaces: [], warnings };
@@ -151,7 +183,7 @@ export const detectMonorepoMode = (
   // Group by immediate parent directory
   const dirGroups = new Map<string, EntryCandidate[]>();
   for (const entry of entries) {
-    const dir = dirname(entry.path);
+    const dir = getCandidateDirectory(entry.path);
     if (!dirGroups.has(dir)) {
       dirGroups.set(dir, []);
     }
@@ -162,11 +194,8 @@ export const detectMonorepoMode = (
   const coverageSets = new Map<string, Set<string>>();
   for (const entry of entries) {
     const coverage = new Set<string>();
-    const signals = signalsMap.get(entry.path);
-    if (signals) {
-      for (const inc of signals.includeStatements) {
-        coverage.add(inc);
-      }
+    for (const includedPath of collectReachableIncludes(entry.path, edges)) {
+      coverage.add(includedPath);
     }
     coverageSets.set(entry.path, coverage);
   }
@@ -194,14 +223,16 @@ export const detectMonorepoMode = (
 
   // multi-role: single main entry + multiple vars in different dirs
   // Check if there's one dominant entry and others are library-like
-  const sorted = [...entries].sort((a, b) => b.score - a.score);
+  const sorted = [...entries].sort(
+    (a, b) => b.score - a.score || a.path.localeCompare(b.path),
+  );
   const topScore = sorted[0].score;
   const dominant = sorted.filter((c) => c.score >= topScore * 0.7);
 
   if (dominant.length === 1 && sorted.length > 1) {
     // Check if non-dominant files are variable/library files
     const others = sorted.slice(1);
-    const otherDirs = new Set(others.map((o) => dirname(o.path)));
+    const otherDirs = new Set(others.map((o) => getCandidateDirectory(o.path)));
     if (otherDirs.size > 1) {
       return {
         kind: "monorepo-multi-role",
@@ -212,8 +243,8 @@ export const detectMonorepoMode = (
   }
 
   // Fallback to multi-entry if multiple high-score entries exist
-  if (entries.length > 1) {
-    const workspaces = [...new Set(entries.map((e) => dirname(e.path)))].sort();
+  if (entries.length > 1 && dirGroups.size > 1) {
+    const workspaces = [...dirGroups.keys()].sort();
     return { kind: "monorepo-multi-entry", workspaces, warnings };
   }
 

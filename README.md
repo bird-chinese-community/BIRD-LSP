@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🕊 BIRD2 LSP Project
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD2 LSP icon" />
+
+# BIRD2 LSP Project
 
 </div>
 
@@ -104,16 +106,16 @@ Search for **"BIRD2 LSP"** in VS Code Marketplace or install from [Open VSX](htt
 
 ## Packages
 
-| Package                                                              | Version     | Description                  | Documentation                                             |
-| -------------------------------------------------------------------- | ----------- | ---------------------------- | --------------------------------------------------------- |
-| [@birdcc/parser](./packages/@birdcc/parser/)                         | 0.1.0-alpha | Tree-sitter parser for BIRD2 | [README](./packages/@birdcc/parser/README.md)             |
-| [@birdcc/core](./packages/@birdcc/core/)                             | 0.1.0-alpha | Semantic analysis engine     | [README](./packages/@birdcc/core/README.md)               |
-| [@birdcc/linter](./packages/@birdcc/linter/)                         | 0.1.0-alpha | Pluggable lint rule system   | [README](./packages/@birdcc/linter/README.md)             |
-| [@birdcc/lsp](./packages/@birdcc/lsp/)                               | 0.1.0-alpha | LSP server implementation    | [README](./packages/@birdcc/lsp/README.md)                |
-| [@birdcc/formatter](./packages/@birdcc/formatter/)                   | 0.1.0-alpha | Dual-engine code formatter   | [README](./packages/@birdcc/formatter/README.md)          |
-| [@birdcc/cli](./packages/@birdcc/cli/)                               | 0.1.0-alpha | Command-line interface       | [README](./packages/@birdcc/cli/README.md)                |
-| [@birdcc/vscode](./packages/@birdcc/vscode/)                         | 0.1.0-alpha | VS Code extension            | [README](./packages/@birdcc/vscode/README.md)             |
-| [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint plugin (Rust/WASM)    | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
+| Package                                                                                                                                                                    | Version     | Description                  | Documentation                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------- | --------------------------------------------------------- |
+| <img src="./packages/@birdcc/parser/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/parser](./packages/@birdcc/parser/)                                     | 0.1.0-alpha | Tree-sitter parser for BIRD2 | [README](./packages/@birdcc/parser/README.md)             |
+| <img src="./packages/@birdcc/core/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/core](./packages/@birdcc/core/)                                           | 0.1.0-alpha | Semantic analysis engine     | [README](./packages/@birdcc/core/README.md)               |
+| <img src="./packages/@birdcc/linter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/linter](./packages/@birdcc/linter/)                                     | 0.1.0-alpha | Pluggable lint rule system   | [README](./packages/@birdcc/linter/README.md)             |
+| <img src="./packages/@birdcc/lsp/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/lsp](./packages/@birdcc/lsp/)                                              | 0.1.0-alpha | LSP server implementation    | [README](./packages/@birdcc/lsp/README.md)                |
+| <img src="./packages/@birdcc/formatter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/formatter](./packages/@birdcc/formatter/)                            | 0.1.0-alpha | Dual-engine code formatter   | [README](./packages/@birdcc/formatter/README.md)          |
+| <img src="./packages/@birdcc/cli/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/cli](./packages/@birdcc/cli/)                                              | 0.1.0-alpha | Command-line interface       | [README](./packages/@birdcc/cli/README.md)                |
+| <img src="./packages/@birdcc/vscode/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/vscode](./packages/@birdcc/vscode/)                                     | 0.1.0-alpha | VS Code extension            | [README](./packages/@birdcc/vscode/README.md)             |
+| <img src="./packages/@birdcc/dprint-plugin-bird/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint plugin (Rust/WASM)    | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
 
 ---
 
@@ -125,85 +127,75 @@ Search for **"BIRD2 LSP"** in VS Code Marketplace or install from [Open VSX](htt
 sequenceDiagram
     autonumber
     participant Editor as Editor (VSCode/Neovim)
-    participant LSP as "@birdcc/lsp"
-    participant Linter as "@birdcc/linter"
-    participant Formatter as "@birdcc/formatter"
-    participant Parser as "@birdcc/parser"
-    participant Core as "@birdcc/core"
+    participant LSP as @birdcc/lsp
+    participant Parser as @birdcc/parser
+    participant Core as @birdcc/core
+    participant Linter as @birdcc/linter
+    participant Formatter as @birdcc/formatter
 
-    rect rgb(225, 245, 254)
-        Note over Editor,Core: Real-time Diagnostics Flow
-        Editor->>+LSP: textDocument/didChange
-        LSP->>+Parser: parseBirdConfig(source)
-        Parser-->>-LSP: ParsedBirdDocument
-        LSP->>+Core: buildCoreSnapshot(parsed)
-        Core-->>-LSP: CoreSnapshot
-        LSP->>+Linter: lintBirdConfig(context)
-        Linter-->>-LSP: Diagnostics[]
-        LSP-->>-Editor: textDocument/publishDiagnostics
-    end
+    Note over Editor,Formatter: Real-time Diagnostics
+    Editor->>+LSP: textDocument/didChange
+    LSP->>+Parser: parseBirdConfig(source)
+    Parser-->>-LSP: ParsedBirdDocument
+    LSP->>+Core: buildCoreSnapshot(parsed)
+    Core-->>-LSP: CoreSnapshot
+    LSP->>+Linter: lintBirdConfig(context)
+    Linter-->>-LSP: Diagnostics[]
+    LSP-->>-Editor: textDocument/publishDiagnostics
 
-    rect rgb(255, 243, 224)
-        Note over Editor,Core: Formatting Flow
-        Editor->>+LSP: textDocument/formatting
-        LSP->>+Formatter: formatBirdConfig(source)
-        Formatter->>+Parser: parseBirdConfig(source)
-        Parser-->>-Formatter: AST
-        Formatter-->>-LSP: Formatted Text
-        LSP-->>-Editor: TextEdit[]
-    end
+    Note over Editor,Formatter: Formatting
+    Editor->>+LSP: textDocument/formatting
+    LSP->>+Formatter: formatBirdConfig(source)
+    Formatter->>+Parser: parseBirdConfig(source)
+    Parser-->>-Formatter: AST
+    Formatter-->>-LSP: Formatted Text
+    LSP-->>-Editor: TextEdit[]
 ```
 
 ### Package Dependency Graph
 
 ```mermaid
 flowchart BT
-    classDef infra fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#000
-    classDef core fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px,color:#000
-    classDef service fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
-    classDef lsp fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
-    classDef user fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
+    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
+    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
+    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
+    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
 
-    subgraph Infrastructure [Infrastructure Layer]
-        PARSER("@birdcc/parser<br/>Tree-sitter/WASM")
-        DPRINT("@birdcc/dprint-plugin-bird<br/>🦀 Rust")
+    subgraph infra [Infrastructure Layer]
+        PARSER["@birdcc/parser<br/>Tree-sitter / WASM"]
+        DPRINT["@birdcc/dprint-plugin-bird<br/>Rust / WASM"]
     end
 
-    subgraph CoreLayer [Core Layer]
-        CORE("@birdcc/core<br/>Symbol Table & Type System")
+    subgraph core [Core Layer]
+        CORE["@birdcc/core<br/>Symbols / Types / Cross-file"]
     end
 
-    subgraph ServiceLayer [Service Layer]
-        FORMATTER("@birdcc/formatter<br/>Formatting Engine")
-        LINTER("@birdcc/linter<br/>Config Static Analysis Engine")
+    subgraph service [Service Layer]
+        LINTER["@birdcc/linter<br/>Static Analysis"]
+        FORMATTER["@birdcc/formatter<br/>Format Engines"]
+        INTEL["@birdcc/intel<br/>ASN Intelligence"]
     end
 
-    subgraph LspLayer [LSP Adapter Layer]
-        LSP_SERVER("@birdcc/lsp<br/>Language Server Protocol")
+    subgraph adapter [LSP Adapter Layer]
+        LSP_SERVER["@birdcc/lsp<br/>Language Server"]
     end
 
-    subgraph UserLayer [User Interface Layer]
-        CLI("@birdcc/cli<br/>Command Line")
-        VSCODE("@birdcc/vscode<br/>Editor Extension")
+    subgraph ui [Interface Layer]
+        CLI["@birdcc/cli"]
+        VSCODE["@birdcc/vscode<br/>Editor Extension"]
     end
 
-
-    %% Infrastructure supports Formatter (Dprint as underlying engine)
-    PARSER <--> DPRINT
-    PARSER <--> CORE
-
-    CORE --> FORMATTER
     DPRINT --> FORMATTER
-
-    %% Core and Formatter support Linter
+    PARSER --> FORMATTER
+    PARSER --> CORE
+    CORE --> FORMATTER
     CORE --> LINTER
-    FORMATTER --> LINTER
-
-    %% All services support LSP
-    FORMATTER --> LSP_SERVER
+    CORE --> INTEL
+    CORE --> LSP_SERVER
     LINTER --> LSP_SERVER
-
-    %% LSP and standalone services support user interfaces
+    FORMATTER --> LSP_SERVER
+    INTEL --> LSP_SERVER
     LSP_SERVER --> CLI
     LSP_SERVER --> VSCODE
     LINTER --> CLI
@@ -211,9 +203,9 @@ flowchart BT
 
     class PARSER,DPRINT infra
     class CORE core
-    class FORMATTER,LINTER service
-    class LSP_SERVER lsp
-    class CLI,VSCODE user
+    class LINTER,FORMATTER,INTEL service
+    class LSP_SERVER adapter
+    class CLI,VSCODE ui
 ```
 
 ---

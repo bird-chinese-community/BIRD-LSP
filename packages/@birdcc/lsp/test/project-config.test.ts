@@ -151,4 +151,27 @@ describe("resolveProjectAnalysisOptions", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("falls back to the current document in a foreign-only workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-lsp-foreign-"));
+    try {
+      const documentPath = join(root, "nginx.conf");
+      await writeFile(
+        documentPath,
+        "events {}\nhttp { server { listen 80; } }\n",
+        "utf8",
+      );
+
+      const resolved = await resolveProjectAnalysisOptions({
+        documentUri: toUri(documentPath),
+        workspaceRootUris: [toUri(root)],
+        defaults: { maxDepth: 16, maxFiles: 256 },
+      });
+
+      expect(resolved.mode).toBe("document");
+      expect(resolved.entryUri).toBe(toUri(documentPath));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
