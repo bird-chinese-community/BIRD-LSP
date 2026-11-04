@@ -151,7 +151,11 @@ fn normalize_text_with_builtin(text: &str, config: &Configuration) -> Result<Str
             normalized_code
         };
 
-        let indent_prefix = " ".repeat(indent_level * usize::from(config.indent_width));
+        let indent_prefix = if config.use_tabs {
+            "\t".repeat(indent_level)
+        } else {
+            " ".repeat(indent_level * usize::from(config.indent_width))
+        };
         let formatted_line = format!("{}{}", indent_prefix, normalized_content);
 
         if (formatted_line.len() as u32) > config.line_width && high_risk_line {
@@ -205,6 +209,7 @@ mod tests {
         Configuration {
             line_width: 80,
             indent_width: 2,
+            use_tabs: false,
             safe_mode: true,
         }
     }
@@ -266,6 +271,30 @@ mod tests {
         assert!(format_text(Path::new("bird.conf"), input, &unchecked)
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn uses_tabs_for_indentation() {
+        let mut options = config();
+        options.use_tabs = true;
+        let output = format_text(
+            Path::new("bird.conf"),
+            "protocol device {\nscan time 10;\n}\n",
+            &options,
+        )
+        .expect("format should succeed")
+        .expect("format should change input");
+        assert!(output.contains("\n\tscan time 10;\n"));
+        assert_eq!(
+            format_text(
+                Path::new("bird.conf"),
+                "define LABEL = \"{#]}\";\nprotocol device {\nscan time 10; # keep  {  \n}\n",
+                &options,
+            )
+            .unwrap()
+            .unwrap(),
+            "define LABEL = \"{#]}\";\nprotocol device {\n\tscan time 10; # keep  {  \n}\n",
+        );
     }
 
     #[test]

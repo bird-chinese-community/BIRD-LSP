@@ -3,6 +3,7 @@ export type FormatterEngine = "dprint" | "builtin";
 export interface FormatBirdConfigOptions {
   engine?: FormatterEngine;
   indentSize?: number;
+  useTabs?: boolean;
   lineWidth?: number;
   safeMode?: boolean;
 }
@@ -10,6 +11,7 @@ export interface FormatBirdConfigOptions {
 export interface ResolvedFormatOptions {
   engine: FormatterEngine;
   indentSize: number;
+  useTabs: boolean;
   lineWidth: number;
   safeMode: boolean;
 }

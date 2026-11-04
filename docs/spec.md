@@ -372,6 +372,13 @@ Formatter engine selection:
 
 Number of spaces per indentation level.
 
+#### `formatter.useTabs`
+
+**Type:** `boolean`  
+**Default:** `false`
+
+Indent with one tab per level instead of spaces.
+
 #### `formatter.lineWidth`
 
 **Type:** `integer` (20-1000)  

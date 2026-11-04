@@ -648,6 +648,7 @@ export const formatBirdConfigText = async (
     ...(options.indentSize !== undefined
       ? { indentSize: options.indentSize }
       : {}),
+    ...(options.useTabs !== undefined ? { useTabs: options.useTabs } : {}),
     ...(options.lineWidth !== undefined
       ? { lineWidth: options.lineWidth }
       : {}),
@@ -664,6 +665,7 @@ export interface FmtOptions {
   write?: boolean;
   engine?: FormatterEngine;
   indentSize?: number;
+  useTabs?: boolean;
   lineWidth?: number;
   safeMode?: boolean;
 }
@@ -675,6 +677,7 @@ const formatWithFormatterPackage = async (
   const formatterOptions = {
     ...(options.engine != null ? { engine: options.engine } : {}),
     ...(options.indentSize != null ? { indentSize: options.indentSize } : {}),
+    ...(options.useTabs != null ? { useTabs: options.useTabs } : {}),
     ...(options.lineWidth != null ? { lineWidth: options.lineWidth } : {}),
     ...(options.safeMode != null ? { safeMode: options.safeMode } : {}),
   };

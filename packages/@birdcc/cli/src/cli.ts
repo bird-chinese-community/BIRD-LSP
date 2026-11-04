@@ -289,6 +289,7 @@ cli
           write: writeMode,
           engine,
           indentSize: loadedConfig.config.formatter?.indentSize,
+          useTabs: loadedConfig.config.formatter?.useTabs,
           lineWidth: loadedConfig.config.formatter?.lineWidth,
           safeMode: loadedConfig.config.formatter?.safeMode,
         });

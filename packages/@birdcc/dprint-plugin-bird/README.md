@@ -74,6 +74,7 @@ Add to your `dprint.json`:
   "bird": {
     "lineWidth": 100,
     "indentWidth": 2,
+    "useTabs": false,
     "safeMode": true
   }
 }

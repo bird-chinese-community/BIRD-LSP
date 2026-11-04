@@ -21,6 +21,7 @@ describe("@birdcc/cli config", () => {
           formatter: {
             engine: "builtin",
             indentSize: 4,
+            useTabs: true,
             lineWidth: 120,
             safeMode: false,
           },
@@ -44,6 +45,7 @@ describe("@birdcc/cli config", () => {
     expect(loaded.path).toBe(join(workspaceDir, "bird.config.json"));
     expect(loaded.config.formatter?.engine).toBe("builtin");
     expect(loaded.config.formatter?.indentSize).toBe(4);
+    expect(loaded.config.formatter?.useTabs).toBe(true);
     expect(loaded.config.bird?.validateCommand).toContain("{file}");
   });
 

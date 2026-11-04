@@ -56,6 +56,7 @@ describe("@birdcc/cli fmt runtime", () => {
   it("passes formatter style options to formatter package", async () => {
     await runFmt("/tmp/bird.conf", {
       indentSize: 4,
+      useTabs: true,
       lineWidth: 100,
       safeMode: false,
     });
@@ -64,6 +65,7 @@ describe("@birdcc/cli fmt runtime", () => {
       "protocol bgp edge {}\n",
       {
         indentSize: 4,
+        useTabs: true,
         lineWidth: 100,
         safeMode: false,
       },
