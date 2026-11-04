@@ -100,7 +100,7 @@ code --install-extension bird2-lsp-0.1.0-alpha.vsix
 
 ### Requirements
 
-- **VS Code**: ^1.80.0
+- **VS Code**: ^1.100.0
 - **birdcc CLI**: Recommended for full functionality
   ```bash
   npm install -g @birdcc/cli

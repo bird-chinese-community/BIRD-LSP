@@ -9,6 +9,20 @@ const readExtensionManifest = async (): Promise<Record<string, unknown>> => {
 };
 
 describe("extension manifest menus", () => {
+  it("requires an ESM-capable host for the extension and extension pack", async () => {
+    const manifest = await readExtensionManifest();
+    const pack = JSON.parse(
+      await readFile(
+        new URL("../../vscode-pack/package.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { engines: { vscode: string } };
+
+    expect(manifest.type).toBe("module");
+    expect(manifest.engines).toEqual({ vscode: "^1.100.0" });
+    expect(pack.engines.vscode).toBe("^1.100.0");
+  });
+
   it("contributes bird2 editor context menu commands", async () => {
     const manifest = await readExtensionManifest();
     const contributes = manifest.contributes as

@@ -37,7 +37,7 @@ Provides TextMate grammar based syntax highlighting for BIRD2 config files.
 
 ## Requirements
 
-- VS Code 1.80 or newer.
+- VS Code 1.100 or newer.
 
 ## 📝 License
 
