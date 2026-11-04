@@ -9,6 +9,7 @@ import {
   createSymbolLookupIndex,
   dedupeLocations,
   extractWordAtPosition,
+  lookupSymbolDefinitions,
   toLocation,
 } from "./symbol-utils.js";
 
@@ -45,7 +46,7 @@ const findTargetSymbol = (
 
   const lowerName = name.toLowerCase();
 
-  const matchedDefinition = (index.definitionsByName.get(lowerName) ?? [])[0];
+  const matchedDefinition = lookupSymbolDefinitions(index, name)[0];
   if (matchedDefinition) {
     return { kind: matchedDefinition.kind, name: matchedDefinition.name };
   }
@@ -81,15 +82,9 @@ export const createReferenceLocations = (
   }
 
   const lowerName = target.name.toLowerCase();
-  const definitionMatches = (
-    index.definitionsByName.get(lowerName) ?? []
-  ).filter((item) => {
-    if (!target.kind) {
-      return true;
-    }
-
-    return item.kind === target.kind;
-  });
+  const definitionMatches = lookupSymbolDefinitions(index, target.name).filter(
+    (item) => !target.kind || item.kind === target.kind,
+  );
 
   const referenceMatches = (index.referencesByName.get(lowerName) ?? []).filter(
     (item) => {

@@ -5,6 +5,7 @@ import {
   createSymbolLookupIndex,
   dedupeLocations,
   extractWordAtPosition,
+  lookupSymbolDefinitions,
   toLocation,
 } from "./symbol-utils.js";
 
@@ -26,7 +27,7 @@ export const createDefinitionLocations = (
 
   if (reference) {
     return dedupeLocations(
-      (index.definitionsByName.get(reference.name.toLowerCase()) ?? [])
+      lookupSymbolDefinitions(index, reference.name)
         .filter((definition) => definition.kind === reference.kind)
         .map(toLocation),
     );
@@ -44,7 +45,5 @@ export const createDefinitionLocations = (
     return [];
   }
 
-  return dedupeLocations(
-    (index.definitionsByName.get(name.toLowerCase()) ?? []).map(toLocation),
-  );
+  return dedupeLocations(lookupSymbolDefinitions(index, name).map(toLocation));
 };

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { collectFunctionReturnHints, buildCoreSnapshot } from "../src/index.js";
+import {
+  collectFunctionReturnHints,
+  buildCoreSnapshot,
+  resolveCrossFileReferences,
+} from "../src/index.js";
 
 describe("parsed language hints", () => {
   it("includes define names and their exact source ranges in the symbol table", async () => {
@@ -13,6 +17,46 @@ describe("parsed language hints", () => {
       endColumn: 16,
       uri: "memory://bird.conf",
     });
+  });
+
+  it.each([
+    { name: "LOCAL_AS", duplicates: 0 },
+    { name: "local_as", duplicates: 1 },
+  ])("checks define case in one file ($name)", async ({ name, duplicates }) => {
+    const result = await buildCoreSnapshot(
+      `define local_as = 65000;\ndefine ${name} = 65001;\n`,
+    );
+    expect(
+      result.diagnostics.filter(
+        (item) => item.code === "semantic/duplicate-definition",
+      ),
+    ).toHaveLength(duplicates);
+  });
+
+  it.each([
+    { name: "LOCAL_AS", duplicates: 0 },
+    { name: "local_as", duplicates: 1 },
+  ])("checks included define case ($name)", async ({ name, duplicates }) => {
+    const uri = "file:///workspace/bird.conf";
+    const result = await resolveCrossFileReferences({
+      entryUri: uri,
+      documents: [
+        {
+          uri,
+          text: 'define local_as = 65000;\ninclude "constants.conf";\n',
+        },
+        {
+          uri: "file:///workspace/constants.conf",
+          text: `define ${name} = 65001;\n`,
+        },
+      ],
+      loadFromFileSystem: false,
+    });
+    expect(
+      result.diagnostics.filter(
+        (item) => item.code === "semantic/duplicate-definition",
+      ),
+    ).toHaveLength(duplicates);
   });
 
   it("ignores return text inside comments and strings", async () => {
