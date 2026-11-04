@@ -1,34 +1,15 @@
-import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  createProtocolConnection,
-  StreamMessageReader,
-  StreamMessageWriter,
-  type PublishDiagnosticsParams,
-} from "vscode-languageserver/node.js";
+import type { PublishDiagnosticsParams } from "vscode-languageserver/node.js";
 import { expect, it, vi } from "vitest";
+import { startStdioTestServer } from "./helpers/stdio-server.js";
 
 it("cancels related publication across settings changes and recovers project errors", async () => {
   const root = await mkdtemp(join(tmpdir(), "birdcc-configuration-order-"));
-  const child = spawn(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      'import {startLspServer} from "./dist/lsp-server.js";startLspServer({disableAsnIntel:true});',
-      "--",
-      "birdcc-test",
-      "--stdio",
-    ],
-    { cwd: new URL("..", import.meta.url), stdio: ["pipe", "pipe", "pipe"] },
-  );
-  const connection = createProtocolConnection(
-    new StreamMessageReader(child.stdout),
-    new StreamMessageWriter(child.stdin),
-  );
+  const server = startStdioTestServer();
+  const { connection } = server;
   const uri = pathToFileURL(join(root, "bird.conf")).toString();
   const includeUri = pathToFileURL(join(root, "base.inc")).toString();
   const configPath = join(root, "bird.config.json");
@@ -66,11 +47,13 @@ it("cancels related publication across settings changes and recovers project err
       join(root, "base.inc"),
       "router id 999.0.2.1;\ntemplate bgp base { local as 65000; }\n",
     );
-    await connection.sendRequest("initialize", {
-      processId: process.pid,
-      rootUri: pathToFileURL(root).toString(),
-      capabilities: { workspace: { configuration: true } },
-    });
+    await server.request("initialize", () =>
+      connection.sendRequest("initialize", {
+        processId: process.pid,
+        rootUri: pathToFileURL(root).toString(),
+        capabilities: { workspace: { configuration: true } },
+      }),
+    );
     await connection.sendNotification("initialized", {});
     await connection.sendNotification("textDocument/didOpen", {
       textDocument: { uri, version: 1, languageId: "bird", text: source },
@@ -97,9 +80,11 @@ it("cancels related publication across settings changes and recovers project err
     releaseRelated?.({ enabled: true });
     for (let round = 0; round < 2; round += 1)
       expect(
-        await connection.sendRequest("textDocument/documentSymbol", {
-          textDocument: { uri },
-        }),
+        await server.request(`documentSymbol ${round}`, () =>
+          connection.sendRequest("textDocument/documentSymbol", {
+            textDocument: { uri },
+          }),
+        ),
       ).toEqual([]);
     expect(published.some((item) => item.uri === includeUri)).toBe(false);
     enabled = true;
@@ -152,12 +137,11 @@ it("cancels related publication across settings changes and recovers project err
         ).toBe(true),
       { timeout: 10000 },
     );
-    await connection.sendRequest("shutdown");
+    await server.request("shutdown", () => connection.sendRequest("shutdown"));
     await connection.sendNotification("exit");
   } finally {
     releaseRelated?.({ enabled: false });
-    connection.dispose();
-    child.kill();
+    await server.dispose();
     await rm(root, { recursive: true, force: true });
   }
 }, 30000);
