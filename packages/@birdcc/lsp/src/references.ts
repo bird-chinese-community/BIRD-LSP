@@ -9,6 +9,7 @@ import {
   createSymbolLookupIndex,
   dedupeLocations,
   extractWordAtPosition,
+  lookupSymbolDefinitions,
   toLocation,
 } from "./symbol-utils.js";
 
@@ -43,14 +44,12 @@ const findTargetSymbol = (
     return null;
   }
 
-  const lowerName = name.toLowerCase();
-
-  const matchedDefinition = (index.definitionsByName.get(lowerName) ?? [])[0];
+  const matchedDefinition = lookupSymbolDefinitions(index, name)[0];
   if (matchedDefinition) {
     return { kind: matchedDefinition.kind, name: matchedDefinition.name };
   }
 
-  const matchedReference = (index.referencesByName.get(lowerName) ?? [])[0];
+  const matchedReference = (index.referencesByName.get(name) ?? [])[0];
   if (matchedReference) {
     return { kind: matchedReference.kind, name: matchedReference.name };
   }
@@ -80,9 +79,12 @@ export const createReferenceLocations = (
     return [];
   }
 
-  const lowerName = target.name.toLowerCase();
-  const definitionMatches = (
-    index.definitionsByName.get(lowerName) ?? []
+  const definitionMatches = lookupSymbolDefinitions(index, target.name).filter(
+    (item) => !target.kind || item.kind === target.kind,
+  );
+
+  const referenceMatches = (
+    index.referencesByName.get(target.name) ?? []
   ).filter((item) => {
     if (!target.kind) {
       return true;
@@ -90,16 +92,6 @@ export const createReferenceLocations = (
 
     return item.kind === target.kind;
   });
-
-  const referenceMatches = (index.referencesByName.get(lowerName) ?? []).filter(
-    (item) => {
-      if (!target.kind) {
-        return true;
-      }
-
-      return item.kind === target.kind;
-    },
-  );
 
   return dedupeLocations(
     [...definitionMatches, ...referenceMatches].map(toLocation),

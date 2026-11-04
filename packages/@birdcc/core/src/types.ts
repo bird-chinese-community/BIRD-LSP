@@ -17,6 +17,7 @@ export interface BirdDiagnostic {
 }
 
 export type BirdSymbolKind =
+  | "define"
   | "protocol"
   | "template"
   | "filter"

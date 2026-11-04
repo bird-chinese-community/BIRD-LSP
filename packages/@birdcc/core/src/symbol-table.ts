@@ -68,6 +68,10 @@ const declarationToSymbol = (
     return toSymbol("table", declaration.name, declaration.nameRange);
   }
 
+  if (declaration.kind === "define" && declaration.name.trim().length > 0) {
+    return toSymbol("define", declaration.name, declaration.nameRange);
+  }
+
   return null;
 };
 
@@ -146,7 +150,7 @@ export const pushSymbolTableDiagnostics = (
   const seenDefinitions = new Map<string, SymbolDefinition>();
 
   for (const symbol of symbolTable.definitions) {
-    const key = `${symbol.kind}:${symbol.name.toLowerCase()}`;
+    const key = `${symbol.kind}:${symbol.name}`;
     const previous = seenDefinitions.get(key);
 
     if (previous) {
@@ -165,7 +169,7 @@ export const pushSymbolTableDiagnostics = (
   }
 
   for (const reference of symbolTable.references) {
-    const key = `template:${reference.name.toLowerCase()}`;
+    const key = `template:${reference.name}`;
     if (seenDefinitions.has(key)) {
       continue;
     }

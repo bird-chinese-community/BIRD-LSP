@@ -36,7 +36,6 @@ const BOOLEAN_OPERATORS = [
 ] as const;
 
 const prefixLiteralPattern = /^([0-9a-fA-F:.]+)\s*\/\s*([0-9]{1,3})$/;
-const returnExpressionPattern = /\breturn\s+([^;]+)\s*;/gu;
 
 interface SourceRangeLike {
   readonly line: number;
@@ -109,8 +108,7 @@ const inferLiteralType = (expression: string): BirdHintType => {
     return "unknown";
   }
 
-  const lowered = value.toLowerCase();
-  if (lowered === "true" || lowered === "false") {
+  if (value === "true" || value === "false") {
     return "bool";
   }
 
@@ -166,54 +164,20 @@ const collectDeclaredReturnType = (
 };
 
 const inferFunctionReturnType = (
-  source: string,
-  lineOffsets: readonly number[],
   declaration: FunctionDeclaration,
 ): {
   inferredReturnType: BirdHintType;
   returnDetails: readonly FunctionReturnDetail[];
 } => {
-  const statementDetails = declaration.statements
-    .filter(
-      (statement): statement is SourceRangeLike & { kind: "return" } =>
-        statement.kind === "return",
-    )
-    .map((statement) => {
-      const statementText = sliceSourceRange(source, lineOffsets, statement);
-      const expression = statementText
-        .replace(/^\s*return/u, "")
-        .replace(/;\s*$/u, "")
-        .trim();
+  const returnDetails = declaration.returnStatements.map((statement) => {
+    const expression = statement.valueText?.trim() ?? "";
 
-      if (!expression) {
-        return null;
-      }
-
-      return {
-        line: statement.line,
-        expression,
-        inferredType: inferLiteralType(expression),
-      } satisfies FunctionReturnDetail;
-    })
-    .filter((detail): detail is FunctionReturnDetail => detail !== null);
-
-  let returnDetails = statementDetails;
-  if (returnDetails.length === 0) {
-    const declarationText = sliceSourceRange(source, lineOffsets, declaration);
-    returnDetails = Array.from(
-      declarationText.matchAll(returnExpressionPattern),
-    ).map((match) => {
-      const expression = (match[1] ?? "").trim();
-      const prefix = declarationText.slice(0, match.index ?? 0);
-      const lineOffset = prefix.split(/\r?\n/u).length - 1;
-
-      return {
-        line: declaration.line + Math.max(lineOffset, 0),
-        expression,
-        inferredType: inferLiteralType(expression),
-      } satisfies FunctionReturnDetail;
-    });
-  }
+    return {
+      line: statement.line,
+      expression,
+      inferredType: inferLiteralType(expression),
+    } satisfies FunctionReturnDetail;
+  });
 
   if (returnDetails.length === 0) {
     return { inferredReturnType: "unknown", returnDetails };
@@ -226,15 +190,6 @@ const inferFunctionReturnType = (
   if (inferredTypes.size === 1) {
     return {
       inferredReturnType: returnDetails[0]?.inferredType ?? "unknown",
-      returnDetails,
-    };
-  }
-
-  inferredTypes.delete("unknown");
-  if (inferredTypes.size === 1) {
-    return {
-      inferredReturnType:
-        (Array.from(inferredTypes)[0] as BirdHintType | undefined) ?? "unknown",
       returnDetails,
     };
   }
@@ -254,11 +209,7 @@ export const collectFunctionReturnHints = async (
         declaration.kind === "function",
     )
     .map((declaration) => {
-      const returnSummary = inferFunctionReturnType(
-        source,
-        lineOffsets,
-        declaration,
-      );
+      const returnSummary = inferFunctionReturnType(declaration);
 
       return {
         declaration,

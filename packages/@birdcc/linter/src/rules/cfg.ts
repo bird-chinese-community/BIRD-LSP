@@ -559,15 +559,15 @@ const cfgCircularTemplateRule: BirdRule = ({ parsed }) => {
   const ranges = new Map<string, SourceRange>();
 
   for (const template of templates) {
-    const name = template.name.toLowerCase();
+    const name = template.name;
     ranges.set(name, template.nameRange);
     if (template.fromTemplate) {
-      graph.set(name, template.fromTemplate.toLowerCase());
+      graph.set(name, template.fromTemplate);
     }
   }
 
   for (const template of templates) {
-    const name = template.name.toLowerCase();
+    const name = template.name;
     if (!hasTemplateCycleFrom(name, graph)) {
       continue;
     }
