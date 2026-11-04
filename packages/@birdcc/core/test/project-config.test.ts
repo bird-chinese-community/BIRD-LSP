@@ -22,6 +22,14 @@ it("validates nested config fields and accepts reserved linter.extends", () => {
       linter: { extends: ["bird-recommended"] },
     }).success,
   ).toBe(true);
+  expect(
+    birdProjectConfigSchema.safeParse({ linter: { extends: [42] } }).success,
+  ).toBe(false);
+  expect(
+    birdProjectConfigSchema.safeParse({
+      linter: { extends: "bird-recommended" },
+    }).success,
+  ).toBe(false);
 });
 
 it("applies enabled and exact or longest-prefix severity overrides", () => {

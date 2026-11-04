@@ -211,71 +211,89 @@ it("applies project rules, format precedence, reference context, and editor sett
         inlayParams,
       ),
     ).toEqual([]);
-    diagnostics.length = 0;
-    await writeFile(
-      configPath,
-      JSON.stringify({
-        ...config,
-        crossFile: { enabled: false },
-        linter: { rules: { "cfg/*": "info", "bgp/*": "off" } },
-      }),
-    );
-    await connection.sendNotification("workspace/didChangeWatchedFiles", {
-      changes: [{ uri: pathToFileURL(configPath).toString(), type: 2 }],
-    });
     await connection.sendNotification("textDocument/didChange", {
       textDocument: { uri, version: 2 },
-      contentChanges: [{ text: source.replace("192.0.2.1", "999.0.2.1") }],
+      contentChanges: [
+        {
+          text: "router id 999.0.2.1;\nprotocol bgp edge {\n neighbor 192.0.2.2 as 174;\n}\n",
+        },
+      ],
     });
-    await vi.waitFor(
-      () =>
-        expect(
-          diagnostics.some(
-            (item) =>
-              item.uri === uri &&
-              item.version === 2 &&
-              item.diagnostics.some(
-                (diagnostic) =>
-                  diagnostic.code === "cfg/incompatible-type" &&
-                  diagnostic.severity === 3,
-              ),
-          ),
-        ).toBe(true),
-      { timeout: 10000 },
-    );
-    expect(
-      diagnostics
-        .filter((item) => item.uri === uri)
-        .at(-1)
-        ?.diagnostics.some((item) => String(item.code).startsWith("bgp/")),
-    ).toBe(false);
-    diagnostics.length = 0;
-    await writeFile(
-      configPath,
-      JSON.stringify({
+    for (const crossFileEnabled of [false, true]) {
+      const projectConfig = {
         ...config,
-        linter: { rules: { "cfg/*": "info", "bgp/*": "off" } },
-      }),
-    );
-    await connection.sendNotification("workspace/didChangeWatchedFiles", {
-      changes: [{ uri: pathToFileURL(configPath).toString(), type: 2 }],
-    });
-    await vi.waitFor(
-      () =>
-        expect(
-          diagnostics.some(
-            (item) =>
-              item.uri === uri &&
-              item.version === 2 &&
-              item.diagnostics.some(
-                (diagnostic) =>
-                  diagnostic.code === "cfg/incompatible-type" &&
-                  diagnostic.severity === 3,
-              ),
+        crossFile: { enabled: crossFileEnabled },
+        linter: {
+          extends: ["bird-recommended"],
+          rules: { "cfg/*": "info", "bgp/*": "info" },
+        },
+      };
+      diagnostics.length = 0;
+      await writeFile(configPath, JSON.stringify(projectConfig));
+      await connection.sendNotification("workspace/didChangeWatchedFiles", {
+        changes: [{ uri: pathToFileURL(configPath).toString(), type: 2 }],
+      });
+      await vi.waitFor(
+        () => {
+          const latest = diagnostics
+            .filter((item) => item.uri === uri && item.version === 2)
+            .at(-1);
+          expect(latest?.diagnostics).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                code: "cfg/incompatible-type",
+                severity: 3,
+              }),
+              expect.objectContaining({
+                code: "bgp/missing-local-as",
+                severity: 3,
+              }),
+            ]),
+          );
+        },
+        { timeout: 10000 },
+      );
+      diagnostics.length = 0;
+      await writeFile(
+        configPath,
+        JSON.stringify({
+          ...projectConfig,
+          linter: {
+            ...projectConfig.linter,
+            rules: { "cfg/*": "info", "bgp/*": "off" },
+          },
+        }),
+      );
+      await connection.sendNotification("workspace/didChangeWatchedFiles", {
+        changes: [{ uri: pathToFileURL(configPath).toString(), type: 2 }],
+      });
+      await vi.waitFor(
+        () => {
+          const latest = diagnostics
+            .filter((item) => item.uri === uri && item.version === 2)
+            .at(-1);
+          expect(latest?.diagnostics).toContainEqual(
+            expect.objectContaining({
+              code: "cfg/incompatible-type",
+              severity: 3,
+            }),
+          );
+          expect(
+            latest?.diagnostics.some((item) =>
+              String(item.code).startsWith("bgp/"),
+            ),
+          ).toBe(false);
+        },
+        { timeout: 10000 },
+      );
+      expect(
+        diagnostics.some((item) =>
+          item.diagnostics.some(
+            (diagnostic) => diagnostic.code === "config/invalid",
           ),
-        ).toBe(true),
-      { timeout: 10000 },
-    );
+        ),
+      ).toBe(false);
+    }
     diagnostics.length = 0;
     await writeFile(configPath, '{"crossFile":{"maxFiles":1025}}');
     await connection.sendNotification("workspace/didChangeWatchedFiles", {
