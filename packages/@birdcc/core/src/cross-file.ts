@@ -439,6 +439,7 @@ export const resolveCrossFileReferences = async (
     uri: string,
     sourceUri = uri,
     range: SourceRange = DEFAULT_RANGE,
+    loadDiagnostics = diagnostics,
   ): Promise<boolean> => {
     if (budgetedUris.has(uri)) return true;
     if (!documentMap.has(uri) && !loadFromFileSystem) {
@@ -462,7 +463,7 @@ export const resolveCrossFileReferences = async (
         ) {
           const actualRoot = pathToFileURL(await realpath(root)).toString();
           if (!isWithinWorkspaceRoot(readUri, actualRoot)) {
-            diagnostics.push(
+            loadDiagnostics.push(
               includeDiagnostic(
                 sourceUri,
                 `Include target is outside workspace root: '${uri}'`,
@@ -487,7 +488,7 @@ export const resolveCrossFileReferences = async (
         stats.totalBytes + bytes > maxTotalBytes
       ) {
         stats.skippedBySizeLimit += 1;
-        diagnostics.push(
+        loadDiagnostics.push(
           includeDiagnostic(
             sourceUri,
             `Analysis size limit exceeded for '${uri}'`,
@@ -506,7 +507,7 @@ export const resolveCrossFileReferences = async (
         error.message.includes("Analysis size limit")
       )
         stats.skippedBySizeLimit += 1;
-      diagnostics.push(
+      loadDiagnostics.push(
         includeDiagnostic(
           sourceUri,
           `Unable to load '${uri}': ${error instanceof Error ? error.message : String(error)}`,
@@ -591,6 +592,7 @@ export const resolveCrossFileReferences = async (
         includeSearchPaths,
       );
       const allowMultipleMatches = declaration.path.includes("*");
+      const candidateDiagnostics: BirdDiagnostic[] = [];
       let queuedInclude = false;
       let skippedOutsideWorkspace = false;
 
@@ -666,6 +668,7 @@ export const resolveCrossFileReferences = async (
             expandedUri,
             current.uri,
             includeRange,
+            candidateDiagnostics,
           );
           if (!loaded) {
             continue;
@@ -682,6 +685,10 @@ export const resolveCrossFileReferences = async (
         if (queuedInclude && !allowMultipleMatches) {
           break;
         }
+      }
+
+      if (!queuedInclude || allowMultipleMatches) {
+        diagnostics.push(...candidateDiagnostics);
       }
 
       if (queuedInclude) {

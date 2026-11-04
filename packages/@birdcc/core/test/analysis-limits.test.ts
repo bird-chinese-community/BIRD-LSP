@@ -95,6 +95,105 @@ it("checks real targets, regular files, and bounded disk reads", async () => {
   }
 });
 
+it("resolves disk includes through later search paths before reporting missing files", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-include-search-"));
+  try {
+    const shared = join(root, "shared");
+    await mkdir(shared);
+    const main = join(root, "bird.conf");
+    const part = join(shared, "part.conf");
+    await writeFile(main, 'include "part.conf";\n');
+    await writeFile(part, "template bgp base { local as 65000; }\n");
+    const entryUri = pathToFileURL(main).toString();
+    const options = {
+      entryUri,
+      includeSearchPaths: [join(root, "absent"), shared],
+    };
+
+    const resolved = await resolveCrossFileReferences(options);
+    expect(resolved.visitedUris).toEqual([
+      entryUri,
+      pathToFileURL(part).toString(),
+    ]);
+    expect(resolved.stats.missingIncludes).toBe(0);
+    expect(
+      resolved.diagnostics.filter(
+        (item) => item.code === "semantic/missing-include",
+      ),
+    ).toEqual([]);
+
+    await writeFile(main, 'include "missing.conf";\n');
+    const missing = await resolveCrossFileReferences(options);
+    expect(missing.visitedUris).toEqual([entryUri]);
+    expect(missing.stats.missingIncludes).toBe(1);
+    expect(missing.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "semantic/missing-include",
+          uri: entryUri,
+          message: "Included file not found in workspace: 'missing.conf'",
+        }),
+      ]),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("retains unreadable and size-limited search-path include diagnostics", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-include-errors-"));
+  try {
+    const shared = join(root, "shared");
+    await mkdir(shared);
+    const main = join(root, "bird.conf");
+    await writeFile(main, 'include "directory.conf";\n');
+    await mkdir(join(shared, "directory.conf"));
+    const entryUri = pathToFileURL(main).toString();
+    const options = { entryUri, includeSearchPaths: [shared] };
+
+    const unreadable = await resolveCrossFileReferences(options);
+    expect(unreadable.visitedUris).toEqual([entryUri]);
+    expect(unreadable.stats.missingIncludes).toBe(1);
+    expect(
+      unreadable.diagnostics.some(
+        (item) =>
+          item.uri === entryUri && item.message.includes("regular file"),
+      ),
+    ).toBe(true);
+
+    await writeFile(main, 'include "large.conf";\n');
+    await writeFile(join(shared, "large.conf"), `#${" ".repeat(128)}\n`);
+    const bounded = await resolveCrossFileReferences({
+      ...options,
+      maxDocumentBytes: 64,
+    });
+    expect(bounded.visitedUris).toEqual([entryUri]);
+    expect(bounded.stats.skippedBySizeLimit).toBe(1);
+    expect(
+      bounded.diagnostics.some(
+        (item) => item.uri === entryUri && item.message.includes("size limit"),
+      ),
+    ).toBe(true);
+
+    await writeFile(main, 'include "*.conf";\n');
+    const small = join(shared, "small.conf");
+    await writeFile(small, "template bgp base {}\n");
+    const wildcard = await resolveCrossFileReferences({
+      ...options,
+      maxDocumentBytes: 64,
+    });
+    expect(wildcard.visitedUris).toContain(pathToFileURL(small).toString());
+    expect(wildcard.stats.skippedBySizeLimit).toBe(1);
+    expect(
+      wildcard.diagnostics.some(
+        (item) => item.uri === entryUri && item.message.includes("size limit"),
+      ),
+    ).toBe(true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("bounds ordinary directory entries and queued directories", async () => {
   const root = await mkdtemp(join(tmpdir(), "birdcc-discovery-limits-"));
   try {
