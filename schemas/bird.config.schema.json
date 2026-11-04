@@ -136,12 +136,11 @@
         },
         "extends": {
           "type": "array",
-          "description": "Reserved for rule inheritance; configure linter.rules directly",
-          "maxItems": 0,
+          "description": "Reserved for shareable rule presets. Accepted for compatibility but not applied yet; configure linter.rules directly",
           "items": {
             "type": "string"
           },
-          "examples": [[]]
+          "examples": [["bird-recommended"], ["./local-rules.json"]]
         },
         "rules": {
           "type": "object",

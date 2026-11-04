@@ -38,13 +38,8 @@ export const birdProjectConfigSchema = z
       .object({
         enabled: z.boolean().optional(),
         withBird: z.boolean().optional(),
-        extends: z
-          .array(z.string())
-          .max(
-            0,
-            "Configuration inheritance is not supported; configure rules directly",
-          )
-          .optional(),
+        // Reserved for rule presets; accepted for compatibility but not applied.
+        extends: z.array(z.string()).optional(),
         rules: z.record(z.string(), severitySchema).optional(),
       })
       .strict()

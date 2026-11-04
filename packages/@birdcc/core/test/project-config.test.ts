@@ -5,7 +5,7 @@ import {
 import type { BirdDiagnostic } from "../src/types.js";
 import { expect, it } from "vitest";
 
-it("validates nested config fields and gives explicit inheritance support", () => {
+it("validates nested config fields and accepts reserved linter.extends", () => {
   expect(
     birdProjectConfigSchema.safeParse({ crossFile: { maxDepth: 65 } }).success,
   ).toBe(false);
@@ -18,9 +18,10 @@ it("validates nested config fields and gives explicit inheritance support", () =
       .success,
   ).toBe(false);
   expect(
-    birdProjectConfigSchema.safeParse({ linter: { extends: ["base.json"] } })
-      .success,
-  ).toBe(false);
+    birdProjectConfigSchema.safeParse({
+      linter: { extends: ["bird-recommended"] },
+    }).success,
+  ).toBe(true);
 });
 
 it("applies enabled and exact or longest-prefix severity overrides", () => {
