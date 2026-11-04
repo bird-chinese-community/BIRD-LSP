@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   createValidationScheduler,
   type ValidationDocument,
@@ -29,6 +30,56 @@ const createDocument = (
 describe("@birdcc/lsp validation scheduler", () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("invalidates an in-flight result as soon as a mutable document is scheduled", async () => {
+    vi.useFakeTimers();
+    const document = TextDocument.create("file:///bird.conf", "bird", 1, "old");
+    const published: ValidationPublishPayload<string>[] = [];
+    let finish: (diagnostics: string[]) => void = () => {};
+    const scheduler = createValidationScheduler<TextDocument, string>({
+      debounceMs: 100,
+      validate: async (input) => {
+        const text = input.getText();
+        await new Promise<string[]>((resolve) => {
+          finish = resolve;
+        });
+        return [text];
+      },
+      publish: (payload) => published.push(payload),
+    });
+    scheduler.schedule(document);
+    await vi.advanceTimersByTimeAsync(100);
+    TextDocument.update(document, [{ text: "new" }], 2);
+    scheduler.schedule(document);
+    finish([]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(published).toEqual([]);
+    scheduler.close(document.uri);
+    expect(published).toEqual([
+      { uri: document.uri, version: 2, diagnostics: [] },
+    ]);
+  });
+
+  it("keeps published diagnostics when validation is superseded", async () => {
+    vi.useFakeTimers();
+    const published: ValidationPublishPayload<string>[] = [];
+    const scheduler = createValidationScheduler<TextDocument, string>({
+      debounceMs: 1,
+      validate: async () => undefined,
+      publish: (payload) => published.push(payload),
+    });
+    scheduler.schedule(
+      TextDocument.create(
+        "file:///bird.conf",
+        "bird",
+        1,
+        "router id 192.0.2.1;",
+      ),
+    );
+    await vi.advanceTimersByTimeAsync(1);
+    expect(published).toEqual([]);
   });
 
   it("debounces rapid document changes and validates only latest text", async () => {
