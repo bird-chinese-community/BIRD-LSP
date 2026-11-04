@@ -73,3 +73,14 @@ export type {
   SignalRecord,
 } from "./detection/index.js";
 export { isForbiddenRoot } from "./detection/fs-safety.js";
+export {
+  applyLintConfiguration,
+  birdProjectConfigSchema,
+  birdEditorSettingsSchema,
+  loadBirdProjectConfigForFile,
+  resolveSeverityOverride,
+  type BirdProjectConfig,
+  type BirdEditorSettings,
+  type LintRuleSeverity,
+  type LoadedBirdProjectConfig,
+} from "./project-config.js";

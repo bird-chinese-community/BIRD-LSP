@@ -1,22 +1,14 @@
-import { access, readFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { access } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { selectAutoDetectedEntry, sniffProjectEntrypoints } from "@birdcc/core";
+import {
+  loadBirdProjectConfigForFile,
+  selectAutoDetectedEntry,
+  sniffProjectEntrypoints,
+  type BirdProjectConfig,
+} from "@birdcc/core";
 
-const CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"] as const;
 const DEFAULT_WORKSPACE_ENTRY_FILE = "bird.conf";
-
-interface LspProjectConfig {
-  main?: string;
-  workspaces?: string[];
-  includePaths?: string[];
-  crossFile?: {
-    enabled?: boolean;
-    maxDepth?: number;
-    maxFiles?: number;
-    externalIncludes?: boolean;
-  };
-}
 
 export interface ProjectAnalysisDefaults {
   maxDepth: number;
@@ -33,6 +25,7 @@ export interface ProjectAnalysisOptions {
   crossFileEnabled: boolean;
   mode: "document" | "main" | "workspace";
   configPath?: string;
+  config?: BirdProjectConfig;
 }
 
 export interface ResolveProjectAnalysisOptionsInput {
@@ -65,94 +58,6 @@ const pathExists = async (path: string): Promise<boolean> => {
 
     throw error;
   }
-};
-
-const findNearestConfigPath = async (
-  documentPath: string,
-): Promise<string | undefined> => {
-  let current = resolve(dirname(documentPath));
-
-  while (true) {
-    for (const fileName of CONFIG_FILE_NAMES) {
-      const candidate = join(current, fileName);
-      if (await pathExists(candidate)) {
-        return candidate;
-      }
-    }
-
-    const parent = dirname(current);
-    if (parent === current) {
-      return undefined;
-    }
-
-    current = parent;
-  }
-};
-
-const parseProjectConfig = async (
-  configPath: string,
-): Promise<LspProjectConfig | undefined> => {
-  try {
-    const raw = await readFile(configPath, "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") {
-      return undefined;
-    }
-
-    const data = parsed as Record<string, unknown>;
-    const config: LspProjectConfig = {};
-
-    if (typeof data.main === "string" && data.main.trim().length > 0) {
-      config.main = data.main;
-    }
-    if (Array.isArray(data.workspaces)) {
-      config.workspaces = data.workspaces.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      );
-    }
-    if (Array.isArray(data.includePaths)) {
-      config.includePaths = data.includePaths.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      );
-    }
-    if (data.crossFile && typeof data.crossFile === "object") {
-      const crossFileRaw = data.crossFile as Record<string, unknown>;
-      config.crossFile = {
-        enabled:
-          typeof crossFileRaw.enabled === "boolean"
-            ? crossFileRaw.enabled
-            : undefined,
-        maxDepth:
-          typeof crossFileRaw.maxDepth === "number"
-            ? crossFileRaw.maxDepth
-            : undefined,
-        maxFiles:
-          typeof crossFileRaw.maxFiles === "number"
-            ? crossFileRaw.maxFiles
-            : undefined,
-        externalIncludes:
-          typeof crossFileRaw.externalIncludes === "boolean"
-            ? crossFileRaw.externalIncludes
-            : undefined,
-      };
-    }
-
-    return config;
-  } catch {
-    return undefined;
-  }
-};
-
-const clampPositiveInteger = (
-  value: number | undefined,
-): number | undefined => {
-  if (!Number.isInteger(value) || (value ?? 0) <= 0) {
-    return undefined;
-  }
-
-  return value;
 };
 
 const normalizePosixPath = (value: string): string =>
@@ -304,7 +209,8 @@ export const resolveProjectAnalysisOptions = async (
   }
 
   const documentPathResolved = resolve(documentPath);
-  const nearestConfigPath = await findNearestConfigPath(documentPathResolved);
+  const loaded = await loadBirdProjectConfigForFile(documentPathResolved);
+  const nearestConfigPath = loaded.path;
   if (!nearestConfigPath) {
     const workspaceRootUri = resolveContainingWorkspaceRootUri(
       documentPathResolved,
@@ -352,18 +258,14 @@ export const resolveProjectAnalysisOptions = async (
     };
   }
 
-  const config = await parseProjectConfig(nearestConfigPath);
+  const config = loaded.config;
   const configDir = dirname(nearestConfigPath);
   const includePaths = (config?.includePaths ?? []).map((pathValue) =>
     toFileUri(resolve(configDir, pathValue)),
   );
   const crossFileEnabled = config?.crossFile?.enabled !== false;
-  const maxDepth =
-    clampPositiveInteger(config?.crossFile?.maxDepth) ??
-    input.defaults.maxDepth;
-  const maxFiles =
-    clampPositiveInteger(config?.crossFile?.maxFiles) ??
-    input.defaults.maxFiles;
+  const maxDepth = config.crossFile?.maxDepth ?? input.defaults.maxDepth;
+  const maxFiles = config.crossFile?.maxFiles ?? input.defaults.maxFiles;
   const allowIncludeOutsideWorkspace =
     config?.crossFile?.externalIncludes ?? false;
 
@@ -394,6 +296,7 @@ export const resolveProjectAnalysisOptions = async (
       crossFileEnabled,
       mode: "workspace",
       configPath: nearestConfigPath,
+      config,
     };
   }
 
@@ -419,6 +322,7 @@ export const resolveProjectAnalysisOptions = async (
       crossFileEnabled,
       mode: "main",
       configPath: nearestConfigPath,
+      config,
     };
   }
 
@@ -432,5 +336,6 @@ export const resolveProjectAnalysisOptions = async (
     crossFileEnabled,
     mode: "document",
     configPath: nearestConfigPath,
+    config,
   };
 };
