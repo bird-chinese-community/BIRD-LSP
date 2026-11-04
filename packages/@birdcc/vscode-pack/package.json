@@ -55,8 +55,8 @@
     "lint": "node -e \"console.log('vscode-pack: no lint step required')\"",
     "test": "node -e \"console.log('vscode-pack: no test step required')\"",
     "test:quick": "node -e \"console.log('vscode-pack: no test step required')\"",
-    "marketplace:package": "mkdir -p release && pnpm dlx @vscode/vsce package --out ./release/bird2-extension-pack.vsix",
-    "marketplace:publish:vsce": "pnpm dlx @vscode/vsce publish --packagePath ./release/bird2-extension-pack.vsix --pat \"$VSCE_PAT\" --skip-duplicate",
-    "marketplace:publish:ovsx": "pnpm dlx ovsx publish --packagePath ./release/bird2-extension-pack.vsix -p \"$OVSX_PAT\" --skip-duplicate"
+    "marketplace:package": "mkdir -p release && pnpm exec vsce package --out ./release/bird2-extension-pack.vsix",
+    "marketplace:publish:vsce": "pnpm exec vsce publish --packagePath ./release/bird2-extension-pack.vsix --pat \"$VSCE_PAT\" --skip-duplicate",
+    "marketplace:publish:ovsx": "pnpm exec ovsx publish --packagePath ./release/bird2-extension-pack.vsix -p \"$OVSX_PAT\" --skip-duplicate"
   }
 }
