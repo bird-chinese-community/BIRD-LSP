@@ -2254,6 +2254,7 @@ export interface FunctionDeclaration extends DeclarationBase {
   name: string;
   nameRange: SourceRange;
   statements: FilterBodyStatement[];
+  returnStatements: ReturnStatement[];
   literals: ExtractedLiteral[];
   matches: MatchExpression[];
   calls: FunctionCallExpression[];

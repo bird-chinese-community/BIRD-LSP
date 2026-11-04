@@ -68,6 +68,10 @@ const declarationToSymbol = (
     return toSymbol("table", declaration.name, declaration.nameRange);
   }
 
+  if (declaration.kind === "define" && declaration.name.trim().length > 0) {
+    return toSymbol("define", declaration.name, declaration.nameRange);
+  }
+
   return null;
 };
 

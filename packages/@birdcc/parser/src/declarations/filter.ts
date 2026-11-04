@@ -664,6 +664,16 @@ export const parseFunctionDeclaration = (
   const bodyStatements = isPresentNode(bodyNode)
     ? parseControlStatements(bodyNode, source, issues)
     : [];
+  const returnStatements = isPresentNode(bodyNode)
+    ? bodyNode.descendantsOfType("return_statement").map((node) => {
+        const value = node.childForFieldName("value");
+        return {
+          kind: "return" as const,
+          valueText: isPresentNode(value) ? textOf(value, source) : undefined,
+          ...toRange(node, source),
+        };
+      })
+    : [];
 
   return {
     kind: "function",
@@ -672,6 +682,7 @@ export const parseFunctionDeclaration = (
       ? toRange(nameNode, source)
       : declarationRange,
     statements: [...leadingDeclarations, ...bodyStatements],
+    returnStatements,
     literals: extracted.literals,
     matches: extracted.matches,
     calls: extracted.calls,
