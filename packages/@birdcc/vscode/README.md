@@ -238,6 +238,21 @@ The extension includes 22 built-in code snippets:
 
 ---
 
+## Development
+
+From the repository root, build the extension and its workspace dependencies:
+
+```bash
+pnpm --filter @birdcc/vscode... build
+```
+
+Workspace `pnpm test`, `pnpm test:quick`, and `pnpm coverage` use Turbo's build
+dependencies. The extension's package scripts run synchronization, compilation,
+and tests for that package. Its `test:e2e` and `marketplace:package` entry points
+build the dependency tree before running the host suite or packaging the VSIX.
+
+---
+
 ## Related Packages
 
 | Package             | Description                       | Link                                                   |
@@ -282,6 +297,8 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 
 ## 🙏 Acknowledgements
 
+<!-- prettier-ignore-start -->
+
 <!-- CI START -->
 We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:
 
@@ -292,6 +309,8 @@ We gratefully acknowledge these upstream repositories for the real-world BIRD co
 - [`SunyzNET/bird-config`](https://github.com/SunyzNET/bird-config)
 - [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)
 <!-- CI END -->
+
+<!-- prettier-ignore-end -->
 
 ---
 

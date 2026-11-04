@@ -368,14 +368,14 @@
   },
   "scripts": {
     "sync:hover-docs": "node scripts/sync-hover-docs.mjs",
-    "build": "pnpm --filter @birdcc/vscode^... build && pnpm run sync:hover-docs && tsc -p tsconfig.json",
+    "build": "pnpm run sync:hover-docs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint --deny-warnings src test",
-    "test": "pnpm run sync:hover-docs && pnpm --filter @birdcc/lsp build && pnpm --filter @birdcc/parser build && vitest run",
-    "test:quick": "pnpm run sync:hover-docs && pnpm --filter @birdcc/lsp build && pnpm --filter @birdcc/parser build && vitest run",
+    "test": "pnpm run sync:hover-docs && vitest run",
+    "test:quick": "pnpm run sync:hover-docs && vitest run",
     "test:e2e": "pnpm --filter @birdcc/vscode... build && node e2e/run.mjs",
     "format": "oxfmt .",
-    "coverage": "pnpm run sync:hover-docs && pnpm --filter @birdcc/parser build && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
+    "coverage": "pnpm run sync:hover-docs && vitest run --coverage --coverage.provider=v8 --coverage.reporter=text-summary --coverage.reporter=json-summary",
     "marketplace:package": "pnpm --filter @birdcc/vscode... build && node scripts/package-marketplace.mjs",
     "marketplace:publish:vsce": "pnpm exec vsce publish --packagePath ./release/bird2-lsp.vsix --pat \"$VSCE_PAT\" --skip-duplicate",
     "marketplace:publish:ovsx": "pnpm exec ovsx publish --packagePath ./release/bird2-lsp.vsix -p \"$OVSX_PAT\" --skip-duplicate"
