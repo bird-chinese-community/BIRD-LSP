@@ -18,8 +18,13 @@ jobs:
   prek:
     name: Pre-check
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -28,6 +33,28 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm changeset:status --since=origin/main
+      - name: Validate release versioning in an isolated worktree
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TMPDIR: ${{ github.workspace }}/.tmp/release-version-tmp
+        run: |
+          mkdir -p "$TMPDIR"
+          git worktree add --detach .tmp/release-version-check HEAD
+          pnpm --dir .tmp/release-version-check install --frozen-lockfile --ignore-scripts
+          pnpm --dir .tmp/release-version-check changeset:version
+      - name: Remove release validation workspace
+        if: always()
+        run: |
+          if [ -d .tmp/release-version-check ]; then
+            release_git_dir=$(git -C .tmp/release-version-check rev-parse --absolute-git-dir)
+            git worktree remove --force .tmp/release-version-check
+            test ! -e "$release_git_dir"
+          fi
+          rm -rf .tmp/release-version-tmp
+          test ! -e .tmp/release-version-check
+          test ! -e .tmp/release-version-tmp
+          git worktree list --porcelain
       - uses: j178/prek-action@v1
         with:
           extra-args: --all-files
