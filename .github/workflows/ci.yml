@@ -112,7 +112,8 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm typecheck
-      - run: pnpm format
+      - name: Check formatting
+        run: pnpm exec turbo run format --concurrency=1 -- --check
       - name: Commitlint range
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
