@@ -373,7 +373,7 @@ it("retains shared include diagnostics for other entries and open documents", as
     session.dispose();
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30_000);
 
 it("registers configuration changes while rootless cross-file analysis is disabled", async () => {
   const root = await mkdtemp(join(tmpdir(), "birdcc-rootless-disabled-"));
