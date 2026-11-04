@@ -232,9 +232,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   const clearEntryTracking = (entryUri: string): void => {
     const previousUris = publishedUrisByEntry.get(entryUri);
+    publishedUrisByEntry.delete(entryUri);
     if (previousUris) {
-      clearDiagnosticsMany(connection, previousUris);
-      publishedUrisByEntry.delete(entryUri);
+      const retainedUris = new Set<string>();
+      for (const uris of publishedUrisByEntry.values())
+        for (const uri of uris) retainedUris.add(uri);
+      clearDiagnosticsMany(
+        connection,
+        [...previousUris].filter((uri) => !retainedUris.has(uri)),
+      );
     }
 
     for (const [uri, graph] of graphByUri.entries()) {
@@ -501,6 +507,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
         uri: document.uri,
       });
       assertCurrent();
+      if (options.publishRelatedDiagnostics) {
+        clearEntryTracking(document.uri);
+        publishedUrisByEntry.set(document.uri, new Set([document.uri]));
+      }
       const graph: GraphCacheEntry = {
         entryUri: document.uri,
         visitedUris: new Set([document.uri]),

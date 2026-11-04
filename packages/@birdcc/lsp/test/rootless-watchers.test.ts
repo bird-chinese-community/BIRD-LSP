@@ -189,6 +189,19 @@ const startSession = (
       });
       return uri;
     },
+    async close(uri: string) {
+      await connection.sendNotification("textDocument/didClose", {
+        textDocument: { uri },
+      });
+    },
+    hasDiagnostic(uri: string, code: string) {
+      return (
+        diagnostics
+          .filter((item) => item.uri === uri)
+          .at(-1)
+          ?.diagnostics.some((diagnostic) => diagnostic.code === code) ?? false
+      );
+    },
     dispose() {
       connection.dispose();
       child.kill();
@@ -208,10 +221,17 @@ it.each(["bird.config.json", "birdcc.config.json"])(
         configName === "birdcc.config.json" ? join(root, "nested") : root;
       if (documentDir !== root) await mkdir(documentDir);
       await writeFile(join(documentDir, "bird.conf"), source);
-      await writeFile(join(documentDir, "base.inc"), shared);
+      const childUri = pathToFileURL(join(documentDir, "base.inc")).toString();
+      await writeFile(
+        join(documentDir, "base.inc"),
+        `${shared}protocol bgp child_with_error { local as 65002; }\n`,
+      );
       await session.initialize();
       const uri = await session.open(join(documentDir, "bird.conf"), source);
       await session.waitForDiagnostics(uri, false);
+      expect(session.hasDiagnostic(childUri, "bgp/missing-neighbor")).toBe(
+        true,
+      );
       const configPath = join(root, configName);
       let after = await session.changeFile(
         configPath,
@@ -220,6 +240,9 @@ it.each(["bird.config.json", "birdcc.config.json"])(
         true,
       );
       await session.waitForDiagnostics(uri, true, after);
+      expect(session.hasDiagnostic(childUri, "bgp/missing-neighbor")).toBe(
+        false,
+      );
       after = await session.changeFile(
         configPath,
         FileChangeType.Changed,
@@ -227,6 +250,9 @@ it.each(["bird.config.json", "birdcc.config.json"])(
         true,
       );
       await session.waitForDiagnostics(uri, false, after);
+      expect(session.hasDiagnostic(childUri, "bgp/missing-neighbor")).toBe(
+        true,
+      );
       after = await session.changeFile(
         join(documentDir, "base.inc"),
         FileChangeType.Changed,
@@ -234,12 +260,120 @@ it.each(["bird.config.json", "birdcc.config.json"])(
         true,
       );
       await session.waitForDiagnostics(uri, true, after);
+      expect(session.hasDiagnostic(childUri, "bgp/missing-neighbor")).toBe(
+        false,
+      );
     } finally {
       session.dispose();
       await rm(root, { recursive: true, force: true });
     }
   },
 );
+
+it("retains shared include diagnostics for other entries and open documents", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-shared-diagnostics-"));
+  const session = startSession(root);
+  const code = "bgp/missing-neighbor";
+  try {
+    const left = join(root, "left");
+    const right = join(root, "right");
+    await mkdir(left);
+    await mkdir(right);
+    const includeUri = pathToFileURL(join(root, "shared.inc")).toString();
+    await writeFile(
+      join(root, "shared.inc"),
+      "protocol bgp shared_error { local as 65003; }\n",
+    );
+    for (const directory of [left, right]) {
+      await writeFile(
+        join(directory, "bird.config.json"),
+        JSON.stringify({
+          main: "bird.conf",
+          crossFile: { enabled: true, externalIncludes: true },
+        }),
+      );
+    }
+    const entryText = (name: string) =>
+      `router id 192.0.2.1;\ninclude "../shared.inc";\nprotocol bgp ${name} { local as 65001; }\n`;
+    const leftText = entryText("left_main");
+    const rightText = entryText("right_main");
+    await writeFile(join(left, "bird.conf"), leftText);
+    await writeFile(join(right, "bird.conf"), rightText);
+    await session.initialize();
+    const leftUri = await session.open(join(left, "bird.conf"), leftText);
+    await session.waitForDiagnostics(leftUri, false);
+    const rightUri = await session.open(join(right, "bird.conf"), rightText);
+    await session.waitForDiagnostics(rightUri, false);
+    expect(session.hasDiagnostic(includeUri, code)).toBe(true);
+    const after = await session.changeFile(
+      join(left, "bird.config.json"),
+      FileChangeType.Changed,
+      JSON.stringify({ main: "bird.conf", crossFile: { enabled: false } }),
+      true,
+    );
+    await session.waitForDiagnostics(leftUri, false, after);
+    expect(session.hasDiagnostic(leftUri, code)).toBe(true);
+    expect(session.hasDiagnostic(rightUri, code)).toBe(true);
+    expect(session.hasDiagnostic(includeUri, code)).toBe(true);
+    expect(
+      session.diagnostics.slice(after).some((item) => item.uri === rightUri),
+    ).toBe(false);
+    await session.close(rightUri);
+    await vi.waitFor(
+      () => expect(session.hasDiagnostic(includeUri, code)).toBe(false),
+      {
+        timeout: 10000,
+      },
+    );
+    expect(session.hasDiagnostic(leftUri, code)).toBe(true);
+    await session.open(
+      join(root, "shared.inc"),
+      "protocol bgp shared_error { local as 65003; }\n",
+    );
+    await vi.waitFor(
+      () => expect(session.hasDiagnostic(includeUri, code)).toBe(true),
+      {
+        timeout: 10000,
+      },
+    );
+    let next = await session.changeFile(
+      join(left, "bird.config.json"),
+      FileChangeType.Changed,
+      JSON.stringify({
+        main: "bird.conf",
+        crossFile: { enabled: true, externalIncludes: true },
+      }),
+      true,
+    );
+    await session.waitForDiagnostics(leftUri, false, next);
+    next = await session.changeFile(
+      join(left, "bird.config.json"),
+      FileChangeType.Changed,
+      JSON.stringify({ main: "bird.conf", crossFile: { enabled: false } }),
+      true,
+    );
+    await session.waitForDiagnostics(leftUri, false, next);
+    expect(session.hasDiagnostic(includeUri, code)).toBe(true);
+    expect(
+      session.diagnostics
+        .slice(next)
+        .some(
+          (item) => item.uri === includeUri && item.diagnostics.length === 0,
+        ),
+    ).toBe(false);
+    await session.close(includeUri);
+    await vi.waitFor(
+      () => expect(session.hasDiagnostic(includeUri, code)).toBe(false),
+      {
+        timeout: 10000,
+      },
+    );
+    expect(session.hasDiagnostic(leftUri, code)).toBe(true);
+  } finally {
+    session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 it("registers configuration changes while rootless cross-file analysis is disabled", async () => {
   const root = await mkdtemp(join(tmpdir(), "birdcc-rootless-disabled-"));
