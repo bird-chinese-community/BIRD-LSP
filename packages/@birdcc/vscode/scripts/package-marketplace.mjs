@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { verifyWorkspaceVsix } from "./verify-workspace-vsix.mjs";
 
 const execFileAsync = promisify(execFile);
 const vsceCliPath = createRequire(import.meta.url).resolve("@vscode/vsce/vsce");
@@ -146,6 +147,13 @@ try {
   await injectNodeModulesIntoVsix(deployDir, temporaryVsixPath);
   await mkdir(path.dirname(outputVsixPath), { recursive: true });
   await rename(temporaryVsixPath, outputVsixPath);
+  await verifyWorkspaceVsix({
+    workspaceRoot,
+    packageRoot,
+    vsixPath: outputVsixPath,
+    extensionName: marketplaceExtensionName,
+    reportPath: path.join(packageRoot, "release", "bird2-lsp.workspace.json"),
+  });
   process.stdout.write(
     `[marketplace] VSIX package generated: ${outputVsixPath}\n`,
   );

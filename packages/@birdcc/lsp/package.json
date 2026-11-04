@@ -24,11 +24,11 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/core": "0.1.2",
-    "@birdcc/formatter": "0.1.2",
-    "@birdcc/intel": "^0.0.1-2026-03-05.2",
-    "@birdcc/linter": "0.1.2",
-    "@birdcc/parser": "0.1.2",
+    "@birdcc/core": "workspace:*",
+    "@birdcc/formatter": "workspace:*",
+    "@birdcc/intel": "workspace:*",
+    "@birdcc/linter": "workspace:*",
+    "@birdcc/parser": "workspace:*",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.16",
     "yaml": "^2.9.1"

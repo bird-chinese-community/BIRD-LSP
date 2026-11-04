@@ -24,8 +24,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/dprint-plugin-bird": "0.1.2",
-    "@birdcc/parser": "0.1.2",
+    "@birdcc/dprint-plugin-bird": "workspace:*",
+    "@birdcc/parser": "workspace:*",
     "@dprint/formatter": "^0.5.1"
   },
   "scripts": {

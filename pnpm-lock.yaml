@@ -44,6 +44,9 @@ importers:
       oxlint:
         specifier: ^1.51.0
         version: 1.51.0
+      tinyglobby:
+        specifier: 0.2.17
+        version: 0.2.17
       turbo:
         specifier: ^2.8.13
         version: 2.8.13
@@ -57,16 +60,16 @@ importers:
   packages/@birdcc/cli:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../core
       '@birdcc/formatter':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../formatter
       '@birdcc/linter':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../linter
       '@birdcc/lsp':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../lsp
       cac:
         specifier: ^7.0.0
@@ -81,7 +84,7 @@ importers:
   packages/@birdcc/core:
     dependencies:
       '@birdcc/parser':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../parser
       fast-cidr-tools:
         specifier: ^0.3.4
@@ -96,10 +99,10 @@ importers:
   packages/@birdcc/formatter:
     dependencies:
       '@birdcc/dprint-plugin-bird':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../dprint-plugin-bird
       '@birdcc/parser':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../parser
       '@dprint/formatter':
         specifier: ^0.5.1
@@ -121,28 +124,28 @@ importers:
   packages/@birdcc/linter:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../core
       '@birdcc/parser':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../parser
 
   packages/@birdcc/lsp:
     dependencies:
       '@birdcc/core':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../core
       '@birdcc/formatter':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../formatter
       '@birdcc/intel':
-        specifier: ^0.0.1-2026-03-05.2
+        specifier: workspace:*
         version: link:../intel
       '@birdcc/linter':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../linter
       '@birdcc/parser':
-        specifier: 0.1.2
+        specifier: workspace:*
         version: link:../parser
       vscode-languageserver:
         specifier: ^9.0.1
