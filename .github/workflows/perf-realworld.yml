@@ -37,6 +37,7 @@ jobs:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
+          components: llvm-tools
           targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
@@ -52,16 +53,16 @@ jobs:
           BENCH_SAMPLE_SIZE="${{ inputs.ip_bench_sample_size }}" \
             pnpm --filter @birdcc/core bench:ip-check | tee bench-ip-check.txt
       - run: |
-          EXTRA_ARGS=""
+          EXTRA_ARGS=()
           if [ "${{ inputs.isolate }}" = "true" ]; then
-            EXTRA_ARGS="--isolate --timeout-ms ${{ inputs.timeout_ms }}"
+            EXTRA_ARGS=(--isolate --timeout-ms "${{ inputs.timeout_ms }}")
           fi
 
           node tools/bench-realworld-configs.mjs \
             --engine "${{ inputs.engine }}" \
             --limit "${{ inputs.limit }}" \
             --max-bytes "${{ inputs.max_bytes }}" \
-            $EXTRA_ARGS \
+            "${EXTRA_ARGS[@]}" \
             --json bench-realworld.json
       - uses: actions/upload-artifact@v4
         with:

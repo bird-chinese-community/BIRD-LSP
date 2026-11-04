@@ -23,6 +23,9 @@
     "README.md",
     "LICENSE"
   ],
+  "devDependencies": {
+    "tree-sitter-cli": "0.25.10"
+  },
   "scripts": {
     "build": "node scripts/build-wasm.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

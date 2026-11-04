@@ -12,7 +12,7 @@
 
 </div>
 
-[![npm version](https://img.shields.io/npm/v/@birdcc/dprint-plugin-bird.svg)](https://www.npmjs.com/package/@birdcc/dprint-plugin-bird) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/) [![WASM](https://img.shields.io/badge/WASM-wasm32--wasip1-purple.svg)](https://webassembly.org/)
+[![npm version](https://img.shields.io/npm/v/@birdcc/dprint-plugin-bird.svg)](https://www.npmjs.com/package/@birdcc/dprint-plugin-bird) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Rust](https://img.shields.io/badge/Rust-stable-orange.svg)](https://www.rust-lang.org/) [![WASM](https://img.shields.io/badge/WASM-wasm32--unknown--unknown-purple.svg)](https://webassembly.org/)
 
 > [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [Architecture](#architecture) · [Development](#development)
 
@@ -29,7 +29,7 @@ This plugin is part of the [BIRD-LSP](https://github.com/bird-chinese-community/
 | Feature                    | Description                                       |
 | -------------------------- | ------------------------------------------------- |
 | 🚀 **Rust Performance**    | Core engine written in Rust for maximum speed     |
-| 🌍 **Cross-Platform WASM** | Compiled to wasm32-wasip1 for consistent behavior |
+| 🌍 **Cross-Platform WASM** | Compiled to wasm32-unknown-unknown                |
 | 🔌 **dprint Compatible**   | Seamlessly integrates with dprint CLI and editors |
 | 🌳 **Tree-sitter**         | Leverages Tree-sitter for syntax-aware formatting |
 | ⚙️ **Configurable**        | Supports `lineWidth`, `indentWidth`, `safeMode`   |
@@ -41,14 +41,15 @@ This plugin is part of the [BIRD-LSP](https://github.com/bird-chinese-community/
 
 ### Prerequisites
 
-- **Rust** ≥ 1.70
-- **wasm32-wasip1** target
-- **Node.js** ≥ 20
+- **Node.js** ≥ 20 to load the npm package
+- **Rust stable**, **Clang**, **Node.js**, and **pnpm** to build from a repository checkout
+- **wasm32-unknown-unknown** target and **llvm-tools** component for WASM builds
 
 ### Setup Rust WASM Target
 
 ```bash
-rustup target add wasm32-wasip1
+rustup target add --toolchain stable wasm32-unknown-unknown
+rustup component add --toolchain stable llvm-tools
 ```
 
 ### Install via npm
@@ -68,7 +69,7 @@ Add to your `dprint.json`:
 ```json
 {
   "plugins": [
-    "https://npmjs.com/@birdcc/dprint-plugin-bird/dprint-plugin-bird.wasm"
+    "./node_modules/@birdcc/dprint-plugin-bird/dist/dprint-plugin-bird.wasm"
   ],
   "bird": {
     "lineWidth": 100,
@@ -119,11 +120,13 @@ const wasmBuffer = getBuffer();
 
 ### Options
 
-| Option        | Type      | Default | Description                        |
-| ------------- | --------- | ------- | ---------------------------------- |
-| `lineWidth`   | `number`  | `80`    | Maximum line length                |
-| `indentWidth` | `number`  | `2`     | Spaces per indentation level       |
-| `safeMode`    | `boolean` | `true`  | Enable safe mode to prevent errors |
+| Option        | Type      | Default | Description                                           |
+| ------------- | --------- | ------- | ----------------------------------------------------- |
+| `lineWidth`   | `number`  | `80`    | Maximum line length                                   |
+| `indentWidth` | `number`  | `2`     | Spaces per indentation level                          |
+| `safeMode`    | `boolean` | `true`  | Reject changes to Tree-sitter syntax or token content |
+
+The Rust plugin parses input with the shared BIRD grammar. Indentation uses structural tokens, so braces inside strings and comments do not affect subsequent lines. Multiline comment contents retain their layout. With `safeMode: true`, the plugin parses its output and compares syntax structure, missing tokens, and leaf-token contents before returning it. Comment line endings may be normalized. Other token content changes produce a formatting error. This check also runs when a dprint host loads the WASM directly.
 
 ---
 
@@ -144,7 +147,7 @@ flowchart TB
     end
 
     subgraph wasm [WASM Runtime]
-        WASM[WASM Module<br/>wasm32-wasip1]
+        WASM[WASM Module<br/>wasm32-unknown-unknown]
         TRAIT[Plugin Trait<br/>plugin_info / resolve_config]
     end
 
@@ -155,11 +158,11 @@ flowchart TB
 
     subgraph parse [Parsing]
         P1[Tree-sitter Parser]
-        AST[AST Builder]
+        AST[CST Tokens]
     end
 
     subgraph layout [Formatting]
-        LAYOUT[Layout Engine<br/>indent / line-break]
+        LAYOUT[Line Formatter<br/>indent / whitespace]
     end
 
     subgraph output [Output]
@@ -205,6 +208,10 @@ sequenceDiagram
     Parser-->>Plugin: CST/AST
     Plugin->>Layout: layout(cst, config)
     Layout-->>Plugin: formatted text
+    opt safeMode
+        Plugin->>Parser: parse output and compare syntax and tokens
+        Parser-->>Plugin: equivalent or formatting error
+    end
     Plugin-->>WASM: result
     WASM-->>Host: formatted output
 ```
@@ -265,9 +272,16 @@ pnpm build
 
 This command performs:
 
-1. Compiles Rust code to WebAssembly (`wasm32-wasip1`)
-2. Generates TypeScript declaration files
-3. Outputs to the `dist/` directory
+1. Generates C parser sources from `packages/@birdcc/parser/grammar.js` into Cargo's output directory
+2. Compiles Rust and the generated grammar to WebAssembly (`wasm32-unknown-unknown`)
+3. Generates TypeScript declaration files
+4. Outputs to the `dist/` directory
+
+Run `pnpm install` in the repository before building or running Cargo tests. Grammar generation uses the package's pinned Tree-sitter CLI. The npm tarball contains the compiled WASM and JavaScript bindings; consumers load files from `dist/`. Source builds use the shared grammar in the repository checkout. The build script selects the Rust toolchain's `llvm-ar`; `AR_wasm32_unknown_unknown` can select another LLVM archive tool.
+
+The C compiler must support the `wasm32-unknown-unknown` target. On macOS, install LLVM Clang and set `CC_wasm32_unknown_unknown` to its executable when the system Clang omits this target. The native smoke workflow uses `macos-latest`, selects its preinstalled Homebrew `llvm@20` compiler, and verifies that it can emit a WASM object before building the plugin.
+
+The Rust runtime uses Tree-sitter 0.27.1 and tree-sitter-language 0.1.9. This release pair provides a standalone WASM standard library backed by Rust's global allocator. Cargo.lock fixes the resolved source and build dependencies.
 
 ### Manual Build Steps
 
@@ -281,15 +295,17 @@ tsc -p tsconfig.json
 
 ### Project Structure
 
-| Path                     | Description                    |
-| ------------------------ | ------------------------------ |
-| `src/lib.rs`             | Library entry point            |
-| `src/configuration.rs`   | Configuration structures       |
-| `src/format_text.rs`     | Core formatting implementation |
-| `src/wasm_plugin.rs`     | WASM bindings                  |
-| `src/index.ts`           | TypeScript bindings            |
-| `scripts/build-wasm.mjs` | WASM build script              |
-| `dist/`                  | Build output directory         |
+| Path                     | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `src/lib.rs`             | Library entry point                      |
+| `src/configuration.rs`   | Configuration structures                 |
+| `src/format_text.rs`     | Core formatting implementation           |
+| `src/syntax.rs`          | Shared grammar parsing and output checks |
+| `build.rs`               | Generate and compile the BIRD grammar    |
+| `src/wasm_plugin.rs`     | WASM bindings                            |
+| `src/index.ts`           | TypeScript bindings                      |
+| `scripts/build-wasm.mjs` | WASM build script                        |
+| `dist/`                  | Build output directory                   |
 
 ### Available Scripts
 

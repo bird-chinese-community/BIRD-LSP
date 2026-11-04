@@ -7,59 +7,13 @@ import {
   isHighRiskExpressionLine,
   normalizeNonRiskLine,
 } from "./builtin-risk.js";
-
-const countToken = (text: string, token: string): number => {
-  let count = 0;
-  for (const char of text) {
-    if (char === token) {
-      count += 1;
-    }
-  }
-  return count;
-};
-
-const countStructuralTokens = (
-  text: string,
-): { opens: number; closes: number } => ({
-  opens: countToken(text, "{") + countToken(text, "["),
-  closes: countToken(text, "}") + countToken(text, "]"),
-});
-
-const countLeadingCloseTokens = (text: string): number => {
-  let count = 0;
-  for (let idx = 0; idx < text.length; idx++) {
-    const char = text[idx];
-    if (char === "}" || char === "]") {
-      count += 1;
-      continue;
-    }
-
-    // BIRD `[= ... =]` set literal closing — `=]` signals close
-    if (char === "=" && text[idx + 1] === "]") {
-      count += 1;
-      idx += 1; // consume the "]"
-      continue;
-    }
-
-    break;
-  }
-
-  return count;
-};
-
-const extractStructuralSegment = (line: string): string => {
-  const commentIndex = line.indexOf("#");
-  if (commentIndex === -1) {
-    return line;
-  }
-
-  return line.slice(0, commentIndex).trimEnd();
-};
+import type { BirdSyntaxLayout } from "@birdcc/parser";
 
 export const normalizeTextWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
   parserProtectedLines: Set<number>,
+  syntax: BirdSyntaxLayout,
 ): Promise<BuiltinFormatOutput> => {
   const stats: BuiltinFormatStats = {
     linesTotal: 0,
@@ -71,6 +25,12 @@ export const normalizeTextWithBuiltin = async (
   };
 
   const sourceLines = text.replace(/\r\n?/g, "\n").split("\n");
+  const tokensByLine = new Map<number, typeof syntax.structuralTokens>();
+  for (const token of syntax.structuralTokens) {
+    const tokens = tokensByLine.get(token.line) ?? [];
+    tokens.push(token);
+    tokensByLine.set(token.line, tokens);
+  }
   const formattedLines: string[] = [];
 
   let blankStreak = 0;
@@ -80,6 +40,27 @@ export const normalizeTextWithBuiltin = async (
     const originalLine = sourceLines[index] ?? "";
     const lineNumber = index + 1;
     stats.linesTotal += 1;
+    const tokens = tokensByLine.get(lineNumber) ?? [];
+    const openCount = tokens.filter((token) => token.opening).length;
+    const closeCount = tokens.length - openCount;
+    const leadingCloses = tokens.filter(
+      (token) =>
+        !token.opening &&
+        /^[\s}\]=]*$/u.test(originalLine.slice(0, token.column - 1)),
+    ).length;
+    const leadingCloseCount = Math.min(indentLevel, leadingCloses);
+    indentLevel = Math.max(0, indentLevel - leadingCloseCount);
+    const nextIndentLevel = Math.max(
+      0,
+      indentLevel + openCount - Math.max(0, closeCount - leadingCloseCount),
+    );
+
+    if (syntax.preservedLines.has(lineNumber)) {
+      formattedLines.push(originalLine);
+      blankStreak = 0;
+      indentLevel = nextIndentLevel;
+      continue;
+    }
 
     const trimmedTrailing = originalLine.replace(/[ \t]+$/g, "");
     const line = trimmedTrailing.trim();
@@ -103,15 +84,6 @@ export const normalizeTextWithBuiltin = async (
 
     blankStreak = 0;
 
-    const structuralLine = extractStructuralSegment(line);
-    const { opens: openCount, closes: closeCount } =
-      countStructuralTokens(structuralLine);
-    const leadingCloseCount = Math.min(
-      indentLevel,
-      countLeadingCloseTokens(structuralLine),
-    );
-    indentLevel = Math.max(0, indentLevel - leadingCloseCount);
-
     const highRiskLine =
       isHighRiskExpressionLine(line) ||
       parserProtectedLines.has(lineNumber) ||
@@ -120,7 +92,18 @@ export const normalizeTextWithBuiltin = async (
       stats.highRiskLines += 1;
     }
 
-    const normalizedContent = highRiskLine ? line : normalizeNonRiskLine(line);
+    const commentColumn = syntax.commentColumns.get(lineNumber);
+    const code =
+      commentColumn === undefined
+        ? line
+        : originalLine.slice(0, commentColumn - 1).trim();
+    const normalizedCode = highRiskLine ? code : normalizeNonRiskLine(code);
+    const comment =
+      commentColumn === undefined ? "" : originalLine.slice(commentColumn - 1);
+    const normalizedContent =
+      comment.length > 0
+        ? `${normalizedCode}${normalizedCode.length > 0 ? " " : ""}${comment}`
+        : normalizedCode;
     const formattedLine = `${" ".repeat(options.indentSize * indentLevel)}${normalizedContent}`;
 
     if (formattedLine !== originalLine) {
@@ -132,9 +115,7 @@ export const normalizeTextWithBuiltin = async (
 
     formattedLines.push(formattedLine);
 
-    const postCloseCount = Math.max(0, closeCount - leadingCloseCount);
-    const delta = openCount - postCloseCount;
-    indentLevel = Math.max(0, indentLevel + delta);
+    indentLevel = nextIndentLevel;
   }
 
   while (

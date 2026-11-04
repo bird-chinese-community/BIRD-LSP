@@ -94,7 +94,11 @@ importers:
         specifier: ^1.0.34
         version: 1.0.34
 
-  packages/@birdcc/dprint-plugin-bird: {}
+  packages/@birdcc/dprint-plugin-bird:
+    devDependencies:
+      tree-sitter-cli:
+        specifier: 0.25.10
+        version: 0.25.10
 
   packages/@birdcc/formatter:
     dependencies:

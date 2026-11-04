@@ -1,5 +1,6 @@
 mod configuration;
 mod format_text;
+mod syntax;
 
 pub use format_text::format_text;
 
