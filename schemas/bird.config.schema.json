@@ -177,6 +177,11 @@
           "description": "Number of spaces per indentation level",
           "default": 2
         },
+        "useTabs": {
+          "type": "boolean",
+          "description": "Indent with one tab per level instead of spaces",
+          "default": false
+        },
         "lineWidth": {
           "type": "integer",
           "minimum": 20,
