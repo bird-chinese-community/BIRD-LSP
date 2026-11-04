@@ -238,6 +238,7 @@ interface CommandExecResult {
   stderr: string;
   stdout: string;
   errorReason?: string;
+  signal?: NodeJS.Signals;
 }
 
 const runCommand = (
@@ -277,6 +278,7 @@ const runCommand = (
     exitCode: result.status ?? 1,
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
+    ...(result.signal ? { signal: result.signal } : {}),
   };
 };
 
@@ -412,13 +414,26 @@ export const runBirdValidation = (
   }
 
   const stderr = execResult.stderr;
+  const diagnostics = parseBirdStderr(stderr);
+  if (execResult.exitCode !== 0 && diagnostics.length === 0) {
+    const reason = execResult.signal
+      ? `command terminated by ${execResult.signal}`
+      : `command exited with status ${execResult.exitCode} without diagnostics`;
+    diagnostics.push({
+      code: "bird/runner-error",
+      message: createBirdRunnerErrorMessage(reason),
+      severity: "error",
+      source: "bird",
+      range: createRange(1, 1),
+    });
+  }
 
   return {
     command: execResult.command,
     exitCode: execResult.exitCode,
     stdout: execResult.stdout,
     stderr,
-    diagnostics: parseBirdStderr(stderr),
+    diagnostics,
   };
 };
 
@@ -630,24 +645,25 @@ export const runLint = async (
     return { diagnostics: [] };
   }
 
-  const crossFile = options.crossFile !== false;
-  const lintOutput = crossFile
-    ? await runCrossFileLint(filePath, options)
-    : await (async () => {
-        const budget = resolveAnalysisBudget({
-          maxDocumentBytes: options.includeMaxDocumentBytes,
-          maxTotalBytes: options.includeMaxTotalBytes,
-        });
-        const text = await readBirdConfigFile(
-          toFileUri(await realpath(filePath)),
-          Math.min(budget.maxDocumentBytes, budget.maxTotalBytes),
-        );
-        const uri = toFileUri(filePath);
-        const lintResult = await lintBirdConfig(text, { uri });
-        return { diagnostics: lintResult.diagnostics };
-      })();
-
-  const diagnostics = [...lintOutput.diagnostics];
+  const diagnostics: BirdDiagnostic[] = [];
+  if (options.linterEnabled !== false) {
+    if (options.crossFile !== false) {
+      const lintOutput = await runCrossFileLint(filePath, options);
+      diagnostics.push(...lintOutput.diagnostics);
+    } else {
+      const budget = resolveAnalysisBudget({
+        maxDocumentBytes: options.includeMaxDocumentBytes,
+        maxTotalBytes: options.includeMaxTotalBytes,
+      });
+      const text = await readBirdConfigFile(
+        toFileUri(await realpath(filePath)),
+        Math.min(budget.maxDocumentBytes, budget.maxTotalBytes),
+      );
+      const uri = toFileUri(filePath);
+      const lintResult = await lintBirdConfig(text, { uri });
+      diagnostics.push(...lintResult.diagnostics);
+    }
+  }
 
   if (options.withBird) {
     const birdResult = runBirdValidation(filePath, options.validateCommand);
