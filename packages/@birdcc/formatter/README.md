@@ -103,18 +103,20 @@ const formatted = await formatBirdConfig(source, {
 
 ### Options
 
-| Option       | Type                      | Default    | Description                       |
-| ------------ | ------------------------- | ---------- | --------------------------------- |
-| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection        |
-| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check |
-| `indentSize` | `number`                  | `2`        | Number of spaces for indentation  |
-| `lineWidth`  | `number`                  | `80`       | Maximum line width                |
+| Option       | Type                      | Default    | Description                          |
+| ------------ | ------------------------- | ---------- | ------------------------------------ |
+| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection           |
+| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check    |
+| `indentSize` | `number`                  | `2`        | Number of spaces for indentation     |
+| `useTabs`    | `boolean`                 | `false`    | Use a tab for each indentation level |
+| `lineWidth`  | `number`                  | `80`       | Maximum line width                   |
 
 ### Configuration Details
 
 - **`engine`**: `dprint` uses Rust/WASM; `builtin` uses TypeScript as fallback
 - **`safeMode`**: Compares AST fingerprints to ensure semantic equivalence
 - **`indentSize`**: Indentation spaces (positive integer)
+- **`useTabs`**: Use tabs in both engines; `indentSize` controls space indentation when `useTabs` is false
 - **`lineWidth`**: Target line width (positive integer)
 
 ---
@@ -159,6 +161,7 @@ interface FormatBirdConfigOptions {
   engine?: "dprint" | "builtin";
   safeMode?: boolean;
   indentSize?: number;
+  useTabs?: boolean;
   lineWidth?: number;
 }
 
@@ -333,6 +336,17 @@ flowchart TD
 ```
 
 ---
+
+## Tests
+
+The full real-world integration suite loads the built `@birdcc/formatter` public export in one reusable Node worker. Build the formatter and its dependencies before running package tests:
+
+```bash
+pnpm --filter @birdcc/formatter... build
+pnpm --filter @birdcc/formatter test
+```
+
+Each discovered configuration has its own 90-second test timeout. The Vitest worker checks the returned engine and final newline while its event loop remains available for test-runner messages. Formatter errors, worker failures, and unfinished requests fail the suite; the worker is terminated during cleanup.
 
 ## Related Packages
 

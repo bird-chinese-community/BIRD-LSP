@@ -6,6 +6,7 @@ describe("resolveOptions", () => {
     expect(resolveOptions()).toEqual({
       engine: "dprint",
       indentSize: 2,
+      useTabs: false,
       lineWidth: 80,
       safeMode: true,
     });
@@ -16,12 +17,14 @@ describe("resolveOptions", () => {
       resolveOptions({
         engine: "builtin",
         indentSize: 4,
+        useTabs: true,
         lineWidth: 120,
         safeMode: false,
       }),
     ).toEqual({
       engine: "builtin",
       indentSize: 4,
+      useTabs: true,
       lineWidth: 120,
       safeMode: false,
     });
