@@ -49,14 +49,24 @@
       "groupSlug": "lint-format"
     },
     {
-      "description": "VS Code extension dependencies",
+      "description": "Editor and language server dependencies",
       "matchPackageNames": [
         "@types/vscode",
         "@vscode/test-electron",
-        "vscode-languageclient"
+        "vscode-languageclient",
+        "vscode-languageserver",
+        "vscode-languageserver-textdocument"
       ],
-      "groupName": "VS Code extension deps",
-      "groupSlug": "vscode-deps"
+      "groupName": "Editor and LSP dependencies",
+      "groupSlug": "editor-lsp-deps",
+      "automerge": false
+    },
+    {
+      "description": "Tree-sitter generator and runtime compatibility",
+      "matchPackageNames": ["tree-sitter-cli", "web-tree-sitter"],
+      "groupName": "Tree-sitter parser toolchain",
+      "groupSlug": "tree-sitter",
+      "automerge": false
     },
     {
       "description": "Pin GitHub Actions to major versions",
@@ -66,6 +76,5 @@
       "platformAutomerge": true
     }
   ],
-  "ignoreDeps": ["tree-sitter-cli"],
   "postUpdateOptions": ["pnpmDedupe"]
 }
