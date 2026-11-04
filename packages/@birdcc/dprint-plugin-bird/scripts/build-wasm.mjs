@@ -15,23 +15,28 @@ const distWasmPath = resolve(packageDir, "dist", "dprint-plugin-bird.wasm");
 
 const rustupAvailable =
   spawnSync("rustup", ["--version"], { encoding: "utf8" }).status === 0;
-const ensureTarget = rustupAvailable
-  ? spawnSync(
-      "rustup",
-      ["target", "add", "--toolchain", "stable", "wasm32-unknown-unknown"],
-      {
-        cwd: packageDir,
-        encoding: "utf8",
-      },
-    )
-  : { status: 0, stderr: "", stdout: "" };
-
-if (ensureTarget.status !== 0) {
-  const reason =
-    ensureTarget.stderr?.trim() ||
-    ensureTarget.stdout?.trim() ||
-    "unknown rustup error";
-  throw new Error(`Failed to add wasm32 target: ${reason}`);
+const [rustcCommand, rustcArgs] = rustupAvailable
+  ? ["rustup", ["run", "stable", "rustc", "--print", "target-libdir"]]
+  : ["rustc", ["--print", "target-libdir"]];
+const rustcResult = spawnSync(rustcCommand, rustcArgs, { encoding: "utf8" });
+if (rustcResult.status !== 0) {
+  throw new Error(
+    `Failed to locate Rust toolchain: ${rustcResult.stderr || rustcResult.error?.message}`,
+  );
+}
+const llvmAr = resolve(
+  dirname(rustcResult.stdout.trim()),
+  "bin",
+  process.platform === "win32" ? "llvm-ar.exe" : "llvm-ar",
+);
+const archiveTool =
+  process.env.AR_wasm32_unknown_unknown ??
+  process.env["AR_wasm32-unknown-unknown"] ??
+  llvmAr;
+if (archiveTool === llvmAr && !existsSync(archiveTool)) {
+  throw new Error(
+    "WASM compilation requires LLVM archive tools. Run 'rustup component add llvm-tools --toolchain stable' or set AR_wasm32_unknown_unknown to llvm-ar.",
+  );
 }
 
 const cargoArgs = [
@@ -52,6 +57,7 @@ const [buildCommand, buildArgs] = rustupAvailable
 const buildResult = spawnSync(buildCommand, buildArgs, {
   cwd: packageDir,
   encoding: "utf8",
+  env: { ...process.env, AR_wasm32_unknown_unknown: archiveTool },
 });
 
 if (buildResult.status !== 0) {

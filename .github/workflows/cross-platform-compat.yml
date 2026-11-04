@@ -21,11 +21,22 @@ jobs:
           - name: linux-arm64
             runs_on: blacksmith-4vcpu-ubuntu-2404-arm
           - name: macos-arm64
-            runs_on: macos-14
+            runs_on: macos-latest
           - name: windows-amd64
             runs_on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
+      - name: Select LLVM Clang for macOS WASM builds
+        if: runner.os == 'macOS'
+        run: |
+          CLANG_PATH="$(brew --prefix llvm@20)/bin/clang"
+          "$CLANG_PATH" --version
+          "$CLANG_PATH" --target=wasm32-unknown-unknown -x c -c /dev/null -o "$RUNNER_TEMP/wasm-compiler-check.o"
+          echo "CC_wasm32_unknown_unknown=$CLANG_PATH" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v4
         with:
           version: 10.18.3
@@ -55,6 +66,10 @@ jobs:
             runs_on: blacksmith-4vcpu-ubuntu-2404-arm
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
           version: 10.18.3

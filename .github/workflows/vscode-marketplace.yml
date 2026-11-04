@@ -80,7 +80,7 @@ jobs:
           git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar refer/vscode-bird2
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools
           targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:

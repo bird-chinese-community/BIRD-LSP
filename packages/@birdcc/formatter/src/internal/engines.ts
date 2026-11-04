@@ -38,7 +38,12 @@ export const formatWithBuiltin = async (
   text: string,
   options: ResolvedFormatOptions,
 ): Promise<BirdFormatResult> => {
-  const parsed = await parseBirdConfig(text);
+  const parsed = await parseBirdConfig(text, { includeSyntaxLayout: true });
+  if (!parsed.syntaxLayout) {
+    throw new Error(
+      "Parser syntax layout unavailable while formatting BIRD configuration",
+    );
+  }
   const beforeFingerprint = options.safeMode
     ? createSemanticFingerprintFromParsed(parsed)
     : undefined;
@@ -48,6 +53,7 @@ export const formatWithBuiltin = async (
     text,
     options,
     parserProtectedLines,
+    parsed.syntaxLayout,
   );
   if (options.safeMode && builtinOutput.text !== text) {
     await assertSafeModeSemanticEquivalence(
@@ -68,7 +74,17 @@ export const formatBuiltinForTest = async (
   text: string,
   options: ResolvedFormatOptions,
 ): Promise<BuiltinFormatOutput> => {
-  const parsed = await parseBirdConfig(text);
+  const parsed = await parseBirdConfig(text, { includeSyntaxLayout: true });
+  if (!parsed.syntaxLayout) {
+    throw new Error(
+      "Parser syntax layout unavailable while formatting BIRD configuration",
+    );
+  }
   const parserProtectedLines = collectParserProtectedLinesFromParsed(parsed);
-  return normalizeTextWithBuiltin(text, options, parserProtectedLines);
+  return normalizeTextWithBuiltin(
+    text,
+    options,
+    parserProtectedLines,
+    parsed.syntaxLayout,
+  );
 };
