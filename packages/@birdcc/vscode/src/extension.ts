@@ -1,4 +1,4 @@
-import { languages, window, workspace } from "vscode";
+import { languages, Uri, window, workspace } from "vscode";
 import type { ExtensionContext } from "vscode";
 
 import { createBirdClientLifecycle } from "./client/index.js";
@@ -19,6 +19,7 @@ import { registerBirdTypeHintProviders } from "./type-hints/index.js";
 import { createDefaultRuntimeState } from "./types.js";
 import { BIRD_DOCUMENT_SELECTOR } from "./constants.js";
 import { toSanitizedErrorDetails } from "./security/index.js";
+import { enforceLargeFileGuard } from "./performance/large-file.js";
 
 export const runtimeState = createDefaultRuntimeState();
 
@@ -86,25 +87,38 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     `[bird2-lsp] activating extension v${String(context.extension.packageJSON.version ?? "unknown")}`,
   );
   void announceProjectConfigGuidance(outputChannel);
-  const configurationManager = createConfigurationManager();
+  const configurationManager = createConfigurationManager((message) =>
+    outputChannel.appendLine(message),
+  );
   const eligibilityGate = createBirdDocumentEligibilityGate();
   const statusBarManager = createBirdStatusBarManager();
   let lifecycleState: ClientLifecycleState = "idle";
+  let resourceFallbackValidator: FallbackValidator | undefined;
+  const hoverWarningCache = new Set<string>();
   const refreshStatus = (): void => {
     statusBarManager.render({
       isWorkspaceTrusted: workspace.isTrusted,
       lifecycleState,
-      configuration: runtimeState.configuration,
+      configuration: window.activeTextEditor
+        ? configurationManager.getForResource(
+            window.activeTextEditor.document.uri,
+          )
+        : runtimeState.configuration,
     });
   };
   const lifecycle = createBirdClientLifecycle(outputChannel, {
     extensionPath: context.extensionPath,
+    getConfigurationForResource: (uri) =>
+      uri
+        ? configurationManager.getForResource(Uri.parse(uri))
+        : configurationManager.snapshot,
     onStateChange: (state) => {
       lifecycleState = state;
       if (state === "running") disposeFallbackValidator();
       else if (state === "error" && workspace.isTrusted) {
         createOrGetFallbackValidator();
       }
+      syncResourceFallback();
       refreshStatus();
     },
   });
@@ -112,7 +126,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   refreshStatus();
   outputChannel.appendLine("[bird2-lsp] status bar initialized");
   const formattingProvider = createBirdFormattingProvider(
-    () => runtimeState.configuration,
+    (document) => configurationManager.getForResource(document.uri),
     outputChannel,
     eligibilityGate.isEligible,
   );
@@ -120,7 +134,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const createOrGetFallbackValidator = (): FallbackValidator => {
     if (!fallbackValidator) {
       fallbackValidator = createFallbackValidator(
-        () => runtimeState.configuration,
+        (document) => configurationManager.getForResource(document.uri),
         outputChannel,
         eligibilityGate.isEligible,
       );
@@ -128,6 +142,30 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     }
 
     return fallbackValidator;
+  };
+  const syncResourceFallback = (): void => {
+    if (lifecycleState !== "running" || !workspace.isTrusted) {
+      resourceFallbackValidator?.dispose();
+      resourceFallbackValidator = undefined;
+      return;
+    }
+    if (!resourceFallbackValidator) {
+      resourceFallbackValidator = createFallbackValidator(
+        (document) => {
+          const configuration = configurationManager.getForResource(
+            document.uri,
+          );
+          return {
+            ...configuration,
+            validationEnabled:
+              configuration.validationEnabled && !configuration.enabled,
+          };
+        },
+        outputChannel,
+        eligibilityGate.isEligible,
+      );
+      resourceFallbackValidator.activate();
+    }
   };
   const onWorkspaceTrustBlocked = (): void => {
     if (workspaceTrustWarningShown) {
@@ -176,19 +214,12 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     configurationManager.refreshFromWorkspace("workspace-change");
   };
   const manualValidator = createFallbackValidator(
-    () => runtimeState.configuration,
+    (document) => configurationManager.getForResource(document.uri),
     outputChannel,
     eligibilityGate.isEligible,
   );
   manualValidator.activate({ background: false });
   const validateActiveDocument = async (): Promise<void> => {
-    const isLanguageServerEnabled = runtimeState.configuration.enabled;
-    if (!isLanguageServerEnabled) {
-      const validator = createOrGetFallbackValidator();
-      await validator.validateActiveEditor({ saveDirty: true });
-      return;
-    }
-
     await manualValidator.validateActiveEditor({ saveDirty: true });
   };
 
@@ -209,6 +240,33 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       }
 
       configurationManager.refreshFromWorkspace("workspace-change");
+      syncResourceFallback();
+      fallbackValidator?.refreshConfiguration();
+      resourceFallbackValidator?.refreshConfiguration();
+      manualValidator.refreshConfiguration();
+      refreshStatus();
+    }),
+  );
+
+  context.subscriptions.push(
+    workspace.onDidChangeWorkspaceFolders(() => {
+      configurationManager.refreshFromWorkspace("workspace-change");
+    }),
+  );
+  context.subscriptions.push(
+    workspace.onDidOpenTextDocument((document) => {
+      if (document.languageId === "bird2")
+        configurationManager.refreshFromWorkspace("workspace-change");
+    }),
+    workspace.onDidCloseTextDocument((document) => {
+      if (document.languageId === "bird2")
+        configurationManager.refreshFromWorkspace("workspace-change");
+    }),
+  );
+  context.subscriptions.push(
+    window.onDidChangeActiveTextEditor(() => {
+      refreshStatus();
+      void resourceFallbackValidator?.validateActiveEditor();
     }),
   );
   context.subscriptions.push(
@@ -234,13 +292,25 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   );
   context.subscriptions.push(
     registerBirdKeywordHoverProvider({
-      isLspActive: () => lifecycleState === "running",
-      isDocumentEligible: eligibilityGate.isEligible,
+      isLspActive: (document) =>
+        lifecycleState === "running" &&
+        configurationManager.getForResource(document.uri).enabled,
+      isDocumentEligible: async (document) => {
+        const guard = await enforceLargeFileGuard({
+          document,
+          configuration: configurationManager.getForResource(document.uri),
+          outputChannel,
+          featureName: "keyword hover",
+          warningCache: hoverWarningCache,
+        });
+        return !guard.skipped && eligibilityGate.isEligible(document);
+      },
     }),
   );
   context.subscriptions.push(
     ...registerBirdTypeHintProviders({
-      getConfiguration: () => runtimeState.configuration,
+      getConfiguration: (document) =>
+        configurationManager.getForResource(document.uri),
       outputChannel,
       isDocumentEligible: eligibilityGate.isEligible,
     }),
@@ -249,7 +319,12 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     ...registerBirdCommands({
       outputChannel,
       lifecycle,
-      getConfiguration: () => runtimeState.configuration,
+      getConfiguration: () => {
+        const document = window.activeTextEditor?.document;
+        return document
+          ? configurationManager.getForResource(document.uri)
+          : configurationManager.snapshot;
+      },
       validateActiveDocument,
       reloadConfiguration,
     }),
@@ -263,6 +338,8 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       eligibilityGate.dispose();
       disposeFallbackValidator();
       manualValidator.dispose();
+      resourceFallbackValidator?.dispose();
+      resourceFallbackValidator = undefined;
       deactivateTask = lifecycle.dispose();
     },
   });

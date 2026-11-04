@@ -22,6 +22,9 @@ export interface BirdClientLifecycle {
 export interface BirdClientLifecycleOptions {
   readonly onStateChange?: (state: ClientLifecycleState) => void;
   readonly extensionPath?: string;
+  readonly getConfigurationForResource?: (
+    uri?: string,
+  ) => ExtensionConfiguration;
 }
 
 export const createBirdClientLifecycle = (
@@ -75,6 +78,7 @@ export const createBirdClientLifecycle = (
         configuration,
         outputChannel,
         options.extensionPath,
+        options.getConfigurationForResource,
       );
       const observedClient = client;
       activeClient = client;

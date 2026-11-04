@@ -32,4 +32,26 @@ describe("extension configuration parsing", () => {
 
     expect(parsed).toEqual(defaultExtensionConfiguration);
   });
+
+  it("preserves other valid settings and reports the invalid field", () => {
+    const issues: string[] = [];
+    const parsed = parseExtensionConfiguration(
+      {
+        ...defaultExtensionConfiguration,
+        enabled: false,
+        validationEnabled: false,
+        formatterEngine: "builtin",
+        validationTimeoutMs: -1,
+      },
+      (message) => issues.push(message),
+    );
+    expect(parsed.enabled).toBe(false);
+    expect(parsed.validationEnabled).toBe(false);
+    expect(parsed.formatterEngine).toBe("builtin");
+    expect(parsed.validationTimeoutMs).toBe(
+      defaultExtensionConfiguration.validationTimeoutMs,
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("validationTimeoutMs");
+  });
 });

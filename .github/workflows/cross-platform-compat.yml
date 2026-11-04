@@ -36,6 +36,41 @@ jobs:
       - name: Check formatting
         run: pnpm exec turbo run format --concurrency=1 -- --check
 
+  resource-e2e:
+    name: Resource E2E (${{ matrix.vscode }})
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode: ["1.100.0", "stable"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
+      - name: Initialize required submodules
+        run: git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install native BIRD validator
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y bird2
+          echo /usr/sbin >> "$GITHUB_PATH"
+      - run: pnpm --filter @birdcc/vscode... build
+      - name: Run real extension-host resource tests
+        run: mkdir -p .tmp && xvfb-run -a pnpm --filter @birdcc/vscode test:e2e
+        env:
+          TMPDIR: ${{ github.workspace }}/.tmp
+          VSCODE_TEST_VERSION: ${{ matrix.vscode }}
+
   native-smoke:
     name: Native Smoke (${{ matrix.name }})
     runs-on: ${{ matrix.runs_on }}

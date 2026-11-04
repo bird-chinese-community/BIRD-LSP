@@ -1,5 +1,6 @@
 import {
   Hover,
+  EventEmitter,
   InlayHint,
   InlayHintKind,
   MarkdownString,
@@ -12,7 +13,11 @@ import {
   type TextDocument,
 } from "vscode";
 
-import { BIRD_DOCUMENT_SELECTOR, LANGUAGE_ID } from "../constants.js";
+import {
+  BIRD_DOCUMENT_SELECTOR,
+  CONFIG_SECTION,
+  LANGUAGE_ID,
+} from "../constants.js";
 import { enforceLargeFileGuard } from "../performance/large-file.js";
 import { toSanitizedErrorDetails } from "../security/index.js";
 import { showGuidedErrorMessage } from "../support/faq.js";
@@ -24,7 +29,7 @@ import {
 import { createTypeHintCache } from "./cache.js";
 
 export interface BirdTypeHintRegistrationContext {
-  readonly getConfiguration: () => ExtensionConfiguration;
+  readonly getConfiguration: (document: TextDocument) => ExtensionConfiguration;
   readonly outputChannel: OutputChannel;
   readonly isDocumentEligible?: (document: TextDocument) => Promise<boolean>;
 }
@@ -87,6 +92,12 @@ export const registerBirdTypeHintProviders = ({
   >();
   const warningCache = new Set<string>();
   const errorCache = new Set<string>();
+  const inlayHintsChanged = new EventEmitter<void>();
+  const configurationSubscription = workspace.onDidChangeConfiguration(
+    (event) => {
+      if (event.affectsConfiguration(CONFIG_SECTION)) inlayHintsChanged.fire();
+    },
+  );
 
   const loadHints = async (
     document: TextDocument,
@@ -123,7 +134,7 @@ export const registerBirdTypeHintProviders = ({
     [...BIRD_DOCUMENT_SELECTOR],
     {
       provideHover: async (document, position): Promise<Hover | null> => {
-        const configuration = getConfiguration();
+        const configuration = getConfiguration(document);
         if (
           !configuration.typeHintsEnabled ||
           !configuration.typeHintsHoverEnabled ||
@@ -131,10 +142,6 @@ export const registerBirdTypeHintProviders = ({
         ) {
           return null;
         }
-        if (!(await isDocumentEligible(document))) {
-          return null;
-        }
-
         try {
           const guard = await enforceLargeFileGuard({
             document,
@@ -146,6 +153,7 @@ export const registerBirdTypeHintProviders = ({
           if (guard.skipped) {
             return null;
           }
+          if (!(await isDocumentEligible(document))) return null;
 
           const hints = await loadHints(document);
           const matchedHint = hints.find((hint) =>
@@ -205,8 +213,9 @@ export const registerBirdTypeHintProviders = ({
   const inlayProvider = languages.registerInlayHintsProvider(
     [...BIRD_DOCUMENT_SELECTOR],
     {
+      onDidChangeInlayHints: inlayHintsChanged.event,
       provideInlayHints: async (document, range): Promise<InlayHint[]> => {
-        const configuration = getConfiguration();
+        const configuration = getConfiguration(document);
         if (
           !configuration.typeHintsEnabled ||
           !configuration.typeHintsInlayEnabled ||
@@ -214,10 +223,6 @@ export const registerBirdTypeHintProviders = ({
         ) {
           return [];
         }
-        if (!(await isDocumentEligible(document))) {
-          return [];
-        }
-
         try {
           const guard = await enforceLargeFileGuard({
             document,
@@ -229,6 +234,7 @@ export const registerBirdTypeHintProviders = ({
           if (guard.skipped) {
             return [];
           }
+          if (!(await isDocumentEligible(document))) return [];
 
           const hints = await loadHints(document);
           return hints
@@ -299,5 +305,11 @@ export const registerBirdTypeHintProviders = ({
     }
   });
 
-  return [hoverProvider, inlayProvider, closeSubscription];
+  return [
+    hoverProvider,
+    inlayProvider,
+    closeSubscription,
+    configurationSubscription,
+    inlayHintsChanged,
+  ];
 };
