@@ -74,6 +74,14 @@
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "Review pinned marketplace publishing tools together",
+      "matchPackageNames": ["@vscode/vsce", "ovsx"],
+      "groupName": "Marketplace publishing tools",
+      "groupSlug": "marketplace-tools",
+      "rangeStrategy": "pin",
+      "automerge": false
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

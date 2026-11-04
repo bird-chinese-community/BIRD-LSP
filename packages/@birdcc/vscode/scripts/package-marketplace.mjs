@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   cp,
   mkdtemp,
@@ -12,8 +13,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { verifyWorkspaceVsix } from "./verify-workspace-vsix.mjs";
 
 const execFileAsync = promisify(execFile);
+const vsceCliPath = createRequire(import.meta.url).resolve("@vscode/vsce/vsce");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,10 +57,9 @@ const runPnpmDeploy = async (deployDir) => {
 
 const runVscePackage = async (cwd) => {
   const { stdout, stderr } = await execFileAsync(
-    "pnpm",
+    process.execPath,
     [
-      "dlx",
-      "@vscode/vsce",
+      vsceCliPath,
       "package",
       "--out",
       temporaryVsixPath,
@@ -145,6 +147,13 @@ try {
   await injectNodeModulesIntoVsix(deployDir, temporaryVsixPath);
   await mkdir(path.dirname(outputVsixPath), { recursive: true });
   await rename(temporaryVsixPath, outputVsixPath);
+  await verifyWorkspaceVsix({
+    workspaceRoot,
+    packageRoot,
+    vsixPath: outputVsixPath,
+    extensionName: marketplaceExtensionName,
+    reportPath: path.join(packageRoot, "release", "bird2-lsp.workspace.json"),
+  });
   process.stdout.write(
     `[marketplace] VSIX package generated: ${outputVsixPath}\n`,
   );

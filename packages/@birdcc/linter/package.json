@@ -24,8 +24,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@birdcc/core": "0.1.2",
-    "@birdcc/parser": "0.1.2"
+    "@birdcc/core": "workspace:*",
+    "@birdcc/parser": "workspace:*"
   },
   "scripts": {
     "sync:examples": "node scripts/sync-reference-examples.mjs",
