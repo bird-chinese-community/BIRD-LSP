@@ -25,6 +25,8 @@ describe.skipIf(!hasDb)("createAsnIntel with real database", () => {
   it("loads the database successfully", () => {
     expect(intel.available).toBe(true);
     expect(intel.count).toBeGreaterThan(100_000);
+    expect(intel.failure).toBeUndefined();
+    expect(intel.version?.contentSha256).toMatch(/^[0-9a-f]{64}$/u);
   });
 
   it("exact lookup returns reserved fallback entries", () => {

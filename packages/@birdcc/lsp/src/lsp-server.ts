@@ -223,6 +223,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
     connection.console.log(
       `[intel] ASN database loaded: ${asnIntel.count} records`,
     );
+  } else if (asnIntel.failure) {
+    connection.console.warn(
+      `[intel] ASN database unavailable: ${JSON.stringify(asnIntel.failure)}`,
+    );
   }
 
   void warmupParserRuntime();

@@ -24,6 +24,10 @@ import { createAsnIntel } from "@birdcc/intel";
 
 const intel = createAsnIntel();
 
+if (!intel.available) {
+  console.error(intel.failure);
+}
+
 // Exact lookup
 const entry = intel.exactLookup(13335);
 // => { asn: 13335, name: "Cloudflare, Inc.", cls: "Content", cc: "US" }
@@ -36,6 +40,10 @@ const results = intel.prefixSearch("1333", 5);
 const display = intel.lookupDisplay(13335);
 // => { inlayLabel: "🇺🇸 AS13335", completionDetail: "🇺🇸 AS13335 · Cloudflare, Inc.", ... }
 ```
+
+`failure.code` identifies `missing`, `read`, `decompress`, `decode`, or `schema` failures. It includes the source path, error message, and package version. Once the file has been read, its SHA-256 digest identifies the exact compressed database. Successful loads expose the same identity through `intel.version`.
+
+The loader validates the four MessagePack columns before creating lookup indices: equal lengths, string fields, country codes, integer ASNs in the uint32 range, and unique ASNs sorted in ascending numeric order. Decompressed data is limited to 32 MiB and decoded arrays to one million records. The bundled database snapshot is covered by the package tests.
 
 ## Database Rebuild
 

@@ -3,6 +3,8 @@ export type {
   AsnDatabase,
   AsnDatabaseOptions,
   AsnDisplayInfo,
+  AsnDatabaseFailure,
+  AsnDatabaseVersion,
 } from "./types.js";
 export { loadAsnDatabase } from "./database.js";
 export { formatAsnDisplay } from "./display.js";
