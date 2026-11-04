@@ -680,15 +680,23 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onInitialized(() => {
     if (supportsDynamicFileWatching) {
+      const patterns = [
+        "**/bird.config.json",
+        "**/birdcc.config.json",
+        "**/*.conf",
+        "**/*.bird",
+      ];
+      // Without a workspace root (single-file sessions), fall back to global globs.
+      const watchers =
+        workspaceRootUris.length > 0
+          ? workspaceRootUris.flatMap((baseUri) =>
+              patterns.map((pattern) => ({
+                globPattern: watchGlob(baseUri, pattern),
+              })),
+            )
+          : patterns.map((globPattern) => ({ globPattern }));
       void connection.client
-        .register(DidChangeWatchedFilesNotification.type, {
-          watchers: workspaceRootUris.flatMap((baseUri) => [
-            { globPattern: watchGlob(baseUri, "**/bird.config.json") },
-            { globPattern: watchGlob(baseUri, "**/birdcc.config.json") },
-            { globPattern: watchGlob(baseUri, "**/*.conf") },
-            { globPattern: watchGlob(baseUri, "**/*.bird") },
-          ]),
-        })
+        .register(DidChangeWatchedFilesNotification.type, { watchers })
         .catch((error) => {
           connection.console.log(
             `[project] failed to watch configuration files: ${
