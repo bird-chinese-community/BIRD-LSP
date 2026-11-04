@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OutputChannel } from "vscode";
 
-import { createLanguageClient } from "../src/client/client.js";
+import { resolveLanguageServerCommand } from "../src/client/client.js";
 import { defaultExtensionConfiguration } from "../src/types.js";
 
 const mocks = vi.hoisted(() => ({
@@ -66,14 +66,14 @@ describe("language client command resolution", () => {
     mocks.existsSync.mockReturnValue(true);
 
     const outputChannel = createOutputChannelMock();
-    createLanguageClient(
+    const resolved = resolveLanguageServerCommand(
       defaultExtensionConfiguration,
       outputChannel,
       "/tmp/ext",
     );
 
     expect(mocks.resolveServerCommand).not.toHaveBeenCalled();
-    expect(mocks.capturedServerOptions).toEqual({
+    expect(resolved).toEqual({
       command: process.execPath,
       args: ["/tmp/ext/node_modules/@birdcc/lsp/dist/server.js", "--stdio"],
     });
@@ -90,14 +90,14 @@ describe("language client command resolution", () => {
     });
 
     const outputChannel = createOutputChannelMock();
-    createLanguageClient(
+    const resolved = resolveLanguageServerCommand(
       defaultExtensionConfiguration,
       outputChannel,
       "/tmp/ext",
     );
 
     expect(mocks.resolveServerCommand).toHaveBeenCalledTimes(1);
-    expect(mocks.capturedServerOptions).toEqual({
+    expect(resolved).toEqual({
       command: "birdcc",
       args: ["lsp", "--stdio"],
     });

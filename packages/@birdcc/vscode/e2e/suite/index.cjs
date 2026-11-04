@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const { mkdtemp, rm, writeFile } = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const { createRequire } = require("node:module");
+const { readFileSync } = require("node:fs");
 
 const manifest = require("../../package.json");
 
@@ -112,6 +114,125 @@ const testCommandRegistration = async (vscode) => {
       availableCommands.includes(commandId),
       `Command ${commandId} should be registered`,
     );
+  }
+};
+
+const testStartupTimeoutRecovery = async (vscode) => {
+  const { createBirdClientLifecycle } =
+    await import("../../dist/client/lifecycle.js");
+  const { defaultExtensionConfiguration } = await import("../../dist/types.js");
+  const output = vscode.window.createOutputChannel("BIRD2 lifecycle E2E");
+  const lifecycle = createBirdClientLifecycle(output, {
+    extensionPath: path.resolve(__dirname, "../.."),
+  });
+  try {
+    await assert.rejects(
+      lifecycle.start({
+        ...defaultExtensionConfiguration,
+        serverPath: [process.execPath, "-e", "process.stdin.resume()"],
+        lspStartupTimeoutMs: 1_000,
+      }),
+      /startup timed out/,
+    );
+    assert.equal(lifecycle.state, "error");
+    await lifecycle.restart(defaultExtensionConfiguration);
+    assert.equal(
+      lifecycle.state,
+      "running",
+      "Restart should recover after initialize never responds",
+    );
+  } finally {
+    await lifecycle.dispose();
+  }
+};
+
+const testConnectionStateRecovery = async (vscode) => {
+  const { createBirdClientLifecycle } =
+    await import("../../dist/client/lifecycle.js");
+  const { defaultExtensionConfiguration } = await import("../../dist/types.js");
+  const fixtureRequire = createRequire(
+    path.resolve(__dirname, "../../node_modules/@birdcc/lsp/package.json"),
+  );
+  const serverLibrary = fixtureRequire.resolve("vscode-languageserver/node.js");
+  const recordDir = await mkdtemp(
+    path.join(os.tmpdir(), "bird2-lsp-restarts-"),
+  );
+  const recordPath = path.join(recordDir, "starts.json");
+  await writeFile(recordPath, "[]");
+  const startedProcesses = () => JSON.parse(readFileSync(recordPath, "utf8"));
+  const script = [
+    "const fs = require('node:fs');",
+    `const record = ${JSON.stringify(recordPath)};`,
+    "const starts = JSON.parse(fs.readFileSync(record, 'utf8'));",
+    "starts.push(process.pid); fs.writeFileSync(record, JSON.stringify(starts));",
+    `const {createConnection} = require(${JSON.stringify(serverLibrary)});`,
+    "const connection = createConnection(process.stdin, process.stdout);",
+    "connection.onInitialize(() => ({capabilities: {textDocumentSync: 1}}));",
+    "connection.onInitialized(() => setTimeout(() => process.exit(1), 60));",
+    "connection.listen();",
+  ].join("\n");
+  const serverPath = path.join(recordDir, "server.cjs");
+  await writeFile(serverPath, script);
+  const states = [];
+  const lifecycle = createBirdClientLifecycle(
+    vscode.window.createOutputChannel("BIRD2 connection E2E"),
+    {
+      onStateChange: (state) => states.push(state),
+    },
+  );
+  try {
+    await lifecycle.start({
+      ...defaultExtensionConfiguration,
+      serverPath: [process.execPath, serverPath],
+    });
+    assert.equal(lifecycle.state, "running");
+    await waitForValue(
+      () => startedProcesses().length,
+      5,
+      "SDK must exhaust its four automatic restarts",
+      100,
+      100,
+    );
+    const isLastProcessAlive = () => {
+      try {
+        process.kill(startedProcesses().at(-1), 0);
+        return true;
+      } catch (error) {
+        if (error.code === "ESRCH") return false;
+        throw error;
+      }
+    };
+    await waitForValue(
+      isLastProcessAlive,
+      false,
+      "The final server process must exit",
+      100,
+      100,
+    );
+    await waitForValue(
+      () => lifecycle.state,
+      "error",
+      "Repeated server exits must update the lifecycle state",
+      100,
+      100,
+    );
+    assert.ok(states.includes("starting"));
+    assert.ok(states.includes("running"));
+    assert.ok(states.includes("error"));
+    await wait(500);
+    assert.equal(
+      startedProcesses().length,
+      5,
+      "SDK must not launch another process after its final stop",
+    );
+    assert.equal(
+      lifecycle.state,
+      "error",
+      "The final stopped state must remain visible",
+    );
+  } finally {
+    await lifecycle.dispose();
+    await rm(recordDir, { recursive: true, force: true });
   }
 };
 
@@ -284,6 +405,8 @@ async function run() {
   assert.equal(extension.isActive, true, "Extension should be active");
 
   await testCommandRegistration(vscode);
+  await testStartupTimeoutRecovery(vscode);
+  await testConnectionStateRecovery(vscode);
   await testLanguageAndFormatting(vscode);
   await testForeignConfigurationGuard(vscode);
   await testConfigurationCommands(vscode);

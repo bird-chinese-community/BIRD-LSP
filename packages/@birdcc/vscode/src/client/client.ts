@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { OutputChannel } from "vscode";
 import {
   LanguageClient,
+  CloseAction,
   RevealOutputChannelOn,
   Trace,
   type LanguageClientOptions,
@@ -18,9 +19,15 @@ import {
 } from "../constants.js";
 import {
   resolveServerCommand,
+  toSanitizedErrorDetails,
   type ResolvedCommand,
 } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
+import { createServerProcess } from "./server-process.js";
+
+export type BirdLanguageClient = LanguageClient & {
+  terminate: () => Promise<void>;
+};
 
 const toTraceLevel = (traceServer: ExtensionConfiguration["traceServer"]) => {
   switch (traceServer) {
@@ -58,7 +65,7 @@ const resolveBundledServerEntry = (
   return existsSync(entryPath) ? entryPath : undefined;
 };
 
-const resolveLanguageServerCommand = (
+export const resolveLanguageServerCommand = (
   configuration: ExtensionConfiguration,
   outputChannel: OutputChannel,
   extensionPath?: string,
@@ -92,17 +99,18 @@ export const createLanguageClient = (
   configuration: ExtensionConfiguration,
   outputChannel: OutputChannel,
   extensionPath?: string,
-): LanguageClient => {
+): BirdLanguageClient => {
   const serverCommand = resolveLanguageServerCommand(
     configuration,
     outputChannel,
     extensionPath,
   );
 
-  const serverOptions: ServerOptions = {
-    command: serverCommand.command,
-    args: [...serverCommand.args],
-  };
+  const serverProcess = createServerProcess(
+    serverCommand.command,
+    serverCommand.args,
+  );
+  const serverOptions: ServerOptions = serverProcess.start;
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [...BIRD_DOCUMENT_SELECTOR],
@@ -122,5 +130,25 @@ export const createLanguageClient = (
 
   client.setTrace(toTraceLevel(configuration.traceServer));
 
-  return client;
+  let terminating = false;
+  const errorHandler = client.createDefaultErrorHandler();
+  client.clientOptions.errorHandler = {
+    error: (...args) => errorHandler.error(...args),
+    closed: () =>
+      terminating
+        ? { action: CloseAction.DoNotRestart, handled: true }
+        : errorHandler.closed(),
+  };
+  const terminate = async (): Promise<void> => {
+    terminating = true;
+    await serverProcess.terminate();
+    try {
+      await client.dispose();
+    } catch (error) {
+      outputChannel.appendLine(
+        `[bird2-lsp] client disposal after termination: ${toSanitizedErrorDetails(error)}`,
+      );
+    }
+  };
+  return Object.assign(client, { terminate });
 };
