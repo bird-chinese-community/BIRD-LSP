@@ -103,18 +103,20 @@ const formatted = await formatBirdConfig(source, {
 
 ### Options
 
-| Option       | Type                      | Default    | Description                       |
-| ------------ | ------------------------- | ---------- | --------------------------------- |
-| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection        |
-| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check |
-| `indentSize` | `number`                  | `2`        | Number of spaces for indentation  |
-| `lineWidth`  | `number`                  | `80`       | Maximum line width                |
+| Option       | Type                      | Default    | Description                          |
+| ------------ | ------------------------- | ---------- | ------------------------------------ |
+| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection           |
+| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check    |
+| `indentSize` | `number`                  | `2`        | Number of spaces for indentation     |
+| `useTabs`    | `boolean`                 | `false`    | Use a tab for each indentation level |
+| `lineWidth`  | `number`                  | `80`       | Maximum line width                   |
 
 ### Configuration Details
 
 - **`engine`**: `dprint` uses Rust/WASM; `builtin` uses TypeScript as fallback
 - **`safeMode`**: Compares AST fingerprints to ensure semantic equivalence
 - **`indentSize`**: Indentation spaces (positive integer)
+- **`useTabs`**: Use tabs in both engines; `indentSize` controls space indentation when `useTabs` is false
 - **`lineWidth`**: Target line width (positive integer)
 
 ---
@@ -159,6 +161,7 @@ interface FormatBirdConfigOptions {
   engine?: "dprint" | "builtin";
   safeMode?: boolean;
   indentSize?: number;
+  useTabs?: boolean;
   lineWidth?: number;
 }
 

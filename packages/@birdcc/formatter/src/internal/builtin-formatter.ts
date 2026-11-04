@@ -104,7 +104,10 @@ export const normalizeTextWithBuiltin = async (
       comment.length > 0
         ? `${normalizedCode}${normalizedCode.length > 0 ? " " : ""}${comment}`
         : normalizedCode;
-    const formattedLine = `${" ".repeat(options.indentSize * indentLevel)}${normalizedContent}`;
+    const indent = options.useTabs
+      ? "\t".repeat(indentLevel)
+      : " ".repeat(options.indentSize * indentLevel);
+    const formattedLine = `${indent}${normalizedContent}`;
 
     if (formattedLine !== originalLine) {
       stats.linesTouched += 1;

@@ -17,7 +17,7 @@ const getBirdPluginBufferCached = (): Uint8Array => {
 };
 
 const contextCacheKey = (options: ResolvedFormatOptions): string =>
-  `${options.indentSize}:${options.lineWidth}:${options.safeMode ? "1" : "0"}`;
+  `${options.indentSize}:${options.lineWidth}:${options.safeMode ? "1" : "0"}:${options.useTabs ? "1" : "0"}`;
 
 const touchContextCacheKey = (key: string): void => {
   const existingIndex = dprintContextCacheAccessOrder.indexOf(key);
@@ -54,11 +54,13 @@ export const getOrCreateDprintContext = (
 
   const context = createContext({
     indentWidth: options.indentSize,
+    useTabs: options.useTabs,
     lineWidth: options.lineWidth,
   });
   context.addPlugin(getBirdPluginBufferCached(), {
     lineWidth: options.lineWidth,
     indentWidth: options.indentSize,
+    useTabs: options.useTabs,
     safeMode: options.safeMode,
   });
 

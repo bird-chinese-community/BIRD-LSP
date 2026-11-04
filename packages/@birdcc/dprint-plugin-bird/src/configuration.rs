@@ -11,6 +11,7 @@ use serde::Serialize;
 pub struct Configuration {
     pub line_width: u32,
     pub indent_width: u8,
+    pub use_tabs: bool,
     pub safe_mode: bool,
 }
 
@@ -33,6 +34,12 @@ pub fn resolve_config(
             &mut config,
             "indentWidth",
             global_config.indent_width.unwrap_or(2),
+            &mut diagnostics,
+        ),
+        use_tabs: get_value(
+            &mut config,
+            "useTabs",
+            global_config.use_tabs.unwrap_or(false),
             &mut diagnostics,
         ),
         safe_mode: get_value(&mut config, "safeMode", true, &mut diagnostics),

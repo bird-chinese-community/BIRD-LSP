@@ -27,6 +27,7 @@ export const resolveOptions = (
 ): ResolvedFormatOptions => ({
   engine: options.engine ?? "dprint",
   indentSize: normalizePositiveInteger(options.indentSize, DEFAULT_INDENT_SIZE),
+  useTabs: options.useTabs ?? false,
   lineWidth: normalizePositiveInteger(options.lineWidth, DEFAULT_LINE_WIDTH),
   safeMode: options.safeMode ?? DEFAULT_SAFE_MODE,
 });
