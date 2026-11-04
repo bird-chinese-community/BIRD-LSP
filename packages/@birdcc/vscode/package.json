@@ -359,8 +359,8 @@
     "@birdcc/lsp": "workspace:*",
     "@birdcc/parser": "workspace:*",
     "vscode-languageclient": "^9.0.1",
-    "yaml": "^2.8.2",
-    "zod": "^4.3.6"
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/vscode": "^1.109.0",

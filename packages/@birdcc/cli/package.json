@@ -38,7 +38,7 @@
     "@birdcc/lsp": "0.1.2",
     "cac": "^7.0.0",
     "yoctocolors": "^2.1.2",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
