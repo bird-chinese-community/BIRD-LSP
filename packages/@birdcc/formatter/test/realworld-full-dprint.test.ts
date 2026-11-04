@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { delimiter, dirname, resolve } from "node:path";
+import { delimiter, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -18,25 +18,31 @@ const examplesRoots = [
   resolve(repoRoot, "refer/config-examples"),
   ...additionalRoots,
 ];
+const candidates = await collectBirdConfigCandidatesFromRoots({
+  roots: examplesRoots,
+  maxBytes: Number.MAX_SAFE_INTEGER,
+});
+candidates.sort((left, right) => left.path.localeCompare(right.path));
 
 describe("real-world config examples (full dprint formatter)", () => {
-  it("formats all discovered config examples with dprint engine", async () => {
-    const candidates = await collectBirdConfigCandidatesFromRoots({
-      roots: examplesRoots,
-      maxBytes: Number.MAX_SAFE_INTEGER,
-    });
-
-    candidates.sort((left, right) => left.path.localeCompare(right.path));
+  it("discovers config examples", () => {
     expect(candidates.length).toBeGreaterThan(0);
+  });
 
-    for (const file of candidates) {
+  it.each(
+    candidates.map((file) => [relative(repoRoot, file.path), file] as const),
+  )(
+    "formats %s with dprint engine",
+    async (_, file) => {
       const text = await readFile(file.path, "utf8");
-      const output = await formatBirdConfig(text, {
+      await expect(
+        formatBirdConfig(text, { engine: "dprint", safeMode: false }),
+        file.path,
+      ).resolves.toMatchObject({
         engine: "dprint",
-        safeMode: false,
+        text: expect.stringMatching(/\n$/u),
       });
-
-      expect(output.text.endsWith("\n"), file.path).toBe(true);
-    }
-  }, 30_000);
+    },
+    90_000,
+  );
 });

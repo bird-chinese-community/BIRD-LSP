@@ -2284,4 +2284,5 @@ export interface BirdProgram {
 export interface ParsedBirdDocument {
   program: BirdProgram;
   issues: ParseIssue[];
+  syntaxLayout?: import("./syntax-layout.js").BirdSyntaxLayout;
 }

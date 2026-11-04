@@ -9,6 +9,9 @@ import {
 } from "./issues.js";
 import { parseDeclarations } from "./declarations.js";
 import type { ParseIssue, ParsedBirdDocument } from "./types.js";
+import { collectBirdSyntaxLayout } from "./syntax-layout.js";
+
+export type { BirdSyntaxLayout } from "./syntax-layout.js";
 
 export type {
   AcceptStatement,
@@ -98,6 +101,7 @@ export type {
  */
 export const parseBirdConfig = async (
   input: string,
+  options: { includeSyntaxLayout?: boolean } = {},
 ): Promise<ParsedBirdDocument> => {
   let parser;
   try {
@@ -138,6 +142,9 @@ export const parseBirdConfig = async (
         declarations,
       },
       issues: dedupeIssues(normalizedIssues),
+      ...(options.includeSyntaxLayout
+        ? { syntaxLayout: collectBirdSyntaxLayout(tree.rootNode, input) }
+        : {}),
     };
   } finally {
     tree.delete();

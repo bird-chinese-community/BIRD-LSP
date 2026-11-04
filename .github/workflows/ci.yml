@@ -71,7 +71,7 @@ jobs:
           git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools
           targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
@@ -107,6 +107,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
       - name: Initialize required submodules
         run: |
           git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
@@ -133,6 +137,10 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
       - name: Initialize required submodules
         run: |
           git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar

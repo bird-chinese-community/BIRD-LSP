@@ -30,6 +30,11 @@ anyhow = "1.0.95"
 dprint-core = { version = "0.67.4", features = ["formatting"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.149", optional = true }
+tree-sitter = "=0.27.1"
+tree-sitter-language = "=0.1.9"
+
+[build-dependencies]
+cc = "1.2.48"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

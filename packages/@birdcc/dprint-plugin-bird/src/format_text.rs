@@ -2,35 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::configuration::Configuration;
-
-fn count_token(text: &str, token: char) -> usize {
-    text.chars().filter(|character| *character == token).count()
-}
-
-fn count_structural_tokens(text: &str) -> (usize, usize) {
-    let opens = count_token(text, '{') + count_token(text, '[');
-    let closes = count_token(text, '}') + count_token(text, ']');
-    (opens, closes)
-}
-
-fn count_leading_close_tokens(text: &str) -> usize {
-    let mut count = 0;
-    let mut chars = text.chars().peekable();
-    while let Some(current) = chars.next() {
-        if current == '}' || current == ']' {
-            count += 1;
-            continue;
-        }
-        // BIRD `[= ... =]` set literal closing — `=]` signals close
-        if current == '=' && chars.peek() == Some(&']') {
-            chars.next(); // consume the ']'
-            count += 1;
-            continue;
-        }
-        break;
-    }
-    count
-}
+use crate::syntax;
 
 fn is_comment_line(line: &str) -> bool {
     line.trim_start().starts_with('#')
@@ -111,15 +83,39 @@ fn normalize_non_risk_line(line: &str) -> String {
     trimmed.to_string()
 }
 
-fn normalize_text_with_builtin(text: &str, config: &Configuration) -> String {
+fn normalize_text_with_builtin(text: &str, config: &Configuration) -> Result<String> {
     let normalized_text = text.replace("\r\n", "\n").replace('\r', "\n");
     let source_lines: Vec<&str> = normalized_text.split('\n').collect();
+    let tree = syntax::parse(&normalized_text)?;
+    let layout = syntax::layout(&tree, source_lines.len());
     let mut formatted_lines: Vec<String> = Vec::new();
 
     let mut blank_streak: usize = 0;
     let mut indent_level: usize = 0;
 
-    for original_line in source_lines {
+    for (index, original_line) in source_lines.into_iter().enumerate() {
+        let tokens = &layout.structural_lines[index];
+        let open_count = tokens.iter().filter(|(_, opening)| *opening).count();
+        let close_count = tokens.len() - open_count;
+        let leading_close = tokens
+            .iter()
+            .filter(|(column, opening)| {
+                !opening
+                    && original_line[..*column].chars().all(|character| {
+                        character.is_whitespace() || matches!(character, '}' | ']' | '=')
+                    })
+            })
+            .count()
+            .min(indent_level);
+        indent_level = indent_level.saturating_sub(leading_close);
+        let next_indent_level =
+            (indent_level + open_count).saturating_sub(close_count.saturating_sub(leading_close));
+        if layout.preserved_lines[index] {
+            formatted_lines.push(original_line.to_string());
+            blank_streak = 0;
+            indent_level = next_indent_level;
+            continue;
+        }
         let trimmed_trailing = original_line.trim_end_matches([' ', '\t']);
         let line = trimmed_trailing.trim();
 
@@ -135,43 +131,57 @@ fn normalize_text_with_builtin(text: &str, config: &Configuration) -> String {
 
         blank_streak = 0;
 
-        let structural_line = line
-            .split_once('#')
-            .map(|(before_comment, _)| before_comment.trim_end())
-            .unwrap_or(line);
-
-        let (open_count, close_count) = count_structural_tokens(structural_line);
-        let leading_close = count_leading_close_tokens(structural_line).min(indent_level);
-        indent_level = indent_level.saturating_sub(leading_close);
-
-        let high_risk_line = is_high_risk_expression_line(line);
-        let normalized_content = if high_risk_line {
-            line.to_string()
+        let code =
+            layout.comment_columns[index].map_or(line, |column| original_line[..column].trim());
+        let high_risk_line = is_high_risk_expression_line(code);
+        let normalized_code = if high_risk_line {
+            code.to_string()
         } else {
-            normalize_non_risk_line(line)
+            normalize_non_risk_line(code)
+        };
+        let normalized_content = if let Some(column) = layout.comment_columns[index] {
+            let separator = if normalized_code.is_empty() { "" } else { " " };
+            format!(
+                "{}{}{}",
+                normalized_code,
+                separator,
+                &original_line[column..]
+            )
+        } else {
+            normalized_code
         };
 
         let indent_prefix = " ".repeat(indent_level * usize::from(config.indent_width));
         let formatted_line = format!("{}{}", indent_prefix, normalized_content);
 
-        // Keep ultra-long lines mostly untouched to avoid semantic risk from wrapping logic.
         if (formatted_line.len() as u32) > config.line_width && high_risk_line {
-            formatted_lines.push(format!("{}{}", indent_prefix, line));
+            let content = if layout.comment_columns[index].is_some() {
+                original_line.trim_start()
+            } else {
+                line
+            };
+            formatted_lines.push(format!("{}{}", indent_prefix, content));
         } else {
             formatted_lines.push(formatted_line);
         }
 
-        let post_close_count = close_count.saturating_sub(leading_close);
-        let delta = open_count as isize - post_close_count as isize;
-        let next_level = indent_level as isize + delta;
-        indent_level = next_level.max(0) as usize;
+        indent_level = next_indent_level;
     }
 
     while matches!(formatted_lines.last(), Some(last) if last.is_empty()) {
         formatted_lines.pop();
     }
 
-    format!("{}\n", formatted_lines.join("\n"))
+    let output = format!("{}\n", formatted_lines.join("\n"));
+    if config.safe_mode && output != text {
+        if normalized_text == text {
+            syntax::ensure_equivalent(text, &tree, &output)?;
+        } else {
+            let before_tree = syntax::parse(text)?;
+            syntax::ensure_equivalent(text, &before_tree, &output)?;
+        }
+    }
+    Ok(output)
 }
 
 pub fn format_text(
@@ -179,7 +189,7 @@ pub fn format_text(
     text: &str,
     config: &Configuration,
 ) -> Result<Option<String>> {
-    let output = normalize_text_with_builtin(text, config);
+    let output = normalize_text_with_builtin(text, config)?;
     if output == text {
         Ok(None)
     } else {
@@ -197,6 +207,65 @@ mod tests {
             indent_width: 2,
             safe_mode: true,
         }
+    }
+
+    #[test]
+    fn formats_empty_and_crlf_documents_safely() {
+        assert_eq!(
+            format_text(Path::new("bird.conf"), "", &config())
+                .unwrap()
+                .unwrap(),
+            "\n"
+        );
+        assert_eq!(
+            format_text(
+                Path::new("bird.conf"),
+                "# comment\r\nprotocol device {}\r\n",
+                &config()
+            )
+            .unwrap()
+            .unwrap(),
+            "# comment\nprotocol device {}\n"
+        );
+    }
+
+    #[test]
+    fn safe_mode_preserves_string_carriage_returns() {
+        let input = "define LABEL = \"a\rb\";\n";
+        assert!(format_text(Path::new("bird.conf"), input, &config()).is_err());
+    }
+
+    #[test]
+    fn ignores_structural_characters_in_strings() {
+        let input = "define LABEL = \"{#]}\";\nprotocol device {\n}\n";
+        assert!(format_text(Path::new("bird.conf"), input, &config())
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn preserves_multiline_comment_contents() {
+        let input = "/* {\n  } # [\n\n\n*/\nprotocol device {\nscan time 10;\n}\n";
+        let output = format_text(Path::new("bird.conf"), input, &config())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            output,
+            "/* {\n  } # [\n\n\n*/\nprotocol device {\n  scan time 10;\n}\n"
+        );
+    }
+
+    #[test]
+    fn preserves_inline_comment_contents() {
+        let input = "protocol device {} # preserve  {\n";
+        assert!(format_text(Path::new("bird.conf"), input, &config())
+            .unwrap()
+            .is_none());
+        let mut unchecked = config();
+        unchecked.safe_mode = false;
+        assert!(format_text(Path::new("bird.conf"), input, &unchecked)
+            .unwrap()
+            .is_none());
     }
 
     #[test]
