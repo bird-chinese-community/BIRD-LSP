@@ -1,3 +1,5 @@
+import type { ParsedBirdDocument } from "@birdcc/parser";
+
 export type BirdDiagnosticSeverity = "error" | "warning" | "info";
 
 export interface BirdRange {
@@ -77,6 +79,8 @@ export interface CrossFileResolutionStats {
   missingIncludes: number;
   parsedCacheHits: number;
   parsedCacheMisses: number;
+  skippedBySizeLimit: number;
+  totalBytes: number;
 }
 
 export interface CrossFileResolveOptions {
@@ -84,6 +88,8 @@ export interface CrossFileResolveOptions {
   documents?: CrossFileDocumentInput[];
   maxDepth?: number;
   maxFiles?: number;
+  maxDocumentBytes?: number;
+  maxTotalBytes?: number;
   includeSearchPaths?: string[];
   loadFromFileSystem?: boolean;
   workspaceRootUri?: string;
@@ -98,6 +104,7 @@ export interface CrossFileResolutionResult {
   symbolTable: SymbolTable;
   snapshots: Record<string, CoreSnapshot>;
   documents: Record<string, string>;
+  parsedDocuments: Record<string, ParsedBirdDocument>;
   diagnostics: BirdDiagnostic[];
   stats: CrossFileResolutionStats;
 }

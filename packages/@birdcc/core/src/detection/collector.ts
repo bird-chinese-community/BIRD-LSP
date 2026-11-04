@@ -6,9 +6,8 @@
  *   full-tree scan only fires when shallow scan yields nothing.
  */
 
-import { readdir, stat } from "node:fs/promises";
+import { opendir, stat } from "node:fs/promises";
 import { join, relative, basename } from "node:path";
-import type { Dirent } from "node:fs";
 import type { DetectionOptions, DetectionWarning } from "./types.js";
 import { isForbiddenRoot } from "./fs-safety.js";
 
@@ -88,6 +87,8 @@ export const collectCandidateFiles = async (
 
   const maxDepth = opts?.maxDepth ?? 8;
   const maxFiles = opts?.maxFiles ?? 20_000;
+  const maxEntries = opts?.maxEntries ?? 20_000;
+  const maxDirectories = opts?.maxDirectories ?? 2_048;
   const followSymlinks = opts?.followSymlinks ?? false;
   const extraExclude = new Set(opts?.exclude ?? []);
 
@@ -95,6 +96,8 @@ export const collectCandidateFiles = async (
   const warnings: DetectionWarning[] = [];
   let truncated = false;
   let fileCount = 0;
+  let entryCount = 0;
+  let directoryCount = 0;
 
   // BFS queue: [absolutePath, depth]
   const queue: Array<[string, number]> = [[root, 0]];
@@ -104,17 +107,33 @@ export const collectCandidateFiles = async (
 
     if (depth > maxDepth) continue;
 
-    let entries: Dirent[];
+    if (directoryCount >= maxDirectories) {
+      truncated = true;
+      warnings.push({
+        code: "detection/directory-limit-reached",
+        message: `Stopped scanning after ${maxDirectories} directories. Results may be incomplete.`,
+      });
+      break;
+    }
+    directoryCount += 1;
+    let directory;
     try {
-      entries = (await readdir(currentDir, {
-        withFileTypes: true,
-      })) as unknown as Dirent[];
+      directory = await opendir(currentDir);
     } catch {
       // Permission denied or similar — skip silently
       continue;
     }
 
-    for (const entry of entries) {
+    for await (const entry of directory) {
+      if (entryCount >= maxEntries) {
+        truncated = true;
+        warnings.push({
+          code: "detection/entry-limit-reached",
+          message: `Stopped scanning after ${maxEntries} directory entries. Results may be incomplete.`,
+        });
+        break;
+      }
+      entryCount += 1;
       if (fileCount >= maxFiles) {
         truncated = true;
         warnings.push({
@@ -145,6 +164,14 @@ export const collectCandidateFiles = async (
 
       if (isDir) {
         if (!isIgnoredDir(entry.name, extraExclude)) {
+          if (queue.length + directoryCount >= maxDirectories) {
+            truncated = true;
+            warnings.push({
+              code: "detection/directory-limit-reached",
+              message: `Stopped scanning after scheduling ${maxDirectories} directories. Results may be incomplete.`,
+            });
+            break;
+          }
           queue.push([fullPath, depth + 1]);
         }
         continue;

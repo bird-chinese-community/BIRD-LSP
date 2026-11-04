@@ -164,6 +164,8 @@ export const lintBirdConfig = async (
 export const lintResolvedCrossFileGraph = async (
   resolution: CrossFileResolutionResult,
 ): Promise<CrossFileLintResult> => {
+  if (resolution.visitedUris.length === 0)
+    return { byUri: {}, diagnostics: resolution.diagnostics };
   const byUri: Record<string, LintResult> = {};
   const diagnostics: BirdDiagnostic[] = [];
   const uris =
@@ -187,6 +189,7 @@ export const lintResolvedCrossFileGraph = async (
     lintEntries.map(async ({ uri, text, localCore }) => {
       const lintResult = await lintBirdConfig(text, {
         uri,
+        parsed: resolution.parsedDocuments[uri],
         core: createMergedCoreSnapshot(
           localCore,
           resolution.symbolTable,

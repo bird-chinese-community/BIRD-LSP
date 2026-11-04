@@ -7,6 +7,7 @@ import {
   collectFunctionReturnHints,
   applyLintConfiguration,
   birdEditorSettingsSchema,
+  resolveAnalysisBudget,
   type BirdEditorSettings,
   resolveCrossFileReferences,
   type FunctionReturnHint,
@@ -45,7 +46,7 @@ import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
-  resolveProjectAnalysisOptions,
+  createProjectAnalysisResolver,
   type ProjectAnalysisOptions,
 } from "./project-config.js";
 import { createReferenceLocations } from "./references.js";
@@ -64,7 +65,6 @@ import { isPathWithinRoot } from "./paths.js";
 const VALIDATION_DEBOUNCE_MS = 120;
 const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
 const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
-const TYPE_HINT_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 const PROJECT_CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"];
 const IGNORED_WATCH_DIRECTORIES = new Set([
   ".git",
@@ -143,6 +143,7 @@ export interface LspServerOptions {
 export const startLspServer = (options?: LspServerOptions): void => {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
+  const projectResolver = createProjectAnalysisResolver();
   const parsedByUri = new Map<string, ParsedCacheEntry>();
   const graphByUri = new Map<string, GraphCacheEntry>();
   const typeHintsByUri = new Map<string, TypeHintCacheEntry>();
@@ -183,7 +184,6 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
-  const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
 
   // ASN intelligence — loads the bundled database (gracefully degrades if missing)
   const asnIntel: AsnIntel = options?.disableAsnIntel
@@ -311,7 +311,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
     const version = document.version;
     const generation = generationByUri.get(document.uri);
     await registerRootlessConfigWatchers(document.uri);
-    const project = await resolveProjectAnalysisOptions({
+    const project = await projectResolver.resolve({
       documentUri: document.uri,
       workspaceRootUris,
       defaults: {
@@ -333,7 +333,14 @@ export const startLspServer = (options?: LspServerOptions): void => {
       if (configurationDiagnosticUris.delete(uri))
         clearDiagnostics(connection, uri);
     }
-    return project;
+    const settings = await getEditorSettings(document.uri);
+    return {
+      ...project,
+      ...resolveAnalysisBudget(
+        project.config?.crossFile,
+        settings.performance?.maxFileSizeBytes,
+      ),
+    };
   };
 
   const getEditorSettings = (uri: string): Promise<BirdEditorSettings> => {
@@ -349,6 +356,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
           ...resource,
           intel: { ...editorSettings.intel, ...resource.intel },
           formatter: { ...editorSettings.formatter, ...resource.formatter },
+          performance: {
+            ...editorSettings.performance,
+            ...resource.performance,
+          },
           typeHints: {
             ...editorSettings.typeHints,
             ...resource.typeHints,
@@ -409,6 +420,14 @@ export const startLspServer = (options?: LspServerOptions): void => {
     const task = (async (): Promise<boolean> => {
       const resolvedProject =
         project ?? (await resolveProjectForDocument(document));
+      if (
+        Buffer.byteLength(document.getText(), "utf8") >
+        Math.min(
+          resolvedProject.maxDocumentBytes,
+          resolvedProject.maxTotalBytes,
+        )
+      )
+        return false;
       const eligibility = await evaluateLspDocumentEligibility(
         text,
         document.uri,
@@ -540,6 +559,30 @@ export const startLspServer = (options?: LspServerOptions): void => {
         : undefined);
     active.rootUri = workspaceRootUri;
     assertCurrent();
+    const documentLimit = Math.min(
+      project.maxDocumentBytes,
+      project.maxTotalBytes,
+    );
+    if (Buffer.byteLength(document.getText(), "utf8") > documentLimit) {
+      const graph = await createEmptyGraph(document);
+      assertCurrent();
+      clearEntryTracking(document.uri);
+      return {
+        entryDiagnostics: [
+          {
+            severity: 2,
+            source: "birdcc",
+            code: "analysis/size-limit",
+            message: `Document exceeds the analysis size limit (${documentLimit} bytes)`,
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 0 },
+            },
+          },
+        ],
+        graph,
+      };
+    }
 
     const eligible = await isDocumentEligible(document, project);
     assertCurrent();
@@ -621,6 +664,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
       loadFromFileSystem: true,
       maxDepth: project.maxDepth,
       maxFiles: project.maxFiles,
+      maxDocumentBytes: project.maxDocumentBytes,
+      maxTotalBytes: project.maxTotalBytes,
       workspaceRootUri,
       allowIncludeOutsideWorkspace: project.allowIncludeOutsideWorkspace,
       includeSearchPaths: project.includeSearchPathUris,
@@ -735,7 +780,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const lintResult = lintGraph.byUri[uri];
       diagnosticsByUri.set(
         uri,
-        (lintResult?.diagnostics ?? []).map(toLspDiagnostic),
+        (
+          lintResult?.diagnostics ??
+          crossFile.diagnostics.filter((diagnostic) => diagnostic.uri === uri)
+        ).map(toLspDiagnostic),
       );
     }
 
@@ -1033,6 +1081,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
         continue;
       const config = PROJECT_CONFIG_FILE_NAMES.includes(basename(path));
       if (!known && !config && !/\.(conf|bird)$/.test(path)) continue;
+      projectResolver.invalidate(change.uri);
       invalidateAnalysis(change.uri, true);
     }
   });
@@ -1100,14 +1149,6 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
 
     const text = document.getText();
-    if (Buffer.byteLength(text, "utf8") > typeHintMaxBytes) {
-      typeHintsByUri.set(document.uri, {
-        version: document.version,
-        hints: [],
-      });
-      return [];
-    }
-
     const version = document.version;
     const generation = generationByUri.get(document.uri);
     const hints = await collectFunctionReturnHints(text);

@@ -57,6 +57,8 @@ export interface DetectionOptions {
   maxDepth?: number; // default: 8
   maxCandidates?: number; // default: 100
   maxFiles?: number; // default: 20000
+  maxEntries?: number;
+  maxDirectories?: number;
   exclude?: string[]; // additional glob patterns
   forceRescan?: boolean;
   followSymlinks?: boolean; // default: false
