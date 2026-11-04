@@ -180,7 +180,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @birdcc/vscode build
+      - run: pnpm --filter @birdcc/vscode... build
       - run: xvfb-run -a pnpm --filter @birdcc/vscode test:e2e
 
   vscode-pack-smoke:
