@@ -160,6 +160,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const generationByUri = new Map<string, number>();
   const activeAnalyses = new Set<{ uri: string; rootUri?: string }>();
   const watchedDependencyDirectories = new Set<string>();
+  const configurationWatchRegistrations = new Map<string, Promise<void>>();
   let nextGeneration = 0;
   const watchGlob = (
     baseUri: string,
@@ -243,10 +244,57 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   };
 
-  const resolveProjectForDocument = (
+  const registerRootlessConfigWatchers = async (uri: string): Promise<void> => {
+    if (
+      !supportsDynamicFileWatching ||
+      workspaceRootUris.length > 0 ||
+      !uri.startsWith("file://")
+    )
+      return;
+
+    const directories: string[] = [];
+    let directory = dirname(fileURLToPath(uri));
+    while (true) {
+      directories.push(pathToFileURL(directory).toString());
+      const parent = dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+    const missing = directories.filter(
+      (baseUri) => !configurationWatchRegistrations.has(baseUri),
+    );
+    if (missing.length > 0) {
+      const registration = connection.client
+        .register(DidChangeWatchedFilesNotification.type, {
+          watchers: missing.flatMap((baseUri) =>
+            PROJECT_CONFIG_FILE_NAMES.map((name) => ({
+              globPattern: watchGlob(baseUri, name),
+            })),
+          ),
+        })
+        .then(() => undefined)
+        .catch((error) => {
+          for (const baseUri of missing)
+            configurationWatchRegistrations.delete(baseUri);
+          connection.console.error(
+            `Unable to watch project configuration for ${uri}: ${String(error)}`,
+          );
+        });
+      for (const baseUri of missing)
+        configurationWatchRegistrations.set(baseUri, registration);
+    }
+    await Promise.all(
+      directories.map((baseUri) =>
+        configurationWatchRegistrations.get(baseUri),
+      ),
+    );
+  };
+
+  const resolveProjectForDocument = async (
     document: TextDocument,
-  ): Promise<ProjectAnalysisOptions> =>
-    resolveProjectAnalysisOptions({
+  ): Promise<ProjectAnalysisOptions> => {
+    await registerRootlessConfigWatchers(document.uri);
+    return resolveProjectAnalysisOptions({
       documentUri: document.uri,
       workspaceRootUris,
       defaults: {
@@ -254,6 +302,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
         maxFiles: INCLUDE_MAX_FILES,
       },
     });
+  };
 
   const isDocumentEligible = async (
     document: TextDocument,
@@ -397,7 +446,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
       }
     };
     const project = await resolveProjectForDocument(document);
-    active.rootUri = project.workspaceRootUri;
+    const workspaceRootUri =
+      project.workspaceRootUri ??
+      (project.entryUri.startsWith("file://")
+        ? pathToFileURL(dirname(fileURLToPath(project.entryUri))).toString()
+        : undefined);
+    active.rootUri = workspaceRootUri;
     assertCurrent();
 
     const eligible = await isDocumentEligible(document, project);
@@ -472,7 +526,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       loadFromFileSystem: true,
       maxDepth: project.maxDepth,
       maxFiles: project.maxFiles,
-      workspaceRootUri: project.workspaceRootUri,
+      workspaceRootUri,
       allowIncludeOutsideWorkspace: project.allowIncludeOutsideWorkspace,
       includeSearchPaths: project.includeSearchPathUris,
     });
@@ -496,7 +550,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       visitedUris,
       symbolTable: crossFile.symbolTable,
       byUri: lintGraph.byUri,
-      workspaceRootUri: project.workspaceRootUri,
+      workspaceRootUri,
       dependencyDirectoryUris: new Set([
         ...Object.keys(lintGraph.byUri)
           .filter((uri) => uri.startsWith("file://"))
@@ -537,7 +591,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
         (uri) =>
           !watchedDependencyDirectories.has(uri) &&
           (project.allowIncludeOutsideWorkspace ||
-            isWithinUri(uri, project.workspaceRootUri)),
+            isWithinUri(uri, workspaceRootUri)),
       );
       for (const uri of directories) watchedDependencyDirectories.add(uri);
       if (directories.length)
