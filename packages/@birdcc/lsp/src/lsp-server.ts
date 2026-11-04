@@ -1,6 +1,6 @@
 import { access } from "node:fs/promises";
-import { basename, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
   DEFAULT_CROSS_FILE_MAX_FILES,
@@ -16,6 +16,8 @@ import {
   type InlayHint,
   type InitializeResult,
   ProposedFeatures,
+  LSPErrorCodes,
+  ResponseError,
   TextDocuments,
   TextDocumentSyncKind,
 } from "vscode-languageserver/node.js";
@@ -54,12 +56,28 @@ import {
   withDocument,
 } from "./utils.js";
 import { createValidationScheduler } from "./validation.js";
+import { isPathWithinRoot } from "./paths.js";
 
 const VALIDATION_DEBOUNCE_MS = 120;
 const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
 const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
 const TYPE_HINT_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 const PROJECT_CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"];
+const IGNORED_WATCH_DIRECTORIES = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "build",
+  "target",
+  "coverage",
+  "vendor",
+  ".pnpm",
+]);
+const isWithinUri = (uri: string, rootUri: string | undefined): boolean => {
+  if (!rootUri || !uri.startsWith("file://") || !rootUri.startsWith("file://"))
+    return false;
+  return isPathWithinRoot(fileURLToPath(uri), fileURLToPath(rootUri));
+};
 
 interface ParsedCacheEntry {
   version: number;
@@ -71,6 +89,8 @@ interface GraphCacheEntry {
   visitedUris: Set<string>;
   symbolTable: SymbolTable;
   byUri: Record<string, LintResult>;
+  dependencyDirectoryUris?: Set<string>;
+  workspaceRootUri?: string;
 }
 
 interface TypeHintCacheEntry {
@@ -135,7 +155,23 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const announcedInfoNotifications = new Set<string>();
   let workspaceRootUris: string[] = [];
   let supportsDynamicFileWatching = false;
+  let supportsRelativeFileWatching = false;
   let projectConfigGeneration = 0;
+  const generationByUri = new Map<string, number>();
+  const activeAnalyses = new Set<{ uri: string; rootUri?: string }>();
+  const watchedDependencyDirectories = new Set<string>();
+  let nextGeneration = 0;
+  const watchGlob = (
+    baseUri: string,
+    pattern: string,
+  ): string | { baseUri: string; pattern: string } => {
+    if (supportsRelativeFileWatching) return { baseUri, pattern };
+    const path = fileURLToPath(baseUri)
+      .replaceAll("\\", "/")
+      .replace(/\/+$/, "")
+      .replace(/[?*[\]{}]/g, (character) => `[${character}]`);
+    return `${path}/${pattern}`;
+  };
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
   const typeHintMaxBytes = TYPE_HINT_MAX_FILE_SIZE_BYTES;
@@ -223,6 +259,19 @@ export const startLspServer = (options?: LspServerOptions): void => {
     document: TextDocument,
     project?: ProjectAnalysisOptions,
   ): Promise<boolean> => {
+    const version = document.version;
+    const text = document.getText();
+    const inputGeneration = generationByUri.get(document.uri);
+    const liveDocument = documents.get(document.uri);
+    if (
+      !liveDocument ||
+      liveDocument.version !== version ||
+      liveDocument.getText() !== text
+    )
+      throw new ResponseError(
+        LSPErrorCodes.ContentModified,
+        `Eligibility input changed: ${document.uri}`,
+      );
     const cached = eligibilityByUri.get(document.uri);
     if (
       cached?.version === document.version &&
@@ -232,9 +281,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
 
     const evaluationGeneration = projectConfigGeneration;
-    const pendingKey = `${document.uri}@${document.version}@${evaluationGeneration}`;
+    const pendingKey = `${document.uri}@${version}@${inputGeneration}@${evaluationGeneration}`;
     const pending = pendingEligibilityByKey.get(pendingKey);
-    if (pending?.document === document) {
+    if (pending?.document === liveDocument) {
       return pending.promise;
     }
 
@@ -242,13 +291,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const resolvedProject =
         project ?? (await resolveProjectForDocument(document));
       const eligibility = await evaluateLspDocumentEligibility(
-        document.getText(),
+        text,
         document.uri,
         resolvedProject,
       );
       if (
         evaluationGeneration === projectConfigGeneration &&
-        documents.get(document.uri) === document
+        documents.get(document.uri) === liveDocument &&
+        liveDocument.version === version &&
+        generationByUri.get(document.uri) === inputGeneration
       ) {
         // Guard against out-of-order completions: only overwrite the cache when
         // this task evaluated a newer (or the same) document version. Skip the
@@ -258,10 +309,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
         if (
           !currentCached ||
           currentCached.projectConfigGeneration !== evaluationGeneration ||
-          currentCached.version < document.version
+          currentCached.version < version
         ) {
           eligibilityByUri.set(document.uri, {
-            version: document.version,
+            version,
             projectConfigGeneration: evaluationGeneration,
             eligible: eligibility.eligible,
           });
@@ -270,7 +321,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return eligibility.eligible;
     })();
 
-    pendingEligibilityByKey.set(pendingKey, { document, promise: task });
+    pendingEligibilityByKey.set(pendingKey, {
+      document: liveDocument,
+      promise: task,
+    });
     try {
       return await task;
     } finally {
@@ -292,25 +346,65 @@ export const startLspServer = (options?: LspServerOptions): void => {
     };
   };
 
-  const analyzeDocument = async (
+  const analyzeDocumentSnapshot = async (
     document: TextDocument,
     options: { publishRelatedDiagnostics: boolean },
+    active: { uri: string; rootUri?: string },
   ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
-    const analysisGeneration = projectConfigGeneration;
+    const generation = generationByUri.get(document.uri);
+    const liveDocument = documents.get(document.uri);
+    document = TextDocument.create(
+      document.uri,
+      document.languageId,
+      document.version,
+      document.getText(),
+    );
+    const openDocuments = documents.all().map((item) => ({
+      uri: item.uri,
+      version: item.version,
+      text: item.getText(),
+      document: item,
+      generation: generationByUri.get(item.uri),
+    }));
+    const assertCurrent = (
+      visitedUris: Iterable<string> = [document.uri],
+    ): void => {
+      if (
+        generation !== generationByUri.get(document.uri) ||
+        documents.get(document.uri) !== liveDocument ||
+        liveDocument?.version !== document.version
+      ) {
+        throw new ResponseError(
+          LSPErrorCodes.ContentModified,
+          `Analysis superseded for ${document.uri}`,
+        );
+      }
+      for (const uri of visitedUris) {
+        const input = openDocuments.find((item) => item.uri === uri);
+        if (
+          input &&
+          (documents.get(uri) !== input.document ||
+            input.document.version !== input.version ||
+            generationByUri.get(uri) !== input.generation)
+        ) {
+          const current = documents.get(document.uri);
+          if (current) scheduler.schedule(current);
+          throw new ResponseError(
+            LSPErrorCodes.ContentModified,
+            `Analysis input changed: ${uri}`,
+          );
+        }
+      }
+    };
     const project = await resolveProjectForDocument(document);
-    if (analysisGeneration !== projectConfigGeneration) {
-      return analyzeDocument(document, options);
-    }
+    active.rootUri = project.workspaceRootUri;
+    assertCurrent();
 
     const eligible = await isDocumentEligible(document, project);
-    if (analysisGeneration !== projectConfigGeneration) {
-      return analyzeDocument(document, options);
-    }
+    assertCurrent();
     if (!eligible) {
       const graph = await createEmptyGraph(document);
-      if (analysisGeneration !== projectConfigGeneration) {
-        return analyzeDocument(document, options);
-      }
+      assertCurrent();
       clearEntryTracking(document.uri);
       parsedByUri.delete(document.uri);
       typeHintsByUri.delete(document.uri);
@@ -352,9 +446,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const lintResult = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
-      if (analysisGeneration !== projectConfigGeneration) {
-        return analyzeDocument(document, options);
-      }
+      assertCurrent();
       const graph: GraphCacheEntry = {
         entryUri: document.uri,
         visitedUris: new Set([document.uri]),
@@ -374,11 +466,6 @@ export const startLspServer = (options?: LspServerOptions): void => {
       };
     }
 
-    const openDocuments = documents.all().map((item) => ({
-      uri: item.uri,
-      text: item.getText(),
-    }));
-
     const crossFile = await resolveCrossFileReferences({
       entryUri: project.entryUri,
       documents: openDocuments,
@@ -396,27 +483,81 @@ export const startLspServer = (options?: LspServerOptions): void => {
         uri: document.uri,
       });
     }
-    if (analysisGeneration !== projectConfigGeneration) {
-      return analyzeDocument(document, options);
-    }
     const visitedUris = new Set(
       crossFile.visitedUris.length > 0
         ? crossFile.visitedUris
         : [project.entryUri],
     );
     visitedUris.add(document.uri);
+    assertCurrent(visitedUris);
 
     const graph: GraphCacheEntry = {
       entryUri: document.uri,
       visitedUris,
       symbolTable: crossFile.symbolTable,
       byUri: lintGraph.byUri,
+      workspaceRootUri: project.workspaceRootUri,
+      dependencyDirectoryUris: new Set([
+        ...Object.keys(lintGraph.byUri)
+          .filter((uri) => uri.startsWith("file://"))
+          .map((uri) => pathToFileURL(dirname(fileURLToPath(uri))).toString()),
+        ...Object.keys(lintGraph.byUri)
+          .filter((uri) => uri.startsWith("file://"))
+          .flatMap((uri) => {
+            const directory = dirname(fileURLToPath(uri));
+            return lintGraph.byUri[uri].parsed.program.declarations
+              .filter((declaration) => declaration.kind === "include")
+              .flatMap((declaration) =>
+                declaration.kind === "include"
+                  ? [
+                      directory,
+                      ...project.includeSearchPathUris.map((uri) =>
+                        fileURLToPath(uri),
+                      ),
+                    ].map((base) =>
+                      pathToFileURL(
+                        dirname(
+                          resolve(
+                            base,
+                            declaration.path.startsWith("file://")
+                              ? fileURLToPath(declaration.path)
+                              : declaration.path,
+                          ),
+                        ),
+                      ).toString(),
+                    )
+                  : [],
+              );
+          }),
+      ]),
     };
 
+    if (supportsDynamicFileWatching) {
+      const directories = [...(graph.dependencyDirectoryUris ?? [])].filter(
+        (uri) =>
+          !watchedDependencyDirectories.has(uri) &&
+          (project.allowIncludeOutsideWorkspace ||
+            isWithinUri(uri, project.workspaceRootUri)),
+      );
+      for (const uri of directories) watchedDependencyDirectories.add(uri);
+      if (directories.length)
+        void connection.client
+          .register(DidChangeWatchedFilesNotification.type, {
+            watchers: directories.map((baseUri) => ({
+              globPattern: watchGlob(baseUri, "*"),
+            })),
+          })
+          .catch((error) =>
+            connection.console.error(
+              `Unable to watch include directories: ${String(error)}`,
+            ),
+          );
+    }
+
     for (const [uri, lintResult] of Object.entries(lintGraph.byUri)) {
-      const liveDocument = documents.get(uri);
+      const snapshot = openDocuments.find((item) => item.uri === uri);
       parsedByUri.set(uri, {
-        version: liveDocument?.version ?? -1,
+        version: snapshot?.version ?? -1,
         parsed: lintResult.parsed,
       });
       graphByUri.set(uri, graph);
@@ -448,7 +589,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
             connection,
             uri,
             diagnostics,
-            documents.get(uri)?.version,
+            openDocuments.find((item) => item.uri === uri)?.version,
           );
         }
       }
@@ -457,6 +598,19 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
 
     return { entryDiagnostics, graph };
+  };
+
+  const analyzeDocument = async (
+    document: TextDocument,
+    options: { publishRelatedDiagnostics: boolean },
+  ): Promise<{ entryDiagnostics: Diagnostic[]; graph: GraphCacheEntry }> => {
+    const active: { uri: string; rootUri?: string } = { uri: document.uri };
+    activeAnalyses.add(active);
+    try {
+      return await analyzeDocumentSnapshot(document, options, active);
+    } finally {
+      activeAnalyses.delete(active);
+    }
   };
 
   const getGraphForDocument = async (
@@ -491,6 +645,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
     supportsDynamicFileWatching = Boolean(
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration,
     );
+    supportsRelativeFileWatching = Boolean(
+      params.capabilities.workspace?.didChangeWatchedFiles
+        ?.relativePatternSupport,
+    );
     workspaceRootUris =
       params.workspaceFolders
         ?.map((folder) => folder.uri)
@@ -524,10 +682,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
     if (supportsDynamicFileWatching) {
       void connection.client
         .register(DidChangeWatchedFilesNotification.type, {
-          watchers: [
-            { globPattern: "**/bird.config.json" },
-            { globPattern: "**/birdcc.config.json" },
-          ],
+          watchers: workspaceRootUris.flatMap((baseUri) => [
+            { globPattern: watchGlob(baseUri, "**/bird.config.json") },
+            { globPattern: watchGlob(baseUri, "**/birdcc.config.json") },
+            { globPattern: watchGlob(baseUri, "**/*.conf") },
+            { globPattern: watchGlob(baseUri, "**/*.bird") },
+          ]),
         })
         .catch((error) => {
           connection.console.log(
@@ -567,13 +727,18 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   const scheduler = createValidationScheduler<TextDocument, Diagnostic>({
     debounceMs: VALIDATION_DEBOUNCE_MS,
-    validate: async (textDocument): Promise<Diagnostic[]> => {
+    validate: async (textDocument): Promise<Diagnostic[] | undefined> => {
       try {
         const analyzed = await analyzeDocument(textDocument, {
           publishRelatedDiagnostics: true,
         });
         return analyzed.entryDiagnostics;
       } catch (error) {
+        if (
+          error instanceof ResponseError &&
+          error.code === LSPErrorCodes.ContentModified
+        )
+          return undefined;
         return [toInternalErrorDiagnostic(error)];
       }
     },
@@ -582,50 +747,96 @@ export const startLspServer = (options?: LspServerOptions): void => {
     },
   });
 
-  connection.onDidChangeWatchedFiles((params) => {
-    const projectConfigChanged = params.changes.some((change) => {
-      try {
-        return PROJECT_CONFIG_FILE_NAMES.includes(
-          basename(fileURLToPath(change.uri)),
+  const invalidateAnalysis = (uri: string, filesystem = false): void => {
+    const affected = new Set<string>([uri]);
+    const configChanged =
+      uri.startsWith("file://") &&
+      PROJECT_CONFIG_FILE_NAMES.includes(basename(fileURLToPath(uri)));
+    const configRoot = configChanged
+      ? pathToFileURL(dirname(fileURLToPath(uri))).toString()
+      : undefined;
+    for (const [entryUri, visitedUris] of publishedUrisByEntry)
+      if (visitedUris.has(uri)) affected.add(entryUri);
+    for (const graph of new Set(graphByUri.values())) {
+      const memberChanged =
+        filesystem &&
+        [...(graph.dependencyDirectoryUris ?? [])].some(
+          (directoryUri) =>
+            uri.startsWith("file://") &&
+            (dirname(fileURLToPath(uri)) === fileURLToPath(directoryUri) ||
+              isWithinUri(directoryUri, uri)),
         );
-      } catch {
-        return false;
-      }
-    });
-    if (!projectConfigChanged) {
-      return;
+      if (
+        graph.visitedUris.has(uri) ||
+        memberChanged ||
+        (configRoot && isWithinUri(graph.entryUri, configRoot))
+      )
+        affected.add(graph.entryUri);
     }
+    for (const active of activeAnalyses) {
+      if (
+        active.uri === uri ||
+        isWithinUri(uri, active.rootUri) ||
+        (configRoot && isWithinUri(active.uri, configRoot))
+      )
+        affected.add(active.uri);
+    }
+    if (configRoot) {
+      for (const document of documents.all())
+        if (isWithinUri(document.uri, configRoot)) affected.add(document.uri);
+      projectConfigGeneration += 1;
+      announcedProjectConfigs.delete(fileURLToPath(uri));
+    }
+    for (const entryUri of affected) {
+      generationByUri.set(entryUri, ++nextGeneration);
+      pendingGraphByUri.delete(entryUri);
+      eligibilityByUri.delete(entryUri);
+      const document = documents.get(entryUri);
+      if (document) scheduler.schedule(document);
+    }
+    for (const [key, graph] of graphByUri)
+      if (affected.has(graph.entryUri)) graphByUri.delete(key);
+    parsedByUri.delete(uri);
+    typeHintsByUri.delete(uri);
+  };
 
-    projectConfigGeneration += 1;
-    eligibilityByUri.clear();
-    pendingEligibilityByKey.clear();
-    graphByUri.clear();
-    pendingGraphByUri.clear();
-    for (const publishedUris of publishedUrisByEntry.values()) {
-      clearDiagnosticsMany(connection, publishedUris);
-    }
-    publishedUrisByEntry.clear();
-    announcedProjectConfigs.clear();
-    noConfigTipAnnounced = false;
-    for (const document of documents.all()) {
-      scheduler.schedule(document);
+  connection.onDidChangeWatchedFiles((params) => {
+    for (const change of params.changes) {
+      if (!change.uri.startsWith("file://")) continue;
+      const path = fileURLToPath(change.uri);
+      const known = [...graphByUri.values()].some(
+        (graph) =>
+          graph.visitedUris.has(change.uri) ||
+          [...(graph.dependencyDirectoryUris ?? [])].some(
+            (directoryUri) =>
+              dirname(path) === fileURLToPath(directoryUri) ||
+              isWithinUri(directoryUri, change.uri),
+          ),
+      );
+      if (
+        !known &&
+        path.split(/[\\/]/).some((part) => IGNORED_WATCH_DIRECTORIES.has(part))
+      )
+        continue;
+      const config = PROJECT_CONFIG_FILE_NAMES.includes(basename(path));
+      if (!known && !config && !/\.(conf|bird)$/.test(path)) continue;
+      invalidateAnalysis(change.uri, true);
     }
   });
 
-  documents.onDidOpen((event) => {
-    scheduler.schedule(event.document);
-  });
-
-  documents.onDidChangeContent((event) => {
-    scheduler.schedule(event.document);
-  });
+  documents.onDidOpen((event) => invalidateAnalysis(event.document.uri));
+  documents.onDidChangeContent((event) =>
+    invalidateAnalysis(event.document.uri),
+  );
 
   documents.onDidClose((event) => {
+    invalidateAnalysis(event.document.uri);
     parsedByUri.delete(event.document.uri);
     clearEntryTracking(event.document.uri);
     typeHintsByUri.delete(event.document.uri);
     eligibilityByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
+    generationByUri.delete(event.document.uri);
   });
 
   const getParsedDocument = async (
@@ -636,11 +847,16 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return cached.parsed;
     }
 
+    const version = document.version;
+    const generation = generationByUri.get(document.uri);
     const parsed = await parseBirdConfig(document.getText());
-    parsedByUri.set(document.uri, {
-      version: document.version,
-      parsed,
-    });
+    if (
+      generation === generationByUri.get(document.uri) &&
+      documents.get(document.uri) === document &&
+      document.version === version
+    ) {
+      parsedByUri.set(document.uri, { version, parsed });
+    }
     return parsed;
   };
 
@@ -661,11 +877,16 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return [];
     }
 
+    const version = document.version;
+    const generation = generationByUri.get(document.uri);
     const hints = await collectFunctionReturnHints(text);
-    typeHintsByUri.set(document.uri, {
-      version: document.version,
-      hints,
-    });
+    if (
+      generation === generationByUri.get(document.uri) &&
+      documents.get(document.uri) === document &&
+      document.version === version
+    ) {
+      typeHintsByUri.set(document.uri, { version, hints });
+    }
     return hints;
   };
 
