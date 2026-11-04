@@ -194,7 +194,7 @@ const symFilterRequiredRule: BirdRule = ({ text, parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
   const filterNames = new Set(
-    filterDeclarations(parsed).map((item) => item.name.toLowerCase()),
+    filterDeclarations(parsed).map((item) => item.name),
   );
 
   for (const declaration of protocolDeclarations(parsed)) {
@@ -216,12 +216,8 @@ const symFilterRequiredRule: BirdRule = ({ text, parsed, core }) => {
         continue;
       }
 
-      const loweredName = name.toLowerCase();
-      if (
-        !filterNames.has(loweredName) &&
-        !hasSymbolKind(core, "filter", name)
-      ) {
-        if (BUILTIN_FILTER_NAMES.has(loweredName)) {
+      if (!filterNames.has(name) && !hasSymbolKind(core, "filter", name)) {
+        if (BUILTIN_FILTER_NAMES.has(name)) {
           continue;
         }
 
@@ -245,7 +241,7 @@ const symFunctionRequiredRule: BirdRule = ({ parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
   const functions = new Set(
-    functionDeclarations(parsed).map((item) => item.name.toLowerCase()),
+    functionDeclarations(parsed).map((item) => item.name),
   );
   for (const builtin of BUILTIN_FUNCTION_NAMES) {
     functions.add(builtin);
@@ -272,7 +268,7 @@ const symFunctionRequiredRule: BirdRule = ({ parsed, core }) => {
     const joined = textParts.join(" ");
     for (const callName of extractFunctionCalls(joined)) {
       if (
-        functions.has(callName.toLowerCase()) ||
+        functions.has(callName) ||
         hasSymbolKind(core, "function", callName)
       ) {
         continue;
@@ -297,7 +293,7 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
   const diagnostics: BirdDiagnostic[] = [];
   const seen = new Set<string>();
   const tableNames = new Set(
-    tableDeclarations(parsed).map((item) => item.name.toLowerCase()),
+    tableDeclarations(parsed).map((item) => item.name),
   );
 
   for (const declaration of protocolDeclarations(parsed)) {
@@ -323,9 +319,9 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
           }
 
           if (
-            !tableNames.has(tableName.toLowerCase()) &&
+            !tableNames.has(tableName) &&
             !hasSymbolKind(core, "table", tableName) &&
-            !BUILTIN_TABLE_NAMES.has(tableName.toLowerCase())
+            !BUILTIN_TABLE_NAMES.has(tableName)
           ) {
             pushUniqueDiagnostic(
               diagnostics,
@@ -366,9 +362,9 @@ const symTableRequiredRule: BirdRule = ({ parsed, core }) => {
 
       if (
         !isNumericTableReference(tableName) &&
-        !tableNames.has(tableName.toLowerCase()) &&
+        !tableNames.has(tableName) &&
         !hasSymbolKind(core, "table", tableName) &&
-        !BUILTIN_TABLE_NAMES.has(tableName.toLowerCase())
+        !BUILTIN_TABLE_NAMES.has(tableName)
       ) {
         pushUniqueDiagnostic(
           diagnostics,

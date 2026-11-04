@@ -108,8 +108,7 @@ const inferLiteralType = (expression: string): BirdHintType => {
     return "unknown";
   }
 
-  const lowered = value.toLowerCase();
-  if (lowered === "true" || lowered === "false") {
+  if (value === "true" || value === "false") {
     return "bool";
   }
 

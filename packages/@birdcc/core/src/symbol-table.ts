@@ -150,9 +150,7 @@ export const pushSymbolTableDiagnostics = (
   const seenDefinitions = new Map<string, SymbolDefinition>();
 
   for (const symbol of symbolTable.definitions) {
-    const name =
-      symbol.kind === "define" ? symbol.name : symbol.name.toLowerCase();
-    const key = `${symbol.kind}:${name}`;
+    const key = `${symbol.kind}:${symbol.name}`;
     const previous = seenDefinitions.get(key);
 
     if (previous) {
@@ -171,7 +169,7 @@ export const pushSymbolTableDiagnostics = (
   }
 
   for (const reference of symbolTable.references) {
-    const key = `template:${reference.name.toLowerCase()}`;
+    const key = `template:${reference.name}`;
     if (seenDefinitions.has(key)) {
       continue;
     }

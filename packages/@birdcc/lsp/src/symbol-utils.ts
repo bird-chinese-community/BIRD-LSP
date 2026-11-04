@@ -14,10 +14,7 @@ export interface SymbolLookupIndex {
 export const lookupSymbolDefinitions = (
   index: SymbolLookupIndex,
   name: string,
-): SymbolDefinition[] =>
-  (index.definitionsByName.get(name.toLowerCase()) ?? []).filter(
-    (definition) => definition.kind !== "define" || definition.name === name,
-  );
+): SymbolDefinition[] => index.definitionsByName.get(name) ?? [];
 
 const addToMapList = <T>(
   map: Map<string, T[]>,
@@ -123,11 +120,11 @@ export const createSymbolLookupIndex = (
   const referencesByName = new Map<string, SymbolReference[]>();
 
   for (const definition of definitions) {
-    addToMapList(definitionsByName, definition.name.toLowerCase(), definition);
+    addToMapList(definitionsByName, definition.name, definition);
   }
 
   for (const reference of references) {
-    addToMapList(referencesByName, reference.name.toLowerCase(), reference);
+    addToMapList(referencesByName, reference.name, reference);
   }
 
   return {

@@ -329,9 +329,7 @@ const inferValueType = (
     }
   }
 
-  const lowered = value.toLowerCase();
-
-  if (lowered === "true" || lowered === "false") {
+  if (value === "true" || value === "false") {
     return "bool";
   }
 
@@ -529,9 +527,7 @@ export const checkTypes = (
         const expectedType = variableTypes.get(baseVariableName);
 
         if (!expectedType) {
-          if (
-            BUILTIN_ASSIGNABLE_ATTRIBUTES.has(baseVariableName.toLowerCase())
-          ) {
+          if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(baseVariableName)) {
             continue;
           }
 
@@ -642,7 +638,7 @@ export const checkTypes = (
       const expectedType = variableTypes.get(variableName);
 
       if (!expectedType) {
-        if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(variableName.toLowerCase())) {
+        if (BUILTIN_ASSIGNABLE_ATTRIBUTES.has(variableName)) {
           continue;
         }
 

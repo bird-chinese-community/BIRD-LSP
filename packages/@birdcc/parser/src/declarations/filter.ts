@@ -354,7 +354,7 @@ const collectLiteralsAndMatches = (
     }
 
     const name = nameMatch[1];
-    if (FILTER_KEYWORD_DENYLIST.has(name.toLowerCase())) {
+    if (FILTER_KEYWORD_DENYLIST.has(name)) {
       return;
     }
     calls.push({

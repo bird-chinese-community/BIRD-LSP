@@ -258,7 +258,7 @@ export const extractFunctionCalls = (text: string): string[] => {
     const name = current[1] ?? "";
     const matchIndex = current.index ?? -1;
     const isMethodCall = matchIndex > 0 && sanitized[matchIndex - 1] === ".";
-    if (name.length > 0 && !ignored.has(name.toLowerCase()) && !isMethodCall) {
+    if (name.length > 0 && !ignored.has(name) && !isMethodCall) {
       names.push(name);
     }
     current = pattern.exec(sanitized);
@@ -274,7 +274,7 @@ export const scalarTypeOfExpression = (
   if (/^-?\d+$/.test(text)) {
     return "int";
   }
-  if (/^(true|false|yes|no|on|off)$/i.test(text)) {
+  if (/^(true|false|yes|no|on|off)$/.test(text)) {
     return "bool";
   }
   if (
@@ -336,9 +336,8 @@ export const findTemplateByName = (
   parsed: ParsedBirdDocument,
   templateName: string,
 ): TemplateDeclaration | undefined => {
-  const lowered = templateName.toLowerCase();
   return templateDeclarations(parsed).find(
-    (item) => item.name.toLowerCase() === lowered,
+    (item) => item.name === templateName,
   );
 };
 
@@ -557,9 +556,8 @@ export const hasSymbolKind = (
   kind: "protocol" | "template" | "filter" | "function" | "table",
   name: string,
 ): boolean => {
-  const lowered = name.toLowerCase();
   return core.symbols.some(
-    (symbol) => symbol.kind === kind && symbol.name.toLowerCase() === lowered,
+    (symbol) => symbol.kind === kind && symbol.name === name,
   );
 };
 

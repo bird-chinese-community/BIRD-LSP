@@ -24,9 +24,9 @@ const createNode = (
 ): TemplateInheritanceNode => ({
   uri,
   name: declaration.name,
-  key: declaration.name.toLowerCase(),
+  key: declaration.name,
   parentName: declaration.fromTemplate,
-  parentKey: declaration.fromTemplate?.toLowerCase(),
+  parentKey: declaration.fromTemplate,
   parentRange: declaration.fromTemplateRange ?? declaration.nameRange,
 });
 
@@ -96,11 +96,7 @@ export const collectCircularTemplateDiagnostics = (
         const startIndex = stack.lastIndexOf(parentKey);
         if (startIndex >= 0) {
           const cycleKeys = [...stack.slice(startIndex), parentKey];
-          const cycleSignature = cycleKeys
-            .slice(0, -1)
-            .map((entry) => entry.toLowerCase())
-            .sort()
-            .join("->");
+          const cycleSignature = cycleKeys.slice(0, -1).sort().join("->");
 
           if (!emitted.has(cycleSignature)) {
             emitted.add(cycleSignature);
