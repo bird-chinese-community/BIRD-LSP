@@ -15,7 +15,7 @@ export interface ValidationSchedulerOptions<
   TDiagnostic,
 > {
   debounceMs: number;
-  validate(document: TDocument): Promise<TDiagnostic[]>;
+  validate(document: TDocument): Promise<TDiagnostic[] | undefined>;
   publish(payload: ValidationPublishPayload<TDiagnostic>): void;
 }
 
@@ -45,27 +45,35 @@ export const createValidationScheduler = <
     pendingTimers.delete(uri);
   };
 
-  const runValidation = async (document: TDocument): Promise<void> => {
+  const runValidation = async (
+    document: TDocument,
+    ticket: number,
+    version: number,
+  ): Promise<void> => {
     const uri = document.uri;
-    const ticket = ++nextTicket;
-    latestTicketByUri.set(uri, ticket);
-    latestVersionByUri.set(uri, document.version);
-
     const diagnostics = await options.validate(document);
-    if (latestTicketByUri.get(uri) !== ticket) {
+    if (
+      !diagnostics ||
+      latestTicketByUri.get(uri) !== ticket ||
+      document.version !== version
+    ) {
       return;
     }
 
-    options.publish({ uri, version: document.version, diagnostics });
+    options.publish({ uri, version, diagnostics });
   };
 
   return {
     schedule: (document: TDocument): void => {
       clearPending(document.uri);
+      const ticket = ++nextTicket;
+      const version = document.version;
+      latestTicketByUri.set(document.uri, ticket);
+      latestVersionByUri.set(document.uri, version);
 
       const timer = setTimeout(() => {
         pendingTimers.delete(document.uri);
-        void runValidation(document);
+        void runValidation(document, ticket, version);
       }, options.debounceMs);
 
       pendingTimers.set(document.uri, timer);
