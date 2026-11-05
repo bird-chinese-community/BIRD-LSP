@@ -1,6 +1,7 @@
 {
   "name": "@birdcc/cli",
   "version": "0.1.2",
+  "publishConfig": { "access": "public" },
   "license": "GPL-3.0-only",
   "author": {
     "name": "BIRD Chinese Community",

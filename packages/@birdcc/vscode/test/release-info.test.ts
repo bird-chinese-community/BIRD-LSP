@@ -7,8 +7,8 @@ import {
 
 const releaseEntry = {
   changelogPath: "packages/@birdcc/vscode/CHANGELOG.md",
-  version: "0.5.2",
-  releaseTag: "bird2-lsp-v0.5.2",
+  version: "1.0.0",
+  packageName: "@birdcc/vscode",
 };
 
 describe("VS Code release metadata", () => {
@@ -25,35 +25,38 @@ describe("VS Code release metadata", () => {
     ).toThrow("must remain private");
   });
 
-  it("rejects a version heading without its link reference", () => {
+  it("rejects a changelog for a different version", () => {
     expect(() =>
       validateChangelogEntry({
         ...releaseEntry,
-        changelog: "## [0.5.2] - 2026-07-19\n",
+        changelog: "## @birdcc/vscode@0.5.3\n",
       }),
-    ).toThrow("must define the release link");
+    ).toThrow("has no entry for 1.0.0");
   });
 
-  it("rejects a link reference pointing at a different tag", () => {
+  it("rejects a changelog for another release unit", () => {
     expect(() =>
       validateChangelogEntry({
         ...releaseEntry,
-        changelog: `## [0.5.2] - 2026-07-19
-
-[0.5.2]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/v0.5.2
-`,
+        changelog: "## bird2-extension-pack@1.0.0\n",
       }),
-    ).toThrow("bird2-lsp-v0.5.2");
+    ).toThrow("has no entry for 1.0.0");
   });
 
-  it("accepts the exact versioned release link", () => {
+  it("accepts the native Tegami version heading", () => {
     expect(() =>
       validateChangelogEntry({
         ...releaseEntry,
-        changelog: `## [0.5.2] - 2026-07-19
+        changelog: "## @birdcc/vscode@1.0.0\n\n### Editor updates\n",
+      }),
+    ).not.toThrow();
+  });
 
-[0.5.2]: https://github.com/bird-chinese-community/BIRD-LSP/releases/tag/bird2-lsp-v0.5.2
-`,
+  it("accepts the pre-Tegami version heading", () => {
+    expect(() =>
+      validateChangelogEntry({
+        ...releaseEntry,
+        changelog: "## [1.0.0] - 2026-11-05\n",
       }),
     ).not.toThrow();
   });

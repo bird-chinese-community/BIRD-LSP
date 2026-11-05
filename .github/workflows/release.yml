@@ -7,37 +7,21 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: "Comma-separated package names (example: @birdcc/parser,@birdcc/core)"
-        required: true
-        default: "@birdcc/parser"
-        type: string
-      npm_tag:
-        description: "npm dist-tag to publish under"
-        required: true
-        default: "latest"
+        description: "Names from the Tegami publish lock (comma-separated; empty selects all)"
+        default: ""
         type: string
       dry_run:
-        description: "Run publish in dry-run mode"
+        description: "Validate the publish lock without publishing"
         required: true
         default: true
         type: boolean
-      allow_private_override:
-        description: "Temporarily patch private=true to private=false during this run"
-        required: true
-        default: false
-        type: boolean
-      skip_checks:
-        description: "Skip lint/test/typecheck before publishing (NOT recommended)"
-        required: true
-        default: false
-        type: boolean
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Release
-    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -64,7 +48,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
@@ -86,74 +70,32 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Create Release PR or Publish
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          version: pnpm changeset:version
-          publish: pnpm run release:publish
-          title: "chore(release): version packages"
-          commit: "chore(release): Version packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  manual-npm-release:
-    name: Publish selected npm packages
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Initialize required submodules
+      - name: Configure release commit author
+        if: github.event_name == 'push'
         run: |
-          git submodule sync -- refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
-          git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy, llvm-tools
-          targets: wasm32-unknown-unknown
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.3
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - name: Install npm with trusted publishing support
-        run: npm install --global npm@11.18.0
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        if: inputs.skip_checks != true
-        run: pnpm lint
-
-      - name: Test
-        if: inputs.skip_checks != true
-        run: pnpm test
-
-      - name: Typecheck
-        if: inputs.skip_checks != true
-        run: pnpm typecheck
-
-      - name: Publish selected packages
-        run: >
-          node tools/publish-npm-packages.mjs
-          --packages "${{ inputs.packages }}"
-          --tag "${{ inputs.npm_tag }}"
-          --dry-run "${{ inputs.dry_run }}"
-          --allow-private-override "${{ inputs.allow_private_override }}"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: npm-release-summary
-          path: .tmp/npm-release-summary.json
-          if-no-files-found: error
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Version or publish the release plan
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p .tmp
+          pnpm tegami ci
+        env:
+          TEGAMI_GITHUB: "1"
+          GITHUB_TOKEN: ${{ github.token }}
+          TMPDIR: ${{ github.workspace }}/.tmp
+      - name: Publish selected locked packages
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_PACKAGES: ${{ inputs.packages }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(publish)
+          if [ "$RELEASE_DRY_RUN" = true ]; then
+            args+=(--dry-run)
+          fi
+          if [ -n "$RELEASE_PACKAGES" ]; then
+            IFS=, read -r -a packages <<< "$RELEASE_PACKAGES"
+            args+=("${packages[@]}")
+          fi
+          pnpm tegami "${args[@]}"

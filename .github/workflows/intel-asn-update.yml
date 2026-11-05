@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+  pull-requests: write
 
 jobs:
   update-asn-db:
@@ -31,12 +31,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-
-      - name: Install npm with trusted publishing support
-        run: npm install --global npm@11.18.0
 
       - run: pnpm install --frozen-lockfile
 
@@ -59,61 +56,26 @@ jobs:
           fi
           echo "✓ Database verified"
 
-      - name: Update version to today's date
-        id: version
-        working-directory: packages/@birdcc/intel
-        run: |
-          # npm requires semver. Use prerelease calendar versioning:
-          # 0.0.1-YYYY-MM-DD.RUN_NUMBER (UTC), e.g. 0.0.1-2026-03-06.227
-          # The extra run number keeps same-day reruns publishable.
-          TODAY=$(date -u +"%Y-%m-%d")
-          VERSION="0.0.1-${TODAY}.${GITHUB_RUN_NUMBER}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${VERSION}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            console.log('Updated version to ${VERSION}');
-          "
-          echo "package_version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_tag=intel-v${VERSION}" >> "$GITHUB_OUTPUT"
+      - name: Record the database update
+        run: node tools/intel-release-note.mjs
 
       - name: Build package
         run: pnpm --filter @birdcc/intel build
 
-      - name: Publish to npm
+      - name: Open the database update pull request
         if: ${{ inputs.dry_run != true }}
-        working-directory: packages/@birdcc/intel
-        run: npm publish --access public --tag latest
-
-      - name: Commit updated database
-        if: ${{ inputs.dry_run != true }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add packages/@birdcc/intel/db/asn-db.bin.gz packages/@birdcc/intel/package.json
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            TODAY=$(date -u +"%Y-%m-%d")
-            git commit -m "chore(intel): Update ASN database to ${TODAY}"
-            git push
-          fi
-
-      - name: Create GitHub Release
-        if: ${{ inputs.dry_run != true }}
-        uses: softprops/action-gh-release@v2
+        uses: peter-evans/create-pull-request@v7
         with:
-          tag_name: ${{ steps.version.outputs.release_tag }}
-          name: "@birdcc/intel ${{ steps.version.outputs.package_version }}"
-          files: packages/@birdcc/intel/db/asn-db.bin.gz
+          branch: feat/weekly-asn-database
+          commit-message: "chore(intel): Update ASN database"
+          title: "chore(intel): Update ASN database"
+          sign-commits: true
+          add-paths: |
+            packages/@birdcc/intel/db/
+            .tegami/weekly-intel-database.md
           body: |
-            Weekly ASN intelligence database update.
-
-            - npm package: `@birdcc/intel@${{ steps.version.outputs.package_version }}`
-            - npm dist-tag: `latest`
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Refresh the bundled ASN intelligence data. The native Tegami
+            record includes this update in the next package release.
 
       - uses: actions/upload-artifact@v4
         with:

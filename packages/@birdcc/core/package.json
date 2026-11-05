@@ -1,6 +1,7 @@
 {
   "name": "@birdcc/core",
   "version": "0.1.2",
+  "publishConfig": { "access": "public" },
   "type": "module",
   "license": "GPL-3.0-only",
   "author": {

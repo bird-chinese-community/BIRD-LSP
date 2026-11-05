@@ -44,6 +44,8 @@ const cargoArgs = [
   "--release",
   "--target",
   "wasm32-unknown-unknown",
+  "--target-dir",
+  cargoTargetDir,
   "--features",
   "wasm",
 ];

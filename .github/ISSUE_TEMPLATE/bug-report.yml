@@ -89,3 +89,9 @@ body:
       label: Relevant Logs
       description: "Paste any relevant logs from the Output panel (`BIRD2 LSP` channel)."
       render: text
+
+  - type: textarea
+    id: release-tracking
+    attributes:
+      label: Related PR or changeset
+      description: Link an existing fix PR or .tegami changeset, if available.

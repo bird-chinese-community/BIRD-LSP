@@ -17,8 +17,7 @@ const run = (command, args, options = {}) => {
 
 const packageManager = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
-run(packageManager, ["exec", "changeset", "version"]);
-run(packageManager, ["install", "--lockfile-only"]);
+run(process.execPath, ["tools/tegami.mjs", "version"]);
 
 const changedFiles = spawnSync(
   "git",

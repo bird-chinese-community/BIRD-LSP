@@ -1,0 +1,36 @@
+name: Tegami PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate native release preview
+        run: |
+          mkdir -p .tmp
+          pnpm tegami pr preview --artifact .tmp/tegami-pr-preview.md
+        env:
+          TEGAMI_GITHUB: "1"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tegami-pr-preview
+          path: .tmp/tegami-pr-preview.md
+          if-no-files-found: error

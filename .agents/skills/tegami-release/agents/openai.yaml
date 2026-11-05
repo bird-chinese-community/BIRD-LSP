@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tegami Releases"
+  short_description: "Changesets, version plans, and npm/VSIX release verification."
+  default_prompt: "Use $tegami-release to record changes, inspect package versions and publishing policy, and verify the release through remote checks and registry results."

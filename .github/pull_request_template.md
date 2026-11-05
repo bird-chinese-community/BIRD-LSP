@@ -17,13 +17,15 @@
 
 ## Changeset
 
-<!-- If this PR changes published packages, a changeset should be included -->
+<!-- Link .tegami/*.md entries and the original implementation Issues. See docs/releasing.md. -->
 
-- [ ] I have added a changeset (`pnpm changeset`) or this change does not affect published packages
+- [ ] Added a Tegami changeset (`pnpm tegami`) for package or release changes
+- Changeset paths:
+- Release impact or migration:
 
 ## Checklist
 
 - [ ] My code follows the project's style guidelines (`pnpm lint && pnpm format`)
 - [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally (`pnpm test`)
+- [ ] Relevant tests pass, with the execution environment and results recorded
 - [ ] Type checking passes (`pnpm typecheck`)
