@@ -59,7 +59,20 @@ jobs:
   package-vsix:
     needs: release-info
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      checks: read
+      contents: read
     steps:
+      # `pnpm deploy --legacy` resolves transitive @birdcc/* packages from npm,
+      # so wait until the Release workflow has published this commit's versions.
+      - name: Wait for npm release
+        if: github.event_name == 'push'
+        uses: lewagon/wait-on-check-action@v1.9.1
+        with:
+          ref: ${{ github.sha }}
+          check-name: Release
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 20
       - uses: actions/checkout@v4
       - name: Initialize required submodules
         run: |

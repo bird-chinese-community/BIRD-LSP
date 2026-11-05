@@ -59,7 +59,9 @@ export const validateChangelogEntry = ({
   version,
   packageName,
 }) => {
-  if (!changelog.includes(`## ${packageName}@${version}\n`)) {
+  // Tegami writes `## name@version`; entries released before Tegami use `## [version]`.
+  const headings = [`## ${packageName}@${version}\n`, `## [${version}]`];
+  if (!headings.some((heading) => changelog.includes(heading))) {
     throw new Error(`${changelogPath} has no entry for ${version}`);
   }
 };

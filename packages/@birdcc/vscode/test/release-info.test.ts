@@ -51,4 +51,13 @@ describe("VS Code release metadata", () => {
       }),
     ).not.toThrow();
   });
+
+  it("accepts the pre-Tegami version heading", () => {
+    expect(() =>
+      validateChangelogEntry({
+        ...releaseEntry,
+        changelog: "## [1.0.0] - 2026-11-05\n",
+      }),
+    ).not.toThrow();
+  });
 });
