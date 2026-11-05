@@ -1,3 +1,68 @@
+## @birdcc/cli@1.0.0
+
+### Apply shared project configuration and LSP request options
+
+Share project configuration validation, apply editor lint and format settings, report invalid configuration, and honor reference declaration requests.
+
+Keep non-empty `linter.extends` string arrays valid as a reserved configuration field; preset inheritance remains a separate capability. Apply explicit `linter.rules` settings to diagnostics and reject invalid field types.
+
+PR: [#233](https://github.com/bird-chinese-community/BIRD-LSP/pull/233).
+Issues: [#177](https://github.com/bird-chinese-community/BIRD-LSP/issues/177), [#178](https://github.com/bird-chinese-community/BIRD-LSP/issues/178), [#179](https://github.com/bird-chinese-community/BIRD-LSP/issues/179), [#180](https://github.com/bird-chinese-community/BIRD-LSP/issues/180).
+
+### Support tab indentation in both formatter engines
+
+Support tab indentation through the formatter's useTabs option in both engines.
+The CLI reads `formatter.useTabs` from `bird.config.json`.
+
+Keep the complete configuration corpus test responsive by moving formatter work to its worker and validating protocol responses.
+
+PR: [#239](https://github.com/bird-chinese-community/BIRD-LSP/pull/239).
+Issues: [#231](https://github.com/bird-chinese-community/BIRD-LSP/issues/231), [#238](https://github.com/bird-chinese-community/BIRD-LSP/issues/238).
+
+### Bound include analysis and reuse parsed documents
+
+Bound analysis inputs and discovery, expose project and editor byte budgets, verify include targets, reuse parsed documents in cross-file lint, and validate performance fixture coverage.
+
+Report asynchronous directory read and close failures with context while retaining partial discovery results. Evict failed discovery promises by identity so later requests can retry without deleting newer cached work.
+
+PR: [#235](https://github.com/bird-chinese-community/BIRD-LSP/pull/235).
+Issues: [#181](https://github.com/bird-chinese-community/BIRD-LSP/issues/181), [#182](https://github.com/bird-chinese-community/BIRD-LSP/issues/182), [#183](https://github.com/bird-chinese-community/BIRD-LSP/issues/183), [#184](https://github.com/bird-chinese-community/BIRD-LSP/issues/184), [#185](https://github.com/bird-chinese-community/BIRD-LSP/issues/185).
+
+### Preserve CLI validation status and runtime schema exports
+
+Preserve formatting check exit codes in JSON mode, report silent validator failures, honor disabled internal linting, and expose output schemas at runtime.
+
+PR: [#222](https://github.com/bird-chinese-community/BIRD-LSP/pull/222).
+Issues: [#186](https://github.com/bird-chinese-community/BIRD-LSP/issues/186), [#187](https://github.com/bird-chinese-community/BIRD-LSP/issues/187), [#188](https://github.com/bird-chinese-community/BIRD-LSP/issues/188), [#189](https://github.com/bird-chinese-community/BIRD-LSP/issues/189).
+
+### Check formatting in CI without changing workspace files
+
+Run package formatting tasks with `--check` in CI. Keep generated README sections owned by their synchronization workflow.
+
+PR: [#226](https://github.com/bird-chinese-community/BIRD-LSP/pull/226).
+Issue: [#203](https://github.com/bird-chinese-community/BIRD-LSP/issues/203).
+
+### Refresh runtime validation and release checks
+
+Update Zod and YAML to patched release lines and refresh the LSP text document implementation.
+
+Validate package release plans, production version commands, lockfile updates, and temporary version-worktree cleanup.
+
+PR: [#223](https://github.com/bird-chinese-community/BIRD-LSP/pull/223).
+Issues: [#194](https://github.com/bird-chinese-community/BIRD-LSP/issues/194), [#243](https://github.com/bird-chinese-community/BIRD-LSP/issues/243).
+
+### Release the BIRDCC toolchain as 1.0.0
+
+Coordinate the parser, semantic analysis, linter, formatter, language server, CLI, ASN data package, VS Code extension, extension pack, and Rust formatter metadata at version 1.0.0.
+
+Use Tegami changesets for package changelogs, version plans, and resumable npm releases. Keep original Issue and PR links in each change entry. Version the private editor packages for their VSIX releases and the Rust crate for its bundled WASM artifact.
+
+Include root Cargo workspace manifests and lockfiles in build cache inputs so Rust dependency and profile changes rebuild the shipped formatter.
+
+The VS Code extension requires VS Code 1.100 or newer. Release tooling requires Node.js 24 or newer.
+
+Related audit: [#162](https://github.com/bird-chinese-community/BIRD-LSP/issues/162).
+
 # Changelog
 
 ## 0.1.2

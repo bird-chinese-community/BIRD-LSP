@@ -1,6 +1,6 @@
 [package]
 name = "dprint-plugin-bird"
-version = "0.0.1"
+version = "1.0.0"
 publish = false
 authors = [
   "bird-chinese-community",

@@ -1,3 +1,51 @@
+## @birdcc/parser@1.0.0
+
+### Preserve syntax while formatting
+
+Use Tree-sitter syntax boundaries for indentation in both formatters and verify syntax and token contents when `safeMode` is enabled in the direct WASM plugin.
+
+PR: [#228](https://github.com/bird-chinese-community/BIRD-LSP/pull/228).
+Issues: [#190](https://github.com/bird-chinese-community/BIRD-LSP/issues/190), [#191](https://github.com/bird-chinese-community/BIRD-LSP/issues/191).
+
+### Coordinate parser and language-client dependency updates
+
+Group the Tree-sitter CLI and runtime updates so grammar generation and the shipped WASM runtime can be verified together. Group the language client and server SDK updates for coordinated protocol and editor-host validation.
+
+PR: [#227](https://github.com/bird-chinese-community/BIRD-LSP/pull/227).
+Issues: [#204](https://github.com/bird-chinese-community/BIRD-LSP/issues/204), [#205](https://github.com/bird-chinese-community/BIRD-LSP/issues/205).
+
+### Preserve symbol identity and infer parsed returns
+
+Resolve user symbols with case-sensitive names across declarations, inheritance, diagnostics, and navigation. Infer function return hints from parsed return statements, including nested control flow.
+
+PR: [#224](https://github.com/bird-chinese-community/BIRD-LSP/pull/224).
+Issues: [#192](https://github.com/bird-chinese-community/BIRD-LSP/issues/192), [#193](https://github.com/bird-chinese-community/BIRD-LSP/issues/193).
+
+### Refresh public configuration examples
+
+Refresh the public reference configuration corpus and its pinned CI input metadata used by parser, formatter, lint, and analysis checks.
+
+Commit: [618394f4](https://github.com/bird-chinese-community/BIRD-LSP/commit/618394f4a79082dd374eb82d26acb9e38abdebf3).
+
+### Check formatting in CI without changing workspace files
+
+Run package formatting tasks with `--check` in CI. Keep generated README sections owned by their synchronization workflow.
+
+PR: [#226](https://github.com/bird-chinese-community/BIRD-LSP/pull/226).
+Issue: [#203](https://github.com/bird-chinese-community/BIRD-LSP/issues/203).
+
+### Release the BIRDCC toolchain as 1.0.0
+
+Coordinate the parser, semantic analysis, linter, formatter, language server, CLI, ASN data package, VS Code extension, extension pack, and Rust formatter metadata at version 1.0.0.
+
+Use Tegami changesets for package changelogs, version plans, and resumable npm releases. Keep original Issue and PR links in each change entry. Version the private editor packages for their VSIX releases and the Rust crate for its bundled WASM artifact.
+
+Include root Cargo workspace manifests and lockfiles in build cache inputs so Rust dependency and profile changes rebuild the shipped formatter.
+
+The VS Code extension requires VS Code 1.100 or newer. Release tooling requires Node.js 24 or newer.
+
+Related audit: [#162](https://github.com/bird-chinese-community/BIRD-LSP/issues/162).
+
 # @birdcc/parser
 
 ## 0.1.2

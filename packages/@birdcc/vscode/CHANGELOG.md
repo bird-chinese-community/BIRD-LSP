@@ -1,3 +1,95 @@
+## @birdcc/vscode@1.0.0
+
+### Honor the workspace build graph and observe stdio shutdown
+
+Complete shared dependency builds before running workspace test tasks. Bound stdio test requests, report server failures, observe shutdown responses, and dispose spawned servers in compatibility CI.
+
+PR: [#241](https://github.com/bird-chinese-community/BIRD-LSP/pull/241).
+Issue: [#240](https://github.com/bird-chinese-community/BIRD-LSP/issues/240).
+
+### Coordinate parser and language-client dependency updates
+
+Group the Tree-sitter CLI and runtime updates so grammar generation and the shipped WASM runtime can be verified together. Group the language client and server SDK updates for coordinated protocol and editor-host validation.
+
+PR: [#227](https://github.com/bird-chinese-community/BIRD-LSP/pull/227).
+Issues: [#204](https://github.com/bird-chinese-community/BIRD-LSP/issues/204), [#205](https://github.com/bird-chinese-community/BIRD-LSP/issues/205).
+
+### Package current workspace runtime dependencies
+
+Resolve internal runtime dependencies from the current workspace when packaging the extension. Pin VSCE and Open VSX tooling, verify internal package contents in the VSIX, and exercise the installed bundled server on the minimum supported and stable VS Code hosts.
+
+PR: [#234](https://github.com/bird-chinese-community/BIRD-LSP/pull/234).
+Issues: [#202](https://github.com/bird-chinese-community/BIRD-LSP/issues/202), [#242](https://github.com/bird-chinese-community/BIRD-LSP/issues/242).
+
+### Update editor configuration dependencies
+
+Update editor configuration dependencies to patched Zod and YAML releases.
+
+PR: [#223](https://github.com/bird-chinese-community/BIRD-LSP/pull/223).
+Issue: [#194](https://github.com/bird-chinese-community/BIRD-LSP/issues/194).
+
+### Check formatting in CI without changing workspace files
+
+Run package formatting tasks with `--check` in CI. Keep generated README sections owned by their synchronization workflow.
+
+PR: [#226](https://github.com/bird-chinese-community/BIRD-LSP/pull/226).
+Issue: [#203](https://github.com/bird-chinese-community/BIRD-LSP/issues/203).
+
+### Release the BIRDCC toolchain as 1.0.0
+
+Coordinate the parser, semantic analysis, linter, formatter, language server, CLI, ASN data package, VS Code extension, extension pack, and Rust formatter metadata at version 1.0.0.
+
+Use Tegami changesets for package changelogs, version plans, and resumable npm releases. Keep original Issue and PR links in each change entry. Version the private editor packages for their VSIX releases and the Rust crate for its bundled WASM artifact.
+
+Include root Cargo workspace manifests and lockfiles in build cache inputs so Rust dependency and profile changes rebuild the shipped formatter.
+
+The VS Code extension requires VS Code 1.100 or newer. Release tooling requires Node.js 24 or newer.
+
+Related audit: [#162](https://github.com/bird-chinese-community/BIRD-LSP/issues/162).
+
+### Coordinate extension dependency builds and stdio regressions
+
+Build the extension's dependency closure before workspace tests and avoid rebuilding shared outputs while other test processes use them. Give the complete multi-stage real-stdio ownership regression a bounded execution budget while retaining each state assertion and cleanup step.
+
+PR: [#245](https://github.com/bird-chinese-community/BIRD-LSP/pull/245).
+Related issue: [#240](https://github.com/bird-chinese-community/BIRD-LSP/issues/240).
+
+### Require VS Code 1.100 or newer
+
+Require VS Code 1.100 or newer for the ESM extension entry point and test the minimum supported host alongside stable.
+
+Update VS Code before installing this release when using an older host.
+
+PR: [#225](https://github.com/bird-chinese-community/BIRD-LSP/pull/225).
+Issue: [#163](https://github.com/bird-chinese-community/BIRD-LSP/issues/163).
+
+### Recover the language client and preserve validation diagnostics
+
+Terminate timed-out server processes, follow client connection state, retain manual validation diagnostics, and validate saved content with fallback validation.
+
+Stop persistent fallback validation after the language client recovers and keep the status bar aligned with the actual connection state.
+
+PR: [#229](https://github.com/bird-chinese-community/BIRD-LSP/pull/229).
+Issues: [#164](https://github.com/bird-chinese-community/BIRD-LSP/issues/164), [#165](https://github.com/bird-chinese-community/BIRD-LSP/issues/165), [#166](https://github.com/bird-chinese-community/BIRD-LSP/issues/166), [#170](https://github.com/bird-chinese-community/BIRD-LSP/issues/170), [#171](https://github.com/bird-chinese-community/BIRD-LSP/issues/171).
+
+### Honor the public protocol trace setting
+
+Read language-client protocol tracing from the public bird2-lsp configuration namespace during startup and configuration changes.
+
+Use `bird2-lsp.trace.server` to select `off`, `messages`, or `verbose`.
+
+PR: [#237](https://github.com/bird-chinese-community/BIRD-LSP/pull/237).
+Issue: [#246](https://github.com/bird-chinese-community/BIRD-LSP/issues/246).
+
+### Apply resource settings and editor formatting options
+
+Apply resource settings to local providers, preserve valid configuration fields, forward ASN preferences, respect editor formatting options, and return small edits with cancellation checks.
+
+Use current document content for large-file decisions and retain configured diagnostic visibility. Verify the installed VSIX starts its bundled server on the minimum supported and stable extension hosts.
+
+PR: [#237](https://github.com/bird-chinese-community/BIRD-LSP/pull/237).
+Issues: [#167](https://github.com/bird-chinese-community/BIRD-LSP/issues/167), [#168](https://github.com/bird-chinese-community/BIRD-LSP/issues/168), [#169](https://github.com/bird-chinese-community/BIRD-LSP/issues/169), [#172](https://github.com/bird-chinese-community/BIRD-LSP/issues/172), [#173](https://github.com/bird-chinese-community/BIRD-LSP/issues/173), [#174](https://github.com/bird-chinese-community/BIRD-LSP/issues/174), [#209](https://github.com/bird-chinese-community/BIRD-LSP/issues/209).
+
 # Changelog 🕊️
 
 <!-- markdownlint-disable MD024 -->
