@@ -160,9 +160,15 @@ jobs:
           if-no-files-found: error
 
   vscode-e2e-smoke:
-    name: VS Code E2E smoke
+    name: VS Code E2E smoke (${{ matrix.vscode }})
     needs: turbo
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        vscode: ["1.100.0", "stable"]
+    env:
+      VSCODE_TEST_VERSION: ${{ matrix.vscode }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

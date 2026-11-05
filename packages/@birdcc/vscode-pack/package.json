@@ -29,7 +29,7 @@
     "syntax-highlighting"
   ],
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.100.0"
   },
   "categories": [
     "Extension Packs"

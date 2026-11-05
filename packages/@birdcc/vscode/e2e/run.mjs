@@ -1,6 +1,6 @@
 import path from "node:path";
 import os from "node:os";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { runTests } from "@vscode/test-electron";
@@ -14,11 +14,25 @@ const run = async () => {
 
   const userDataDir = await mkdtemp(path.join(os.tmpdir(), "birdcc-vscode-"));
   try {
+    await mkdir(path.join(userDataDir, "workspace"));
+    await mkdir(path.join(userDataDir, "secondary"));
+    const workspacePath = path.join(userDataDir, "test.code-workspace");
+    await writeFile(
+      workspacePath,
+      JSON.stringify({
+        folders: [{ path: "workspace" }, { path: "secondary" }],
+      }),
+    );
     await runTests({
-      version: "stable",
+      version: process.env.VSCODE_TEST_VERSION ?? "stable",
       extensionDevelopmentPath,
       extensionTestsPath,
-      launchArgs: ["--disable-extensions", `--user-data-dir=${userDataDir}`],
+      launchArgs: [
+        workspacePath,
+        "--disable-extensions",
+        "--disable-workspace-trust",
+        `--user-data-dir=${userDataDir}`,
+      ],
     });
   } finally {
     await rm(userDataDir, { recursive: true, force: true });
