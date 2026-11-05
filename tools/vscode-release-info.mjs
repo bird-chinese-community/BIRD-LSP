@@ -4,8 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const workspaceRoot = path.resolve(path.dirname(scriptPath), "..");
-const releaseBaseUrl =
-  "https://github.com/bird-chinese-community/BIRD-LSP/releases/tag";
 
 const releasePackages = [
   {
@@ -59,22 +57,10 @@ export const validateChangelogEntry = ({
   changelog,
   changelogPath,
   version,
-  releaseTag,
+  packageName,
 }) => {
-  if (!changelog.includes(`## [${version}]`)) {
+  if (!changelog.includes(`## ${packageName}@${version}\n`)) {
     throw new Error(`${changelogPath} has no entry for ${version}`);
-  }
-
-  if (!releaseTag) {
-    return;
-  }
-
-  const expectedLink = `[${version}]: ${releaseBaseUrl}/${releaseTag}`;
-  const changelogLines = changelog.split("\n").map((line) => line.trim());
-  if (!changelogLines.includes(expectedLink)) {
-    throw new Error(
-      `${changelogPath} must define the release link: ${expectedLink}`,
-    );
   }
 };
 
@@ -99,7 +85,7 @@ const loadReleasePackage = async (releasePackage) => {
     changelog,
     changelogPath: releasePackage.changelogPath,
     version: manifest.version,
-    releaseTag,
+    packageName: manifest.name,
   });
 
   return {

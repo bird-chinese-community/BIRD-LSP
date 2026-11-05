@@ -1,0 +1,41 @@
+name: Tegami PR Comment
+
+on:
+  workflow_run:
+    workflows: ["Tegami PR Preview"]
+    types: [completed]
+
+jobs:
+  comment:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: tegami-pr-preview
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: .tmp/tegami-preview
+      - name: Post native release preview
+        run: pnpm tegami pr comment .tmp/tegami-preview/tegami-pr-preview.md
+        env:
+          TEGAMI_GITHUB: "1"
+          GITHUB_TOKEN: ${{ github.token }}

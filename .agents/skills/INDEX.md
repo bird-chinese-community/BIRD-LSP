@@ -20,7 +20,7 @@
 | VS Code 扩展开发      | [`vscode-extension-builder`](#vscode-extension-builder) |
 | GitHub 项目管理       | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     |
 | PR 评论处理           | [`pr-address-comments`](#pr-address-comments)           |
-| npm 版本升级          | [`bumpp-npm-versioning`](#bumpp-npm-versioning)         |
+| Changeset 与版本发布  | [`tegami-release`](#tegami-release)                    |
 
 ---
 
@@ -58,7 +58,7 @@
 | [`vscode-extension-builder`](#vscode-extension-builder) | VS Code Extension API    | 扩展脚手架、命令/webview/语言支持、打包发布       |
 | [`vibe-coding-github-sop`](#vibe-coding-github-sop)     | GitHub (Issues/Projects) | Epic 管理、Sub-Issues 拆分、标签体系、Projects v2 |
 | [`pr-address-comments`](#pr-address-comments)           | GitHub PR                | PR 评论处理、代码审查反馈                         |
-| [`bumpp-npm-versioning`](#bumpp-npm-versioning)         | bumpp + npm + gh         | Monorepo npm 包版本升级与发布可见性检查           |
+| [`tegami-release`](#tegami-release)                    | Tegami + npm + gh       | Changeset、版本计划与 npm/VSIX 发布核对           |
 
 ---
 
@@ -258,17 +258,17 @@
 
 ---
 
-### bumpp-npm-versioning
+### tegami-release
 
-**描述**: 使用 bumpp 在 monorepo 中统一提升 npm 包版本，并执行发布前后可见性检查。
+**描述**: 使用 Tegami 记录变更、核对版本计划与发布 PR，并验证 npm 和 VSIX 的交付结果。
 
 **使用场景**:
 
-- 发版前统一 bump npm 包版本
-- 需要排除特定包（例如 vscode、intel）
-- 校验 npm/gh 上的发布状态
+- 为包变更记录原生 changeset 与原 Issue、PR 链接
+- 核对 workspace 包、编辑器和 Rust 插件的版本与发布策略
+- 在远端验证版本生成与锁文件，校验 npm、Marketplace 和 GitHub 状态
 
-**触发关键词**: bumpp、npm version、pre-release、发布检查、npm view、gh run
+**触发关键词**: Tegami、changeset、版本计划、Version Packages、发布检查、npm view、gh run
 
 ---
 

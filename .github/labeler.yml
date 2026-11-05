@@ -44,7 +44,7 @@
       - any-glob-to-any-file:
           - "docs/**"
           - "**/*.md"
-          - "!.changeset/**"
+          - "!.tegami/**"
 
 "dependencies":
   - changed-files:
@@ -56,5 +56,7 @@
 "release":
   - changed-files:
       - any-glob-to-any-file:
-          - ".changeset/**"
-          - "tools/publish-npm-packages.mjs"
+          - ".tegami/**"
+          - "tools/tegami*.mjs"
+          - "tools/*release*.mjs"
+          - "tools/version-packages.mjs"

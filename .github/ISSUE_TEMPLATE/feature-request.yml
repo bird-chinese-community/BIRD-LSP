@@ -52,3 +52,9 @@ body:
     attributes:
       label: Additional Context
       description: Add any other context, screenshots, or BIRD2 config examples.
+
+  - type: textarea
+    id: release-tracking
+    attributes:
+      label: Related PR or changeset
+      description: Link an existing implementation PR or .tegami changeset, if available.

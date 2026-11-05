@@ -12,7 +12,7 @@ concurrency:
 
 env:
   PNPM_VERSION: "10.18.3"
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
 
 jobs:
   prek:
@@ -33,16 +33,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm changeset:status --since=origin/main
+      - run: pnpm release:status --since origin/main
+        env:
+          TEGAMI_VERSION_PR: ${{ github.event_name == 'pull_request' && github.head_ref == 'feat/tegami-version-packages' && github.event.pull_request.user.login == 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && '1' || '0' }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: node --test tools/test/release-status.test.mjs
       - name: Validate release versioning in an isolated worktree
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           TMPDIR: ${{ github.workspace }}/.tmp/release-version-tmp
         run: |
           mkdir -p "$TMPDIR"
           git worktree add --detach .tmp/release-version-check HEAD
           pnpm --dir .tmp/release-version-check install --frozen-lockfile --ignore-scripts
-          pnpm --dir .tmp/release-version-check changeset:version
+          pnpm --dir .tmp/release-version-check release:version
       - name: Remove release validation workspace
         if: always()
         run: |

@@ -20,4 +20,4 @@ packages/@birdcc/vscode-pack/ @bird-chinese-community/maintainers
 
 # Release & tooling
 tools/ @bird-chinese-community/maintainers
-.changeset/ @bird-chinese-community/maintainers
+.tegami/ @bird-chinese-community/maintainers
