@@ -14,7 +14,6 @@ import {
   BIRD_DOCUMENT_SELECTOR,
   CONFIG_SECTION,
   DEFAULT_SERVER_PATH,
-  EXTENSION_ID,
   EXTENSION_NAME,
 } from "../constants.js";
 import {
@@ -147,7 +146,7 @@ export const createLanguageClient = (
   };
 
   const client = new LanguageClient(
-    EXTENSION_ID,
+    CONFIG_SECTION,
     EXTENSION_NAME,
     serverOptions,
     clientOptions,
