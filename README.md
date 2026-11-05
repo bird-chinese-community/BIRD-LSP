@@ -248,6 +248,8 @@ This project is licensed under the [GPL-3.0 License](https://github.com/bird-chi
 
 ## 🙏 Acknowledgements
 
+<!-- prettier-ignore-start -->
+
 <!-- CI START -->
 We gratefully acknowledge these upstream repositories for the real-world BIRD configuration examples that help validate parsing, formatting, linting, and editor support in this project:
 
@@ -258,6 +260,8 @@ We gratefully acknowledge these upstream repositories for the real-world BIRD co
 - [`SunyzNET/bird-config`](https://github.com/SunyzNET/bird-config)
 - [`tianshome/bird-configs-output`](https://github.com/tianshome/bird-configs-output)
 <!-- CI END -->
+
+<!-- prettier-ignore-end -->
 
 ---
 

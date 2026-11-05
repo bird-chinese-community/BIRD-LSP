@@ -5,15 +5,15 @@
     ".claude/*",
     "refer/*",
     "package.json",
-    "node_modules/*",
-    "dist/*",
-    ".turbo/*",
-    "target/*",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/target/**",
     "*.lock",
     "pnpm-*.yaml",
-    "*-lock.json",
+    "*-lock.json"
   ],
   "printWidth": 80,
   "tabWidth": 2,
-  "useTabs": false,
+  "useTabs": false
 }
