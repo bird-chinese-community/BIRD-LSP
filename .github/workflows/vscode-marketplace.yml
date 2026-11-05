@@ -63,8 +63,8 @@ jobs:
       checks: read
       contents: read
     steps:
-      # `pnpm deploy --legacy` resolves transitive @birdcc/* packages from npm,
-      # so wait until the Release workflow has published this commit's versions.
+      # Wait for this commit's backend release checks and publication
+      # before distributing editor artifacts.
       - name: Wait for npm release
         if: github.event_name == 'push'
         uses: lewagon/wait-on-check-action@v1.9.1
