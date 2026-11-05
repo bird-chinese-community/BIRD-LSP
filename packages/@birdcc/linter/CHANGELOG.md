@@ -1,5 +1,17 @@
 # @birdcc/linter
 
+## 0.1.3
+
+### Patch Changes
+
+- [#224](https://github.com/bird-chinese-community/BIRD-LSP/pull/224) [`250ea18`](https://github.com/bird-chinese-community/BIRD-LSP/commit/250ea187046daba6b8c921838e15f1517c092113) Thanks [@Alice39s](https://github.com/Alice39s)! - Resolve user symbols with case-sensitive names across declarations, inheritance, diagnostics, and navigation. Infer function return hints from parsed return statements, including nested control flow.
+
+- [#235](https://github.com/bird-chinese-community/BIRD-LSP/pull/235) [`1239191`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1239191d4f1aea01a8d53a3aca0770b55c470715) Thanks [@Alice39s](https://github.com/Alice39s)! - Bound analysis inputs and discovery, expose project and editor byte budgets, verify include targets, reuse parsed documents in cross-file lint, and validate performance fixture coverage.
+
+- Updated dependencies [[`3b1f107`](https://github.com/bird-chinese-community/BIRD-LSP/commit/3b1f10722f1c267e9903e886ef7a0cedcc1561bd), [`824f2e7`](https://github.com/bird-chinese-community/BIRD-LSP/commit/824f2e750ba963bbfae4394365aec3d9192dee85), [`250ea18`](https://github.com/bird-chinese-community/BIRD-LSP/commit/250ea187046daba6b8c921838e15f1517c092113), [`1239191`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1239191d4f1aea01a8d53a3aca0770b55c470715)]:
+  - @birdcc/parser@0.1.3
+  - @birdcc/core@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.3
+
+### Patch Changes
+
+- [#233](https://github.com/bird-chinese-community/BIRD-LSP/pull/233) [`824f2e7`](https://github.com/bird-chinese-community/BIRD-LSP/commit/824f2e750ba963bbfae4394365aec3d9192dee85) Thanks [@Alice39s](https://github.com/Alice39s)! - Share project configuration validation, apply editor lint and format settings, report invalid configuration, and honor reference declaration requests.
+
+- [#239](https://github.com/bird-chinese-community/BIRD-LSP/pull/239) [`21a423f`](https://github.com/bird-chinese-community/BIRD-LSP/commit/21a423fdb0bb838fe54625eb7a37feed9191cb37) Thanks [@Alice39s](https://github.com/Alice39s)! - Support tab indentation through the formatter's useTabs option in both engines.
+  The CLI reads `formatter.useTabs` from `bird.config.json`.
+
+- [#235](https://github.com/bird-chinese-community/BIRD-LSP/pull/235) [`1239191`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1239191d4f1aea01a8d53a3aca0770b55c470715) Thanks [@Alice39s](https://github.com/Alice39s)! - Bound analysis inputs and discovery, expose project and editor byte budgets, verify include targets, reuse parsed documents in cross-file lint, and validate performance fixture coverage.
+
+- [#222](https://github.com/bird-chinese-community/BIRD-LSP/pull/222) [`57b96f9`](https://github.com/bird-chinese-community/BIRD-LSP/commit/57b96f9de104b3dfc1d030f755ae675a9cd8bba5) Thanks [@Alice39s](https://github.com/Alice39s)! - Preserve formatting check exit codes in JSON mode, report silent validator failures, honor disabled internal linting, and expose output schemas at runtime.
+
+- [#223](https://github.com/bird-chinese-community/BIRD-LSP/pull/223) [`1f9c187`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1f9c1879efa4307701d5dd977ee7db14c556d6f1) Thanks [@Alice39s](https://github.com/Alice39s)! - Update Zod and YAML to patched release lines and refresh the LSP text document implementation.
+
+- Updated dependencies [[`3b1f107`](https://github.com/bird-chinese-community/BIRD-LSP/commit/3b1f10722f1c267e9903e886ef7a0cedcc1561bd), [`1837133`](https://github.com/bird-chinese-community/BIRD-LSP/commit/183713315eb9521b3348d2f8d0577d73a38cc92e), [`824f2e7`](https://github.com/bird-chinese-community/BIRD-LSP/commit/824f2e750ba963bbfae4394365aec3d9192dee85), [`3f79d9d`](https://github.com/bird-chinese-community/BIRD-LSP/commit/3f79d9d9e68b3fd91f50a4dcd395a506084901cf), [`21a423f`](https://github.com/bird-chinese-community/BIRD-LSP/commit/21a423fdb0bb838fe54625eb7a37feed9191cb37), [`250ea18`](https://github.com/bird-chinese-community/BIRD-LSP/commit/250ea187046daba6b8c921838e15f1517c092113), [`1239191`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1239191d4f1aea01a8d53a3aca0770b55c470715), [`e68aa8b`](https://github.com/bird-chinese-community/BIRD-LSP/commit/e68aa8bcd9f7aeea033a0b0db2b3d95f69a77ffd), [`1f9c187`](https://github.com/bird-chinese-community/BIRD-LSP/commit/1f9c1879efa4307701d5dd977ee7db14c556d6f1), [`0248b6d`](https://github.com/bird-chinese-community/BIRD-LSP/commit/0248b6de001f743ec530b7b8bbf0977b5c139dca)]:
+  - @birdcc/formatter@0.1.3
+  - @birdcc/lsp@0.1.3
+  - @birdcc/core@0.1.3
+  - @birdcc/linter@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes
