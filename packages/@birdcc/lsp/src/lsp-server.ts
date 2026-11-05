@@ -61,11 +61,14 @@ import {
 } from "./utils.js";
 import { createValidationScheduler } from "./validation.js";
 import { isPathWithinRoot } from "./paths.js";
+import {
+  createProjectConfigWatchers,
+  PROJECT_CONFIG_FILE_NAMES,
+} from "./config-watchers.js";
 
 const VALIDATION_DEBOUNCE_MS = 120;
 const INCLUDE_MAX_DEPTH = DEFAULT_CROSS_FILE_MAX_DEPTH;
 const INCLUDE_MAX_FILES = DEFAULT_CROSS_FILE_MAX_FILES;
-const PROJECT_CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"];
 const IGNORED_WATCH_DIRECTORIES = new Set([
   ".git",
   "node_modules",
@@ -170,6 +173,21 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const activeAnalyses = new Set<{ uri: string; rootUri?: string }>();
   const watchedDependencyDirectories = new Set<string>();
   const configurationWatchRegistrations = new Map<string, Promise<void>>();
+  const configWatchers = createProjectConfigWatchers(
+    (uri) => {
+      projectResolver.invalidate(uri);
+      invalidateAnalysis(uri, true);
+    },
+    (directory, error) => {
+      const code =
+        "code" in error && typeof error.code === "string"
+          ? ` [${error.code}]`
+          : "";
+      connection.console.error(
+        `Unable to watch project configuration in ${directory}${code}: ${error.message}`,
+      );
+    },
+  );
   let nextGeneration = 0;
   const watchGlob = (
     baseUri: string,
@@ -259,12 +277,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
 
   const registerRootlessConfigWatchers = async (uri: string): Promise<void> => {
-    if (
-      !supportsDynamicFileWatching ||
-      workspaceRootUris.length > 0 ||
-      !uri.startsWith("file://")
-    )
-      return;
+    if (workspaceRootUris.length > 0 || !uri.startsWith("file://")) return;
+
+    configWatchers.watch(uri);
+    if (!supportsDynamicFileWatching) return;
 
     const directories: string[] = [];
     let directory = dirname(fileURLToPath(uri));
@@ -310,6 +326,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
     const identity = documents.get(document.uri);
     const version = document.version;
     const generation = generationByUri.get(document.uri);
+    if (
+      !identity ||
+      identity.version !== version ||
+      identity.getText() !== document.getText()
+    )
+      throw new ResponseError(
+        LSPErrorCodes.ContentModified,
+        `Project input changed: ${document.uri}`,
+      );
     await registerRootlessConfigWatchers(document.uri);
     const project = await projectResolver.resolve({
       documentUri: document.uri,
@@ -1117,6 +1142,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
     eligibilityByUri.delete(event.document.uri);
     scheduler.close(event.document.uri);
     generationByUri.delete(event.document.uri);
+    void configWatchers.unwatch(event.document.uri);
   });
 
   const getParsedDocument = async (
@@ -1360,9 +1386,11 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onShutdown(() => {
     hasShutdownBeenRequested = true;
+    return configWatchers.dispose();
   });
 
   connection.onExit(() => {
+    void configWatchers.dispose();
     if (!hasShutdownBeenRequested) {
       process.exitCode = 1;
     }

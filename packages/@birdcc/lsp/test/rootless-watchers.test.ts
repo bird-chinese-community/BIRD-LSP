@@ -24,7 +24,11 @@ const renamed = "template bgp renamed { local as 65000; }\n";
 
 const startSession = (
   root: string,
-  options: { workspaceRoot?: string; relativePatterns?: boolean } = {},
+  options: {
+    workspaceRoot?: string;
+    relativePatterns?: boolean;
+    dynamicRegistration?: boolean;
+  } = {},
 ) => {
   const child = spawn(
     process.execPath,
@@ -170,17 +174,18 @@ const startSession = (
         capabilities: {
           workspace: {
             didChangeWatchedFiles: {
-              dynamicRegistration: true,
+              dynamicRegistration: options.dynamicRegistration ?? true,
               relativePatternSupport: options.relativePatterns ?? true,
             },
           },
         },
       });
       await connection.sendNotification("initialized", {});
-      await vi.waitFor(
-        () => expect(watchers.length).toBeGreaterThanOrEqual(4),
-        { timeout: 10000 },
-      );
+      if (options.dynamicRegistration !== false)
+        await vi.waitFor(
+          () => expect(watchers.length).toBeGreaterThanOrEqual(4),
+          { timeout: 10000 },
+        );
     },
     async open(path: string, text: string) {
       const uri = pathToFileURL(path).toString();
@@ -208,6 +213,51 @@ const startSession = (
     },
   };
 };
+
+it.each([false, true])(
+  "observes immediate config writes after another project closes (dynamic registration %s)",
+  async (dynamicRegistration) => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-native-config-"));
+    const session = startSession(root, { dynamicRegistration });
+    try {
+      const first = join(root, "first");
+      const second = join(root, "second");
+      for (const directory of [first, second]) {
+        await mkdir(directory);
+        await writeFile(join(directory, "bird.conf"), source);
+        await writeFile(join(directory, "base.inc"), shared);
+        await writeFile(
+          join(directory, "bird.config.json"),
+          JSON.stringify({ main: "bird.conf", crossFile: { enabled: false } }),
+        );
+      }
+      await session.initialize();
+      const firstUri = await session.open(join(first, "bird.conf"), source);
+      await session.waitForDiagnostics(firstUri, true);
+      const secondUri = await session.open(join(second, "bird.conf"), source);
+      await session.waitForDiagnostics(secondUri, true);
+      await session.close(firstUri);
+      await vi.waitFor(
+        () =>
+          expect(
+            session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+              ?.diagnostics,
+          ).toEqual([]),
+        { timeout: 10000 },
+      );
+      const after = session.diagnostics.length;
+      await writeFile(
+        join(second, "bird.config.json"),
+        JSON.stringify({ main: "bird.conf", crossFile: { enabled: true } }),
+      );
+      await session.waitForDiagnostics(secondUri, false, after);
+    } finally {
+      session.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60000,
+);
 
 it.each(["bird.config.json", "birdcc.config.json"])(
   "reloads a newly created %s without document edits or workspace roots",
