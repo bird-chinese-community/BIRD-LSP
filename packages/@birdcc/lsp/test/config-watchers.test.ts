@@ -119,6 +119,90 @@ it("propagates an unexpected directory watcher error unchanged", async () => {
   }
 });
 
+it("retains shared include monitoring while graphs and document owners change", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-include-owners-"));
+  const changed: string[] = [];
+  const errors: Error[] = [];
+  const activeHandles = new Set<number>();
+  const hook = createHook({
+    init: (id, type) => {
+      if (type === "FSEVENTWRAP") activeHandles.add(id);
+    },
+    destroy: (id) => activeHandles.delete(id),
+  }).enable();
+  const watchers = createProjectConfigWatchers(
+    (uri) => changed.push(uri),
+    (_directory, error) => errors.push(error),
+  );
+  try {
+    const first = join(root, "first");
+    const second = join(root, "second");
+    const shared = join(root, "shared");
+    const replacement = join(root, "replacement");
+    for (const directory of [first, second, shared, replacement])
+      await mkdir(directory);
+    const firstUri = pathToFileURL(join(first, "bird.conf")).toString();
+    const secondUri = pathToFileURL(join(second, "bird.conf")).toString();
+    watchers.watch(firstUri);
+    watchers.watch(secondUri);
+    const configHandleCount = activeHandles.size;
+    const sharedUri = pathToFileURL(shared).toString();
+    await watchers.watchDependencies(firstUri, [sharedUri]);
+    expect(activeHandles.size).toBe(configHandleCount + 1);
+    await watchers.watchDependencies(secondUri, [sharedUri]);
+    expect(activeHandles.size).toBe(configHandleCount + 1);
+    await watchers.clearDependencies(firstUri);
+    const sharedFile = pathToFileURL(join(shared, "closed.inc"));
+    await writeFile(sharedFile, "template bgp shared { local as 65000; }\n");
+    await vi.waitFor(() => expect(changed).toContain(sharedFile.toString()), {
+      timeout: 10000,
+    });
+
+    await watchers.watchDependencies(firstUri, [
+      pathToFileURL(replacement).toString(),
+    ]);
+    expect(activeHandles.size).toBe(configHandleCount + 2);
+    await watchers.clearDependencies(secondUri);
+    await vi.waitFor(
+      () => expect(activeHandles.size).toBe(configHandleCount + 1),
+      { timeout: 10000 },
+    );
+    let after = changed.length;
+    await writeFile(sharedFile, "removed owner\n");
+    const currentFile = pathToFileURL(join(replacement, "current.inc"));
+    await writeFile(currentFile, "template bgp current { local as 65001; }\n");
+    await vi.waitFor(
+      () => expect(changed.slice(after)).toContain(currentFile.toString()),
+      { timeout: 10000 },
+    );
+    expect(changed.slice(after)).not.toContain(sharedFile.toString());
+
+    await watchers.unwatch(firstUri);
+    await vi.waitFor(
+      () => expect(activeHandles.size).toBe(configHandleCount - 1),
+      { timeout: 10000 },
+    );
+    after = changed.length;
+    const config = pathToFileURL(join(second, "bird.config.json"));
+    await writeFile(config, "{}");
+    await vi.waitFor(
+      () => expect(changed.slice(after)).toContain(config.toString()),
+      { timeout: 10000 },
+    );
+    expect(errors).toEqual([]);
+  } finally {
+    await watchers.dispose();
+    try {
+      await vi.waitFor(() => expect(activeHandles.size).toBe(0), {
+        timeout: 10000,
+      });
+    } finally {
+      hook.disable();
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+}, 60000);
+
 it("shares native directory handles and releases each final document owner", async () => {
   const root = await mkdtemp(join(tmpdir(), "birdcc-config-owners-"));
   const changed: string[] = [];

@@ -257,6 +257,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
 
   const clearEntryTracking = (entryUri: string): void => {
+    void configWatchers.clearDependencies(entryUri);
     const previousUris = publishedUrisByEntry.get(entryUri);
     publishedUrisByEntry.delete(entryUri);
     if (previousUris) {
@@ -652,6 +653,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
 
     if (!project.crossFileEnabled) {
+      await configWatchers.clearDependencies(document.uri);
+      assertCurrent();
       const lintResult = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
@@ -769,12 +772,24 @@ export const startLspServer = (options?: LspServerOptions): void => {
       ]),
     };
 
+    const dependencyDirectories = [
+      ...(graph.dependencyDirectoryUris ?? []),
+    ].filter(
+      (uri) =>
+        project.allowIncludeOutsideWorkspace ||
+        isWithinUri(uri, workspaceRootUri),
+    );
+    if (workspaceRootUris.length === 0 && document.uri.startsWith("file://")) {
+      assertCurrent(visitedUris);
+      await configWatchers.watchDependencies(
+        document.uri,
+        dependencyDirectories,
+      );
+      assertCurrent(visitedUris);
+    }
     if (supportsDynamicFileWatching) {
-      const directories = [...(graph.dependencyDirectoryUris ?? [])].filter(
-        (uri) =>
-          !watchedDependencyDirectories.has(uri) &&
-          (project.allowIncludeOutsideWorkspace ||
-            isWithinUri(uri, workspaceRootUri)),
+      const directories = dependencyDirectories.filter(
+        (uri) => !watchedDependencyDirectories.has(uri),
       );
       for (const uri of directories) watchedDependencyDirectories.add(uri);
       if (directories.length)

@@ -187,8 +187,11 @@ const startSession = (
           { timeout: 10000 },
         );
     },
-    async open(path: string, text: string) {
-      const uri = pathToFileURL(path).toString();
+    async open(path: string | URL, text: string) {
+      const uri =
+        typeof path === "string"
+          ? pathToFileURL(path).toString()
+          : path.toString();
       await connection.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "bird", version: 1, text },
       });
@@ -213,6 +216,95 @@ const startSession = (
     },
   };
 };
+
+it("analyzes an untitled document without native file registrations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-untitled-"));
+  const session = startSession(root);
+  try {
+    await session.initialize();
+    const uri = await session.open(
+      new URL("untitled:birdcc-config"),
+      "router id 192.0.2.1;\nprotocol bgp untitled_peer { local as 65000; }\n",
+    );
+    await vi.waitFor(
+      () =>
+        expect(session.hasDiagnostic(uri, "bgp/missing-neighbor")).toBe(true),
+      { timeout: 10000 },
+    );
+    expect(session.hasDiagnostic(uri, "lsp/internal-error")).toBe(false);
+  } finally {
+    session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30000);
+
+it.each([false, true])(
+  "observes a closed include immediately after diagnostics (dynamic registration %s)",
+  async (dynamicRegistration) => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-native-include-"));
+    const session = startSession(root, { dynamicRegistration });
+    try {
+      await writeFile(join(root, "bird.conf"), source);
+      await writeFile(join(root, "other.conf"), source);
+      const include = join(root, "base.inc");
+      await writeFile(include, shared);
+      await session.initialize();
+      const firstUri = await session.open(join(root, "bird.conf"), source);
+      await session.waitForDiagnostics(firstUri, false);
+      const secondUri = await session.open(join(root, "other.conf"), source);
+      await session.waitForDiagnostics(secondUri, false);
+      await session.close(firstUri);
+      await vi.waitFor(
+        () =>
+          expect(
+            session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+              ?.diagnostics,
+          ).toEqual([]),
+        { timeout: 10000 },
+      );
+      let after = session.diagnostics.length;
+      await writeFile(include, renamed);
+      await session.waitForDiagnostics(secondUri, true, after);
+      after = session.diagnostics.length;
+      await writeFile(include, shared);
+      await session.waitForDiagnostics(secondUri, false, after);
+      expect(
+        session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+          ?.diagnostics,
+      ).toEqual([]);
+    } finally {
+      session.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60000,
+);
+
+it("observes wildcard member deletion and creation without client file events", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-native-wildcard-"));
+  const session = startSession(root);
+  const text = source.replace('"base.inc"', '"parts/*.inc"');
+  try {
+    const parts = join(root, "parts");
+    await mkdir(parts);
+    const member = join(parts, "base.inc");
+    await writeFile(member, shared);
+    await writeFile(join(root, "bird.conf"), text);
+    await session.initialize();
+    const uri = await session.open(join(root, "bird.conf"), text);
+    await session.waitForDiagnostics(uri, false);
+    let after = session.diagnostics.length;
+    await rm(member);
+    await session.waitForDiagnostics(uri, true, after);
+    after = session.diagnostics.length;
+    await writeFile(join(parts, "replacement.inc"), shared);
+    await session.waitForDiagnostics(uri, false, after);
+    expect(session.hasDiagnostic(uri, "lsp/internal-error")).toBe(false);
+  } finally {
+    session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60000);
 
 it.each([false, true])(
   "observes immediate config writes after another project closes (dynamic registration %s)",
