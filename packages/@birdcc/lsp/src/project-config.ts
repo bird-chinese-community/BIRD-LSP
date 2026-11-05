@@ -231,12 +231,20 @@ export const resolveProjectAnalysisOptions = async (
       const resolvedWorkspaceRootUri = toFileUri(workspaceRootPath);
       let detectionTask = input.discoveryCache?.get(workspaceRootPath);
       if (!detectionTask) {
-        detectionTask = sniffProjectEntrypoints(workspaceRootPath, {
+        const pending = sniffProjectEntrypoints(workspaceRootPath, {
           maxDepth: 8,
           maxFiles: 20_000,
           maxEntries: 20_000,
           maxDirectories: 2_048,
         });
+        const tracked: Promise<DetectionResult> = pending.catch(
+          (error: unknown) => {
+            if (input.discoveryCache?.get(workspaceRootPath) === tracked)
+              input.discoveryCache?.delete(workspaceRootPath);
+            throw error;
+          },
+        );
+        detectionTask = tracked;
         input.discoveryCache?.set(workspaceRootPath, detectionTask);
       }
       const detection = await detectionTask;

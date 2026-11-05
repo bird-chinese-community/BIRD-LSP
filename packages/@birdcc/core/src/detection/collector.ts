@@ -60,6 +60,28 @@ const isIgnoredDir = (dirName: string, extraExclude: Set<string>): boolean => {
   return DEFAULT_IGNORE_DIRS.has(dirName) || extraExclude.has(dirName);
 };
 
+const directoryReadWarning = (
+  path: string,
+  error: unknown,
+): DetectionWarning => {
+  if (
+    !(error instanceof Error) ||
+    !("code" in error) ||
+    typeof error.code !== "string" ||
+    !("errno" in error) ||
+    typeof error.errno !== "number" ||
+    !Number.isInteger(error.errno) ||
+    error.errno >= 0
+  )
+    throw error;
+
+  return {
+    code: "detection/directory-read-failed",
+    message: `Failed to read directory entries (${error.code}): ${error.message}`,
+    path,
+  };
+};
+
 /**
  * Collects `.conf` candidate files from the project root.
  *
@@ -119,8 +141,8 @@ export const collectCandidateFiles = async (
     let directory;
     try {
       directory = await opendir(currentDir);
-    } catch {
-      // Permission denied or similar — skip silently
+    } catch (error) {
+      warnings.push(directoryReadWarning(currentDir, error));
       continue;
     }
 
@@ -188,13 +210,8 @@ export const collectCandidateFiles = async (
           });
         }
       }
-    } catch {
-      // Directory became inaccessible or changed mid-iteration; keep partial results.
-      warnings.push({
-        code: "detection/directory-read-failed",
-        message: `Failed to read directory entries: ${currentDir}`,
-        path: currentDir,
-      });
+    } catch (error) {
+      warnings.push(directoryReadWarning(currentDir, error));
     }
 
     if (truncated) break;

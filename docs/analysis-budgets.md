@@ -18,3 +18,5 @@ In VS Code, `bird2-lsp.performance.maxFileSizeBytes` supplies the document limit
 Core callers can pass `maxDocumentBytes` and `maxTotalBytes` to `resolveCrossFileReferences`. CLI library callers can pass `includeMaxDocumentBytes` and `includeMaxTotalBytes` to `runLint`. The CLI command reads the project fields directly.
 
 The parser cache retains at most 512 documents and 16 MiB of source text, with each document's AST attached. Project discovery stops at 20,000 directory entries or 2,048 directories. Wildcard include enumeration shares a 20,000-entry budget per analysis. These cache and discovery limits are independent of input byte budgets.
+
+Directory I/O failures produce warnings with the path, system error code and message. Discovery keeps candidates already collected and continues through other queued directories. Programming errors propagate to the caller. A later request retries a rejected workspace discovery attempt; concurrent callers share pending and successful attempts until a relevant filesystem event invalidates them.
