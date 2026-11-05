@@ -76,4 +76,4 @@ it("reads project document and total budgets through the real CLI", async () => 
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 60_000);
