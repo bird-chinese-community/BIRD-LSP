@@ -63,6 +63,7 @@ export const createReferenceLocations = (
   uri: string,
   position: Position,
   sourceText: string,
+  includeDeclaration = true,
 ): Location[] => {
   const index = createSymbolLookupIndex(
     symbolTable.definitions,
@@ -94,6 +95,8 @@ export const createReferenceLocations = (
   });
 
   return dedupeLocations(
-    [...definitionMatches, ...referenceMatches].map(toLocation),
+    [...(includeDeclaration ? definitionMatches : []), ...referenceMatches].map(
+      toLocation,
+    ),
   );
 };

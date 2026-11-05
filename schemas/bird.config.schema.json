@@ -136,7 +136,7 @@
         },
         "extends": {
           "type": "array",
-          "description": "Shareable rule presets to inherit",
+          "description": "Reserved for shareable rule presets. Accepted for compatibility but not applied yet; configure linter.rules directly",
           "items": {
             "type": "string"
           },

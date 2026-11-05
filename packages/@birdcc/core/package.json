@@ -24,6 +24,7 @@
     "LICENSE"
   ],
   "dependencies": {
+    "zod": "^4.6.7",
     "@birdcc/parser": "workspace:*",
     "fast-cidr-tools": "^0.3.4"
   },

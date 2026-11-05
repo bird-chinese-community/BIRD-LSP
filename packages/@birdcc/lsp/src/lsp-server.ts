@@ -5,6 +5,9 @@ import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
   DEFAULT_CROSS_FILE_MAX_FILES,
   collectFunctionReturnHints,
+  applyLintConfiguration,
+  birdEditorSettingsSchema,
+  type BirdEditorSettings,
   resolveCrossFileReferences,
   type FunctionReturnHint,
   type SymbolTable,
@@ -156,6 +159,11 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let workspaceRootUris: string[] = [];
   let supportsDynamicFileWatching = false;
   let supportsRelativeFileWatching = false;
+  let supportsConfiguration = false;
+  let supportsInlayHintRefresh = false;
+  let editorSettings: BirdEditorSettings = {};
+  const settingsByUri = new Map<string, Promise<BirdEditorSettings>>();
+  const configurationDiagnosticUris = new Set<string>();
   let projectConfigGeneration = 0;
   const generationByUri = new Map<string, number>();
   const activeAnalyses = new Set<{ uri: string; rootUri?: string }>();
@@ -299,8 +307,11 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const resolveProjectForDocument = async (
     document: TextDocument,
   ): Promise<ProjectAnalysisOptions> => {
+    const identity = documents.get(document.uri);
+    const version = document.version;
+    const generation = generationByUri.get(document.uri);
     await registerRootlessConfigWatchers(document.uri);
-    return resolveProjectAnalysisOptions({
+    const project = await resolveProjectAnalysisOptions({
       documentUri: document.uri,
       workspaceRootUris,
       defaults: {
@@ -308,6 +319,48 @@ export const startLspServer = (options?: LspServerOptions): void => {
         maxFiles: INCLUDE_MAX_FILES,
       },
     });
+    if (
+      documents.get(document.uri) !== identity ||
+      identity?.version !== version ||
+      generationByUri.get(document.uri) !== generation
+    )
+      throw new ResponseError(
+        LSPErrorCodes.ContentModified,
+        `Project input changed: ${document.uri}`,
+      );
+    if (project.configPath) {
+      const uri = pathToFileURL(project.configPath).toString();
+      if (configurationDiagnosticUris.delete(uri))
+        clearDiagnostics(connection, uri);
+    }
+    return project;
+  };
+
+  const getEditorSettings = (uri: string): Promise<BirdEditorSettings> => {
+    if (!supportsConfiguration) return Promise.resolve(editorSettings);
+    const cached = settingsByUri.get(uri);
+    if (cached) return cached;
+    const task = connection.workspace
+      .getConfiguration({ scopeUri: uri, section: "bird2-lsp" })
+      .then((settings) => {
+        const resource = birdEditorSettingsSchema.parse(settings ?? {});
+        return {
+          ...editorSettings,
+          ...resource,
+          intel: { ...editorSettings.intel, ...resource.intel },
+          formatter: { ...editorSettings.formatter, ...resource.formatter },
+          typeHints: {
+            ...editorSettings.typeHints,
+            ...resource.typeHints,
+            inlay: {
+              ...editorSettings.typeHints?.inlay,
+              ...resource.typeHints?.inlay,
+            },
+          },
+        };
+      });
+    settingsByUri.set(uri, task);
+    return task;
   };
 
   const isDocumentEligible = async (
@@ -327,6 +380,17 @@ export const startLspServer = (options?: LspServerOptions): void => {
         LSPErrorCodes.ContentModified,
         `Eligibility input changed: ${document.uri}`,
       );
+    const enabledSettings = await getEditorSettings(document.uri);
+    if (
+      generationByUri.get(document.uri) !== inputGeneration ||
+      documents.get(document.uri) !== liveDocument ||
+      liveDocument.version !== version
+    )
+      throw new ResponseError(
+        LSPErrorCodes.ContentModified,
+        `Eligibility input changed: ${document.uri}`,
+      );
+    if (enabledSettings.enabled === false) return false;
     const cached = eligibilityByUri.get(document.uri);
     if (
       cached?.version === document.version &&
@@ -350,6 +414,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
         document.uri,
         resolvedProject,
       );
+      if (
+        documents.get(document.uri) !== liveDocument ||
+        liveDocument.version !== version ||
+        generationByUri.get(document.uri) !== inputGeneration
+      )
+        throw new ResponseError(
+          LSPErrorCodes.ContentModified,
+          `Eligibility input changed: ${document.uri}`,
+        );
       if (
         evaluationGeneration === projectConfigGeneration &&
         documents.get(document.uri) === liveDocument &&
@@ -451,6 +524,14 @@ export const startLspServer = (options?: LspServerOptions): void => {
         }
       }
     };
+    const settings = await getEditorSettings(document.uri);
+    assertCurrent();
+    if (settings.enabled === false) {
+      const graph = await createEmptyGraph(document);
+      assertCurrent();
+      clearEntryTracking(document.uri);
+      return { entryDiagnostics: [], graph };
+    }
     const project = await resolveProjectForDocument(document);
     const workspaceRootUri =
       project.workspaceRootUri ??
@@ -506,6 +587,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
       const lintResult = await lintBirdConfig(document.getText(), {
         uri: document.uri,
       });
+      lintResult.diagnostics = applyLintConfiguration(
+        lintResult.diagnostics,
+        project.config?.linter,
+      );
       assertCurrent();
       if (options.publishRelatedDiagnostics) {
         clearEntryTracking(document.uri);
@@ -547,6 +632,24 @@ export const startLspServer = (options?: LspServerOptions): void => {
         uri: document.uri,
       });
     }
+    for (const lintResult of Object.values(lintGraph.byUri)) {
+      lintResult.diagnostics = applyLintConfiguration(
+        lintResult.diagnostics,
+        project.config?.linter,
+      );
+    }
+    const disabledUris = new Set(
+      (
+        await Promise.all(
+          Object.keys(lintGraph.byUri).map(async (uri) => ({
+            uri,
+            enabled: (await getEditorSettings(uri)).enabled,
+          })),
+        )
+      )
+        .filter((item) => item.enabled === false)
+        .map((item) => item.uri),
+    );
     const visitedUris = new Set(
       crossFile.visitedUris.length > 0
         ? crossFile.visitedUris
@@ -649,6 +752,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
       for (const [uri, diagnostics] of diagnosticsByUri) {
         if (uri !== document.uri) {
+          if (disabledUris.has(uri)) {
+            clearDiagnostics(connection, uri);
+            continue;
+          }
           publishDiagnostics(
             connection,
             uri,
@@ -706,6 +813,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
 
   connection.onInitialize((params): InitializeResult => {
+    supportsConfiguration = Boolean(
+      params.capabilities.workspace?.configuration,
+    );
+    supportsInlayHintRefresh = Boolean(
+      params.capabilities.workspace?.inlayHint?.refreshSupport,
+    );
+    editorSettings = birdEditorSettingsSchema.parse(
+      params.initializationOptions?.birdcc ?? {},
+    );
     supportsDynamicFileWatching = Boolean(
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration,
     );
@@ -800,6 +916,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
   const scheduler = createValidationScheduler<TextDocument, Diagnostic>({
     debounceMs: VALIDATION_DEBOUNCE_MS,
     validate: async (textDocument): Promise<Diagnostic[] | undefined> => {
+      const identity = documents.get(textDocument.uri);
+      const version = textDocument.version;
+      const generation = generationByUri.get(textDocument.uri);
       try {
         const analyzed = await analyzeDocument(textDocument, {
           publishRelatedDiagnostics: true,
@@ -807,10 +926,32 @@ export const startLspServer = (options?: LspServerOptions): void => {
         return analyzed.entryDiagnostics;
       } catch (error) {
         if (
+          documents.get(textDocument.uri) !== identity ||
+          identity?.version !== version ||
+          generationByUri.get(textDocument.uri) !== generation
+        )
+          return undefined;
+        if (
           error instanceof ResponseError &&
           error.code === LSPErrorCodes.ContentModified
         )
           return undefined;
+        if (
+          error instanceof Error &&
+          "configPath" in error &&
+          typeof error.configPath === "string"
+        ) {
+          const uri = pathToFileURL(error.configPath).toString();
+          configurationDiagnosticUris.add(uri);
+          publishDiagnostics(connection, uri, [
+            {
+              ...toInternalErrorDiagnostic(error),
+              code: "config/invalid",
+              source: "birdcc-config",
+            },
+          ]);
+          return [];
+        }
         return [toInternalErrorDiagnostic(error)];
       }
     },
@@ -896,6 +1037,24 @@ export const startLspServer = (options?: LspServerOptions): void => {
     }
   });
 
+  connection.onDidChangeConfiguration((params) => {
+    const validation = birdEditorSettingsSchema.safeParse(
+      params.settings?.["bird2-lsp"] ?? params.settings?.birdcc ?? {},
+    );
+    if (!validation.success) {
+      void connection.window.showErrorMessage(
+        `Invalid BIRD editor settings: ${validation.error.message}`,
+      );
+      return;
+    }
+    editorSettings = validation.data;
+    settingsByUri.clear();
+    projectConfigGeneration += 1;
+    eligibilityByUri.clear();
+    for (const document of documents.all()) invalidateAnalysis(document.uri);
+    if (supportsInlayHintRefresh) void connection.languages.inlayHint.refresh();
+  });
+
   documents.onDidOpen((event) => invalidateAnalysis(event.document.uri));
   documents.onDidChangeContent((event) =>
     invalidateAnalysis(event.document.uri),
@@ -978,7 +1137,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
         return null;
       }
       // Try ASN hover first (more specific)
-      if (asnIntel.available) {
+      const settings = await getEditorSettings(document.uri);
+      if (
+        asnIntel.available &&
+        settings.intel?.enabled !== false &&
+        settings.intel?.hover !== false
+      ) {
         const lineText = getLineText(document, params.position.line);
         const asnHover = createAsnHover(asnIntel, lineText, params.position);
         if (asnHover) return asnHover;
@@ -1020,6 +1184,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
           document.uri,
           params.position,
           document.getText(),
+          params.context.includeDeclaration,
         );
       } catch {
         return [];
@@ -1039,7 +1204,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
       });
 
       // Check if we're in an ASN context — return ASN completions instead
-      if (asnIntel.available) {
+      const settings = await getEditorSettings(document.uri);
+      if (
+        asnIntel.available &&
+        settings.intel?.enabled !== false &&
+        settings.intel?.completion !== false
+      ) {
         const asnItems = createAsnCompletionItems(asnIntel, linePrefix);
         if (asnItems.length > 0) return asnItems;
       }
@@ -1066,7 +1236,15 @@ export const startLspServer = (options?: LspServerOptions): void => {
       }
       try {
         const text = document.getText();
-        const result = await formatBirdConfig(text);
+        const project = await resolveProjectForDocument(document);
+        const settings = await getEditorSettings(document.uri);
+        const formatOptions = {
+          indentSize: params.options.tabSize,
+          useTabs: !params.options.insertSpaces,
+          ...settings.formatter,
+          ...project.config?.formatter,
+        };
+        const result = await formatBirdConfig(text, formatOptions);
         if (!result.changed) {
           return [];
         }
@@ -1088,7 +1266,10 @@ export const startLspServer = (options?: LspServerOptions): void => {
         connection.console.log(
           `[format] formatting failed: ${error instanceof Error ? error.message : String(error)}`,
         );
-        return [];
+        throw new ResponseError(
+          LSPErrorCodes.RequestFailed,
+          `BIRD formatting failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }),
   );
@@ -1107,16 +1288,28 @@ export const startLspServer = (options?: LspServerOptions): void => {
         const results: InlayHint[] = [];
 
         // ASN inlay hints
-        if (asnIntel.available) {
+        const settings = await getEditorSettings(document.uri);
+        if (
+          asnIntel.available &&
+          settings.intel?.enabled !== false &&
+          settings.intel?.inlayHints !== false
+        ) {
           results.push(...createAsnInlayHints(asnIntel, text, params.range));
         }
 
         // Function return type inlay hints
-        try {
-          const hints = await getTypeHintsForDocument(document);
-          results.push(...createTypeHintInlayHints(hints, params.range));
-        } catch {
-          // Type hint inference is best-effort
+        if (
+          settings.typeHints?.enabled !== false &&
+          settings.typeHints?.inlay?.enabled !== false
+        ) {
+          try {
+            const hints = await getTypeHintsForDocument(document);
+            results.push(...createTypeHintInlayHints(hints, params.range));
+          } catch (error) {
+            connection.console.error(
+              `[inlay] Function type inference failed for ${document.uri}: ${String(error)}`,
+            );
+          }
         }
 
         return results;

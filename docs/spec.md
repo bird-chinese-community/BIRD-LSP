@@ -282,7 +282,7 @@ Also run BIRD validation (`bird -p`) in addition to static analysis. Uses `bird.
 
 **Type:** `string[]`
 
-Inherit rule configurations from presets.
+Reserved for inheriting rule configurations from presets. The field is accepted, but presets are not applied yet; configure `linter.rules` directly.
 
 ```json
 {
