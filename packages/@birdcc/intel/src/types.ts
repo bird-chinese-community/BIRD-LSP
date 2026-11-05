@@ -10,6 +10,7 @@ export interface AsnEntry {
 }
 
 export interface AsnDatabase {
+  readonly version: AsnDatabaseVersion;
   /** Total number of ASN records loaded. */
   readonly count: number;
   /** Time taken to load and index the database (ms). */
@@ -23,6 +24,22 @@ export interface AsnDatabase {
    */
   prefixSearch: (prefix: string, limit?: number) => AsnEntry[];
 }
+
+export interface AsnDatabaseVersion {
+  readonly packageVersion: string;
+  readonly contentSha256?: string;
+}
+
+export interface AsnDatabaseFailure {
+  readonly code: "missing" | "read" | "decompress" | "decode" | "schema";
+  readonly dbPath: string;
+  readonly message: string;
+  readonly version: AsnDatabaseVersion;
+}
+
+export type AsnDatabaseLoadResult =
+  | { readonly ok: true; readonly database: AsnDatabase }
+  | { readonly ok: false; readonly error: AsnDatabaseFailure };
 
 export interface AsnDatabaseOptions {
   /** Absolute path to the `asn-db.bin.gz` file. */

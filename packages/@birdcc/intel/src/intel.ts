@@ -1,10 +1,14 @@
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
-import { loadAsnDatabase } from "./database.js";
+import { tryLoadAsnDatabase } from "./database.js";
 import { formatAsnDisplay } from "./display.js";
 import { getReservedAsnEntry, searchReservedAsnByPrefix } from "./reserved.js";
-import type { AsnDatabase, AsnDisplayInfo, AsnEntry } from "./types.js";
+import type {
+  AsnDisplayInfo,
+  AsnEntry,
+  AsnDatabaseFailure,
+  AsnDatabaseVersion,
+} from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -12,6 +16,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DB_PATH = resolve(__dirname, "../db/asn-db.bin.gz");
 
 export interface AsnIntel {
+  readonly version?: AsnDatabaseVersion;
+  readonly failure?: AsnDatabaseFailure;
   /** Whether the database was loaded successfully. */
   readonly available: boolean;
   /** Total number of ASN records. */
@@ -41,21 +47,16 @@ const NOOP_INTEL: AsnIntel = {
 
 /**
  * Create an ASN intelligence instance.
- * Loads the bundled database; returns a no-op stub if the DB file is missing (graceful degradation).
+ * Loads the database; returns an unavailable instance with structured failure context on load errors.
  */
 export const createAsnIntel = (dbPath?: string): AsnIntel => {
   const path = dbPath ?? DEFAULT_DB_PATH;
 
-  if (!existsSync(path)) {
-    return NOOP_INTEL;
+  const result = tryLoadAsnDatabase({ dbPath: path });
+  if (!result.ok) {
+    return { ...NOOP_INTEL, failure: result.error };
   }
-
-  let db: AsnDatabase;
-  try {
-    db = loadAsnDatabase({ dbPath: path });
-  } catch {
-    return NOOP_INTEL;
-  }
+  const db = result.database;
 
   const exactLookup = (asn: number): AsnEntry | undefined =>
     getReservedAsnEntry(asn) ?? db.exactLookup(asn);
@@ -77,6 +78,7 @@ export const createAsnIntel = (dbPath?: string): AsnIntel => {
 
   return {
     available: true,
+    version: db.version,
     count: db.count,
     exactLookup,
     prefixSearch,
