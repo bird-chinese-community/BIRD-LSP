@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TextDocument } from "vscode";
 
 import { enforceLargeFileGuard } from "../src/performance/large-file.js";
@@ -44,6 +44,25 @@ const createConfiguration = (maxBytes: number) => ({
 });
 
 describe("large-file guard", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("measures the dirty buffer instead of the smaller saved file", async () => {
+    const before = mocks.stat.mock.calls.length;
+    const result = await enforceLargeFileGuard({
+      document: {
+        ...createDocument("file:///workspace/dirty.bird"),
+        isDirty: true,
+        getText: () => "x".repeat(2048),
+      },
+      configuration: createConfiguration(1024),
+      outputChannel: { appendLine: vi.fn() } as never,
+      featureName: "formatting",
+      warningCache: new Set(),
+    });
+    expect(result.skipped).toBe(true);
+    expect(result.bytes).toBe(2048);
+    expect(mocks.stat.mock.calls.length).toBe(before);
+  });
+
   it("skips large files and only shows one error alert across features", async () => {
     mocks.stat.mockResolvedValueOnce({ size: 8 * 1024 * 1024 });
     mocks.stat.mockResolvedValueOnce({ size: 8 * 1024 * 1024 });

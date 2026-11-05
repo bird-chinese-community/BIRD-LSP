@@ -14,7 +14,7 @@ import type { ResolvedHoverTopic } from "./docs.js";
 
 export interface HoverProviderOptions {
   /** Return `true` when the LSP client is handling hover requests. */
-  readonly isLspActive?: () => boolean;
+  readonly isLspActive?: (document: TextDocument) => boolean;
   readonly isDocumentEligible?: (document: TextDocument) => Promise<boolean>;
 }
 
@@ -84,7 +84,7 @@ export const registerBirdKeywordHoverProvider = (
       // When the LSP server is running, it already provides keyword hover
       // through textDocument/hover. Returning null here avoids duplicate
       // hover tooltips that would otherwise be merged by VS Code.
-      if (options?.isLspActive?.()) {
+      if (options?.isLspActive?.(document)) {
         return null;
       }
 

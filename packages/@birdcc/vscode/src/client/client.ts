@@ -14,7 +14,6 @@ import {
   BIRD_DOCUMENT_SELECTOR,
   CONFIG_SECTION,
   DEFAULT_SERVER_PATH,
-  EXTENSION_ID,
   EXTENSION_NAME,
 } from "../constants.js";
 import {
@@ -24,6 +23,7 @@ import {
 } from "../security/index.js";
 import type { ExtensionConfiguration } from "../types.js";
 import { createServerProcess } from "./server-process.js";
+import { configureRequestErrorReporting } from "./errors.js";
 
 export type BirdLanguageClient = LanguageClient & {
   terminate: () => Promise<void>;
@@ -99,6 +99,8 @@ export const createLanguageClient = (
   configuration: ExtensionConfiguration,
   outputChannel: OutputChannel,
   extensionPath?: string,
+  getConfigurationForResource: (uri?: string) => ExtensionConfiguration = () =>
+    configuration,
 ): BirdLanguageClient => {
   const serverCommand = resolveLanguageServerCommand(
     configuration,
@@ -116,19 +118,45 @@ export const createLanguageClient = (
     documentSelector: [...BIRD_DOCUMENT_SELECTOR],
     outputChannel,
     revealOutputChannelOn: RevealOutputChannelOn.Never,
+    initializationOptions: {
+      birdcc: {
+        enabled: configuration.enabled,
+        performance: {
+          maxFileSizeBytes: configuration.performanceMaxFileSizeBytes,
+        },
+        typeHints: {
+          enabled: configuration.typeHintsEnabled,
+          inlay: { enabled: configuration.typeHintsInlayEnabled },
+        },
+        intel: {
+          enabled: configuration.intelEnabled,
+          inlayHints: configuration.intelInlayHints,
+          completion: configuration.intelCompletion,
+          hover: configuration.intelHover,
+        },
+        formatter: {
+          engine: configuration.formatterEngine,
+          safeMode: configuration.formatterSafeMode,
+        },
+      },
+    },
     synchronize: {
       configurationSection: [CONFIG_SECTION],
     },
   };
 
   const client = new LanguageClient(
-    EXTENSION_ID,
+    CONFIG_SECTION,
     EXTENSION_NAME,
     serverOptions,
     clientOptions,
   );
 
   client.setTrace(toTraceLevel(configuration.traceServer));
+  configureRequestErrorReporting(
+    client,
+    (uri) => getConfigurationForResource(uri).hiddenErrors,
+  );
 
   let terminating = false;
   const errorHandler = client.createDefaultErrorHandler();

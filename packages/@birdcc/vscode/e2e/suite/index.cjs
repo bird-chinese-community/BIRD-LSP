@@ -363,12 +363,155 @@ const testForeignConfigurationGuard = async (vscode) => {
   }
 };
 
+const testResourceFormatting = async (vscode) => {
+  const roots = vscode.workspace.workspaceFolders;
+  assert.ok(roots?.length >= 2, "resource tests require two workspace folders");
+  const { createConfigurationManager } =
+    await import("../../dist/config/configuration.js");
+  const { createBirdFormattingProvider } =
+    await import("../../dist/formatter/provider.js");
+  const { createBirdDocumentEligibilityGate } =
+    await import("../../dist/eligibility/gate.js");
+  const configs = roots
+    .slice(0, 2)
+    .map((folder) =>
+      vscode.workspace.getConfiguration("bird2-lsp", folder.uri),
+    );
+  const target = vscode.ConfigurationTarget.WorkspaceFolder;
+  const manager = createConfigurationManager();
+  const gate = createBirdDocumentEligibilityGate();
+  const output = vscode.window.createOutputChannel("BIRD2 resource E2E");
+  let eligibilityCalls = 0;
+  const provider = createBirdFormattingProvider(
+    (document) => manager.getForResource(document.uri),
+    output,
+    async (document) => {
+      eligibilityCalls += 1;
+      return gate.isEligible(document);
+    },
+  );
+  const firstPath = path.join(roots[0].uri.fsPath, "bird.conf");
+  const secondPath = path.join(roots[1].uri.fsPath, "bird.conf");
+  const sample = "protocol device {\nscan time 10;\n}\n";
+  const padding = "# padding\n".repeat(7_000);
+  const cancellation = new vscode.CancellationTokenSource();
+  try {
+    for (const config of configs)
+      await config.update("formatter.engine", "builtin", target);
+    await configs[0].update("enabled", false, target);
+    await configs[0].update("validation.enabled", false, target);
+    await configs[1].update("enabled", true, target);
+    await configs[0].update("performance.maxFileSizeBytes", 65_536, target);
+    await configs[1].update("performance.maxFileSizeBytes", 1_048_576, target);
+    await writeFile(firstPath, sample);
+    await writeFile(secondPath, padding + sample);
+    const first = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(firstPath),
+    );
+    const second = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(secondPath),
+    );
+    assert.equal(manager.getForResource(first.uri).enabled, false);
+    assert.equal(manager.getForResource(second.uri).enabled, true);
+    const dirtyEdit = new vscode.WorkspaceEdit();
+    dirtyEdit.insert(first.uri, new vscode.Position(0, 0), padding);
+    await vscode.workspace.applyEdit(dirtyEdit);
+    assert.equal(first.isDirty, true);
+    const options = { insertSpaces: true, tabSize: 4 };
+    assert.deepEqual(
+      await provider.provideDocumentFormattingEdits(
+        first,
+        options,
+        cancellation.token,
+      ),
+      [],
+    );
+    assert.equal(
+      eligibilityCalls,
+      0,
+      "size guard must precede eligibility parsing",
+    );
+    const edits = await provider.provideDocumentFormattingEdits(
+      second,
+      options,
+      cancellation.token,
+    );
+    assert.ok(edits.length > 0);
+    assert.ok(
+      edits.every((edit) => edit.range.start.line >= 7_000),
+      "unchanged comments must be outside formatting edits",
+    );
+    const apply = async (changes) => {
+      const edit = new vscode.WorkspaceEdit();
+      edit.set(second.uri, changes);
+      assert.equal(await vscode.workspace.applyEdit(edit), true);
+    };
+    await apply(edits);
+    assert.ok(second.getText().includes("\n    scan time 10;\n"));
+    await apply(
+      await provider.provideDocumentFormattingEdits(
+        second,
+        { insertSpaces: false, tabSize: 4 },
+        cancellation.token,
+      ),
+    );
+    assert.ok(second.getText().includes("\n\tscan time 10;\n"));
+    await writeFile(
+      path.join(roots[1].uri.fsPath, "bird.config.json"),
+      JSON.stringify({
+        formatter: { engine: "builtin", indentSize: 6, useTabs: false },
+      }),
+    );
+    await apply(
+      await provider.provideDocumentFormattingEdits(
+        second,
+        { insertSpaces: false, tabSize: 2 },
+        cancellation.token,
+      ),
+    );
+    assert.ok(
+      second.getText().includes("\n      scan time 10;\n"),
+      "project indentation must override editor formatting options",
+    );
+    cancellation.cancel();
+    assert.deepEqual(
+      await provider.provideDocumentFormattingEdits(
+        second,
+        options,
+        cancellation.token,
+      ),
+      [],
+    );
+  } finally {
+    cancellation.dispose();
+    manager.dispose();
+    gate.dispose();
+    output.dispose();
+    await rm(path.join(roots[1].uri.fsPath, "bird.config.json"), {
+      force: true,
+    });
+    for (const config of configs) {
+      for (const key of [
+        "formatter.engine",
+        "enabled",
+        "validation.enabled",
+        "performance.maxFileSizeBytes",
+      ])
+        await config.update(key, undefined, target);
+    }
+  }
+};
+
 const testConfigurationCommands = async (vscode) => {
   const workspaceFolder = await ensureWorkspaceFolder(vscode);
-  const config = vscode.workspace.getConfiguration("bird2-lsp");
-  const target = resolveConfigurationTarget(vscode);
+  const resource = vscode.window.activeTextEditor?.document.uri;
+  const config = vscode.workspace.getConfiguration("bird2-lsp", resource);
+  const target =
+    resource && vscode.workspace.getWorkspaceFolder(resource)
+      ? vscode.ConfigurationTarget.WorkspaceFolder
+      : resolveConfigurationTarget(vscode);
   const readEnabled = () =>
-    vscode.workspace.getConfiguration("bird2-lsp").get("enabled");
+    vscode.workspace.getConfiguration("bird2-lsp", resource).get("enabled");
   const originalEnabled = readEnabled();
 
   try {
@@ -395,6 +538,202 @@ const testConfigurationCommands = async (vscode) => {
   }
 };
 
+const testResourceValidationHandoff = async (vscode) => {
+  const roots = vscode.workspace.workspaceFolders;
+  assert.ok(roots?.length >= 2);
+  const configurationEvents = [];
+  const configurationSubscription = vscode.workspace.onDidChangeConfiguration(
+    (event) => {
+      configurationEvents.push({
+        global: event.affectsConfiguration("bird2-lsp"),
+        folders: roots
+          .slice(0, 2)
+          .map((folder) => event.affectsConfiguration("bird2-lsp", folder.uri)),
+        enabled: roots
+          .slice(0, 2)
+          .map((folder) =>
+            vscode.workspace
+              .getConfiguration("bird2-lsp", folder.uri)
+              .get("enabled"),
+          ),
+      });
+      if (configurationEvents.length > 20) configurationEvents.shift();
+    },
+  );
+  const configs = roots
+    .slice(0, 2)
+    .map((folder) =>
+      vscode.workspace.getConfiguration("bird2-lsp", folder.uri),
+    );
+  const target = vscode.ConfigurationTarget.WorkspaceFolder;
+  const firstPath = path.join(roots[0].uri.fsPath, "bird2.conf");
+  const secondPath = path.join(roots[1].uri.fsPath, "bird3.conf");
+  const firstText =
+    "router id 192.0.2.1;\nprotocol device first_device { scan time 10; }\ninvalid token;\nprotocol bgp missing_neighbor { local as 65001; }\n";
+  const secondText =
+    "router id 192.0.2.2;\nprotocol device second_device { scan time 10; }\n";
+  const symbols = (document) =>
+    vscode.commands.executeCommand(
+      "vscode.executeDocumentSymbolProvider",
+      document.uri,
+    );
+  const waitForSymbols = async (document, expected) => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if (((await symbols(document))?.length ?? 0) > 0 === expected) return;
+      await wait(50);
+    }
+    assert.equal(
+      ((await symbols(document))?.length ?? 0) > 0,
+      expected,
+      `LSP symbols must follow the resource enabled setting: ${JSON.stringify(configurationEvents)}`,
+    );
+  };
+  const nativeError = (document) =>
+    vscode.languages
+      .getDiagnostics(document.uri)
+      .some(
+        (diagnostic) =>
+          diagnostic.source === "bird -p" &&
+          /syntax error/i.test(diagnostic.message),
+      );
+  try {
+    for (const config of configs) {
+      await config.update("validation.enabled", true, target);
+      await config.update("validation.onSave", true, target);
+    }
+    await configs[0].update("enabled", false, target);
+    await configs[1].update("enabled", true, target);
+    await writeFile(firstPath, firstText);
+    await writeFile(secondPath, secondText);
+    const first = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(firstPath),
+    );
+    const second = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(secondPath),
+    );
+    await vscode.window.showTextDocument(first);
+    await waitForSymbols(second, true);
+    await waitForSymbols(first, false);
+    await waitForValue(
+      () => nativeError(first),
+      true,
+      "Disabled resource must receive a real bird -p syntax error",
+      200,
+      50,
+    );
+    await vscode.window.showTextDocument(second);
+    await configs[0].update("enabled", true, target);
+    await configs[1].update("enabled", false, target);
+    await waitForValue(
+      () =>
+        vscode.languages
+          .getDiagnostics(first.uri)
+          .some((diagnostic) => diagnostic.source === "bird -p"),
+      false,
+      "Native fallback diagnostics must clear after LSP enablement",
+      200,
+      50,
+    );
+    for (const [document, enabled] of [
+      [first, true],
+      [second, false],
+    ]) {
+      await waitForValue(
+        () =>
+          vscode.workspace
+            .getConfiguration("bird2-lsp", document.uri)
+            .get("enabled"),
+        enabled,
+        "Resource settings must update before requesting the new document version",
+      );
+    }
+    const previousDocuments = [first, second].map((document) => ({
+      document,
+      version: document.version,
+      text: document.getText(),
+    }));
+    const comment = "# resource settings refreshed\n";
+    const versionEdit = new vscode.WorkspaceEdit();
+    for (const { document, text } of previousDocuments) {
+      versionEdit.insert(
+        document.uri,
+        document.positionAt(text.length),
+        comment,
+      );
+    }
+    assert.equal(await vscode.workspace.applyEdit(versionEdit), true);
+    for (const { document, version, text } of previousDocuments) {
+      assert.ok(
+        document.version > version,
+        "A real text edit must advance the document version before refreshing symbols",
+      );
+      assert.equal(document.getText(), text + comment);
+      assert.equal(document.isDirty, true);
+    }
+    await waitForSymbols(first, true);
+    await waitForSymbols(second, false);
+    await waitForValue(
+      () =>
+        vscode.languages
+          .getDiagnostics(first.uri)
+          .some(
+            (diagnostic) =>
+              diagnostic.source !== "bird -p" &&
+              diagnostic.code === "bgp/missing-neighbor",
+          ),
+      true,
+      "Enabled resource must receive bgp/missing-neighbor from LSP",
+      200,
+      50,
+    );
+    await vscode.window.showTextDocument(second);
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(
+      second.uri,
+      second.positionAt(second.getText().length),
+      "invalid token;\n",
+    );
+    await vscode.workspace.applyEdit(edit);
+    assert.equal(await second.save(), true);
+    await waitForValue(
+      () => nativeError(second),
+      true,
+      "Native validation must take over the newly disabled resource",
+      200,
+      50,
+    );
+    assert.equal(
+      vscode.languages
+        .getDiagnostics(second.uri)
+        .some((diagnostic) => diagnostic.source !== "bird -p"),
+      false,
+      "Disabled resource must not retain LSP diagnostics",
+    );
+    await vscode.commands.executeCommand("bird2-lsp.validateActiveDocument");
+    await vscode.window.showTextDocument(first);
+    const firstEdit = new vscode.WorkspaceEdit();
+    firstEdit.insert(
+      first.uri,
+      first.positionAt(first.getText().length),
+      "# saved in the LSP-enabled root\n",
+    );
+    assert.equal(await vscode.workspace.applyEdit(firstEdit), true);
+    assert.equal(await first.save(), true);
+    await wait(1_200);
+    assert.equal(
+      nativeError(first),
+      false,
+      "Manual validation in a disabled root must keep other roots on LSP validation",
+    );
+  } finally {
+    configurationSubscription.dispose();
+    for (const config of configs) {
+      for (const key of ["enabled", "validation.enabled", "validation.onSave"])
+        await config.update(key, undefined, target);
+    }
+  }
+};
+
 async function run() {
   const vscode = require("vscode");
 
@@ -408,7 +747,9 @@ async function run() {
   await testStartupTimeoutRecovery(vscode);
   await testConnectionStateRecovery(vscode);
   await testLanguageAndFormatting(vscode);
+  await testResourceFormatting(vscode);
   await testForeignConfigurationGuard(vscode);
+  await testResourceValidationHandoff(vscode);
   await testConfigurationCommands(vscode);
 }
 

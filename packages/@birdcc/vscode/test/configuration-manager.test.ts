@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createConfigurationManager } from "../src/config/configuration.js";
+import type { Uri } from "vscode";
 
 const configStore: Record<string, unknown> = {};
+const resourceConfigStore = new Map<string, Record<string, unknown>>();
 
 const listeners = new Set<(value: unknown) => void>();
 
@@ -31,9 +33,10 @@ vi.mock("vscode", () => {
   return {
     EventEmitter,
     workspace: {
-      getConfiguration: vi.fn(() => ({
+      getConfiguration: vi.fn((_section: string, resource?: Uri) => ({
         get: (key: string, defaultValue: unknown) =>
-          key in configStore ? configStore[key] : defaultValue,
+          resourceConfigStore.get(resource?.toString() ?? "")?.[key] ??
+          (key in configStore ? configStore[key] : defaultValue),
       })),
     },
   };
@@ -45,6 +48,7 @@ describe("configuration manager", () => {
       delete configStore[key];
     }
     listeners.clear();
+    resourceConfigStore.clear();
   });
 
   afterEach(() => {
@@ -75,5 +79,27 @@ describe("configuration manager", () => {
 
     expect(change.changedPaths).toContain("validationTimeoutMs");
     expect(change.requiresRestart).toBe(false);
+  });
+
+  it("reads independent effective settings for documents in two roots", () => {
+    const one = { toString: () => "file:///one/bird.conf" } as Uri;
+    const two = { toString: () => "file:///two/bird.conf" } as Uri;
+    resourceConfigStore.set(one.toString(), {
+      "formatter.engine": "builtin",
+      "typeHints.enabled": false,
+      "validation.enabled": false,
+    });
+    resourceConfigStore.set(two.toString(), {
+      "formatter.engine": "dprint",
+      "performance.maxFileSizeBytes": 4 * 1024 * 1024,
+    });
+    const manager = createConfigurationManager();
+    expect(manager.getForResource(one).formatterEngine).toBe("builtin");
+    expect(manager.getForResource(one).typeHintsEnabled).toBe(false);
+    expect(manager.getForResource(one).validationEnabled).toBe(false);
+    expect(manager.getForResource(two).formatterEngine).toBe("dprint");
+    expect(manager.getForResource(two).performanceMaxFileSizeBytes).toBe(
+      4 * 1024 * 1024,
+    );
   });
 });

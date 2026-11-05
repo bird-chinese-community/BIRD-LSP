@@ -2,11 +2,13 @@ import {
   EventEmitter,
   type ConfigurationChangeEvent,
   type Disposable,
+  type Uri,
   workspace,
 } from "vscode";
 
 import {
   CONFIG_SECTION,
+  LANGUAGE_ID,
   RESTART_REQUIRED_CONFIGURATION_PATHS,
 } from "../constants.js";
 import { extensionConfigurationFields } from "./schema.js";
@@ -28,6 +30,7 @@ export interface ExtensionConfigurationChange {
 
 export interface ExtensionConfigurationManager {
   readonly snapshot: ExtensionConfiguration;
+  getForResource: (resource: Uri) => ExtensionConfiguration;
   refreshFromWorkspace: (
     reason: ConfigurationChangeReason,
   ) => ExtensionConfigurationChange;
@@ -41,86 +44,92 @@ export interface ExtensionConfigurationManager {
 const areValuesEqual = (left: unknown, right: unknown): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 
-const readWorkspaceConfiguration = (): ExtensionConfiguration => {
-  const config = workspace.getConfiguration(CONFIG_SECTION);
+const readWorkspaceConfiguration = (
+  resource?: Uri,
+  reportIssue?: (message: string) => void,
+): ExtensionConfiguration => {
+  const config = workspace.getConfiguration(CONFIG_SECTION, resource);
   const fields = extensionConfigurationFields;
 
-  return parseExtensionConfiguration({
-    enabled: config.get(
-      fields.enabled.workspaceKey,
-      fields.enabled.defaultValue,
-    ),
-    serverPath: config.get(fields.serverPath.workspaceKey, [
-      ...fields.serverPath.defaultValue,
-    ]),
-    traceServer: config.get(
-      fields.traceServer.workspaceKey,
-      fields.traceServer.defaultValue,
-    ),
-    hiddenErrors: config.get(fields.hiddenErrors.workspaceKey, [
-      ...fields.hiddenErrors.defaultValue,
-    ]),
-    validationEnabled: config.get(
-      fields.validationEnabled.workspaceKey,
-      fields.validationEnabled.defaultValue,
-    ),
-    validationCommand: config.get(
-      fields.validationCommand.workspaceKey,
-      fields.validationCommand.defaultValue,
-    ),
-    validationOnSave: config.get(
-      fields.validationOnSave.workspaceKey,
-      fields.validationOnSave.defaultValue,
-    ),
-    validationTimeoutMs: config.get(
-      fields.validationTimeoutMs.workspaceKey,
-      fields.validationTimeoutMs.defaultValue,
-    ),
-    performanceMaxFileSizeBytes: config.get(
-      fields.performanceMaxFileSizeBytes.workspaceKey,
-      fields.performanceMaxFileSizeBytes.defaultValue,
-    ),
-    lspStartupTimeoutMs: config.get(
-      fields.lspStartupTimeoutMs.workspaceKey,
-      fields.lspStartupTimeoutMs.defaultValue,
-    ),
-    formatterEngine: config.get(
-      fields.formatterEngine.workspaceKey,
-      fields.formatterEngine.defaultValue,
-    ),
-    formatterSafeMode: config.get(
-      fields.formatterSafeMode.workspaceKey,
-      fields.formatterSafeMode.defaultValue,
-    ),
-    typeHintsEnabled: config.get(
-      fields.typeHintsEnabled.workspaceKey,
-      fields.typeHintsEnabled.defaultValue,
-    ),
-    typeHintsHoverEnabled: config.get(
-      fields.typeHintsHoverEnabled.workspaceKey,
-      fields.typeHintsHoverEnabled.defaultValue,
-    ),
-    typeHintsInlayEnabled: config.get(
-      fields.typeHintsInlayEnabled.workspaceKey,
-      fields.typeHintsInlayEnabled.defaultValue,
-    ),
-    intelEnabled: config.get(
-      fields.intelEnabled.workspaceKey,
-      fields.intelEnabled.defaultValue,
-    ),
-    intelInlayHints: config.get(
-      fields.intelInlayHints.workspaceKey,
-      fields.intelInlayHints.defaultValue,
-    ),
-    intelCompletion: config.get(
-      fields.intelCompletion.workspaceKey,
-      fields.intelCompletion.defaultValue,
-    ),
-    intelHover: config.get(
-      fields.intelHover.workspaceKey,
-      fields.intelHover.defaultValue,
-    ),
-  });
+  return parseExtensionConfiguration(
+    {
+      enabled: config.get(
+        fields.enabled.workspaceKey,
+        fields.enabled.defaultValue,
+      ),
+      serverPath: config.get(fields.serverPath.workspaceKey, [
+        ...fields.serverPath.defaultValue,
+      ]),
+      traceServer: config.get(
+        fields.traceServer.workspaceKey,
+        fields.traceServer.defaultValue,
+      ),
+      hiddenErrors: config.get(fields.hiddenErrors.workspaceKey, [
+        ...fields.hiddenErrors.defaultValue,
+      ]),
+      validationEnabled: config.get(
+        fields.validationEnabled.workspaceKey,
+        fields.validationEnabled.defaultValue,
+      ),
+      validationCommand: config.get(
+        fields.validationCommand.workspaceKey,
+        fields.validationCommand.defaultValue,
+      ),
+      validationOnSave: config.get(
+        fields.validationOnSave.workspaceKey,
+        fields.validationOnSave.defaultValue,
+      ),
+      validationTimeoutMs: config.get(
+        fields.validationTimeoutMs.workspaceKey,
+        fields.validationTimeoutMs.defaultValue,
+      ),
+      performanceMaxFileSizeBytes: config.get(
+        fields.performanceMaxFileSizeBytes.workspaceKey,
+        fields.performanceMaxFileSizeBytes.defaultValue,
+      ),
+      lspStartupTimeoutMs: config.get(
+        fields.lspStartupTimeoutMs.workspaceKey,
+        fields.lspStartupTimeoutMs.defaultValue,
+      ),
+      formatterEngine: config.get(
+        fields.formatterEngine.workspaceKey,
+        fields.formatterEngine.defaultValue,
+      ),
+      formatterSafeMode: config.get(
+        fields.formatterSafeMode.workspaceKey,
+        fields.formatterSafeMode.defaultValue,
+      ),
+      typeHintsEnabled: config.get(
+        fields.typeHintsEnabled.workspaceKey,
+        fields.typeHintsEnabled.defaultValue,
+      ),
+      typeHintsHoverEnabled: config.get(
+        fields.typeHintsHoverEnabled.workspaceKey,
+        fields.typeHintsHoverEnabled.defaultValue,
+      ),
+      typeHintsInlayEnabled: config.get(
+        fields.typeHintsInlayEnabled.workspaceKey,
+        fields.typeHintsInlayEnabled.defaultValue,
+      ),
+      intelEnabled: config.get(
+        fields.intelEnabled.workspaceKey,
+        fields.intelEnabled.defaultValue,
+      ),
+      intelInlayHints: config.get(
+        fields.intelInlayHints.workspaceKey,
+        fields.intelInlayHints.defaultValue,
+      ),
+      intelCompletion: config.get(
+        fields.intelCompletion.workspaceKey,
+        fields.intelCompletion.defaultValue,
+      ),
+      intelHover: config.get(
+        fields.intelHover.workspaceKey,
+        fields.intelHover.defaultValue,
+      ),
+    },
+    reportIssue,
+  );
 };
 
 const diffConfiguration = (
@@ -138,7 +147,9 @@ const shouldRestart = (changedPaths: readonly string[]): boolean =>
     ),
   );
 
-export const createConfigurationManager = (): ExtensionConfigurationManager => {
+export const createConfigurationManager = (
+  reportIssue?: (message: string) => void,
+): ExtensionConfigurationManager => {
   let snapshot = defaultExtensionConfiguration;
   const emitter = new EventEmitter<ExtensionConfigurationChange>();
 
@@ -146,7 +157,22 @@ export const createConfigurationManager = (): ExtensionConfigurationManager => {
     reason: ConfigurationChangeReason,
   ): ExtensionConfigurationChange => {
     const previous = snapshot;
-    const current = readWorkspaceConfiguration();
+    const base = readWorkspaceConfiguration(undefined, reportIssue);
+    const resources = [
+      ...(workspace.workspaceFolders?.map((folder) => folder.uri) ?? []),
+      ...(workspace.textDocuments
+        ?.filter((document) => document.languageId === LANGUAGE_ID)
+        .map((document) => document.uri) ?? []),
+    ];
+    const current = {
+      ...base,
+      enabled: resources.length
+        ? resources.some(
+            (resource) =>
+              readWorkspaceConfiguration(resource, reportIssue).enabled,
+          )
+        : base.enabled,
+    };
     const changedPaths = diffConfiguration(previous, current);
 
     snapshot = current;
@@ -177,6 +203,8 @@ export const createConfigurationManager = (): ExtensionConfigurationManager => {
     get snapshot() {
       return snapshot;
     },
+    getForResource: (resource) =>
+      readWorkspaceConfiguration(resource, reportIssue),
     refreshFromWorkspace,
     onDidChange: emitter.event,
     didSectionChange,

@@ -55,9 +55,14 @@ const isBirdEditorActive = (): boolean => {
 };
 
 const updateLanguageServerEnabled = async (enabled: boolean): Promise<void> => {
+  const resource = window.activeTextEditor?.document.uri;
+  const target =
+    resource && workspace.getWorkspaceFolder(resource)
+      ? ConfigurationTarget.WorkspaceFolder
+      : resolveConfigurationTarget();
   await workspace
-    .getConfiguration(CONFIG_SECTION)
-    .update("enabled", enabled, resolveConfigurationTarget());
+    .getConfiguration(CONFIG_SECTION, resource)
+    .update("enabled", enabled, target);
 };
 
 const registerCommand = (

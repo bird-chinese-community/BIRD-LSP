@@ -102,11 +102,34 @@ export const createDefaultRuntimeState = (): ExtensionRuntimeState => ({
 
 export const parseExtensionConfiguration = (
   value: unknown,
+  reportIssue: (message: string) => void = console.warn,
 ): ExtensionConfiguration => {
   const parsed = extensionConfigurationSchema.safeParse(value);
   if (parsed.success) {
     return parsed.data;
   }
 
-  return defaultExtensionConfiguration;
+  const candidate = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!candidate.success) {
+    reportIssue("[bird2-lsp] configuration must be an object");
+    return defaultExtensionConfiguration;
+  }
+
+  return extensionConfigurationSchema.parse(
+    Object.fromEntries(
+      Object.entries(extensionConfigurationSchema.shape).map(
+        ([key, schema]) => {
+          const field = schema.safeParse(candidate.data[key]);
+          if (field.success) return [key, field.data];
+          reportIssue(
+            `[bird2-lsp] invalid configuration field ${key}: ${field.error.issues.map((issue) => issue.message).join("; ")}`,
+          );
+          return [
+            key,
+            defaultExtensionConfiguration[key as keyof ExtensionConfiguration],
+          ];
+        },
+      ),
+    ),
+  );
 };

@@ -27,7 +27,7 @@ const toHumanReadableBytes = (bytes: number): string => {
 const getDocumentSizeBytes = async (
   document: TextDocument,
 ): Promise<number> => {
-  if (document.uri.scheme === "file") {
+  if (document.uri.scheme === "file" && !document.isDirty) {
     try {
       return (await workspace.fs.stat(document.uri)).size;
     } catch {

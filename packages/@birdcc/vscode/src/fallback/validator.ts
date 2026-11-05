@@ -62,6 +62,7 @@ const execFileAsync = async (
 
 export interface FallbackValidator {
   activate: (options?: { background?: boolean }) => void;
+  refreshConfiguration: () => void;
   validateDocument: (document: TextDocument) => Promise<void>;
   validateActiveEditor: (options?: { saveDirty?: boolean }) => Promise<void>;
   dispose: () => void;
@@ -137,7 +138,7 @@ const checkFilePermission = async (
 };
 
 export const createFallbackValidator = (
-  getConfiguration: () => ExtensionConfiguration,
+  getConfiguration: (document: TextDocument) => ExtensionConfiguration,
   outputChannel: OutputChannel,
   isDocumentEligible: (document: TextDocument) => Promise<boolean> = async () =>
     true,
@@ -156,6 +157,7 @@ export const createFallbackValidator = (
   const activeValidations = new Map<string, AbortController>();
   let nextValidationTicket = 0;
   let trustWarningShown = false;
+  let backgroundValidationEnabled = false;
 
   const clearPendingValidationTimer = (uri: string): void => {
     const timer = pendingValidationTimers.get(uri);
@@ -222,14 +224,7 @@ export const createFallbackValidator = (
       );
       return;
     }
-    if (!(await isDocumentEligible(document))) {
-      if (isLatestValidationTicket(uri, ticket)) {
-        clearDocumentDiagnostics(document);
-      }
-      return;
-    }
-
-    const configuration = getConfiguration();
+    const configuration = getConfiguration(document);
     if (!configuration.validationEnabled) {
       if (isLatestValidationTicket(uri, ticket)) {
         clearDocumentDiagnostics(document);
@@ -264,6 +259,11 @@ export const createFallbackValidator = (
 
     if (guard.skipped) {
       clearDocumentDiagnostics(document);
+      return;
+    }
+    if (!(await isDocumentEligible(document))) {
+      if (isLatestValidationTicket(uri, ticket))
+        clearDocumentDiagnostics(document);
       return;
     }
 
@@ -466,9 +466,22 @@ export const createFallbackValidator = (
     await validateDocument(activeDocument);
   };
 
+  const refreshConfiguration = (): void => {
+    for (const document of workspace.textDocuments) {
+      if (!isBirdDocument(document)) continue;
+      const uri = document.uri.toString();
+      clearPendingValidationTimer(uri);
+      latestValidationTicketByUri.delete(uri);
+      activeValidations.get(uri)?.abort();
+      clearDocumentDiagnostics(document);
+      if (backgroundValidationEnabled) scheduleValidation(document);
+    }
+  };
+
   const activate = ({
     background = true,
   }: { background?: boolean } = {}): void => {
+    backgroundValidationEnabled = background;
     disposables.push(
       workspace.onDidOpenTextDocument((document) => {
         if (background) scheduleValidation(document);
@@ -477,7 +490,7 @@ export const createFallbackValidator = (
 
     disposables.push(
       workspace.onDidSaveTextDocument((document) => {
-        if (!background || !getConfiguration().validationOnSave) {
+        if (!background || !getConfiguration(document).validationOnSave) {
           return;
         }
 
@@ -538,6 +551,7 @@ export const createFallbackValidator = (
 
   return {
     activate,
+    refreshConfiguration,
     validateDocument,
     validateActiveEditor,
     dispose,

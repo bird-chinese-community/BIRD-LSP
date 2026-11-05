@@ -24,7 +24,7 @@ export const extensionConfigurationFields = {
       "textDocument/definition",
       "textDocument/references",
     ] as const,
-    restartRequired: true,
+    restartRequired: false,
   },
   validationEnabled: {
     workspaceKey: "validation.enabled",
@@ -96,7 +96,7 @@ export const extensionConfigurationFields = {
     workspaceKey: "intel.enabled",
     packageKey: "bird2-lsp.intel.enabled",
     defaultValue: true,
-    restartRequired: true,
+    restartRequired: false,
   },
   intelInlayHints: {
     workspaceKey: "intel.inlayHints",

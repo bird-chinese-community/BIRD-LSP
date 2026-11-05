@@ -290,7 +290,7 @@
           "minimum": 1000,
           "maximum": 120000,
           "markdownDescription": "Timeout for language server startup before the extension falls back to lightweight validation.",
-          "scope": "resource"
+          "scope": "window"
         },
         "bird2-lsp.formatter.engine": {
           "type": "string",
@@ -358,6 +358,7 @@
     "@birdcc/formatter": "workspace:*",
     "@birdcc/lsp": "workspace:*",
     "@birdcc/parser": "workspace:*",
+    "diff": "^8.0.2",
     "vscode-languageclient": "^9.0.1",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
