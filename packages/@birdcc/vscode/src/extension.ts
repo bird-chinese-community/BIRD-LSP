@@ -101,6 +101,10 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
     extensionPath: context.extensionPath,
     onStateChange: (state) => {
       lifecycleState = state;
+      if (state === "running") disposeFallbackValidator();
+      else if (state === "error" && workspace.isTrusted) {
+        createOrGetFallbackValidator();
+      }
       refreshStatus();
     },
   });
@@ -171,24 +175,21 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
   const reloadConfiguration = async (): Promise<void> => {
     configurationManager.refreshFromWorkspace("workspace-change");
   };
+  const manualValidator = createFallbackValidator(
+    () => runtimeState.configuration,
+    outputChannel,
+    eligibilityGate.isEligible,
+  );
+  manualValidator.activate({ background: false });
   const validateActiveDocument = async (): Promise<void> => {
     const isLanguageServerEnabled = runtimeState.configuration.enabled;
     if (!isLanguageServerEnabled) {
       const validator = createOrGetFallbackValidator();
-      await validator.validateActiveEditor();
+      await validator.validateActiveEditor({ saveDirty: true });
       return;
     }
 
-    const oneShotValidator = createFallbackValidator(
-      () => runtimeState.configuration,
-      outputChannel,
-      eligibilityGate.isEligible,
-    );
-    try {
-      await oneShotValidator.validateActiveEditor();
-    } finally {
-      oneShotValidator.dispose();
-    }
+    await manualValidator.validateActiveEditor({ saveDirty: true });
   };
 
   const initialChange =
@@ -261,6 +262,7 @@ export const activate = async (context: ExtensionContext): Promise<void> => {
       configurationManager.dispose();
       eligibilityGate.dispose();
       disposeFallbackValidator();
+      manualValidator.dispose();
       deactivateTask = lifecycle.dispose();
     },
   });

@@ -348,4 +348,44 @@ describe("fallback validator scheduling", () => {
     expect(mocks.execFile).not.toHaveBeenCalled();
     expect(mocks.diagnosticDelete).toHaveBeenCalledWith(document.uri);
   });
+
+  it("clears saved-file diagnostics without validating an edited buffer", async () => {
+    vi.useFakeTimers();
+    const validator = createFallbackValidator(getConfiguration, {
+      appendLine: vi.fn(),
+    } as never);
+    validator.activate();
+    const document = createDocument();
+    mocks.onDidOpenTextDocument?.(document);
+    mocks.onDidChangeTextDocument?.(
+      createChangeEvent(document, "router id 192.0.2.1;"),
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(mocks.execFile).not.toHaveBeenCalled();
+    expect(mocks.diagnosticDelete).toHaveBeenCalledWith(document.uri);
+    await validator.validateDocument({ ...document, isDirty: true });
+    expect(mocks.execFile).not.toHaveBeenCalled();
+    validator.dispose();
+  });
+
+  it("retains manual diagnostics until a change, close or disposal", async () => {
+    const validator = createFallbackValidator(getConfiguration, {
+      appendLine: vi.fn(),
+    } as never);
+    validator.activate({ background: false });
+    const document = createDocument();
+    mocks.onDidOpenTextDocument?.(document);
+    mocks.onDidSaveTextDocument?.(document);
+    expect(mocks.execFile).not.toHaveBeenCalled();
+    mocks.execFile.mockImplementation((_bin, _args, _options, callback) =>
+      callback(new Error("invalid configuration"), "", "invalid configuration"),
+    );
+    await validator.validateDocument(document);
+    expect(mocks.diagnosticSet).toHaveBeenCalledOnce();
+    expect(mocks.diagnosticClear).not.toHaveBeenCalled();
+    expect(mocks.diagnosticDispose).not.toHaveBeenCalled();
+    mocks.onDidCloseTextDocument?.(document);
+    expect(mocks.diagnosticDelete).toHaveBeenCalledWith(document.uri);
+    validator.dispose();
+  });
 });

@@ -30,12 +30,13 @@ const execFileAsync = async (
   command: string,
   args: readonly string[],
   timeoutMs: number,
+  signal: AbortSignal,
 ): Promise<{ stdout: string; stderr: string }> =>
   new Promise((resolvePromise, rejectPromise) => {
     execFile(
       command,
       [...args],
-      { timeout: timeoutMs },
+      { timeout: timeoutMs, signal },
       (error, stdout, stderr) => {
         const normalizedStdout = String(stdout ?? "");
         const normalizedStderr = String(stderr ?? "");
@@ -60,9 +61,9 @@ const execFileAsync = async (
   });
 
 export interface FallbackValidator {
-  activate: () => void;
+  activate: (options?: { background?: boolean }) => void;
   validateDocument: (document: TextDocument) => Promise<void>;
-  validateActiveEditor: () => Promise<void>;
+  validateActiveEditor: (options?: { saveDirty?: boolean }) => Promise<void>;
   dispose: () => void;
 }
 
@@ -152,6 +153,7 @@ export const createFallbackValidator = (
     ReturnType<typeof setTimeout>
   >();
   const latestValidationTicketByUri = new Map<string, number>();
+  const activeValidations = new Map<string, AbortController>();
   let nextValidationTicket = 0;
   let trustWarningShown = false;
 
@@ -211,6 +213,13 @@ export const createFallbackValidator = (
     }
 
     if (!isBirdDocument(document)) {
+      return;
+    }
+    if (document.isDirty) {
+      clearDocumentDiagnostics(document);
+      outputChannel.appendLine(
+        "[bird2-lsp] external validation requires the document to be saved",
+      );
       return;
     }
     if (!(await isDocumentEligible(document))) {
@@ -340,8 +349,15 @@ export const createFallbackValidator = (
       ),
     );
 
+    const controller = new AbortController();
+    activeValidations.set(uri, controller);
     try {
-      await execFileAsync(bin, args, configuration.validationTimeoutMs);
+      await execFileAsync(
+        bin,
+        args,
+        configuration.validationTimeoutMs,
+        controller.signal,
+      );
       if (!isLatestValidationTicket(uri, ticket)) {
         return;
       }
@@ -395,6 +411,9 @@ export const createFallbackValidator = (
         dedupeKey: `validation-command-runtime:${document.uri.toString()}`,
         dedupeCache: guidanceCache,
       });
+    } finally {
+      if (activeValidations.get(uri) === controller)
+        activeValidations.delete(uri);
     }
   };
 
@@ -403,6 +422,7 @@ export const createFallbackValidator = (
     clearPendingValidationTimer(uri);
     const ticket = ++nextValidationTicket;
     latestValidationTicketByUri.set(uri, ticket);
+    activeValidations.get(uri)?.abort();
     await runValidation(document, ticket);
   };
 
@@ -415,6 +435,7 @@ export const createFallbackValidator = (
     clearPendingValidationTimer(uri);
     const ticket = ++nextValidationTicket;
     latestValidationTicketByUri.set(uri, ticket);
+    activeValidations.get(uri)?.abort();
 
     const timer = setTimeout(() => {
       pendingValidationTimers.delete(uri);
@@ -424,25 +445,39 @@ export const createFallbackValidator = (
     pendingValidationTimers.set(uri, timer);
   };
 
-  const validateActiveEditor = async (): Promise<void> => {
+  const validateActiveEditor = async ({
+    saveDirty = false,
+  }: { saveDirty?: boolean } = {}): Promise<void> => {
     const activeDocument = window.activeTextEditor?.document;
-    if (!activeDocument) {
+    if (!activeDocument || !isBirdDocument(activeDocument)) {
       return;
+    }
+
+    if (activeDocument.isDirty && saveDirty) {
+      const selection = await window.showWarningMessage(
+        "Save this BIRD2 document before external validation.",
+        "Save and Validate",
+        "Cancel",
+      );
+      if (selection !== "Save and Validate" || !(await activeDocument.save()))
+        return;
     }
 
     await validateDocument(activeDocument);
   };
 
-  const activate = (): void => {
+  const activate = ({
+    background = true,
+  }: { background?: boolean } = {}): void => {
     disposables.push(
       workspace.onDidOpenTextDocument((document) => {
-        scheduleValidation(document);
+        if (background) scheduleValidation(document);
       }),
     );
 
     disposables.push(
       workspace.onDidSaveTextDocument((document) => {
-        if (!getConfiguration().validationOnSave) {
+        if (!background || !getConfiguration().validationOnSave) {
           return;
         }
 
@@ -456,7 +491,11 @@ export const createFallbackValidator = (
           return;
         }
 
-        scheduleValidation(event.document);
+        const uri = event.document.uri.toString();
+        clearPendingValidationTimer(uri);
+        latestValidationTicketByUri.delete(uri);
+        activeValidations.get(uri)?.abort();
+        clearDocumentDiagnostics(event.document);
       }),
     );
 
@@ -465,6 +504,7 @@ export const createFallbackValidator = (
         const uri = document.uri.toString();
         clearPendingValidationTimer(uri);
         latestValidationTicketByUri.delete(uri);
+        activeValidations.get(uri)?.abort();
         clearDocumentDiagnostics(document);
       }),
     );
@@ -472,11 +512,11 @@ export const createFallbackValidator = (
     disposables.push(
       workspace.onDidGrantWorkspaceTrust(() => {
         trustWarningShown = false;
-        void validateActiveEditor();
+        if (background) void validateActiveEditor();
       }),
     );
 
-    void validateActiveEditor();
+    if (background) void validateActiveEditor();
   };
 
   const dispose = (): void => {
@@ -485,6 +525,8 @@ export const createFallbackValidator = (
     }
     pendingValidationTimers.clear();
     latestValidationTicketByUri.clear();
+    for (const controller of activeValidations.values()) controller.abort();
+    activeValidations.clear();
 
     for (const disposable of disposables) {
       disposable.dispose();
