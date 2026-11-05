@@ -297,6 +297,10 @@ cli
           safeMode: loadedConfig.config.formatter?.safeMode,
         });
 
+        if (!writeMode && result.changed) {
+          process.exitCode = 1;
+        }
+
         // JSON output
         if (options.json) {
           const jsonOutput: Record<string, unknown> = {
@@ -331,7 +335,6 @@ cli
 
         if (result.changed) {
           console.error(CLI_MESSAGES.fmtCheckFailed);
-          process.exitCode = 1;
           logFmtTime();
           return;
         }

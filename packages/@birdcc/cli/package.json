@@ -23,7 +23,8 @@
       "types": "./dist/output-types.d.ts"
     },
     "./output-schemas": {
-      "types": "./dist/output-schemas.d.ts"
+      "types": "./dist/output-schemas.d.ts",
+      "default": "./dist/output-schemas.js"
     }
   },
   "files": [
