@@ -124,68 +124,77 @@ export const collectCandidateFiles = async (
       continue;
     }
 
-    for await (const entry of directory) {
-      if (entryCount >= maxEntries) {
-        truncated = true;
-        warnings.push({
-          code: "detection/entry-limit-reached",
-          message: `Stopped scanning after ${maxEntries} directory entries. Results may be incomplete.`,
-        });
-        break;
-      }
-      entryCount += 1;
-      if (fileCount >= maxFiles) {
-        truncated = true;
-        warnings.push({
-          code: "detection/file-limit-reached",
-          message: `Stopped scanning after ${maxFiles} files. Results may be incomplete.`,
-        });
-        break;
-      }
+    try {
+      for await (const entry of directory) {
+        if (entryCount >= maxEntries) {
+          truncated = true;
+          warnings.push({
+            code: "detection/entry-limit-reached",
+            message: `Stopped scanning after ${maxEntries} directory entries. Results may be incomplete.`,
+          });
+          break;
+        }
+        entryCount += 1;
+        if (fileCount >= maxFiles) {
+          truncated = true;
+          warnings.push({
+            code: "detection/file-limit-reached",
+            message: `Stopped scanning after ${maxFiles} files. Results may be incomplete.`,
+          });
+          break;
+        }
 
-      const fullPath = join(currentDir, entry.name);
+        const fullPath = join(currentDir, entry.name);
 
-      let isDir: boolean;
-      let isFile: boolean;
-      if (entry.isSymbolicLink() && !followSymlinks) {
-        continue;
-      } else if (entry.isSymbolicLink()) {
-        try {
-          const realStat = await stat(fullPath);
-          isDir = realStat.isDirectory();
-          isFile = realStat.isFile();
-        } catch {
+        let isDir: boolean;
+        let isFile: boolean;
+        if (entry.isSymbolicLink() && !followSymlinks) {
+          continue;
+        } else if (entry.isSymbolicLink()) {
+          try {
+            const realStat = await stat(fullPath);
+            isDir = realStat.isDirectory();
+            isFile = realStat.isFile();
+          } catch {
+            continue;
+          }
+        } else {
+          isDir = entry.isDirectory();
+          isFile = entry.isFile();
+        }
+
+        if (isDir) {
+          if (!isIgnoredDir(entry.name, extraExclude)) {
+            if (queue.length + directoryCount >= maxDirectories) {
+              truncated = true;
+              warnings.push({
+                code: "detection/directory-limit-reached",
+                message: `Stopped scanning after scheduling ${maxDirectories} directories. Results may be incomplete.`,
+              });
+              break;
+            }
+            queue.push([fullPath, depth + 1]);
+          }
           continue;
         }
-      } else {
-        isDir = entry.isDirectory();
-        isFile = entry.isFile();
-      }
 
-      if (isDir) {
-        if (!isIgnoredDir(entry.name, extraExclude)) {
-          if (queue.length + directoryCount >= maxDirectories) {
-            truncated = true;
-            warnings.push({
-              code: "detection/directory-limit-reached",
-              message: `Stopped scanning after scheduling ${maxDirectories} directories. Results may be incomplete.`,
-            });
-            break;
-          }
-          queue.push([fullPath, depth + 1]);
+        if (isFile && entry.name.endsWith(".conf")) {
+          fileCount++;
+          const relativePath = relative(root, fullPath).replaceAll("\\", "/");
+          files.push({
+            relativePath,
+            depth,
+            isCanonical: CANONICAL_NAMES.has(basename(entry.name)),
+          });
         }
-        continue;
       }
-
-      if (isFile && entry.name.endsWith(".conf")) {
-        fileCount++;
-        const relativePath = relative(root, fullPath).replaceAll("\\", "/");
-        files.push({
-          relativePath,
-          depth,
-          isCanonical: CANONICAL_NAMES.has(basename(entry.name)),
-        });
-      }
+    } catch {
+      // Directory became inaccessible or changed mid-iteration; keep partial results.
+      warnings.push({
+        code: "detection/directory-read-failed",
+        message: `Failed to read directory entries: ${currentDir}`,
+        path: currentDir,
+      });
     }
 
     if (truncated) break;
