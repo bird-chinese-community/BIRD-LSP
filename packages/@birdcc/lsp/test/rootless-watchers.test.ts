@@ -24,7 +24,11 @@ const renamed = "template bgp renamed { local as 65000; }\n";
 
 const startSession = (
   root: string,
-  options: { workspaceRoot?: string; relativePatterns?: boolean } = {},
+  options: {
+    workspaceRoot?: string;
+    relativePatterns?: boolean;
+    dynamicRegistration?: boolean;
+  } = {},
 ) => {
   const child = spawn(
     process.execPath,
@@ -170,20 +174,24 @@ const startSession = (
         capabilities: {
           workspace: {
             didChangeWatchedFiles: {
-              dynamicRegistration: true,
+              dynamicRegistration: options.dynamicRegistration ?? true,
               relativePatternSupport: options.relativePatterns ?? true,
             },
           },
         },
       });
       await connection.sendNotification("initialized", {});
-      await vi.waitFor(
-        () => expect(watchers.length).toBeGreaterThanOrEqual(4),
-        { timeout: 10000 },
-      );
+      if (options.dynamicRegistration !== false)
+        await vi.waitFor(
+          () => expect(watchers.length).toBeGreaterThanOrEqual(4),
+          { timeout: 10000 },
+        );
     },
-    async open(path: string, text: string) {
-      const uri = pathToFileURL(path).toString();
+    async open(path: string | URL, text: string) {
+      const uri =
+        typeof path === "string"
+          ? pathToFileURL(path).toString()
+          : path.toString();
       await connection.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "bird", version: 1, text },
       });
@@ -208,6 +216,140 @@ const startSession = (
     },
   };
 };
+
+it("analyzes an untitled document without native file registrations", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-untitled-"));
+  const session = startSession(root);
+  try {
+    await session.initialize();
+    const uri = await session.open(
+      new URL("untitled:birdcc-config"),
+      "router id 192.0.2.1;\nprotocol bgp untitled_peer { local as 65000; }\n",
+    );
+    await vi.waitFor(
+      () =>
+        expect(session.hasDiagnostic(uri, "bgp/missing-neighbor")).toBe(true),
+      { timeout: 10000 },
+    );
+    expect(session.hasDiagnostic(uri, "lsp/internal-error")).toBe(false);
+  } finally {
+    session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30000);
+
+it.each([false, true])(
+  "observes a closed include immediately after diagnostics (dynamic registration %s)",
+  async (dynamicRegistration) => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-native-include-"));
+    const session = startSession(root, { dynamicRegistration });
+    try {
+      await writeFile(join(root, "bird.conf"), source);
+      await writeFile(join(root, "other.conf"), source);
+      const include = join(root, "base.inc");
+      await writeFile(include, shared);
+      await session.initialize();
+      const firstUri = await session.open(join(root, "bird.conf"), source);
+      await session.waitForDiagnostics(firstUri, false);
+      const secondUri = await session.open(join(root, "other.conf"), source);
+      await session.waitForDiagnostics(secondUri, false);
+      await session.close(firstUri);
+      await vi.waitFor(
+        () =>
+          expect(
+            session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+              ?.diagnostics,
+          ).toEqual([]),
+        { timeout: 10000 },
+      );
+      let after = session.diagnostics.length;
+      await writeFile(include, renamed);
+      await session.waitForDiagnostics(secondUri, true, after);
+      after = session.diagnostics.length;
+      await writeFile(include, shared);
+      await session.waitForDiagnostics(secondUri, false, after);
+      expect(
+        session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+          ?.diagnostics,
+      ).toEqual([]);
+    } finally {
+      session.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60000,
+);
+
+it("observes wildcard member deletion and creation without client file events", async () => {
+  const root = await mkdtemp(join(tmpdir(), "birdcc-native-wildcard-"));
+  const session = startSession(root);
+  const text = source.replace('"base.inc"', '"parts/*.inc"');
+  try {
+    const parts = join(root, "parts");
+    await mkdir(parts);
+    const member = join(parts, "base.inc");
+    await writeFile(member, shared);
+    await writeFile(join(root, "bird.conf"), text);
+    await session.initialize();
+    const uri = await session.open(join(root, "bird.conf"), text);
+    await session.waitForDiagnostics(uri, false);
+    let after = session.diagnostics.length;
+    await rm(member);
+    await session.waitForDiagnostics(uri, true, after);
+    after = session.diagnostics.length;
+    await writeFile(join(parts, "replacement.inc"), shared);
+    await session.waitForDiagnostics(uri, false, after);
+    expect(session.hasDiagnostic(uri, "lsp/internal-error")).toBe(false);
+  } finally {
+    session.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 60000);
+
+it.each([false, true])(
+  "observes immediate config writes after another project closes (dynamic registration %s)",
+  async (dynamicRegistration) => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-native-config-"));
+    const session = startSession(root, { dynamicRegistration });
+    try {
+      const first = join(root, "first");
+      const second = join(root, "second");
+      for (const directory of [first, second]) {
+        await mkdir(directory);
+        await writeFile(join(directory, "bird.conf"), source);
+        await writeFile(join(directory, "base.inc"), shared);
+        await writeFile(
+          join(directory, "bird.config.json"),
+          JSON.stringify({ main: "bird.conf", crossFile: { enabled: false } }),
+        );
+      }
+      await session.initialize();
+      const firstUri = await session.open(join(first, "bird.conf"), source);
+      await session.waitForDiagnostics(firstUri, true);
+      const secondUri = await session.open(join(second, "bird.conf"), source);
+      await session.waitForDiagnostics(secondUri, true);
+      await session.close(firstUri);
+      await vi.waitFor(
+        () =>
+          expect(
+            session.diagnostics.filter((item) => item.uri === firstUri).at(-1)
+              ?.diagnostics,
+          ).toEqual([]),
+        { timeout: 10000 },
+      );
+      const after = session.diagnostics.length;
+      await writeFile(
+        join(second, "bird.config.json"),
+        JSON.stringify({ main: "bird.conf", crossFile: { enabled: true } }),
+      );
+      await session.waitForDiagnostics(secondUri, false, after);
+    } finally {
+      session.dispose();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60000,
+);
 
 it.each(["bird.config.json", "birdcc.config.json"])(
   "reloads a newly created %s without document edits or workspace roots",
