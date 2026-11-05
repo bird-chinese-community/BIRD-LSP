@@ -1,0 +1,178 @@
+core:changelogs:
+  - content: "---\npackages:\n  \"@birdcc/core\":\n    type: patch\n  \"@birdcc/cli\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Apply shared project configuration and LSP request options\n\nShare project configuration validation, apply editor lint and format settings, report invalid configuration, and honor reference declaration requests.\n\nKeep non-empty `linter.extends` string arrays valid as a reserved configuration field; preset inheritance remains a separate capability. Apply explicit `linter.rules` settings to diagnostics and reject invalid field types.\n\nPR: [#233](https://github.com/bird-chinese-community/BIRD-LSP/pull/233).\nIssues: [#177](https://github.com/bird-chinese-community/BIRD-LSP/issues/177), [#178](https://github.com/bird-chinese-community/BIRD-LSP/issues/178), [#179](https://github.com/bird-chinese-community/BIRD-LSP/issues/179), [#180](https://github.com/bird-chinese-community/BIRD-LSP/issues/180).\n"
+    filename: clear-project-options.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/formatter\":\n    type: patch\n  \"@birdcc/dprint-plugin-bird\":\n    type: patch\n  \"@birdcc/cli\":\n    type: patch\n  dprint-plugin-bird:\n    type: patch\n---\n\n## Support tab indentation in both formatter engines\n\nSupport tab indentation through the formatter's useTabs option in both engines.\nThe CLI reads `formatter.useTabs` from `bird.config.json`.\n\nKeep the complete configuration corpus test responsive by moving formatter work to its worker and validating protocol responses.\n\nPR: [#239](https://github.com/bird-chinese-community/BIRD-LSP/pull/239).\nIssues: [#231](https://github.com/bird-chinese-community/BIRD-LSP/issues/231), [#238](https://github.com/bird-chinese-community/BIRD-LSP/issues/238).\n"
+    filename: formatter-tabs.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/core\":\n    type: patch\n  \"@birdcc/linter\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/cli\":\n    type: patch\n---\n\n## Bound include analysis and reuse parsed documents\n\nBound analysis inputs and discovery, expose project and editor byte budgets, verify include targets, reuse parsed documents in cross-file lint, and validate performance fixture coverage.\n\nReport asynchronous directory read and close failures with context while retaining partial discovery results. Evict failed discovery promises by identity so later requests can retry without deleting newer cached work.\n\nPR: [#235](https://github.com/bird-chinese-community/BIRD-LSP/pull/235).\nIssues: [#181](https://github.com/bird-chinese-community/BIRD-LSP/issues/181), [#182](https://github.com/bird-chinese-community/BIRD-LSP/issues/182), [#183](https://github.com/bird-chinese-community/BIRD-LSP/issues/183), [#184](https://github.com/bird-chinese-community/BIRD-LSP/issues/184), [#185](https://github.com/bird-chinese-community/BIRD-LSP/issues/185).\n"
+    filename: quiet-analysis-budgets.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/cli\":\n    type: patch\n---\n\n## Preserve CLI validation status and runtime schema exports\n\nPreserve formatting check exit codes in JSON mode, report silent validator failures, honor disabled internal linting, and expose output schemas at runtime.\n\nPR: [#222](https://github.com/bird-chinese-community/BIRD-LSP/pull/222).\nIssues: [#186](https://github.com/bird-chinese-community/BIRD-LSP/issues/186), [#187](https://github.com/bird-chinese-community/BIRD-LSP/issues/187), [#188](https://github.com/bird-chinese-community/BIRD-LSP/issues/188), [#189](https://github.com/bird-chinese-community/BIRD-LSP/issues/189).\n"
+    filename: quiet-birds-report.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: patch\n  \"@birdcc/core\":\n    type: patch\n  \"@birdcc/linter\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/formatter\":\n    type: patch\n  \"@birdcc/cli\":\n    type: patch\n  \"@birdcc/dprint-plugin-bird\":\n    type: patch\n  \"@birdcc/intel\":\n    type: patch\n  \"@birdcc/vscode\":\n    type: patch\n  bird2-extension-pack:\n    type: patch\n---\n\n## Check formatting in CI without changing workspace files\n\nRun package formatting tasks with `--check` in CI. Keep generated README sections owned by their synchronization workflow.\n\nPR: [#226](https://github.com/bird-chinese-community/BIRD-LSP/pull/226).\nIssue: [#203](https://github.com/bird-chinese-community/BIRD-LSP/issues/203).\n"
+    filename: read-only-format-checks.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/cli\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Refresh runtime validation and release checks\n\nUpdate Zod and YAML to patched release lines and refresh the LSP text document implementation.\n\nValidate package release plans, production version commands, lockfile updates, and temporary version-worktree cleanup.\n\nPR: [#223](https://github.com/bird-chinese-community/BIRD-LSP/pull/223).\nIssues: [#194](https://github.com/bird-chinese-community/BIRD-LSP/issues/194), [#243](https://github.com/bird-chinese-community/BIRD-LSP/issues/243).\n"
+    filename: refresh-runtime-dependencies.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: major\n  \"@birdcc/core\":\n    type: major\n  \"@birdcc/linter\":\n    type: major\n  \"@birdcc/lsp\":\n    type: major\n  \"@birdcc/formatter\":\n    type: major\n  \"@birdcc/cli\":\n    type: major\n  \"@birdcc/dprint-plugin-bird\":\n    type: major\n  \"@birdcc/intel\":\n    type: major\n  \"@birdcc/vscode\":\n    type: major\n  bird2-extension-pack:\n    type: major\n  dprint-plugin-bird:\n    type: major\n---\n\n# Release the BIRDCC toolchain as 1.0.0\n\nCoordinate the parser, semantic analysis, linter, formatter, language server, CLI, ASN data package, VS Code extension, extension pack, and Rust formatter metadata at version 1.0.0.\n\nUse Tegami changesets for package changelogs, version plans, and resumable npm releases. Keep original Issue and PR links in each change entry. Version the private editor packages for their VSIX releases and the Rust crate for its bundled WASM artifact.\n\nInclude root Cargo workspace manifests and lockfiles in build cache inputs so Rust dependency and profile changes rebuild the shipped formatter.\n\nThe VS Code extension requires VS Code 1.100 or newer. Release tooling requires Node.js 24 or newer.\n\nRelated audit: [#162](https://github.com/bird-chinese-community/BIRD-LSP/issues/162).\n"
+    filename: stable-toolchain.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: patch\n  \"@birdcc/core\":\n    type: patch\n  \"@birdcc/linter\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Preserve symbol identity and infer parsed returns\n\nResolve user symbols with case-sensitive names across declarations, inheritance, diagnostics, and navigation. Infer function return hints from parsed return statements, including nested control flow.\n\nPR: [#224](https://github.com/bird-chinese-community/BIRD-LSP/pull/224).\nIssues: [#192](https://github.com/bird-chinese-community/BIRD-LSP/issues/192), [#193](https://github.com/bird-chinese-community/BIRD-LSP/issues/193).\n"
+    filename: fresh-symbols-return.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: patch\n  \"@birdcc/core\":\n    type: patch\n  \"@birdcc/linter\":\n    type: patch\n  \"@birdcc/formatter\":\n    type: patch\n---\n\n## Refresh public configuration examples\n\nRefresh the public reference configuration corpus and its pinned CI input metadata used by parser, formatter, lint, and analysis checks.\n\nCommit: [618394f4](https://github.com/bird-chinese-community/BIRD-LSP/commit/618394f4a79082dd374eb82d26acb9e38abdebf3).\n"
+    filename: public-configuration-corpus.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: patch\n  \"@birdcc/formatter\":\n    type: patch\n  \"@birdcc/dprint-plugin-bird\":\n    type: patch\n  dprint-plugin-bird:\n    type: patch\n---\n\n## Preserve syntax while formatting\n\nUse Tree-sitter syntax boundaries for indentation in both formatters and verify syntax and token contents when `safeMode` is enabled in the direct WASM plugin.\n\nPR: [#228](https://github.com/bird-chinese-community/BIRD-LSP/pull/228).\nIssues: [#190](https://github.com/bird-chinese-community/BIRD-LSP/issues/190), [#191](https://github.com/bird-chinese-community/BIRD-LSP/issues/191).\n"
+    filename: calm-strings-syntax.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/intel\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Validate ASN database content and report loading failures\n\nValidate decoded ASN database columns and expose structured load failures with the package version and database content digest.\n\nPR: [#236](https://github.com/bird-chinese-community/BIRD-LSP/pull/236).\nIssues: [#206](https://github.com/bird-chinese-community/BIRD-LSP/issues/206), [#207](https://github.com/bird-chinese-community/BIRD-LSP/issues/207).\n"
+    filename: clear-asn-data.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Honor the workspace build graph and observe stdio shutdown\n\nComplete shared dependency builds before running workspace test tasks. Bound stdio test requests, report server failures, observe shutdown responses, and dispose spawned servers in compatibility CI.\n\nPR: [#241](https://github.com/bird-chinese-community/BIRD-LSP/pull/241).\nIssue: [#240](https://github.com/bird-chinese-community/BIRD-LSP/issues/240).\n"
+    filename: bounded-stdio-requests.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/parser\":\n    type: patch\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Coordinate parser and language-client dependency updates\n\nGroup the Tree-sitter CLI and runtime updates so grammar generation and the shipped WASM runtime can be verified together. Group the language client and server SDK updates for coordinated protocol and editor-host validation.\n\nPR: [#227](https://github.com/bird-chinese-community/BIRD-LSP/pull/227).\nIssues: [#204](https://github.com/bird-chinese-community/BIRD-LSP/issues/204), [#205](https://github.com/bird-chinese-community/BIRD-LSP/issues/205).\n"
+    filename: coordinated-dependency-updates.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Package current workspace runtime dependencies\n\nResolve internal runtime dependencies from the current workspace when packaging the extension. Pin VSCE and Open VSX tooling, verify internal package contents in the VSIX, and exercise the installed bundled server on the minimum supported and stable VS Code hosts.\n\nPR: [#234](https://github.com/bird-chinese-community/BIRD-LSP/pull/234).\nIssues: [#202](https://github.com/bird-chinese-community/BIRD-LSP/issues/202), [#242](https://github.com/bird-chinese-community/BIRD-LSP/issues/242).\n"
+    filename: current-workspace-runtime.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Bind analysis results to document versions and disk changes\n\nKeep analysis tied to captured document versions and refresh include graphs after disk changes.\n\nPR: [#230](https://github.com/bird-chinese-community/BIRD-LSP/pull/230).\nIssues: [#175](https://github.com/bird-chinese-community/BIRD-LSP/issues/175), [#176](https://github.com/bird-chinese-community/BIRD-LSP/issues/176), [#244](https://github.com/bird-chinese-community/BIRD-LSP/issues/244).\n"
+    filename: quiet-snapshots-watch.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/lsp\":\n    type: patch\n---\n\n## Watch single-file projects before publishing diagnostics\n\nWatch rootless project configuration and include directories before diagnostics, share native watches across open entries, and release unused directory handles. Report native watch failures with context while monitoring available directories.\n\nApply configuration creation, disabling, and re-enabling to entry and closed-include diagnostics. Keep readable files analyzable when an ancestor directory cannot be watched, and retain watches and diagnostics owned by other open entries.\n\nPR: [#247](https://github.com/bird-chinese-community/BIRD-LSP/pull/247).\nIssues: [#176](https://github.com/bird-chinese-community/BIRD-LSP/issues/176), [#244](https://github.com/bird-chinese-community/BIRD-LSP/issues/244).\n"
+    filename: rootless-config-readiness.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/lsp\":\n    type: patch\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Coordinate extension dependency builds and stdio regressions\n\nBuild the extension's dependency closure before workspace tests and avoid rebuilding shared outputs while other test processes use them. Give the complete multi-stage real-stdio ownership regression a bounded execution budget while retaining each state assertion and cleanup step.\n\nPR: [#245](https://github.com/bird-chinese-community/BIRD-LSP/pull/245).\nRelated issue: [#240](https://github.com/bird-chinese-community/BIRD-LSP/issues/240).\n"
+    filename: stdio-ownership-budget.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Update editor configuration dependencies\n\nUpdate editor configuration dependencies to patched Zod and YAML releases.\n\nPR: [#223](https://github.com/bird-chinese-community/BIRD-LSP/pull/223).\nIssue: [#194](https://github.com/bird-chinese-community/BIRD-LSP/issues/194).\n"
+    filename: editor-runtime-dependencies.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/vscode\":\n    type: minor\n  bird2-extension-pack:\n    type: minor\n---\n\n## Require VS Code 1.100 or newer\n\nRequire VS Code 1.100 or newer for the ESM extension entry point and test the minimum supported host alongside stable.\n\nUpdate VS Code before installing this release when using an older host.\n\nPR: [#225](https://github.com/bird-chinese-community/BIRD-LSP/pull/225).\nIssue: [#163](https://github.com/bird-chinese-community/BIRD-LSP/issues/163).\n"
+    filename: vscode-esm-host.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Recover the language client and preserve validation diagnostics\n\nTerminate timed-out server processes, follow client connection state, retain manual validation diagnostics, and validate saved content with fallback validation.\n\nStop persistent fallback validation after the language client recovers and keep the status bar aligned with the actual connection state.\n\nPR: [#229](https://github.com/bird-chinese-community/BIRD-LSP/pull/229).\nIssues: [#164](https://github.com/bird-chinese-community/BIRD-LSP/issues/164), [#165](https://github.com/bird-chinese-community/BIRD-LSP/issues/165), [#166](https://github.com/bird-chinese-community/BIRD-LSP/issues/166), [#170](https://github.com/bird-chinese-community/BIRD-LSP/issues/170), [#171](https://github.com/bird-chinese-community/BIRD-LSP/issues/171).\n"
+    filename: vscode-lifecycle-validation.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Honor the public protocol trace setting\n\nRead language-client protocol tracing from the public bird2-lsp configuration namespace during startup and configuration changes.\n\nUse `bird2-lsp.trace.server` to select `off`, `messages`, or `verbose`.\n\nPR: [#237](https://github.com/bird-chinese-community/BIRD-LSP/pull/237).\nIssue: [#246](https://github.com/bird-chinese-community/BIRD-LSP/issues/246).\n"
+    filename: vscode-public-trace.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@birdcc/vscode\":\n    type: patch\n---\n\n## Apply resource settings and editor formatting options\n\nApply resource settings to local providers, preserve valid configuration fields, forward ASN preferences, respect editor formatting options, and return small edits with cancellation checks.\n\nUse current document content for large-file decisions and retain configured diagnostic visibility. Verify the installed VSIX starts its bundled server on the minimum supported and stable extension hosts.\n\nPR: [#237](https://github.com/bird-chinese-community/BIRD-LSP/pull/237).\nIssues: [#167](https://github.com/bird-chinese-community/BIRD-LSP/issues/167), [#168](https://github.com/bird-chinese-community/BIRD-LSP/issues/168), [#169](https://github.com/bird-chinese-community/BIRD-LSP/issues/169), [#172](https://github.com/bird-chinese-community/BIRD-LSP/issues/172), [#173](https://github.com/bird-chinese-community/BIRD-LSP/issues/173), [#174](https://github.com/bird-chinese-community/BIRD-LSP/issues/174), [#209](https://github.com/bird-chinese-community/BIRD-LSP/issues/209).\n"
+    filename: vscode-resource-providers.md
+    v: 0.0.0
+core:packages:
+  - id: npm:bird-lsp
+    updated: false
+  - changelogIds:
+      - clear-project-options.md
+      - formatter-tabs.md
+      - quiet-analysis-budgets.md
+      - quiet-birds-report.md
+      - read-only-format-checks.md
+      - refresh-runtime-dependencies.md
+      - stable-toolchain.md
+    id: npm:@birdcc/cli
+    updated: true
+  - changelogIds:
+      - clear-project-options.md
+      - fresh-symbols-return.md
+      - public-configuration-corpus.md
+      - quiet-analysis-budgets.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/core
+    updated: true
+  - changelogIds:
+      - calm-strings-syntax.md
+      - formatter-tabs.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/dprint-plugin-bird
+    updated: true
+  - changelogIds:
+      - calm-strings-syntax.md
+      - formatter-tabs.md
+      - public-configuration-corpus.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/formatter
+    updated: true
+  - changelogIds:
+      - clear-asn-data.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/intel
+    updated: true
+  - changelogIds:
+      - fresh-symbols-return.md
+      - public-configuration-corpus.md
+      - quiet-analysis-budgets.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/linter
+    updated: true
+  - changelogIds:
+      - bounded-stdio-requests.md
+      - clear-asn-data.md
+      - clear-project-options.md
+      - coordinated-dependency-updates.md
+      - current-workspace-runtime.md
+      - fresh-symbols-return.md
+      - quiet-analysis-budgets.md
+      - quiet-snapshots-watch.md
+      - read-only-format-checks.md
+      - refresh-runtime-dependencies.md
+      - rootless-config-readiness.md
+      - stable-toolchain.md
+      - stdio-ownership-budget.md
+    id: npm:@birdcc/lsp
+    updated: true
+  - changelogIds:
+      - bounded-stdio-requests.md
+      - coordinated-dependency-updates.md
+      - current-workspace-runtime.md
+      - editor-runtime-dependencies.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+      - stdio-ownership-budget.md
+      - vscode-esm-host.md
+      - vscode-lifecycle-validation.md
+      - vscode-public-trace.md
+      - vscode-resource-providers.md
+    id: npm:@birdcc/vscode
+    updated: true
+  - changelogIds:
+      - calm-strings-syntax.md
+      - coordinated-dependency-updates.md
+      - fresh-symbols-return.md
+      - public-configuration-corpus.md
+      - read-only-format-checks.md
+      - stable-toolchain.md
+    id: npm:@birdcc/parser
+    updated: true
+  - changelogIds:
+      - read-only-format-checks.md
+      - stable-toolchain.md
+      - vscode-esm-host.md
+    id: npm:bird2-extension-pack
+    updated: true
+  - changelogIds: []
+    id: cargo:dprint-plugin-bird
+    updated: true
+npm:packages:
+  - id: npm:bird-lsp
+  - id: npm:@birdcc/cli
+  - id: npm:@birdcc/core
+  - id: npm:@birdcc/dprint-plugin-bird
+  - id: npm:@birdcc/formatter
+  - id: npm:@birdcc/intel
+  - id: npm:@birdcc/lsp
+  - id: npm:@birdcc/linter
+  - id: npm:@birdcc/parser
+  - id: npm:@birdcc/vscode
+  - id: npm:bird2-extension-pack
