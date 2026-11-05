@@ -30,6 +30,9 @@ export { buildCoreSnapshotFromParsed } from "./snapshot.js";
 export {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
   DEFAULT_CROSS_FILE_MAX_FILES,
+  DEFAULT_MAX_DOCUMENT_BYTES,
+  DEFAULT_MAX_TOTAL_BYTES,
+  readBirdConfigFile,
   resolveCrossFileReferences,
 } from "./cross-file.js";
 
@@ -79,6 +82,7 @@ export {
   birdEditorSettingsSchema,
   loadBirdProjectConfigForFile,
   resolveSeverityOverride,
+  resolveAnalysisBudget,
   type BirdProjectConfig,
   type BirdEditorSettings,
   type LintRuleSeverity,

@@ -170,6 +170,9 @@ cli
               includeMaxDepth ?? loadedConfig.config.crossFile?.maxDepth,
             includeMaxFiles:
               includeMaxFiles ?? loadedConfig.config.crossFile?.maxFiles,
+            includeMaxDocumentBytes:
+              loadedConfig.config.crossFile?.maxDocumentBytes,
+            includeMaxTotalBytes: loadedConfig.config.crossFile?.maxTotalBytes,
             includePaths: resolvedIncludePaths,
             allowIncludeOutsideWorkspace:
               loadedConfig.config.crossFile?.externalIncludes,

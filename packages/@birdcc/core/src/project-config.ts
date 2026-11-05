@@ -2,6 +2,10 @@ import { access, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
 import type { BirdDiagnostic, BirdDiagnosticSeverity } from "./types.js";
+import {
+  DEFAULT_MAX_DOCUMENT_BYTES,
+  DEFAULT_MAX_TOTAL_BYTES,
+} from "./cross-file.js";
 
 const CONFIG_FILE_NAMES = ["bird.config.json", "birdcc.config.json"] as const;
 const severitySchema = z.enum(["error", "warning", "info", "off"]);
@@ -20,6 +24,18 @@ export const birdProjectConfigSchema = z
         enabled: z.boolean().optional(),
         maxDepth: z.number().int().min(1).max(64).optional(),
         maxFiles: z.number().int().min(1).max(1024).optional(),
+        maxDocumentBytes: z
+          .number()
+          .int()
+          .positive()
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional(),
+        maxTotalBytes: z
+          .number()
+          .int()
+          .positive()
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional(),
         externalIncludes: z.boolean().optional(),
       })
       .strict()
@@ -61,6 +77,16 @@ export type BirdProjectConfig = z.infer<typeof birdProjectConfigSchema>;
 export const birdEditorSettingsSchema = z
   .object({
     enabled: z.boolean().optional(),
+    performance: z
+      .object({
+        maxFileSizeBytes: z
+          .number()
+          .int()
+          .positive()
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional(),
+      })
+      .optional(),
     intel: z
       .object({
         enabled: z.boolean().optional(),
@@ -79,6 +105,22 @@ export const birdEditorSettingsSchema = z
   })
   .passthrough();
 export type BirdEditorSettings = z.infer<typeof birdEditorSettingsSchema>;
+export const resolveAnalysisBudget = (
+  config?: BirdProjectConfig["crossFile"],
+  resourceMaxFileSizeBytes?: number,
+) => {
+  const maxDocumentBytes =
+    config?.maxDocumentBytes ??
+    resourceMaxFileSizeBytes ??
+    DEFAULT_MAX_DOCUMENT_BYTES;
+  return {
+    maxDocumentBytes: Math.min(
+      maxDocumentBytes,
+      resourceMaxFileSizeBytes ?? maxDocumentBytes,
+    ),
+    maxTotalBytes: config?.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
+  };
+};
 export interface LoadedBirdProjectConfig {
   path?: string;
   config: BirdProjectConfig;

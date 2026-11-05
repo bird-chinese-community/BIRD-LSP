@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import {
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   resolveCrossFileReferences,
   selectAutoDetectedEntry,
   sniffProjectEntrypoints,
+  readBirdConfigFile,
+  resolveAnalysisBudget,
   type BirdDiagnostic,
   type BirdDiagnosticSeverity,
 } from "@birdcc/core";
@@ -419,6 +428,8 @@ export interface LintOptions {
   crossFile?: boolean;
   includeMaxDepth?: number;
   includeMaxFiles?: number;
+  includeMaxDocumentBytes?: number;
+  includeMaxTotalBytes?: number;
   includePaths?: string[];
   allowIncludeOutsideWorkspace?: boolean;
   validateCommand?: string;
@@ -571,7 +582,14 @@ const runCrossFileLint = async (
   filePath: string,
   options: LintOptions,
 ): Promise<BirdccLintOutput> => {
-  const entryText = await readUtf8File(filePath);
+  const budget = resolveAnalysisBudget({
+    maxDocumentBytes: options.includeMaxDocumentBytes,
+    maxTotalBytes: options.includeMaxTotalBytes,
+  });
+  const entryText = await readBirdConfigFile(
+    toFileUri(await realpath(filePath)),
+    Math.min(budget.maxDocumentBytes, budget.maxTotalBytes),
+  );
   const currentDocumentUri = toFileUri(filePath);
   const workspaceRootUri = toFileUri(dirname(resolve(filePath)));
   const currentFileLooksLikeEntry = /^\s*include\s+/mu.test(entryText);
@@ -592,6 +610,7 @@ const runCrossFileLint = async (
     documents: [{ uri: currentDocumentUri, text: entryText }],
     maxDepth: options.includeMaxDepth,
     maxFiles: options.includeMaxFiles,
+    ...budget,
     workspaceRootUri: autoProjectContext.workspaceRootUri,
     allowIncludeOutsideWorkspace: options.allowIncludeOutsideWorkspace,
     includeSearchPaths,
@@ -615,7 +634,14 @@ export const runLint = async (
   const lintOutput = crossFile
     ? await runCrossFileLint(filePath, options)
     : await (async () => {
-        const text = await readUtf8File(filePath);
+        const budget = resolveAnalysisBudget({
+          maxDocumentBytes: options.includeMaxDocumentBytes,
+          maxTotalBytes: options.includeMaxTotalBytes,
+        });
+        const text = await readBirdConfigFile(
+          toFileUri(await realpath(filePath)),
+          Math.min(budget.maxDocumentBytes, budget.maxTotalBytes),
+        );
         const uri = toFileUri(filePath);
         const lintResult = await lintBirdConfig(text, { uri });
         return { diagnostics: lintResult.diagnostics };

@@ -116,6 +116,20 @@
           "type": "boolean",
           "description": "Allow includes outside workspace root",
           "default": false
+        },
+        "maxDocumentBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "default": 2097152,
+          "description": "Maximum UTF-8 input bytes per analyzed document"
+        },
+        "maxTotalBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "default": 16777216,
+          "description": "Maximum total UTF-8 input bytes per analysis"
         }
       }
     },

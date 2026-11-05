@@ -3,11 +3,36 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
-import { resolveProjectAnalysisOptions } from "../src/project-config.js";
+import {
+  createProjectAnalysisResolver,
+  resolveProjectAnalysisOptions,
+} from "../src/project-config.js";
 
 const toUri = (path: string): string => pathToFileURL(path).toString();
 
 describe("resolveProjectAnalysisOptions", () => {
+  it("reuses discovery until filesystem invalidation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "birdcc-lsp-discovery-cache-"));
+    try {
+      const main = join(root, "bird.conf");
+      const document = join(root, "part.conf");
+      await writeFile(main, "router id 192.0.2.1;\nprotocol device {}\n");
+      await writeFile(document, "define LOCAL_AS = 65000;\n");
+      const resolver = createProjectAnalysisResolver();
+      const input = {
+        documentUri: toUri(document),
+        workspaceRootUris: [toUri(root)],
+        defaults: { maxDepth: 16, maxFiles: 256 },
+      };
+      expect((await resolver.resolve(input)).entryUri).toBe(toUri(main));
+      await rm(main);
+      expect((await resolver.resolve(input)).entryUri).toBe(toUri(main));
+      resolver.invalidate();
+      expect((await resolver.resolve(input)).entryUri).toBe(toUri(document));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("uses main entry from bird.config.json for single-project setup", async () => {
     const root = await mkdtemp(join(tmpdir(), "birdcc-lsp-main-"));
     try {

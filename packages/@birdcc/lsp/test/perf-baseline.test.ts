@@ -30,13 +30,13 @@ const createIncludeBody = (index: number, linesPerInclude: number): string => {
 const createCaseDocuments = (
   testCase: PerfCase,
 ): { entryUri: string; documents: Array<{ uri: string; text: string }> } => {
-  const entryUri = `memory://perf/${testCase.name}/main.conf`;
+  const entryUri = `file:///birdcc-perf/${testCase.name}/main.conf`;
   const documents: Array<{ uri: string; text: string }> = [];
   const entryLines: string[] = ["router id 192.0.2.1;"];
 
   for (let index = 0; index < testCase.includeCount; index += 1) {
     const includePath = `include-${index}.conf`;
-    const includeUri = `memory://perf/${testCase.name}/${includePath}`;
+    const includeUri = `file:///birdcc-perf/${testCase.name}/${includePath}`;
 
     entryLines.push(`include "${includePath}";`);
     entryLines.push(`protocol bgp edge_${index} from tpl_${index} {`);
@@ -70,7 +70,21 @@ const runPerfCase = async (testCase: PerfCase): Promise<number> => {
     maxDepth: 16,
     maxFiles: 256,
   });
-  await lintResolvedCrossFileGraph(resolved);
+  expect(resolved.visitedUris).toHaveLength(testCase.includeCount + 1);
+  expect(resolved.stats.missingIncludes).toBe(0);
+  expect(
+    resolved.diagnostics.some(
+      (diagnostic) => diagnostic.code === "semantic/missing-include",
+    ),
+  ).toBe(false);
+  expect(
+    resolved.symbolTable.definitions.filter(
+      (symbol) => symbol.kind === "template",
+    ),
+  ).toHaveLength(testCase.includeCount);
+  const linted = await lintResolvedCrossFileGraph(resolved);
+  for (const uri of resolved.visitedUris)
+    expect(linted.byUri[uri].parsed).toBe(resolved.parsedDocuments[uri]);
 
   return performance.now() - start;
 };

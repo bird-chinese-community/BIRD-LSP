@@ -1,4 +1,5 @@
-import { readFile, readdir } from "node:fs/promises";
+import { open, opendir, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
 import {
   basename,
   dirname,
@@ -9,7 +10,6 @@ import {
 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ParsedBirdDocument, SourceRange } from "@birdcc/parser";
-import { parseBirdConfig } from "@birdcc/parser";
 import type {
   BirdDiagnostic,
   CoreSnapshot,
@@ -24,15 +24,17 @@ import {
   pushSymbolTableDiagnostics,
 } from "./symbol-table.js";
 import { collectCircularTemplateDiagnostics } from "./template-cycles.js";
+import { createParsedDocumentCache } from "./parsed-document-cache.js";
 
 export const DEFAULT_CROSS_FILE_MAX_DEPTH = 16;
 export const DEFAULT_CROSS_FILE_MAX_FILES = 256;
+export const DEFAULT_MAX_DOCUMENT_BYTES = 2 * 1024 * 1024;
+export const DEFAULT_MAX_TOTAL_BYTES = 16 * 1024 * 1024;
 
-const PARSED_DOCUMENT_CACHE_LIMIT = 512;
-const parsedDocumentCache = new Map<
-  string,
-  { text: string; parsed: ParsedBirdDocument }
->();
+const parsedDocumentCache = createParsedDocumentCache({
+  maxEntries: 512,
+  maxBytes: 16 * 1024 * 1024,
+});
 
 const DEFAULT_RANGE = {
   line: 1,
@@ -97,13 +99,46 @@ const isWithinWorkspaceRoot = (
   );
 };
 
-const defaultReadFileText = async (uri: string): Promise<string> => {
+export const readBirdConfigFile = async (
+  uri: string,
+  maxBytes: number,
+): Promise<string> => {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0)
+    throw new Error("maxBytes must be a non-negative safe integer");
   const filePath = toFilePath(uri);
   if (!filePath) {
     throw new Error(`Unsupported non-file URI '${uri}'`);
   }
 
-  return readFile(filePath, "utf8");
+  const handle = await open(
+    filePath,
+    constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
+  );
+  try {
+    const metadata = await handle.stat();
+    if (!metadata.isFile())
+      throw new Error(`Expected a regular file: '${uri}'`);
+    if (metadata.size > maxBytes)
+      throw new Error(
+        `Analysis size limit (${maxBytes} bytes) exceeded: '${uri}'`,
+      );
+    const chunks: Buffer[] = [];
+    let total = 0;
+    while (total <= maxBytes) {
+      const buffer = Buffer.alloc(Math.min(64 * 1024, maxBytes - total + 1));
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+      if (!bytesRead) break;
+      total += bytesRead;
+      if (total > maxBytes)
+        throw new Error(
+          `Analysis size limit (${maxBytes} bytes) exceeded: '${uri}'`,
+        );
+      chunks.push(buffer.subarray(0, bytesRead));
+    }
+    return Buffer.concat(chunks, total).toString("utf8");
+  } finally {
+    await handle.close();
+  }
 };
 
 const resolveIncludeUri = (baseUri: string, includePath: string): string => {
@@ -200,6 +235,8 @@ const expandWildcardIncludeUri = async (
   includeUri: string,
   knownDocumentUris: Iterable<string>,
   workspaceRootUri?: string,
+  loadFromFileSystem = true,
+  directoryBudget = { remaining: 20_000 },
 ): Promise<string[]> => {
   const filePath = toFilePath(includeUri);
   if (!filePath || !filePath.includes("*")) {
@@ -215,10 +252,23 @@ const expandWildcardIncludeUri = async (
   const regex = wildcardPatternToRegExp(filePattern);
 
   const includeDirUri = pathToFileURL(includeDir).toString();
-  if (
-    workspaceRootUri &&
-    !isWithinWorkspaceRoot(includeDirUri, workspaceRootUri)
-  ) {
+  const canReadDirectory = async (): Promise<boolean> => {
+    if (!loadFromFileSystem) return false;
+    if (!workspaceRootUri) return true;
+    if (!isWithinWorkspaceRoot(includeDirUri, workspaceRootUri)) return false;
+    const rootPath = toFilePath(workspaceRootUri);
+    if (!rootPath) return false;
+    try {
+      return isWithinWorkspaceRoot(
+        pathToFileURL(await realpath(includeDir)).toString(),
+        pathToFileURL(await realpath(rootPath)).toString(),
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
+  };
+  if (!(await canReadDirectory())) {
     const hasResolvedPath = (item: {
       uri: string;
       path: string | null;
@@ -234,12 +284,23 @@ const expandWildcardIncludeUri = async (
   }
 
   try {
-    const entries = await readdir(includeDir, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && regex.test(entry.name))
-      .map((entry) => pathToFileURL(resolve(includeDir, entry.name)).toString())
-      .sort((left, right) => left.localeCompare(right));
-  } catch {
+    const directory = await opendir(includeDir);
+    const matches: string[] = [];
+    for await (const entry of directory) {
+      if (directoryBudget.remaining <= 0)
+        throw new Error("Wildcard directory entry limit reached");
+      directoryBudget.remaining -= 1;
+      if (entry.isFile() && regex.test(entry.name))
+        matches.push(pathToFileURL(resolve(includeDir, entry.name)).toString());
+    }
+    return matches.sort((left, right) => left.localeCompare(right));
+  } catch (error) {
+    if (
+      !["ENOENT", "ENOTDIR"].includes(
+        (error as NodeJS.ErrnoException).code ?? "",
+      )
+    )
+      throw error;
     const hasResolvedPath = (item: {
       uri: string;
       path: string | null;
@@ -306,23 +367,10 @@ const parseDocumentWithCache = async (
   text: string,
   stats: CrossFileResolutionStats,
 ): Promise<ParsedBirdDocument> => {
-  const cached = parsedDocumentCache.get(uri);
-  if (cached && cached.text === text) {
+  const { parsed, cacheHit } = await parsedDocumentCache.parse(uri, text);
+  if (cacheHit) {
     stats.parsedCacheHits += 1;
-    return cached.parsed;
-  }
-
-  stats.parsedCacheMisses += 1;
-  const parsed = await parseBirdConfig(text);
-
-  if (parsedDocumentCache.size >= PARSED_DOCUMENT_CACHE_LIMIT) {
-    const oldestKey = parsedDocumentCache.keys().next().value;
-    if (oldestKey) {
-      parsedDocumentCache.delete(oldestKey);
-    }
-  }
-
-  parsedDocumentCache.set(uri, { text, parsed });
+  } else stats.parsedCacheMisses += 1;
   return parsed;
 };
 
@@ -337,7 +385,22 @@ export const resolveCrossFileReferences = async (
   const maxDepth = options.maxDepth ?? DEFAULT_CROSS_FILE_MAX_DEPTH;
   const maxFiles = options.maxFiles ?? DEFAULT_CROSS_FILE_MAX_FILES;
   const loadFromFileSystem = options.loadFromFileSystem ?? true;
-  const readFileText = options.readFileText ?? defaultReadFileText;
+  const maxDocumentBytes =
+    options.maxDocumentBytes ?? DEFAULT_MAX_DOCUMENT_BYTES;
+  const maxTotalBytes = options.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
+  const directoryBudget = { remaining: 20_000 };
+  for (const [name, value] of Object.entries({
+    maxDepth,
+    maxFiles,
+    maxDocumentBytes,
+    maxTotalBytes,
+  })) {
+    const minimum = name === "maxDepth" ? 0 : 1;
+    if (!Number.isSafeInteger(value) || value < minimum)
+      throw new Error(
+        `${name} must be a safe integer greater than or equal to ${minimum}`,
+      );
+  }
   const workspaceRootUri =
     options.workspaceRootUri ?? toDefaultWorkspaceRootUri(options.entryUri);
   const allowIncludeOutsideWorkspace =
@@ -354,6 +417,8 @@ export const resolveCrossFileReferences = async (
     missingIncludes: 0,
     parsedCacheHits: 0,
     parsedCacheMisses: 0,
+    skippedBySizeLimit: 0,
+    totalBytes: 0,
   };
 
   const documentMap = new Map(
@@ -368,22 +433,87 @@ export const resolveCrossFileReferences = async (
   const queued = new Set<string>([options.entryUri]);
   const visited = new Set<string>();
   const diagnostics: BirdDiagnostic[] = [];
+  const budgetedUris = new Set<string>();
 
-  const ensureDocument = async (uri: string): Promise<boolean> => {
-    if (documentMap.has(uri)) {
-      return true;
-    }
-
-    if (!loadFromFileSystem) {
+  const ensureDocument = async (
+    uri: string,
+    sourceUri = uri,
+    range: SourceRange = DEFAULT_RANGE,
+    loadDiagnostics = diagnostics,
+  ): Promise<boolean> => {
+    if (budgetedUris.has(uri)) return true;
+    if (!documentMap.has(uri) && !loadFromFileSystem) {
       return false;
     }
 
     try {
-      const text = await readFileText(uri);
+      let text = documentMap.get(uri)?.text;
+      if (text === undefined) {
+        const path = toFilePath(uri);
+        const root = toFilePath(workspaceRootUri);
+        const readUri =
+          !options.readFileText && path
+            ? pathToFileURL(await realpath(path)).toString()
+            : uri;
+        if (
+          !allowIncludeOutsideWorkspace &&
+          path &&
+          root &&
+          !options.readFileText
+        ) {
+          const actualRoot = pathToFileURL(await realpath(root)).toString();
+          if (!isWithinWorkspaceRoot(readUri, actualRoot)) {
+            loadDiagnostics.push(
+              includeDiagnostic(
+                sourceUri,
+                `Include target is outside workspace root: '${uri}'`,
+                range,
+              ),
+            );
+            return false;
+          }
+        }
+        const remaining = Math.min(
+          maxDocumentBytes,
+          maxTotalBytes - stats.totalBytes,
+        );
+        text = options.readFileText
+          ? await options.readFileText(uri)
+          : await readBirdConfigFile(readUri, remaining);
+        stats.loadedFromFileSystem += 1;
+      }
+      const bytes = Buffer.byteLength(text, "utf8");
+      if (
+        bytes > maxDocumentBytes ||
+        stats.totalBytes + bytes > maxTotalBytes
+      ) {
+        stats.skippedBySizeLimit += 1;
+        loadDiagnostics.push(
+          includeDiagnostic(
+            sourceUri,
+            `Analysis size limit exceeded for '${uri}'`,
+            range,
+          ),
+        );
+        return false;
+      }
       documentMap.set(uri, { uri, text });
-      stats.loadedFromFileSystem += 1;
+      budgetedUris.add(uri);
+      stats.totalBytes += bytes;
       return true;
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Analysis size limit")
+      )
+        stats.skippedBySizeLimit += 1;
+      loadDiagnostics.push(
+        includeDiagnostic(
+          sourceUri,
+          `Unable to load '${uri}': ${error instanceof Error ? error.message : String(error)}`,
+          range,
+        ),
+      );
       return false;
     }
   };
@@ -395,7 +525,9 @@ export const resolveCrossFileReferences = async (
       symbolTable: { definitions: [], references: [] },
       snapshots: {},
       documents: {},
+      parsedDocuments: {},
       diagnostics: [
+        ...diagnostics,
         includeDiagnostic(
           options.entryUri,
           `Entry file not found or not readable: '${options.entryUri}'`,
@@ -460,6 +592,7 @@ export const resolveCrossFileReferences = async (
         includeSearchPaths,
       );
       const allowMultipleMatches = declaration.path.includes("*");
+      const candidateDiagnostics: BirdDiagnostic[] = [];
       let queuedInclude = false;
       let skippedOutsideWorkspace = false;
 
@@ -477,11 +610,25 @@ export const resolveCrossFileReferences = async (
 
       for (const includeUri of includeCandidates) {
         // eslint-disable-next-line no-await-in-loop
-        const expandedIncludeUris = await expandWildcardIncludeUri(
-          includeUri,
-          documentMap.keys(),
-          allowIncludeOutsideWorkspace ? undefined : workspaceRootUri,
-        );
+        let expandedIncludeUris: string[];
+        try {
+          expandedIncludeUris = await expandWildcardIncludeUri(
+            includeUri,
+            documentMap.keys(),
+            allowIncludeOutsideWorkspace ? undefined : workspaceRootUri,
+            loadFromFileSystem,
+            directoryBudget,
+          );
+        } catch (error) {
+          diagnostics.push(
+            includeDiagnostic(
+              current.uri,
+              `Unable to expand include '${declaration.path}': ${error instanceof Error ? error.message : String(error)}`,
+              includeRange,
+            ),
+          );
+          continue;
+        }
         if (expandedIncludeUris.length === 0) {
           continue;
         }
@@ -517,7 +664,12 @@ export const resolveCrossFileReferences = async (
           }
 
           // eslint-disable-next-line no-await-in-loop
-          const loaded = await ensureDocument(expandedUri);
+          const loaded = await ensureDocument(
+            expandedUri,
+            current.uri,
+            includeRange,
+            candidateDiagnostics,
+          );
           if (!loaded) {
             continue;
           }
@@ -533,6 +685,10 @@ export const resolveCrossFileReferences = async (
         if (queuedInclude && !allowMultipleMatches) {
           break;
         }
+      }
+
+      if (!queuedInclude || allowMultipleMatches) {
+        diagnostics.push(...candidateDiagnostics);
       }
 
       if (queuedInclude) {
@@ -595,8 +751,11 @@ export const resolveCrossFileReferences = async (
     symbolTable: mergedSymbolTable,
     snapshots,
     documents: Object.fromEntries(
-      [...documentMap.entries()].map(([uri, document]) => [uri, document.text]),
+      [...documentMap.entries()]
+        .filter(([uri]) => visited.has(uri))
+        .map(([uri, document]) => [uri, document.text]),
     ),
+    parsedDocuments: Object.fromEntries(parsedDocuments),
     diagnostics: dedupeDiagnostics(diagnostics),
     stats,
   };

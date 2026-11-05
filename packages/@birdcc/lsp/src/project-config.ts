@@ -1,11 +1,13 @@
 import { access } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   loadBirdProjectConfigForFile,
   selectAutoDetectedEntry,
   sniffProjectEntrypoints,
   type BirdProjectConfig,
+  resolveAnalysisBudget,
+  type DetectionResult,
 } from "@birdcc/core";
 
 const DEFAULT_WORKSPACE_ENTRY_FILE = "bird.conf";
@@ -16,6 +18,8 @@ export interface ProjectAnalysisDefaults {
 }
 
 export interface ProjectAnalysisOptions {
+  maxDocumentBytes: number;
+  maxTotalBytes: number;
   entryUri: string;
   workspaceRootUri?: string;
   includeSearchPathUris: string[];
@@ -32,6 +36,7 @@ export interface ResolveProjectAnalysisOptionsInput {
   documentUri: string;
   workspaceRootUris: readonly string[];
   defaults: ProjectAnalysisDefaults;
+  discoveryCache?: Map<string, Promise<DetectionResult>>;
 }
 
 const isFileUri = (uri: string): boolean => uri.startsWith("file://");
@@ -197,6 +202,7 @@ export const resolveProjectAnalysisOptions = async (
   const documentPath = toFilePath(input.documentUri);
   if (!documentPath) {
     return {
+      ...resolveAnalysisBudget(),
       entryUri: input.documentUri,
       workspaceRootUri: undefined,
       includeSearchPathUris: [],
@@ -223,14 +229,30 @@ export const resolveProjectAnalysisOptions = async (
 
     if (workspaceRootPath) {
       const resolvedWorkspaceRootUri = toFileUri(workspaceRootPath);
-      const detection = await sniffProjectEntrypoints(workspaceRootPath, {
-        maxDepth: 8,
-        maxFiles: 20_000,
-      });
+      let detectionTask = input.discoveryCache?.get(workspaceRootPath);
+      if (!detectionTask) {
+        const pending = sniffProjectEntrypoints(workspaceRootPath, {
+          maxDepth: 8,
+          maxFiles: 20_000,
+          maxEntries: 20_000,
+          maxDirectories: 2_048,
+        });
+        const tracked: Promise<DetectionResult> = pending.catch(
+          (error: unknown) => {
+            if (input.discoveryCache?.get(workspaceRootPath) === tracked)
+              input.discoveryCache?.delete(workspaceRootPath);
+            throw error;
+          },
+        );
+        detectionTask = tracked;
+        input.discoveryCache?.set(workspaceRootPath, detectionTask);
+      }
+      const detection = await detectionTask;
       const selectedEntry = selectAutoDetectedEntry(detection);
       if (selectedEntry) {
         const entryPath = resolve(workspaceRootPath, selectedEntry.path);
         return {
+          ...resolveAnalysisBudget(),
           entryUri: toFileUri(entryPath),
           workspaceRootUri: resolvedWorkspaceRootUri,
           includeSearchPathUris: dedupeUris([
@@ -247,6 +269,7 @@ export const resolveProjectAnalysisOptions = async (
     }
 
     return {
+      ...resolveAnalysisBudget(),
       entryUri: input.documentUri,
       workspaceRootUri,
       includeSearchPathUris: [],
@@ -297,6 +320,7 @@ export const resolveProjectAnalysisOptions = async (
       mode: "workspace",
       configPath: nearestConfigPath,
       config,
+      ...resolveAnalysisBudget(config.crossFile),
     };
   }
 
@@ -323,6 +347,7 @@ export const resolveProjectAnalysisOptions = async (
       mode: "main",
       configPath: nearestConfigPath,
       config,
+      ...resolveAnalysisBudget(config.crossFile),
     };
   }
 
@@ -337,5 +362,32 @@ export const resolveProjectAnalysisOptions = async (
     mode: "document",
     configPath: nearestConfigPath,
     config,
+    ...resolveAnalysisBudget(config.crossFile),
+  };
+};
+
+export const createProjectAnalysisResolver = () => {
+  const discoveryCache = new Map<string, Promise<DetectionResult>>();
+  return {
+    resolve: (
+      input: ResolveProjectAnalysisOptionsInput,
+    ): Promise<ProjectAnalysisOptions> =>
+      resolveProjectAnalysisOptions({ ...input, discoveryCache }),
+    invalidate: (changedUri?: string): void => {
+      if (!changedUri) {
+        discoveryCache.clear();
+        return;
+      }
+      const changedPath = toFilePath(changedUri);
+      if (!changedPath) return;
+      for (const root of discoveryCache.keys()) {
+        const path = relative(root, changedPath);
+        if (
+          path === "" ||
+          (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path))
+        )
+          discoveryCache.delete(root);
+      }
+    },
   };
 };
