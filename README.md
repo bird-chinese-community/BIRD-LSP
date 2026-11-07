@@ -1,252 +1,165 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD2 LSP icon" />
+<img src="./packages/@birdcc/vscode/assets/icon-256.png" width="128" height="128" alt="BIRD-LSP" />
 
-# BIRD2 LSP Project
+# BIRD-LSP
 
-</div>
+Language server, linter, formatter, and CLI for BIRD 2 and BIRD 3 configuration files.
 
-<p align="center">
-  <strong>Modern Language Server Protocol support for BIRD2 configuration files</strong>
-</p>
+[![VS Marketplace](https://vsmarketplacebadges.dev/version-short/BIRDCC.bird2-lsp.svg?label=VS%20Marketplace&color=007ACC&style=flat-square)](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-lsp)
+[![Open VSX](https://img.shields.io/open-vsx/v/BIRDCC/bird2-lsp?style=flat-square&label=Open%20VSX&color=C160EF)](https://open-vsx.org/extension/BIRDCC/bird2-lsp)
+[![npm](https://img.shields.io/npm/v/@birdcc/cli?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@birdcc/cli)
+[![CI](https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/ci.yml/badge.svg)](https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-GPL--3.0--only-green.svg?style=flat-square)](./LICENSE)
 
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/birdcc.bird2-lsp?style=flat-square&label=VS%20Marketplace&color=007ACC" alt="VS Marketplace Version" />
-  </a>
-  <a href="https://open-vsx.org/extension/birdcc/bird2-lsp">
-    <img src="https://img.shields.io/open-vsx/v/birdcc/bird2-lsp?style=flat-square&label=Open%20VSX&color=C160EF" alt="Open VSX Version" />
-  </a>
-  <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/typescript-5.9+-3178c6.svg?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
-  </a>
-  <a href="https://www.npmjs.com/package/@birdcc/cli">
-    <img src="https://img.shields.io/npm/v/@birdcc/cli?style=flat-square&logo=npm&color=cb3837" alt="npm" />
-  </a>
-</p>
-
-<p align="center">
-    <a href="https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-GPL%203.0-green.svg?style=flat-square" alt="License" />
-  </a>
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/cross-platform-compat.yml">
-    <img src="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/cross-platform-compat.yml/badge.svg" alt="License" />
-  </a>
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/sync-config-examples.yml">
-    <img src="https://github.com/bird-chinese-community/BIRD-LSP/actions/workflows/sync-config-examples.yml/badge.svg" alt="License" />
-  </a>
-</p>
-
-<div align="center">
-
-> ⚠️ **Development Stage Notice**
->
-> | Component                  | Status   | Warning                                                                                     |
-> | -------------------------- | -------- | ------------------------------------------------------------------------------------------- |
-> | npm packages (`@birdcc/*`) | 🚧 Alpha | APIs may change frequently. Evaluate carefully before production use.                       |
-> | VS Code extension          | 🧪 Beta  | More stable than Alpha, but some features may still change. Evaluate before production use. |
->
-> **Please evaluate carefully before deploying in production environments.**
-
-English Version | [中文文档](./README.zh.md)
-
-> [Overview](#overview) · [Features](#features) · [Quick Start](#quick-start) · [Packages](#packages) · [Architecture](#architecture) · [Development](#development)
+English | [简体中文](./README.zh.md)
 
 </div>
-
----
-
-## Overview
-
-**BIRD-LSP** is a modern toolchain for [BIRD2](https://bird.network.cz/) (and BIRD3) configuration files, providing Language Server Protocol (LSP) support, code formatting (Formatter & Parser), and static analysis (Linter).
-
----
 
 ## Features
 
-| Feature                      | Description                                                 |
-| ---------------------------- | ----------------------------------------------------------- |
-| 🎨 **Syntax Highlighting**   | Tree-sitter based precise parsing                           |
-| 🔍 **Real-time Diagnostics** | 32+ lint rules + cross-file analysis + `bird -p` validation |
-| 📝 **Code Formatting**       | Dual-engine formatter (dprint + builtin) with safe mode     |
-| 💡 **IntelliSense**          | Smart completion for protocols, filters, functions          |
-| 🔎 **Hover Information**     | Type info and documentation on hover                        |
-| 🏗️ **Symbol Navigation**     | Go to definition, find references (cross-file)              |
+- **Parsing**: a Tree-sitter grammar, compiled to WebAssembly, parses BIRD 2 and BIRD 3 configuration files and recovers from syntax errors, so declarations after an error are still analyzed.
+- **Diagnostics**: 32 lint rules in six groups (`sym`, `cfg`, `net`, `type`, `bgp`, `ospf`). Analysis follows `include` statements across files, by default up to 16 levels and 256 files. `birdcc lint --bird` also runs `bird -p` on each checked file.
+- **Formatting**: two engines, a dprint plugin written in Rust and compiled to WebAssembly (default) and a built-in TypeScript formatter. Safe mode parses the input and the output and rejects the output when the declarations or parse errors differ.
+- **Editor features**: completion, keyword and symbol hover, go to definition across included files, find references to templates in `from` clauses across the include graph, document symbols, document formatting, and inlay hints for function return types and AS numbers.
+- **ASN data**: `@birdcc/intel` ships an offline AS number database built from BGP.Tools OpenDB. The language server uses it for ASN completion, hover, and inlay hints.
+- **Project configuration**: `bird.config.json` sets the entry file or a list of workspaces, include paths, analysis limits, rule severities, formatter options, and the `bird -p` command. `birdcc init` detects the entry file and writes the configuration.
 
----
+## Getting started
 
-## Quick Start
+### Editors
 
-### Install CLI
+| Editor                                                         | Install                                                                                                                                                                                   | Result                                                                                                                                                                        |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code 1.100 or newer, and editors that install from Open VSX | [`BIRDCC.bird2-extension-pack`](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-extension-pack) ([Open VSX](https://open-vsx.org/extension/BIRDCC/bird2-extension-pack)) | Language features from [`BIRDCC.bird2-lsp`](./packages/@birdcc/vscode/README.md), which bundles the language server, plus syntax highlighting from `BIRDCC.vscode-bird2-conf` |
+| Neovim 0.11 or newer                                           | [BIRD.nvim](https://github.com/bird-chinese-community/BIRD.nvim) and `@birdcc/cli`                                                                                                        | Filetype detection and highlighting from BIRD.nvim; language features from `birdcc lsp --stdio` ([configuration](./packages/@birdcc/lsp/README.md#editor-setup))              |
+| Vim                                                            | [BIRD.vim](https://github.com/bird-chinese-community/BIRD.vim)                                                                                                                            | Filetype detection and highlighting                                                                                                                                           |
+| Helix and other LSP clients                                    | `@birdcc/cli`                                                                                                                                                                             | Language features from `birdcc lsp --stdio` ([configuration](./packages/@birdcc/lsp/README.md#editor-setup))                                                                  |
+
+### CLI
+
+The CLI requires Node.js 22 or newer.
 
 ```bash
 npm install -g @birdcc/cli
-# or
-pnpm add -g @birdcc/cli
+
+birdcc init --write            # detect the entry file and write bird.config.json
+birdcc lint                    # lint the entry file named in bird.config.json
+birdcc lint bird.conf --bird   # also run `bird -p`
+birdcc fmt bird.conf           # exit 1 if the file needs formatting
+birdcc fmt bird.conf --write   # format in place
+birdcc lsp --stdio             # start the language server
 ```
 
-### Usage
+Rules report `warning` or `info` by default. `birdcc lint` exits 1 when a diagnostic has severity `error` and 0 when every diagnostic is `warning` or `info`. The [CLI reference](./packages/@birdcc/cli/README.md) lists every option, the JSON output, and the `bird.config.json` settings that make lint fail a CI job.
 
-```bash
-# Lint a BIRD config file
-birdcc lint bird.conf
+### GitHub Actions
 
-# Format a file
-birdcc fmt bird.conf --write
-
-# Start LSP server
-birdcc lsp --stdio
-```
-
-### VS Code Extension
-
-Search for **"BIRD2 LSP"** in VS Code Marketplace or install from [Open VSX](https://open-vsx.org/extension/birdcc/bird2-lsp).
-
----
+[setup-birdcc](https://github.com/bird-chinese-community/setup-birdcc) prepares a GitHub Actions runner with Node.js, pnpm, and BIRD for `birdcc lint`, `birdcc fmt --check`, and `bird -p` jobs.
 
 ## Packages
 
-| Package                                                                                                                                                                    | Version     | Description                  | Documentation                                             |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------- | --------------------------------------------------------- |
-| <img src="./packages/@birdcc/parser/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/parser](./packages/@birdcc/parser/)                                     | 0.1.0-alpha | Tree-sitter parser for BIRD2 | [README](./packages/@birdcc/parser/README.md)             |
-| <img src="./packages/@birdcc/core/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/core](./packages/@birdcc/core/)                                           | 0.1.0-alpha | Semantic analysis engine     | [README](./packages/@birdcc/core/README.md)               |
-| <img src="./packages/@birdcc/linter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/linter](./packages/@birdcc/linter/)                                     | 0.1.0-alpha | Pluggable lint rule system   | [README](./packages/@birdcc/linter/README.md)             |
-| <img src="./packages/@birdcc/lsp/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/lsp](./packages/@birdcc/lsp/)                                              | 0.1.0-alpha | LSP server implementation    | [README](./packages/@birdcc/lsp/README.md)                |
-| <img src="./packages/@birdcc/formatter/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/formatter](./packages/@birdcc/formatter/)                            | 0.1.0-alpha | Dual-engine code formatter   | [README](./packages/@birdcc/formatter/README.md)          |
-| <img src="./packages/@birdcc/cli/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/cli](./packages/@birdcc/cli/)                                              | 0.1.0-alpha | Command-line interface       | [README](./packages/@birdcc/cli/README.md)                |
-| <img src="./packages/@birdcc/vscode/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/vscode](./packages/@birdcc/vscode/)                                     | 0.1.0-alpha | VS Code extension            | [README](./packages/@birdcc/vscode/README.md)             |
-| <img src="./packages/@birdcc/dprint-plugin-bird/assets/icon-256.png" width="20" height="20" alt="" /> [@birdcc/dprint-plugin-bird](./packages/@birdcc/dprint-plugin-bird/) | 0.1.0-alpha | dprint plugin (Rust/WASM)    | [README](./packages/@birdcc/dprint-plugin-bird/README.md) |
-
----
+| Package                                                                | Distribution                  | Contents                                                                                           |
+| ---------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| [`@birdcc/parser`](./packages/@birdcc/parser/)                         | npm                           | Tree-sitter grammar, WebAssembly build, `parseBirdConfig`                                          |
+| [`@birdcc/core`](./packages/@birdcc/core/)                             | npm                           | Symbol table, type checks, cross-file `include` resolution, project configuration, entry detection |
+| [`@birdcc/linter`](./packages/@birdcc/linter/)                         | npm                           | 32 lint rules                                                                                      |
+| [`@birdcc/formatter`](./packages/@birdcc/formatter/)                   | npm                           | dprint and built-in formatting engines, safe mode                                                  |
+| [`@birdcc/dprint-plugin-bird`](./packages/@birdcc/dprint-plugin-bird/) | npm                           | dprint plugin compiled from Rust to WebAssembly                                                    |
+| [`@birdcc/intel`](./packages/@birdcc/intel/)                           | npm                           | Offline ASN database                                                                               |
+| [`@birdcc/lsp`](./packages/@birdcc/lsp/)                               | npm                           | Language server                                                                                    |
+| [`@birdcc/cli`](./packages/@birdcc/cli/)                               | npm                           | `birdcc` command: `init`, `lint`, `fmt`, `lsp`                                                     |
+| [`@birdcc/vscode`](./packages/@birdcc/vscode/)                         | VS Code Marketplace, Open VSX | VS Code extension `BIRDCC.bird2-lsp`                                                               |
+| [`bird2-extension-pack`](./packages/@birdcc/vscode-pack/)              | VS Code Marketplace, Open VSX | Extension pack `BIRDCC.bird2-extension-pack`: `BIRDCC.bird2-lsp` and `BIRDCC.vscode-bird2-conf`    |
 
 ## Architecture
 
-### Component Interaction
+An arrow points from a package to a package it lists in `dependencies`.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant Editor as Editor (VSCode/Neovim)
-    participant LSP as @birdcc/lsp
-    participant Parser as @birdcc/parser
-    participant Core as @birdcc/core
-    participant Linter as @birdcc/linter
-    participant Formatter as @birdcc/formatter
+flowchart TD
+    VSCODE["@birdcc/vscode"]
+    CLI["@birdcc/cli"]
+    LSP["@birdcc/lsp"]
+    LINTER["@birdcc/linter"]
+    FORMATTER["@birdcc/formatter"]
+    INTEL["@birdcc/intel"]
+    CORE["@birdcc/core"]
+    DPRINT["@birdcc/dprint-plugin-bird"]
+    PARSER["@birdcc/parser"]
 
-    Note over Editor,Formatter: Real-time Diagnostics
-    Editor->>+LSP: textDocument/didChange
-    LSP->>+Parser: parseBirdConfig(source)
-    Parser-->>-LSP: ParsedBirdDocument
-    LSP->>+Core: buildCoreSnapshot(parsed)
-    Core-->>-LSP: CoreSnapshot
-    LSP->>+Linter: lintBirdConfig(context)
-    Linter-->>-LSP: Diagnostics[]
-    LSP-->>-Editor: textDocument/publishDiagnostics
-
-    Note over Editor,Formatter: Formatting
-    Editor->>+LSP: textDocument/formatting
-    LSP->>+Formatter: formatBirdConfig(source)
-    Formatter->>+Parser: parseBirdConfig(source)
-    Parser-->>-Formatter: AST
-    Formatter-->>-LSP: Formatted Text
-    LSP-->>-Editor: TextEdit[]
+    VSCODE --> LSP
+    VSCODE --> FORMATTER
+    VSCODE --> CORE
+    VSCODE --> PARSER
+    CLI --> LSP
+    CLI --> LINTER
+    CLI --> FORMATTER
+    CLI --> CORE
+    LSP --> LINTER
+    LSP --> FORMATTER
+    LSP --> INTEL
+    LSP --> CORE
+    LSP --> PARSER
+    LINTER --> CORE
+    LINTER --> PARSER
+    FORMATTER --> DPRINT
+    FORMATTER --> PARSER
+    CORE --> PARSER
 ```
 
-### Package Dependency Graph
-
-```mermaid
-flowchart BT
-    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
-    classDef core fill:#e6f4ea,stroke:#137333,stroke-width:1.5px,color:#0d652d
-    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
-    classDef adapter fill:#f3e8fd,stroke:#9334e6,stroke-width:1.5px,color:#6c1f9e
-    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
-
-    subgraph infra [Infrastructure Layer]
-        PARSER["@birdcc/parser<br/>Tree-sitter / WASM"]
-        DPRINT["@birdcc/dprint-plugin-bird<br/>Rust / WASM"]
-    end
-
-    subgraph core [Core Layer]
-        CORE["@birdcc/core<br/>Symbols / Types / Cross-file"]
-    end
-
-    subgraph service [Service Layer]
-        LINTER["@birdcc/linter<br/>Static Analysis"]
-        FORMATTER["@birdcc/formatter<br/>Format Engines"]
-        INTEL["@birdcc/intel<br/>ASN Intelligence"]
-    end
-
-    subgraph adapter [LSP Adapter Layer]
-        LSP_SERVER["@birdcc/lsp<br/>Language Server"]
-    end
-
-    subgraph ui [Interface Layer]
-        CLI["@birdcc/cli"]
-        VSCODE["@birdcc/vscode<br/>Editor Extension"]
-    end
-
-    DPRINT --> FORMATTER
-    PARSER --> FORMATTER
-    PARSER --> CORE
-    CORE --> FORMATTER
-    CORE --> LINTER
-    CORE --> INTEL
-    CORE --> LSP_SERVER
-    LINTER --> LSP_SERVER
-    FORMATTER --> LSP_SERVER
-    INTEL --> LSP_SERVER
-    LSP_SERVER --> CLI
-    LSP_SERVER --> VSCODE
-    LINTER --> CLI
-    FORMATTER --> CLI
-
-    class PARSER,DPRINT infra
-    class CORE core
-    class LINTER,FORMATTER,INTEL service
-    class LSP_SERVER adapter
-    class CLI,VSCODE ui
-```
-
----
+[docs/architecture.md](./docs/architecture.md) describes the diagnostics pipeline, project resolution, formatting engines, and the VS Code extension runtime.
 
 ## Development
 
+Requirements:
+
+- Node.js 22 or newer (the release tooling requires Node.js 24)
+- pnpm 10.18.3, the version in `packageManager`
+- Rust stable with the `wasm32-unknown-unknown` target and the `llvm-tools` component, used to build `@birdcc/dprint-plugin-bird`
+
 ```bash
-# Clone with submodules
-git clone --recursive https://github.com/bird-chinese-community/BIRD-LSP.git
+git clone https://github.com/bird-chinese-community/BIRD-LSP.git
 cd BIRD-LSP
-
-# Install dependencies
+git submodule update --init --depth 1 refer/BIRD-source-code refer/BIRD-tm-language-grammar refer/BIRD2-vim-grammar
+rustup target add wasm32-unknown-unknown
+rustup component add llvm-tools
 pnpm install
-
-# Build all packages
 pnpm build
-
-# Run tests
 pnpm test
 ```
 
----
+| Command                                                 | Runs                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `pnpm test:quick`                                       | Package tests without the real-world configuration corpus                 |
+| `pnpm typecheck`                                        | TypeScript checks                                                         |
+| `pnpm lint`                                             | Oxlint, plus `cargo fmt --check` and `cargo clippy` for the dprint plugin |
+| `pnpm exec turbo run format --concurrency=1 -- --check` | Oxfmt check, as in CI                                                     |
+| `pnpm format`                                           | Oxfmt, rewriting files                                                    |
 
-### 📖 Documentation
+Commit messages follow Conventional Commits with a kebab-case scope, for example `fix(parser): Handle nested blocks`. Changes that belong in a package changelog need a Tegami changeset; see [docs/releasing.md](./docs/releasing.md).
 
-- [BIRD Official Documentation](https://bird.network.cz/)
-- [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
-- [Extension Configuration Guide](./docs/configuration.md)
-- [Project Config Spec (`bird.config.json`)](./docs/spec.md)
-- [FAQ / Troubleshooting](./docs/faq.md)
-- [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
+## Documentation
 
----
+- [Project configuration (`bird.config.json`)](./docs/spec.md)
+- [Editor settings and validation command rules](./docs/configuration.md)
+- [FAQ](./docs/faq.md)
+- [Architecture](./docs/architecture.md)
+- [Analysis budgets](./docs/analysis-budgets.md)
+- [Releases and changesets](./docs/releasing.md)
+- BIRD user guide: [BIRD 2](https://bird.network.cz/?get_doc&f=bird.html&v=20), [BIRD 3](https://bird.network.cz/?get_doc&f=bird.html&v=30)
 
-## 📝 License
+## Feedback
 
-This project is licensed under the [GPL-3.0 License](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE).
+- [Report a bug](https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=bug-report.yml)
+- [Request a feature](https://github.com/bird-chinese-community/BIRD-LSP/issues/new?template=feature-request.yml)
+- [Report a security issue](./SECURITY.md)
 
----
+## License
 
-## 🙏 Acknowledgements
+[GPL-3.0-only](./LICENSE). BIRD-LSP is maintained by the BIRD Chinese Community (BIRDCC). BIRD is developed by CZ.NIC Labs; this project is not affiliated with CZ.NIC.
+
+## Acknowledgements
 
 <!-- prettier-ignore-start -->
 
@@ -262,15 +175,3 @@ We gratefully acknowledge these upstream repositories for the real-world BIRD co
 <!-- CI END -->
 
 <!-- prettier-ignore-end -->
-
----
-
-<p align="center">
-  <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
-</p>
-
-<p align="center">
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
-  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
-</p>

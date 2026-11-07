@@ -1,387 +1,150 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/formatter/assets/icon-256.png" width="128" height="128" alt="@birdcc/formatter icon" />
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/formatter/assets/icon-256.png" width="96" height="96" alt="@birdcc/formatter" />
 
-# BIRD Config Formatter (@birdcc/formatter)
+# @birdcc/formatter
+
+Formatter for BIRD 2 and BIRD 3 configuration files.
+
+[![npm](https://img.shields.io/npm/v/@birdcc/formatter?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@birdcc/formatter)
+[![License](https://img.shields.io/badge/license-GPL--3.0--only-green.svg?style=flat-square)](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)
 
 </div>
 
-<div align="center">
-
-> ⚠️ **Alpha Stage**: This package is in early development. APIs may change frequently, and unexpected issues may occur. Please evaluate carefully before deploying in production environments.
-
-</div>
-
-[![npm version](https://img.shields.io/badge/version-0.1.0--alpha-blue)](https://www.npmjs.com/package/@birdcc/formatter) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?logo=typescript)](https://www.typescriptlang.org/)
-
-> [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Usage](#usage) · [Configuration](#configuration) · [API Reference](#api-reference) · [Architecture](#architecture)
-
-## Overview
-
-**@birdcc/formatter** is the formatting component in the BIRD-LSP toolchain, purpose-built for [BIRD Internet Routing Daemon](https://bird.network.cz/) configuration files. It employs a **dual-engine architecture** combining dprint performance with builtin reliability.
-
----
-
-## Features
-
-| Feature                  | Description                                       |
-| ------------------------ | ------------------------------------------------- |
-| ⚡ **dprint Engine**     | Rust/WASM-based for lightning-fast formatting     |
-| 🛡️ **Builtin Fallback**  | Automatic fallback when dprint is unavailable     |
-| 🔒 **Safe Mode**         | AST semantic verification before/after formatting |
-| 🔄 **Async API**         | Promise-based interface for modern architectures  |
-| 🧩 **Zero Dependencies** | Builtin engine requires no external deps          |
-
----
+`@birdcc/formatter` re-indents BIRD configuration text by block depth and normalizes whitespace. It has two engines that apply the same rules: `dprint` runs the Rust/WASM plugin from [@birdcc/dprint-plugin-bird](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/dprint-plugin-bird) through [@dprint/formatter](https://www.npmjs.com/package/@dprint/formatter), and `builtin` runs in TypeScript on the syntax layout from [@birdcc/parser](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/parser). In safe mode, it rejects any output that parses differently from the input. [@birdcc/cli](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/cli) (`birdcc fmt`), [@birdcc/lsp](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/lsp), and the BIRD2 LSP extension use it.
 
 ## Installation
 
 ```bash
-# Using pnpm (recommended)
-pnpm add @birdcc/formatter
-
-# Using npm
 npm install @birdcc/formatter
-
-# Using yarn
-yarn add @birdcc/formatter
 ```
 
-### Prerequisites
-
-- Node.js >= 18
-- TypeScript >= 5.0 (if using TypeScript)
-
----
+Requires Node.js 22 or newer. The dprint plugin is a prebuilt WASM file in the `@birdcc/dprint-plugin-bird` dependency, so installation needs no Rust toolchain.
 
 ## Usage
 
-### Basic Formatting
+```ts
+import { checkBirdConfigFormat, formatBirdConfig } from "@birdcc/formatter";
 
-```typescript
-import { formatBirdConfig } from "@birdcc/formatter";
-
-const source = `
-protocol bgp bgp_peer {
+const source = `protocol bgp upstream {
 local as 65001;
-neighbor 192.0.2.1 as 65002;
+    neighbor 192.0.2.2 as 65002;   # transit
+
+
+ipv4 {
+import all;
+export where net ~ [ 10.0.0.0/8+ ];
+};
 }
 `;
 
-const formatted = await formatBirdConfig(source, {
-  engine: "dprint",
-  safeMode: true,
-});
+const result = await formatBirdConfig(source);
+console.log(result.engine, result.changed);
+console.log(result.text);
 
-console.log(formatted.text);
-console.log(`Changed: ${formatted.changed}`);
-console.log(`Engine: ${formatted.engine}`);
+const { changed } = await checkBirdConfigFormat(result.text);
+console.log(changed);
 ```
 
-### Format Checking
+Output:
 
-```typescript
-import { checkBirdConfigFormat } from "@birdcc/formatter";
+```text
+dprint true
+protocol bgp upstream {
+  local as 65001;
+  neighbor 192.0.2.2 as 65002; # transit
 
-const result = await checkBirdConfigFormat(source);
-console.log(`Needs formatting: ${result.changed}`);
+  ipv4 {
+    import all;
+    export where net ~ [ 10.0.0.0/8+ ];
+  };
+}
+
+false
 ```
 
-### Using Builtin Engine
+Select the engine and indentation explicitly:
 
-```typescript
-const formatted = await formatBirdConfig(source, {
+```ts
+const result = await formatBirdConfig(source, {
   engine: "builtin",
-  indentSize: 4,
-  safeMode: true,
+  useTabs: true,
 });
 ```
 
----
+## Formatting rules
 
-## Configuration
+Both engines apply these rules:
 
-### Options
+- Indent each line by its nesting depth of `{ }` and `[ ]` blocks, as found by the Tree-sitter grammar. Braces inside strings and comments do not count.
+- Collapse consecutive blank lines into one and remove blank lines at the end of the file.
+- Convert `\r\n` and `\r` line endings to `\n`, remove trailing spaces and tabs except after a comment, and end the file with one `\n`.
+- Keep the lines of a multi-line comment unchanged, including their indentation.
 
-| Option       | Type                      | Default    | Description                          |
-| ------------ | ------------------------- | ---------- | ------------------------------------ |
-| `engine`     | `'dprint'` \| `'builtin'` | `'dprint'` | Formatter engine selection           |
-| `safeMode`   | `boolean`                 | `true`     | Enable semantic equivalence check    |
-| `indentSize` | `number`                  | `2`        | Number of spaces for indentation     |
-| `useTabs`    | `boolean`                 | `false`    | Use a tab for each indentation level |
-| `lineWidth`  | `number`                  | `80`       | Maximum line width                   |
+On the remaining lines, the engines also write `name{` as `name {`, remove spaces before a final `;`, and separate a trailing `#` comment from the code with one space. The first two changes skip these lines, which keep their code as written:
 
-### Configuration Details
+- Both engines: lines whose code contains `if`, `then`, `else`, `return`, or one of `~ & | ? : ( [ ]`. The `builtin` engine also checks the text of a trailing comment. The `dprint` engine also keeps the comment spacing of such a line when the line is longer than `lineWidth`.
+- `builtin` only: lines longer than `lineWidth`, lines with a parse issue, statements in `filter` and `function` bodies, protocol statements that the parser keeps as text, and `import`/`export where` statements.
 
-- **`engine`**: `dprint` uses Rust/WASM; `builtin` uses TypeScript as fallback
-- **`safeMode`**: Compares AST fingerprints to ensure semantic equivalence
-- **`indentSize`**: Indentation spaces (positive integer)
-- **`useTabs`**: Use tabs in both engines; `indentSize` controls space indentation when `useTabs` is false
-- **`lineWidth`**: Target line width (positive integer)
+The formatter does not join, split, or reorder lines, and it does not change spacing inside the code of a line.
 
----
+## Options
 
-## API Reference
+| Option       | Type                    | Default    | Description                                                                                                                          |
+| ------------ | ----------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `engine`     | `"dprint" \| "builtin"` | `"dprint"` | Formatter engine. See [Engine selection](#engine-selection)                                                                          |
+| `indentSize` | `number`                | `2`        | Spaces per indentation level                                                                                                         |
+| `useTabs`    | `boolean`               | `false`    | Indent with one tab per level instead of spaces                                                                                      |
+| `lineWidth`  | `number`                | `80`       | Line length that changes which lines keep their code as written (see [Formatting rules](#formatting-rules)). Lines are never wrapped |
+| `safeMode`   | `boolean`               | `true`     | Reject output whose parse result differs from the input. See [Safe mode](#safe-mode)                                                 |
 
-### `formatBirdConfig(text, options?)`
+`indentSize` and `lineWidth` must be positive integers; any other value is replaced with the default. In `bird.config.json`, the same keys live under `formatter`, with `indentSize` limited to 1-16 and `lineWidth` to 20-1000.
 
-Format BIRD2 configuration file content.
+## Engine selection
 
-```typescript
-import { formatBirdConfig } from "@birdcc/formatter";
+`formatBirdConfig` uses `dprint` unless `options.engine` is `"builtin"`. When the `dprint` engine throws (for example, the plugin fails to load or safe mode rejects its output):
 
-const result = await formatBirdConfig(text, options);
-// result.text    → Formatted content
-// result.changed → Whether changes were made
-// result.engine  → Engine used
-```
+- If you did not pass `engine`, `formatBirdConfig` formats the text again with `builtin` and returns `engine: "builtin"`.
+- If you passed `engine: "dprint"`, it throws `Formatting with 'dprint' failed: <reason>`.
 
-**Parameters:**
+An error in the `builtin` engine always throws. The returned `engine` field names the engine that produced the text.
 
-- `text: string` — The configuration file content to format
-- `options?: FormatBirdConfigOptions` — Formatting options
+`birdcc fmt` passes `--engine` or `formatter.engine` from `bird.config.json` when one is set, so a configured engine counts as explicit.
 
-**Returns:** `Promise<BirdFormatResult>`
+## Safe mode
 
-### `checkBirdConfigFormat(text, options?)`
+With `safeMode: true`, every changed output is checked before it is returned:
 
-Check if the configuration file needs formatting (without actually formatting).
-
-```typescript
-import { checkBirdConfigFormat } from "@birdcc/formatter";
-
-const result = await checkBirdConfigFormat(text, options);
-// result.changed → Whether formatting is needed
-```
+1. The formatter parses the input and the output with @birdcc/parser and builds a fingerprint of each: the declaration tree without source positions and with whitespace in text values collapsed, plus the code and message of every parse issue.
+2. If the fingerprints differ, it throws `Formatter safe mode rejected output because semantic fingerprint changed`. If the parser runtime is unavailable, it throws as well.
+3. The `dprint` engine also runs a check inside the WASM plugin: it parses both texts with Tree-sitter and compares node kinds, child counts, missing-node flags, and the text of every token. A difference produces `Formatter safe mode rejected output because syntax or token content changed`.
 
-### Type Definitions
-
-```typescript
-interface FormatBirdConfigOptions {
-  engine?: "dprint" | "builtin";
-  safeMode?: boolean;
-  indentSize?: number;
-  useTabs?: boolean;
-  lineWidth?: number;
-}
-
-interface BirdFormatResult {
-  text: string;
-  changed: boolean;
-  engine: "dprint" | "builtin";
-}
-
-interface BirdFormatCheckResult {
-  changed: boolean;
-}
-
-type FormatterEngine = "dprint" | "builtin";
-```
-
----
-
-## Architecture
-
-### Dual-Engine Architecture
-
-```mermaid
-flowchart TB
-    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
-    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
-    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
-    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
-
-    subgraph api [API Layer]
-        API[formatBirdConfig]
-    end
-
-    subgraph selection [Engine Selection]
-        SEL{resolveOptions}
-    end
-
-    subgraph dprint [dprint Engine]
-        D1["@birdcc/dprint-plugin-bird<br/>Rust / WASM"]
-        D2[Tree-sitter Parser]
-    end
-
-    subgraph builtin [Builtin Engine]
-        B1[TypeScript Implementation]
-        B2[Parser Adapter]
-    end
-
-    subgraph safety [Safety Layer]
-        SAFE{assertSafeModeSemanticEquivalence}
-        AST1[Parse Original]
-        AST2[Parse Formatted]
-        CMP[Fingerprint Compare]
-    end
-
-    subgraph output [Output]
-        OUT[Formatted Text]
-    end
-
-    API --> SEL
-    SEL -->|dprint| D1
-    SEL -->|builtin| B1
-    D1 --> D2
-    B1 --> B2
-    D1 --> SAFE
-    B1 --> SAFE
-    SAFE -->|enabled| AST1
-    SAFE -->|enabled| AST2
-    AST1 --> CMP
-    AST2 --> CMP
-    CMP -->|verified| OUT
-    SAFE -->|disabled| OUT
-
-    class API,SEL,B1,B2 service
-    class D1,D2 infra
-    class SAFE,AST1,AST2,CMP flow
-    class OUT ui
-```
-
-### Formatting Pipeline
-
-```mermaid
-sequenceDiagram
-    participant User as User Code
-    participant API as @birdcc/formatter
-    participant Engine as Format Engine
-    participant Parser as @birdcc/parser
-    participant Safe as Safe Mode
-
-    User->>API: formatBirdConfig(source, options)
-    API->>API: resolveOptions(options)
-
-    alt dprint Engine
-        API->>Engine: formatWithEmbeddedDprint(source)
-        Engine->>Engine: dprint context format
-    else builtin Engine
-        API->>Engine: formatWithBuiltin(source)
-        Engine->>Parser: parseBirdConfig(source)
-        Parser-->>Engine: ParsedBirdDocument
-        Engine->>Engine: normalizeTextWithBuiltin(...)
-    end
-
-    Engine-->>API: formatted text
-
-    opt safeMode enabled (both engines)
-        API->>Safe: assertSafeModeSemanticEquivalence(source, formatted)
-        Safe->>Parser: parseBirdConfig(source)
-        Parser-->>Safe: fingerprint 1
-        Safe->>Parser: parseBirdConfig(formattedText)
-        Parser-->>Safe: fingerprint 2
-        Safe->>Safe: compare fingerprints
-        Safe-->>API: verified
-    end
-
-    API-->>User: BirdFormatResult
-```
-
-### Engine Selection & Fallback
-
-```mermaid
-flowchart TD
-    classDef infra fill:#fce8e6,stroke:#c5221f,stroke-width:1.5px,color:#8f1d14
-    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
-    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
-
-    START[formatBirdConfig] --> CONFIG{engine option?}
-
-    CONFIG -->|dprint| TRY_DPRINT[formatWithEmbeddedDprint]
-    CONFIG -->|builtin| USE_BUILTIN[formatWithBuiltin]
-    CONFIG -->|auto| TRY_DPRINT_AUTO[Try dprint first]
-
-    TRY_DPRINT --> DPRINT_OK{dprint OK?}
-    TRY_DPRINT_AUTO --> DPRINT_OK_AUTO{dprint OK?}
-
-    DPRINT_OK -->|yes| RETURN_DPRINT[Return result]
-    DPRINT_OK -->|no| ERROR[Throw Error]
-
-    DPRINT_OK_AUTO -->|yes| RETURN_DPRINT
-    DPRINT_OK_AUTO -->|no| FALLBACK[Fallback to builtin]
-
-    FALLBACK --> USE_BUILTIN
-    USE_BUILTIN --> BUILTIN_OK{builtin OK?}
-    BUILTIN_OK -->|yes| RETURN_BUILTIN[Return result]
-    BUILTIN_OK -->|no| ERROR
-
-    class START,CONFIG,ERROR flow
-    class TRY_DPRINT,DPRINT_OK,DPRINT_OK_AUTO infra
-    class USE_BUILTIN,BUILTIN_OK,FALLBACK,RETURN_BUILTIN service
-```
-
-### Safe Mode Verification
-
-```mermaid
-flowchart TD
-    classDef service fill:#fef7e0,stroke:#ea8600,stroke-width:1.5px,color:#8a5a00
-    classDef flow fill:#f8f9fa,stroke:#5f6368,stroke-width:1px,color:#3c4043
-    classDef ui fill:#e8f0fe,stroke:#1967d2,stroke-width:1.5px,color:#0842a0
-
-    RESULT[Formatted text] --> SAFE{safeMode?}
-
-    SAFE -->|disabled| OUTPUT[Return result]
-    SAFE -->|enabled| VERIFY[assertSafeModeSemanticEquivalence]
-    VERIFY --> PARSE1[parseBirdConfig source]
-    VERIFY --> PARSE2[parseBirdConfig formatted]
-    PARSE1 --> CMP[compare fingerprints]
-    PARSE2 --> CMP
-    CMP -->|equivalent| OUTPUT
-    CMP -->|diverged| ERROR[Throw Error]
-
-    class RESULT service
-    class SAFE,VERIFY,PARSE1,PARSE2,CMP,ERROR flow
-    class OUTPUT ui
-```
-
----
-
-## Tests
-
-The full real-world integration suite loads the built `@birdcc/formatter` public export in one reusable Node worker. Build the formatter and its dependencies before running package tests:
-
-```bash
-pnpm --filter @birdcc/formatter... build
-pnpm --filter @birdcc/formatter test
-```
-
-Each discovered configuration has its own 90-second test timeout. The Vitest worker checks the returned engine and final newline while its event loop remains available for test-runner messages. Formatter errors, worker failures, and unfinished requests fail the suite; the worker is terminated during cleanup.
-
-## Related Packages
-
-| Package                                              | Description                     |
-| ---------------------------------------------------- | ------------------------------- |
-| [@birdcc/parser](../parser/)                         | Tree-sitter grammar and parser  |
-| [@birdcc/core](../core/)                             | Semantic analysis engine        |
-| [@birdcc/dprint-plugin-bird](../dprint-plugin-bird/) | dprint plugin (Rust/WASM)       |
-| [@birdcc/linter](../linter/)                         | Lint rules and diagnostics      |
-| [@birdcc/cli](../cli/)                               | CLI tool (`birdcc fmt` command) |
-| [@birdcc/lsp](../lsp/)                               | LSP server implementation       |
-
----
-
-### 📖 Documentation
-
-- [BIRD Official Documentation](https://bird.network.cz/)
-- [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
-- [dprint Documentation](https://dprint.dev/)
-- [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
-
----
-
-## 📝 License
-
-This project is licensed under the [GPL-3.0 License](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE).
-
----
-
-<p align="center">
-  <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
-</p>
-
-<p align="center">
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
-  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
-</p>
+Safe mode does not block files that contain syntax errors. Such a file is formatted when its parse issues are the same before and after formatting.
+
+Output identical to the input skips the check.
+
+## API
+
+| Export                    | Kind     | Description                                                                                                                                              |
+| ------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formatBirdConfig`        | function | `(text: string, options?: FormatBirdConfigOptions) => Promise<BirdFormatResult>`                                                                         |
+| `checkBirdConfigFormat`   | function | `(text: string, options?: FormatBirdConfigOptions) => Promise<BirdFormatCheckResult>`; formats the text and reports whether it changed                   |
+| `FormatBirdConfigOptions` | type     | `{ engine?; indentSize?; useTabs?; lineWidth?; safeMode? }`                                                                                              |
+| `BirdFormatResult`        | type     | `{ text: string; changed: boolean; engine: FormatterEngine }`                                                                                            |
+| `BirdFormatCheckResult`   | type     | `{ changed: boolean }`                                                                                                                                   |
+| `FormatterEngine`         | type     | `"dprint" \| "builtin"`                                                                                                                                  |
+| `BuiltinFormatOutput`     | type     | `{ text: string; stats: BuiltinFormatStats }`                                                                                                            |
+| `BuiltinFormatStats`      | type     | Line counters of a `builtin` run: `linesTotal`, `linesTouched`, `blankLinesCollapsed`, `indentationAdjustments`, `highRiskLines`, `parserProtectedLines` |
+
+The exports whose names start with `__` exist for the package tests.
+
+## See also
+
+- [@birdcc/dprint-plugin-bird](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/dprint-plugin-bird): the WASM plugin behind the `dprint` engine, also usable with the dprint CLI.
+- [@birdcc/cli](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/cli): `birdcc fmt` with `--check`, `--write`, and `--engine`.
+- [Project configuration reference](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/spec.md)
+- [Architecture: formatter](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/architecture.md#formatter)
+
+## License
+
+[GPL-3.0-only](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)

@@ -1,320 +1,155 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/parser/assets/icon-256.png" width="128" height="128" alt="@birdcc/parser icon" />
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/parser/assets/icon-256.png" width="96" height="96" alt="@birdcc/parser" />
 
-# BIRD Config Parser (@birdcc/parser)
+# @birdcc/parser
+
+Tree-sitter parser for BIRD 2 and BIRD 3 configuration files.
+
+[![npm](https://img.shields.io/npm/v/@birdcc/parser?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@birdcc/parser)
+[![License](https://img.shields.io/badge/license-GPL--3.0--only-green.svg?style=flat-square)](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)
 
 </div>
 
-<div align="center">
-
-> ⚠️ **Alpha Stage**: This package is in early development. APIs may change frequently, and unexpected issues may occur. Please evaluate carefully before deploying in production environments.
-
-</div>
-
-[![npm version](https://img.shields.io/badge/version-0.1.0--alpha-blue)](https://www.npmjs.com/package/@birdcc/parser) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?logo=typescript)](https://www.typescriptlang.org/) [![Tree-sitter](https://img.shields.io/badge/Tree--sitter-powered-9f5ec2)](https://tree-sitter.github.io/)
-
-> [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Usage](#usage) · [API Reference](#api-reference) · [Building](#building)
-
-## Overview
-
-**@birdcc/parser** is a Tree-sitter based parser for BIRD2 configuration files, delivering high-performance syntax analysis and declaration extraction capabilities.
-
-### Core Highlights
-
-| Feature                   | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| 🌲 Tree-sitter Grammar    | Complete BIRD2 grammar definition with error recovery support                     |
-| ⚡ WASM Runtime           | WebAssembly runtime powered by `web-tree-sitter` for cross-platform compatibility |
-| 🔌 Async API              | Asynchronous parsing interface optimized for server and CLI environments          |
-| 📦 Declaration Extraction | Extract top-level declarations and protocol statements for semantic analysis      |
-| 🩺 Error Diagnostics      | Automatic syntax error detection with precise source location information         |
-
----
-
-## Features
-
-### Declaration Extraction
-
-- **`include`** — File inclusion statements
-- **`define`** — Macro definitions
-- **`router id`** — Router identifier configuration
-- **`table`** — Routing table definitions (ipv4/ipv6/vpn4/vpn6/roa4/roa6/flow4/flow6)
-
-### Protocols & Templates
-
-- **`protocol`** — Protocol definitions supporting types like bgp/ospf/static/direct
-- **`template`** — Protocol template definitions
-- **Template Inheritance** — Support for template inheritance via the `from` clause
-
-### Protocol Statements
-
-- **`local as`** — Local AS number configuration
-- **`neighbor ... as ...`** — BGP neighbor definition
-- **`import`** — Import rules (all/none/filter/where)
-- **`export`** — Export rules (all/none/filter/where)
-
-### Channel Statements
-
-- **Types** — ipv4/ipv6/vpn4/vpn6/roa4/roa6/flow4/flow6/mpls
-- **`table`** — Associated routing table
-- **`import/export`** — Channel-level import/export rules
-- **`import limit` / `receive limit`** — Route limit configuration
-- **`debug`** — Debug configuration
-- **`import keep filtered`** — Retain filtered routes
-
-### Filter & Function Skeleton
-
-- **Control Flow** — `if` / `case` conditional statements
-- **Actions** — `accept` / `reject` / `return` routing decisions
-- **Literal Extraction** — `ip` / `prefix` literals for semantic validation
-- **Match Expressions** — Pattern matching with the `~` operator
-
-### Error Diagnostics
-
-- **ERROR Nodes** — Tree-sitter syntax errors with complete source ranges
-- **MISSING Nodes** — Missing symbol detection (e.g., missing semicolons)
-- **Brace Balancing** — Automatic detection of unbalanced braces
-
----
+`@birdcc/parser` parses BIRD configuration text with a Tree-sitter grammar compiled to WebAssembly and loaded through [web-tree-sitter](https://www.npmjs.com/package/web-tree-sitter). `parseBirdConfig` returns a typed declaration tree and a list of parse issues, both with 1-based source ranges. [@birdcc/core](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/core), [@birdcc/linter](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/linter), [@birdcc/formatter](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/formatter), [@birdcc/lsp](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/lsp), and the BIRD2 LSP extension use it.
 
 ## Installation
 
 ```bash
-# Using pnpm (recommended)
-pnpm add @birdcc/parser
-
-# Using npm
 npm install @birdcc/parser
-
-# Using yarn
-yarn add @birdcc/parser
 ```
 
-### Prerequisites
-
-- Node.js >= 18
-- TypeScript >= 5.0 (if using TypeScript)
-
----
+Requires Node.js 22 or newer. The package ships the compiled grammar as `dist/tree-sitter-birdcc.wasm`, so installation runs no native build.
 
 ## Usage
 
-### Basic Parsing
-
-```typescript
+```ts
 import { parseBirdConfig } from "@birdcc/parser";
 
 const source = `
-protocol bgp edge {
+router id 192.0.2.1;
+
+protocol bgp upstream {
   local as 65001;
-  neighbor 192.0.2.1 as 65002;
-  import all;
-  export filter policy_out;
-  
+  neighbor 192.0.2.2 as 65002;
   ipv4 {
-    table bgp_v4;
-    import limit 1000 action restart;
+    import all;
+    export none;
   };
+}
+
+filter only_default {
+  if net = 0.0.0.0/0 then accept;
+  reject;
 }
 `;
 
-const result = await parseBirdConfig(source);
+const { program, issues } = await parseBirdConfig(source);
 
-// View extracted declarations
-console.log(result.program.declarations);
-
-// View diagnostic issues
-console.log(result.issues);
-```
-
-### Handling Errors
-
-```typescript
-import { parseBirdConfig } from "@birdcc/parser";
-
-const result = await parseBirdConfig(source);
-
-if (result.issues.length > 0) {
-  for (const issue of result.issues) {
-    console.error(
-      `[${issue.code}] Line ${issue.line}:${issue.column} - ${issue.message}`,
-    );
-  }
+for (const declaration of program.declarations) {
+  const name = "name" in declaration ? ` ${declaration.name}` : "";
+  console.log(`${declaration.kind} ${declaration.line}${name}`);
 }
+console.log(issues.length);
 
-// Even with errors, the result contains processable declarations
-console.log(`Found ${result.program.declarations.length} declarations`);
-```
-
-### Extract Protocol Details
-
-```typescript
-import { parseBirdConfig } from "@birdcc/parser";
-
-const result = await parseBirdConfig(source);
-
-for (const decl of result.program.declarations) {
-  if (decl.kind === "protocol") {
-    console.log(`Protocol: ${decl.name} (${decl.protocolType})`);
-
-    for (const stmt of decl.statements) {
-      if (stmt.kind === "local-as") {
-        console.log(`  Local AS: ${stmt.asn}`);
-      }
-      if (stmt.kind === "neighbor") {
-        console.log(`  Neighbor: ${stmt.address} AS ${stmt.asn}`);
-      }
-    }
-  }
+const broken = await parseBirdConfig(
+  "protocol static s1 {\n  route 10.0.0.0/8 blackhole\n",
+);
+for (const issue of broken.issues) {
+  console.log(`${issue.code} ${issue.line}:${issue.column} ${issue.message}`);
 }
 ```
 
----
+Output:
 
-## API Reference
-
-### Main Function
-
-```typescript
-function parseBirdConfig(input: string): Promise<ParsedBirdDocument>;
+```text
+router-id 2
+protocol 4 upstream
+filter 13 only_default
+0
+parser/syntax-error 1:1 Syntax error near 'protocol static s1 { route 10.0.0.0/8 blackhole'
+syntax/unbalanced-brace 1:20 Missing '}' to close block
 ```
 
-Parses BIRD configuration content and returns the parsing result along with diagnostic information.
+`parseBirdConfig` initializes the WASM runtime on the first call and reuses the parser afterwards.
 
-**Parameters:**
+## Parse result
 
-- `input: string` — Configuration file content
+`ParsedBirdDocument` has three fields:
 
-**Returns:** `Promise<ParsedBirdDocument>` — Parsing result object
+- `program.declarations`: top-level declarations of 14 kinds: `include`, `define`, `router-id`, `graceful-restart-wait`, `hostname-override`, `attribute`, `table`, `mpls-domain`, `timeformat`, `watchdog`, `protocol`, `template`, `filter`, and `function`.
+- `issues`: parse issues (see [Parse issues](#parse-issues)).
+- `syntaxLayout`: present only when you call `parseBirdConfig(text, { includeSyntaxLayout: true })`. It lists the positions of `{`, `}`, `[`, and `]` tokens, the lines covered by multi-line comments, and the comment start column per line. The `builtin` engine of @birdcc/formatter uses it to compute indentation.
 
-### Core Types
+Every node carries `line`, `column`, `endLine`, and `endColumn` (1-based). Named nodes also carry ranges for their parts, such as `nameRange` and `fromTemplateRange`.
 
-#### `ParsedBirdDocument`
+Protocol declarations expose `protocolType`, `name`, `fromTemplate`, and `statements`. The parser produces typed statements for these protocol types: `aggregator`, `babel`, `bfd`, `bgp`, `bmp`, `bridge`, `device`, `direct`, `evpn`, `kernel`, `l3vpn`, `mrt`, `ospf` (including `ospf v2` and `ospf v3`), `perf`, `pipe`, `radv`, `rip` (including `rip ng`), `rpki`, and `static`. Channel blocks produce `channel` statements with typed entries. Their `channelType` is `ipv4`, `ipv6`, `ipv4-mpls`, `ipv6-mpls`, `vpn4`, `vpn6`, `vpn4-mpls`, `vpn6-mpls`, `roa4`, `roa6`, `ipv6-sadr`, `flow4`, `flow6`, `mpls`, or `unknown` for other channel types such as `ipv4 multicast`. Space-separated forms such as `ipv6 sadr` map to the hyphenated names. A statement the parser does not model has kind `"other"` and keeps its source text.
 
-```typescript
-interface ParsedBirdDocument {
-  program: BirdProgram; // Parsed program structure
-  issues: ParseIssue[]; // Diagnostic issues
-}
-```
+Filter and function declarations expose `statements` (`if`, `accept`, `reject`, `return`, `case`, `print`, `unset`, `assignment`, `expression`, `other`), plus the IP and prefix `literals`, `~` `matches`, and function `calls` found in the body. Function declarations add `returnStatements`.
 
-#### `BirdDeclaration`
+## Parse issues
 
-Union type of declaration kinds:
+| Code                       | Reported for                                                                                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parser/syntax-error`      | A Tree-sitter error node, input that produces no syntax tree, a misplaced `accept` statement or option, or an invalid ISO `timeformat` style or precision |
+| `syntax/missing-semicolon` | A missing `;`                                                                                                                                             |
+| `syntax/unbalanced-brace`  | A missing `}`, more `{` than `}` in the source, or a `protocol`, `template`, `filter`, or `function` declaration without its `{`                          |
+| `parser/missing-symbol`    | Any other missing token, or a declaration without a required part, such as its name, value, or path                                                       |
+| `parser/runtime-error`     | The Tree-sitter runtime or the WASM grammar failed to load                                                                                                |
 
-| Type                  | Description                 |
-| --------------------- | --------------------------- |
-| `IncludeDeclaration`  | `include "file.conf";`      |
-| `DefineDeclaration`   | `define MACRO = value;`     |
-| `RouterIdDeclaration` | `router id 192.0.2.1;`      |
-| `TableDeclaration`    | `table bgp_v4;`             |
-| `ProtocolDeclaration` | `protocol bgp name { ... }` |
-| `TemplateDeclaration` | `template bgp base { ... }` |
-| `FilterDeclaration`   | `filter name { ... }`       |
-| `FunctionDeclaration` | `function name() { ... }`   |
+`parseBirdConfig` does not throw when the runtime fails to load. It returns an empty `program` with one `parser/runtime-error` issue.
 
-#### `ParseIssue`
+## Grammar and WASM
 
-```typescript
-interface ParseIssue {
-  code:
-    | "syntax/missing-semicolon"
-    | "syntax/unbalanced-brace"
-    | "parser/missing-symbol"
-    | "parser/syntax-error"
-    | "parser/runtime-error";
-  message: string;
-  line: number; // Start line (1-based)
-  column: number; // Start column (1-based)
-  endLine: number; // End line
-  endColumn: number; // End column
-}
-```
+The grammar source is [`grammar.js`](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/parser/grammar.js) (Tree-sitter language name `bird`). The compiled grammar, `src/tree-sitter-birdcc.wasm`, is committed to the repository. `pnpm build` compiles the TypeScript and copies this file to `dist/`; it does not regenerate the grammar. Changes that do not touch `grammar.js` need neither the Tree-sitter CLI nor Emscripten.
 
----
-
-## Building
-
-### Development Build
+After you edit `grammar.js`, regenerate both artifacts from the repository root:
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Build TypeScript
-pnpm --filter @birdcc/parser run build
-
-# Run tests
-pnpm --filter @birdcc/parser run test
-
-# Type check
-pnpm --filter @birdcc/parser run typecheck
+pnpm --filter @birdcc/parser build:grammar
+pnpm --filter @birdcc/parser build:wasm
 ```
 
-### WASM Build
+- `build:grammar` runs `tree-sitter generate` with the pinned `tree-sitter-cli` and writes `src/parser.c`, `src/grammar.json`, `src/node-types.json`, and `src/tree_sitter/*.h`. Git ignores these files. The script then formats the package with oxfmt and copies the WASM file to `dist/`.
+- `build:wasm` runs `tree-sitter build --wasm` on the generated sources, moves the result to `src/tree-sitter-birdcc.wasm`, and copies it to `dist/`. It requires Emscripten (`emcc`), Docker, or Podman. Without `emcc` on `PATH`, the Tree-sitter CLI runs Emscripten in a Docker or Podman container.
+
+Commit the regenerated `src/tree-sitter-birdcc.wasm` together with `grammar.js`.
+
+To compile the WASM file on another machine over SSH, run `build:grammar` locally first, then:
 
 ```bash
-# Regenerate grammar files
-pnpm --filter @birdcc/parser run build:grammar
-
-# Build WASM runtime (requires Emscripten or Docker)
-pnpm --filter @birdcc/parser run build:wasm
+pnpm build:parser-wasm:remote --host <ssh-host>
 ```
 
-### File Structure
+The script ([`tools/build-parser-wasm-remote.mjs`](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/tools/build-parser-wasm-remote.mjs)) does the following:
 
-**Tracked Files (in Git):**
+1. Checks that `rsync` exists locally, and that `rsync` and `corepack` exist on the remote host.
+2. Copies the working tree to the remote directory with `rsync --delete`, excluding `.git/`, `node_modules/`, `.turbo/`, `.tmp/`, and `dist/`. The generated sources from `build:grammar` are part of this copy.
+3. Runs `corepack enable`, `corepack pnpm install --frozen-lockfile`, and `corepack pnpm --filter @birdcc/parser build:wasm` on the remote host. The remote host needs `emcc`, Docker, or Podman.
+4. Copies `src/tree-sitter-birdcc.wasm` back.
 
-| File                          | Description                    |
-| ----------------------------- | ------------------------------ |
-| `grammar.js`                  | Tree-sitter grammar definition |
-| `src/tree-sitter-birdcc.wasm` | WASM runtime binary            |
-| `src/*.ts`                    | TypeScript source files        |
+Use `--remote-dir <path>` to choose the remote working directory, and `--help` to print the options.
 
-**Generated Files (not tracked):**
+## API
 
-| File                  | Description           |
-| --------------------- | --------------------- |
-| `src/parser.c`        | Generated C parser    |
-| `src/grammar.json`    | Serialized grammar    |
-| `src/node-types.json` | Node type definitions |
+| Export               | Kind     | Description                                                                                   |
+| -------------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `parseBirdConfig`    | function | `(input: string, options?: { includeSyntaxLayout?: boolean }) => Promise<ParsedBirdDocument>` |
+| `ParsedBirdDocument` | type     | `{ program: BirdProgram; issues: ParseIssue[]; syntaxLayout?: BirdSyntaxLayout }`             |
+| `BirdProgram`        | type     | `{ kind: "program"; declarations: BirdDeclaration[] }`                                        |
+| `BirdDeclaration`    | type     | Union of the 14 declaration types, such as `ProtocolDeclaration` and `FilterDeclaration`      |
+| `ParseIssue`         | type     | `SourceRange` plus `code` (one of the five codes above) and `message`                         |
+| `SourceRange`        | type     | `{ line; column; endLine; endColumn }`, 1-based                                               |
+| `BirdSyntaxLayout`   | type     | `{ structuralTokens; preservedLines: Set<number>; commentColumns: Map<number, number> }`      |
 
----
+The package also exports the types of all 14 declarations and of a subset of the protocol statements, channel entries, and filter statements, for example `ProtocolStatement`, `ChannelStatement`, `NeighborStatement`, and `FilterBodyStatement`. See [`src/index.ts`](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/parser/src/index.ts) for the full list.
 
-## Related Packages
+## See also
 
-| Package                                    | Description                             |
-| ------------------------------------------ | --------------------------------------- |
-| [@birdcc/core](../@birdcc/core/)           | AST, symbol table, and type checker     |
-| [@birdcc/linter](../@birdcc/linter/)       | 32+ lint rules and diagnostics          |
-| [@birdcc/lsp](../@birdcc/lsp/)             | Language Server Protocol implementation |
-| [@birdcc/formatter](../@birdcc/formatter/) | Code formatter                          |
-| [@birdcc/cli](../@birdcc/cli/)             | Command-line interface                  |
+- [@birdcc/core](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/core): symbol table, type checks, and include resolution built on this parser.
+- [@birdcc/formatter](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/formatter): uses `syntaxLayout` for indentation.
+- [Architecture: parser](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/architecture.md#parser)
 
----
+## License
 
-### 📖 Documentation
-
-- [BIRD Official Documentation](https://bird.network.cz/)
-- [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
-- [Extension Configuration Guide](./docs/configuration.md)
-- [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
-
----
-
-## 📝 License
-
-This project is licensed under the [GPL-3.0 License](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE).
-
----
-
-<p align="center">
-  <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
-</p>
-
-<p align="center">
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
-  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
-</p>
+[GPL-3.0-only](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)
