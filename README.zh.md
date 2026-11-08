@@ -29,12 +29,10 @@ BIRD 2 与 BIRD 3 配置文件的语言服务器、Linter、格式化器与命�
 
 ### 编辑器
 
-| 编辑器                                                 | 安装                                                                                                                                                                                       | 得到的功能                                                                                                                           |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| VS Code 1.100 及以上，以及从 Open VSX 安装扩展的编辑器 | [`BIRDCC.bird2-extension-pack`](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-extension-pack)（[Open VSX](https://open-vsx.org/extension/BIRDCC/bird2-extension-pack)） | [`BIRDCC.bird2-lsp`](./packages/@birdcc/vscode/README.md) 提供语言功能，扩展内置语言服务器；`BIRDCC.vscode-bird2-conf` 提供语法高亮  |
-| Neovim 0.11 及以上                                     | [BIRD.nvim](https://github.com/bird-chinese-community/BIRD.nvim) 与 `@birdcc/cli`                                                                                                          | BIRD.nvim 提供文件类型识别与语法高亮；`birdcc lsp --stdio` 提供语言功能（[配置方法](./packages/@birdcc/lsp/README.md#editor-setup)） |
-| Vim                                                    | [BIRD.vim](https://github.com/bird-chinese-community/BIRD.vim)                                                                                                                             | 文件类型识别与语法高亮                                                                                                               |
-| Helix 及其他 LSP 客户端                                | `@birdcc/cli`                                                                                                                                                                              | `birdcc lsp --stdio` 提供语言功能（[配置方法](./packages/@birdcc/lsp/README.md#editor-setup)）                                       |
+- **VS Code** 1.100 及以上，以及从 Open VSX 安装扩展的编辑器：安装 [`BIRDCC.bird2-extension-pack`](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-extension-pack)（[Open VSX](https://open-vsx.org/extension/BIRDCC/bird2-extension-pack)），它包含内置语言服务器的 [`BIRDCC.bird2-lsp`](./packages/@birdcc/vscode/README.md) 与语法高亮扩展 `BIRDCC.vscode-bird2-conf`。
+- **Neovim、Vim、Helix、JetBrains IDE 及其他 LSP 客户端**：用 `@birdcc/cli` 的 `birdcc lsp --stdio` 启动语言服务器。[BIRD.nvim](https://github.com/bird-chinese-community/BIRD.nvim) 与 [BIRD.vim](https://github.com/bird-chinese-community/BIRD.vim) 提供文件类型识别与语法高亮。
+
+阅读更多 » [安装](https://bird-chinese-community.github.io/zh-cn/getting-started/installation/)
 
 ### 命令行
 
@@ -51,11 +49,13 @@ birdcc fmt bird.conf --write   # 原地格式化
 birdcc lsp --stdio             # 启动语言服务器
 ```
 
-规则默认报告 `warning` 或 `info`。出现 `error` 级别的诊断时 `birdcc lint` 以退出码 1 结束，全部诊断都是 `warning` 或 `info` 时退出码为 0。[CLI 参考](./packages/@birdcc/cli/README.md)列出了全部选项、JSON 输出格式，以及让 lint 在 CI 中失败所需的 `bird.config.json` 设置。
+阅读更多 » [快速上手](https://bird-chinese-community.github.io/zh-cn/getting-started/quick-start/) · [CLI 参考](https://bird-chinese-community.github.io/zh-cn/cli/) · [lint 规则](https://bird-chinese-community.github.io/zh-cn/linting/rules/)
 
 ### GitHub Actions
 
 [setup-birdcc](https://github.com/bird-chinese-community/setup-birdcc) 在 GitHub Actions runner 上安装 Node.js、pnpm 与 BIRD，供 `birdcc lint`、`birdcc fmt --check` 与 `bird -p` 任务使用。
+
+阅读更多 » [GitHub Actions](https://bird-chinese-community.github.io/zh-cn/ci/github-actions/)
 
 ## 包
 
@@ -72,9 +72,11 @@ birdcc lsp --stdio             # 启动语言服务器
 | [`@birdcc/vscode`](./packages/@birdcc/vscode/)                         | VS Code Marketplace、Open VSX | VS Code 扩展 `BIRDCC.bird2-lsp`                                                             |
 | [`bird2-extension-pack`](./packages/@birdcc/vscode-pack/)              | VS Code Marketplace、Open VSX | 扩展包 `BIRDCC.bird2-extension-pack`，包含 `BIRDCC.bird2-lsp` 与 `BIRDCC.vscode-bird2-conf` |
 
+阅读更多 » [npm 包](https://bird-chinese-community.github.io/zh-cn/packages/)
+
 ## 架构
 
-箭头从一个包指向它在 `dependencies` 中声明的包。
+箭头从一个包指向它在 `dependencies` 中声明的包。点击包名可以打开它的 README。
 
 ```mermaid
 flowchart TD
@@ -106,17 +108,23 @@ flowchart TD
     FORMATTER --> DPRINT
     FORMATTER --> PARSER
     CORE --> PARSER
+
+    click VSCODE href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/vscode/README.md" "@birdcc/vscode README" _blank
+    click CLI href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/cli/README.md" "@birdcc/cli README" _blank
+    click LSP href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/lsp/README.md" "@birdcc/lsp README" _blank
+    click LINTER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/linter/README.md" "@birdcc/linter README" _blank
+    click FORMATTER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/formatter/README.md" "@birdcc/formatter README" _blank
+    click INTEL href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/intel/README.md" "@birdcc/intel README" _blank
+    click CORE href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/core/README.md" "@birdcc/core README" _blank
+    click DPRINT href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/dprint-plugin-bird/README.md" "@birdcc/dprint-plugin-bird README" _blank
+    click PARSER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/parser/README.md" "@birdcc/parser README" _blank
 ```
 
-诊断流程、项目解析、格式化引擎与 VS Code 扩展的运行方式见 [docs/architecture.md](./docs/architecture.md)（英文）。
+阅读更多 » [架构](https://bird-chinese-community.github.io/zh-cn/architecture/)
 
 ## 开发
 
-环境要求：
-
-- Node.js 22 或更新版本（发版工具需要 Node.js 24）
-- pnpm 10.18.3，即 `packageManager` 字段中的版本
-- Rust stable，带 `wasm32-unknown-unknown` target 与 `llvm-tools` 组件，用于构建 `@birdcc/dprint-plugin-bird`
+构建需要 Node.js 22 或更新版本、pnpm，以及带 `wasm32-unknown-unknown` target 与 `llvm-tools` 组件的 Rust。
 
 ```bash
 git clone https://github.com/bird-chinese-community/BIRD-LSP.git
@@ -129,26 +137,15 @@ pnpm build
 pnpm test
 ```
 
-| 命令                                                    | 作用                                                             |
-| ------------------------------------------------------- | ---------------------------------------------------------------- |
-| `pnpm test:quick`                                       | 运行各包测试，跳过真实配置语料测试                               |
-| `pnpm typecheck`                                        | TypeScript 类型检查                                              |
-| `pnpm lint`                                             | Oxlint，以及 dprint 插件的 `cargo fmt --check` 与 `cargo clippy` |
-| `pnpm exec turbo run format --concurrency=1 -- --check` | 与 CI 相同的 Oxfmt 格式检查                                      |
-| `pnpm format`                                           | 运行 Oxfmt 并改写文件                                            |
-
-提交信息遵循 Conventional Commits，scope 使用 kebab-case，例如 `fix(parser): Handle nested blocks`。需要写入包 changelog 的改动要附带 Tegami changeset，见 [docs/releasing.md](./docs/releasing.md)。
+阅读更多 » [参与贡献](https://bird-chinese-community.github.io/zh-cn/contributing/)
 
 ## 文档
 
-以下文档为英文：
+[BIRDCC 使用手册 & 技术文档 (Developer Preview)](https://bird-chinese-community.github.io/zh-cn/) 介绍编辑器、命令行工具、lint 规则、`bird.config.json`、语言服务器与内部实现，提供简体中文与英文两种语言。
 
-- [项目配置（`bird.config.json`）](./docs/spec.md)
-- [编辑器设置与校验命令规则](./docs/configuration.md)
-- [常见问题](./docs/faq.md)
-- [架构](./docs/architecture.md)
-- [分析上限](./docs/analysis-budgets.md)
-- [发版与 changeset](./docs/releasing.md)
+- [入口与 include](https://bird-chinese-community.github.io/zh-cn/configuration/entries-and-includes/) 与 [配置参考](https://bird-chinese-community.github.io/zh-cn/configuration/reference/)
+- [VS Code 设置](https://bird-chinese-community.github.io/zh-cn/editors/vscode/#settings) 与 [LSP 用法参考](https://bird-chinese-community.github.io/zh-cn/editors/language-server/)
+- [常见问题](https://bird-chinese-community.github.io/zh-cn/faq/)
 - BIRD 用户手册：[BIRD 2](https://bird.network.cz/?get_doc&f=bird.html&v=20)、[BIRD 3](https://bird.network.cz/?get_doc&f=bird.html&v=30)
 
 ## 反馈

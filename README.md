@@ -29,12 +29,10 @@ English | [简体中文](./README.zh.md)
 
 ### Editors
 
-| Editor                                                         | Install                                                                                                                                                                                   | Result                                                                                                                                                                        |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VS Code 1.100 or newer, and editors that install from Open VSX | [`BIRDCC.bird2-extension-pack`](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-extension-pack) ([Open VSX](https://open-vsx.org/extension/BIRDCC/bird2-extension-pack)) | Language features from [`BIRDCC.bird2-lsp`](./packages/@birdcc/vscode/README.md), which bundles the language server, plus syntax highlighting from `BIRDCC.vscode-bird2-conf` |
-| Neovim 0.11 or newer                                           | [BIRD.nvim](https://github.com/bird-chinese-community/BIRD.nvim) and `@birdcc/cli`                                                                                                        | Filetype detection and highlighting from BIRD.nvim; language features from `birdcc lsp --stdio` ([configuration](./packages/@birdcc/lsp/README.md#editor-setup))              |
-| Vim                                                            | [BIRD.vim](https://github.com/bird-chinese-community/BIRD.vim)                                                                                                                            | Filetype detection and highlighting                                                                                                                                           |
-| Helix and other LSP clients                                    | `@birdcc/cli`                                                                                                                                                                             | Language features from `birdcc lsp --stdio` ([configuration](./packages/@birdcc/lsp/README.md#editor-setup))                                                                  |
+- **VS Code** 1.100 or newer, and editors that install from Open VSX: install [`BIRDCC.bird2-extension-pack`](https://marketplace.visualstudio.com/items?itemName=BIRDCC.bird2-extension-pack) ([Open VSX](https://open-vsx.org/extension/BIRDCC/bird2-extension-pack)). It contains [`BIRDCC.bird2-lsp`](./packages/@birdcc/vscode/README.md), which bundles the language server, and the syntax highlighting extension `BIRDCC.vscode-bird2-conf`.
+- **Neovim, Vim, Helix, JetBrains IDEs, and other LSP clients**: start the language server with `birdcc lsp --stdio` from `@birdcc/cli`. [BIRD.nvim](https://github.com/bird-chinese-community/BIRD.nvim) and [BIRD.vim](https://github.com/bird-chinese-community/BIRD.vim) add filetype detection and highlighting.
+
+Read more » [Installation](https://bird-chinese-community.github.io/en/getting-started/installation/)
 
 ### CLI
 
@@ -51,11 +49,13 @@ birdcc fmt bird.conf --write   # format in place
 birdcc lsp --stdio             # start the language server
 ```
 
-Rules report `warning` or `info` by default. `birdcc lint` exits 1 when a diagnostic has severity `error` and 0 when every diagnostic is `warning` or `info`. The [CLI reference](./packages/@birdcc/cli/README.md) lists every option, the JSON output, and the `bird.config.json` settings that make lint fail a CI job.
+Read more » [Quick start](https://bird-chinese-community.github.io/en/getting-started/quick-start/) · [CLI reference](https://bird-chinese-community.github.io/en/cli/) · [Lint rules](https://bird-chinese-community.github.io/en/linting/rules/)
 
 ### GitHub Actions
 
 [setup-birdcc](https://github.com/bird-chinese-community/setup-birdcc) prepares a GitHub Actions runner with Node.js, pnpm, and BIRD for `birdcc lint`, `birdcc fmt --check`, and `bird -p` jobs.
+
+Read more » [GitHub Actions](https://bird-chinese-community.github.io/en/ci/github-actions/)
 
 ## Packages
 
@@ -72,9 +72,11 @@ Rules report `warning` or `info` by default. `birdcc lint` exits 1 when a diagno
 | [`@birdcc/vscode`](./packages/@birdcc/vscode/)                         | VS Code Marketplace, Open VSX | VS Code extension `BIRDCC.bird2-lsp`                                                               |
 | [`bird2-extension-pack`](./packages/@birdcc/vscode-pack/)              | VS Code Marketplace, Open VSX | Extension pack `BIRDCC.bird2-extension-pack`: `BIRDCC.bird2-lsp` and `BIRDCC.vscode-bird2-conf`    |
 
+Read more » [npm packages](https://bird-chinese-community.github.io/en/packages/)
+
 ## Architecture
 
-An arrow points from a package to a package it lists in `dependencies`.
+An arrow points from a package to a package it lists in `dependencies`. Select a package to open its README.
 
 ```mermaid
 flowchart TD
@@ -106,17 +108,23 @@ flowchart TD
     FORMATTER --> DPRINT
     FORMATTER --> PARSER
     CORE --> PARSER
+
+    click VSCODE href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/vscode/README.md" "@birdcc/vscode README" _blank
+    click CLI href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/cli/README.md" "@birdcc/cli README" _blank
+    click LSP href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/lsp/README.md" "@birdcc/lsp README" _blank
+    click LINTER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/linter/README.md" "@birdcc/linter README" _blank
+    click FORMATTER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/formatter/README.md" "@birdcc/formatter README" _blank
+    click INTEL href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/intel/README.md" "@birdcc/intel README" _blank
+    click CORE href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/core/README.md" "@birdcc/core README" _blank
+    click DPRINT href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/dprint-plugin-bird/README.md" "@birdcc/dprint-plugin-bird README" _blank
+    click PARSER href "https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/parser/README.md" "@birdcc/parser README" _blank
 ```
 
-[docs/architecture.md](./docs/architecture.md) describes the diagnostics pipeline, project resolution, formatting engines, and the VS Code extension runtime.
+Read more » [Architecture](https://bird-chinese-community.github.io/en/architecture/)
 
 ## Development
 
-Requirements:
-
-- Node.js 22 or newer (the release tooling requires Node.js 24)
-- pnpm 10.18.3, the version in `packageManager`
-- Rust stable with the `wasm32-unknown-unknown` target and the `llvm-tools` component, used to build `@birdcc/dprint-plugin-bird`
+Building needs Node.js 22 or newer, pnpm, and Rust with the `wasm32-unknown-unknown` target and the `llvm-tools` component.
 
 ```bash
 git clone https://github.com/bird-chinese-community/BIRD-LSP.git
@@ -129,24 +137,15 @@ pnpm build
 pnpm test
 ```
 
-| Command                                                 | Runs                                                                      |
-| ------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `pnpm test:quick`                                       | Package tests without the real-world configuration corpus                 |
-| `pnpm typecheck`                                        | TypeScript checks                                                         |
-| `pnpm lint`                                             | Oxlint, plus `cargo fmt --check` and `cargo clippy` for the dprint plugin |
-| `pnpm exec turbo run format --concurrency=1 -- --check` | Oxfmt check, as in CI                                                     |
-| `pnpm format`                                           | Oxfmt, rewriting files                                                    |
-
-Commit messages follow Conventional Commits with a kebab-case scope, for example `fix(parser): Handle nested blocks`. Changes that belong in a package changelog need a Tegami changeset; see [docs/releasing.md](./docs/releasing.md).
+Read more » [Contributing](https://bird-chinese-community.github.io/en/contributing/)
 
 ## Documentation
 
-- [Project configuration (`bird.config.json`)](./docs/spec.md)
-- [Editor settings and validation command rules](./docs/configuration.md)
-- [FAQ](./docs/faq.md)
-- [Architecture](./docs/architecture.md)
-- [Analysis budgets](./docs/analysis-budgets.md)
-- [Releases and changesets](./docs/releasing.md)
+[BIRDCC User Guide & Technical Reference (Developer Preview)](https://bird-chinese-community.github.io/en/) documents the editors, the CLI, the lint rules, `bird.config.json`, the language server, and the internals, in English and Simplified Chinese.
+
+- [Entry files and includes](https://bird-chinese-community.github.io/en/configuration/entries-and-includes/) and the [configuration reference](https://bird-chinese-community.github.io/en/configuration/reference/)
+- [VS Code settings](https://bird-chinese-community.github.io/en/editors/vscode/#settings) and the [language server reference](https://bird-chinese-community.github.io/en/editors/language-server/)
+- [FAQ](https://bird-chinese-community.github.io/en/faq/)
 - BIRD user guide: [BIRD 2](https://bird.network.cz/?get_doc&f=bird.html&v=20), [BIRD 3](https://bird.network.cz/?get_doc&f=bird.html&v=30)
 
 ## Feedback
