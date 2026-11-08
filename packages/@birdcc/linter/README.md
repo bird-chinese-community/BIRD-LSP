@@ -1,230 +1,286 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/linter/assets/icon-256.png" width="128" height="128" alt="@birdcc/linter icon" />
+<img src="https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/packages/@birdcc/linter/assets/icon-256.png" width="96" height="96" alt="@birdcc/linter" />
 
-# BIRD Config Linter (@birdcc/linter)
+# @birdcc/linter
+
+Rule-based linter for BIRD 2 and BIRD 3 configuration files.
+
+[![npm](https://img.shields.io/npm/v/@birdcc/linter?style=flat-square&logo=npm&color=cb3837)](https://www.npmjs.com/package/@birdcc/linter)
+[![License](https://img.shields.io/badge/license-GPL--3.0--only-green.svg?style=flat-square)](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)
 
 </div>
 
-<div align="center">
-
-> ⚠️ **Alpha Stage**: This package is in early development. APIs may change frequently, and unexpected issues may occur. Please evaluate carefully before deploying in production environments.
-
-</div>
-
-[![npm version](https://img.shields.io/badge/version-0.1.0--alpha-blue)](https://www.npmjs.com/package/@birdcc/linter) [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0--only-green.svg)](https://www.gnu.org/licenses/gpl-3.0) [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?logo=typescript)](https://www.typescriptlang.org/)
-
-> [Overview](#overview) · [Features](#features) · [Installation](#installation) · [Usage](#usage) · [Rules](#rules) · [API Reference](#api-reference)
-
-## Overview
-
-**@birdcc/linter** is the rule engine layer of the BIRD-LSP toolchain, providing a pluggable lint rule system for checking protocol compliance, security, and performance issues in BIRD2 configuration files.
-
----
-
-## Features
-
-- 🧩 **Pluggable Rules** — Flexible rule system based on the `BirdRule` type
-- 🌐 **Protocol Rules** — BGP/OSPF configuration completeness checks
-- 🔒 **Security Rules** — Configuration security best practices
-- ⚡ **Performance Rules** — Performance optimization recommendations
-- 🔍 **32+ Built-in Rules** — Comprehensive coverage of common issues
-
----
+`@birdcc/linter` checks a BIRD configuration against 32 rules in six groups: `sym`, `cfg`, `net`, `type`, `bgp`, and `ospf`. It parses the text with [@birdcc/parser](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/parser), builds a snapshot with [@birdcc/core](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/core), reports parser and core diagnostics under rule codes, and runs the rule functions. [@birdcc/cli](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/cli) (`birdcc lint`) and [@birdcc/lsp](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/lsp) use it.
 
 ## Installation
 
 ```bash
-# Using pnpm (recommended)
-pnpm add @birdcc/linter
-
-# Using npm
 npm install @birdcc/linter
-
-# Using yarn
-yarn add @birdcc/linter
 ```
 
----
+Requires Node.js 22 or newer.
 
 ## Usage
 
-### Basic Linting
+Lint one document. `lintBirdConfig` is async:
 
-```typescript
+```ts
 import { lintBirdConfig } from "@birdcc/linter";
 
-const config = `
-protocol bgp example {
-  neighbor 192.168.1.1 as 65001;
+const source = `
+router id 192.0.2.1;
+
+protocol bgp upstream {
+  neighbor 192.0.2.2 as 65002;
+  ipv4 { import filter missing_filter; };
 }
 `;
 
-const result = lintBirdConfig(config);
-
-console.log(result.diagnostics);
-// [{ code: "bgp/missing-local-as", message: "BGP protocol missing local as configuration", severity: "warning" }]
+const result = await lintBirdConfig(source, {
+  uri: "file:///etc/bird/bird.conf",
+});
+for (const diagnostic of result.diagnostics) {
+  const { line, column } = diagnostic.range;
+  console.log(
+    `${diagnostic.severity} ${diagnostic.code} ${line}:${column} ${diagnostic.message}`,
+  );
+}
 ```
 
-### Reference Samples Sync
+Output:
 
-```bash
-pnpm --filter @birdcc/linter sync:examples
+```text
+warning sym/filter-required 6:24 Protocol 'upstream' references unknown filter 'missing_filter'
+info bgp/missing-local-as 4:14 BGP protocol 'upstream' missing local AS number
 ```
 
-This command copies `refer/vscode-bird2/syntaxes/bird-tm-grammar/sample/*.conf`
-to `packages/@birdcc/linter/examples/` and runs automatically during `build`
-and `test`.
+Lint an include graph resolved by `@birdcc/core`. Symbols defined in one file satisfy references in another:
 
-### Custom Rules
+```ts
+import { resolveCrossFileReferences } from "@birdcc/core";
+import { lintBirdConfig, lintResolvedCrossFileGraph } from "@birdcc/linter";
 
-```typescript
-import type { BirdRule, BirdDiagnostic } from "@birdcc/linter";
+const documents = [
+  {
+    uri: "file:///etc/bird/bird.conf",
+    text: `router id 192.0.2.1;
+include "templates.conf";
+protocol bgp upstream from peer_base { neighbor 192.0.2.2 as 65002; }
+`,
+  },
+  {
+    uri: "file:///etc/bird/templates.conf",
+    text: "template bgp peer_base { local as 65001; }\n",
+  },
+];
 
-const namingConventionRule: BirdRule = ({ core }) => {
-  const diagnostics: BirdDiagnostic[] = [];
+const single = await lintBirdConfig(documents[0].text, {
+  uri: documents[0].uri,
+});
+console.log(single.diagnostics.map((diagnostic) => diagnostic.code));
 
-  for (const symbol of core.symbols) {
-    if (symbol.kind === "protocol") {
-      if (!/^[a-z][a-z0-9-]*$/.test(symbol.name)) {
-        diagnostics.push({
-          code: "structure/invalid-protocol-name",
-          message: `Protocol name '${symbol.name}' should only contain lowercase letters, numbers, and hyphens`,
-          severity: "warning",
-          source: "linter",
-          range: {
-            /* ... */
-          },
-        });
-      }
-    }
-  }
-
-  return diagnostics;
-};
+const graph = await resolveCrossFileReferences({
+  entryUri: documents[0].uri,
+  documents,
+  loadFromFileSystem: false,
+});
+const { diagnostics, byUri } = await lintResolvedCrossFileGraph(graph);
+console.log(diagnostics.map((diagnostic) => diagnostic.code));
+console.log(Object.keys(byUri));
 ```
 
----
+Output:
+
+```text
+[ 'sym/undefined' ]
+[]
+[ 'file:///etc/bird/bird.conf', 'file:///etc/bird/templates.conf' ]
+```
 
 ## Rules
 
-### Symbol Rules (`sym/*`)
+Default severities: `sym/*`, `cfg/*`, `net/*`, and `type/*` rules report `warning`; `bgp/*` and `ospf/*` rules report `info`. One check reports `error`: `cfg/number-expected` for a BGP `neighbor` statement that the parser keeps as unstructured text and whose `as` value is not a number.
 
-| Rule                      | Description                   | Level |
-| ------------------------- | ----------------------------- | ----- |
-| `sym/undefined`           | Reference to undefined symbol | error |
-| `sym/duplicate`           | Duplicate symbol definition   | error |
-| `sym/proto-type-mismatch` | Protocol type mismatch        | error |
+### Symbols (`sym/*`)
 
-### Config Rules (`cfg/*`)
+| Rule                      | Default | Reported for                                                                                                                                                                                                                                                      |
+| ------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sym/undefined`           | warning | A `from` template that is not defined, or an include that cannot be loaded                                                                                                                                                                                        |
+| `sym/duplicate`           | warning | A second definition with the same kind and name                                                                                                                                                                                                                   |
+| `sym/proto-type-mismatch` | warning | A protocol that inherits from a template of another protocol type                                                                                                                                                                                                 |
+| `sym/filter-required`     | warning | An `import filter` or `export filter` clause without a name, or naming an undefined filter                                                                                                                                                                        |
+| `sym/function-required`   | warning | A call to a function that is not declared and not on the linter's list of known built-ins, such as `roa_check` and `defined`. Built-ins missing from the list, such as `aspa_check`, are reported                                                                 |
+| `sym/table-required`      | warning | A `table` clause without a name, or naming an undefined table                                                                                                                                                                                                     |
+| `sym/variable-scope`      | warning | An assignment in a filter or function to a name not declared earlier in the body; see `type/undefined-variable` in [@birdcc/core](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/core#diagnostics) for the exempt route attributes |
 
-| Rule                     | Description              | Level |
-| ------------------------ | ------------------------ | ----- |
-| `cfg/no-protocol`        | No protocol defined      | error |
-| `cfg/missing-router-id`  | Missing router id        | error |
-| `cfg/syntax-error`       | Syntax error detected    | error |
-| `cfg/value-out-of-range` | Value out of valid range | error |
+### Configuration (`cfg/*`)
 
-### Network Rules (`net/*`)
+| Rule                        | Default | Reported for                                                                                                                                                                                                                 |
+| --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cfg/no-protocol`           | warning | A file with no `protocol` and no `define`, `include`, `function`, `template`, or `table` declaration                                                                                                                         |
+| `cfg/missing-router-id`     | warning | A file with a BGP protocol not based on a template, and no `router id`, `include`, or `define`                                                                                                                               |
+| `cfg/syntax-error`          | warning | Any parse issue from @birdcc/parser                                                                                                                                                                                          |
+| `cfg/value-out-of-range`    | warning | `local as` or `neighbor ... as` outside 1-4294967294; a channel `limit` or `max prefix` outside 0-4294967295; `hold` (3-65535), `keepalive` (1-65535), or `ttl` (1-255) out of range in a statement the parser keeps as text |
+| `cfg/switch-value-expected` | warning | A non-boolean value after `passive`, `stub`, `bfd`, `enabled`, `disabled`, `check link`, `deterministic med`, or a channel `keep filtered`                                                                                   |
+| `cfg/number-expected`       | warning | A non-numeric value for one of the options above; constant names with an upper-case letter or `_`, and `internal`/`external`/`ibgp`/`ebgp` for AS values, are accepted                                                       |
+| `cfg/incompatible-type`     | warning | A `neighbor` address that is not an IP address (or not a prefix for `neighbor range`), or a `router id` value that @birdcc/core rejects (`semantic/invalid-router-id`)                                                       |
+| `cfg/ip-network-mismatch`   | warning | An IPv6 address in an unstructured `ipv4` channel option, or an IPv4 address in an `ipv6` one                                                                                                                                |
+| `cfg/circular-template`     | warning | A template inheritance cycle                                                                                                                                                                                                 |
 
-| Rule                        | Description           | Level |
-| --------------------------- | --------------------- | ----- |
-| `net/invalid-prefix-length` | Invalid prefix length | error |
-| `net/invalid-ipv4-prefix`   | Invalid IPv4 prefix   | error |
-| `net/invalid-ipv6-prefix`   | Invalid IPv6 prefix   | error |
+### Networks (`net/*`)
 
-### Type Rules (`type/*`)
+| Rule                        | Default | Reported for                                                                                                                                             |
+| --------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `net/invalid-prefix-length` | warning | A prefix literal in a filter or function that is not valid CIDR, a length range whose minimum exceeds its maximum, or a non-numeric channel `max prefix` |
+| `net/invalid-ipv4-prefix`   | warning | A dotted prefix whose address is not a valid IPv4 address, or a prefix whose address contains neither `.` nor `:`                                        |
+| `net/invalid-ipv6-prefix`   | warning | A prefix containing `:` whose address is not a valid IPv6 address                                                                                        |
+| `net/max-prefix-length`     | warning | An IPv4 prefix length or length range above 32, or a channel `max prefix` above 32 (`ipv4`) or 128 (`ipv6`)                                              |
 
-| Rule                | Description          | Level |
-| ------------------- | -------------------- | ----- |
-| `type/mismatch`     | Type mismatch        | error |
-| `type/not-iterable` | Non-iterable in loop | error |
+### Types (`type/*`)
 
-### BGP Rules (`bgp/*`)
+| Rule                    | Default | Reported for                                                                                                       |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `type/mismatch`         | warning | A typed local variable declared or assigned with a value of another type                                           |
+| `type/not-iterable`     | warning | The right side of `~` is not a `[...]` set, a `(a, b)` tuple, an IP address, a prefix or prefix pattern, or a name |
+| `type/set-incompatible` | warning | The left side of `~` has a different type than the first element of the set literal                                |
 
-| Rule                    | Description        | Level   |
-| ----------------------- | ------------------ | ------- |
-| `bgp/missing-local-as`  | Missing local AS   | warning |
-| `bgp/missing-neighbor`  | Missing neighbor   | warning |
-| `bgp/missing-remote-as` | Missing remote AS  | warning |
-| `bgp/as-mismatch`       | AS number mismatch | warning |
+### BGP (`bgp/*`)
 
-### OSPF Rules (`ospf/*`)
+| Rule                    | Default | Reported for                                                                                                       |
+| ----------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `bgp/missing-local-as`  | info    | A BGP protocol without `local as` and without a template                                                           |
+| `bgp/missing-neighbor`  | info    | A BGP protocol without `neighbor` and without a template                                                           |
+| `bgp/missing-remote-as` | info    | A `neighbor` without an AS number, `internal`, or `external`, in a protocol not based on a template                |
+| `bgp/as-mismatch`       | info    | A protocol with an internal neighbor and a neighbor AS number different from `local as`                            |
+| `bgp/timer-invalid`     | info    | `hold time` outside 3-65535, `keepalive time` outside 1-65535 (0 disables either), or `keepalive` not below `hold` |
 
-| Rule                 | Description                | Level   |
-| -------------------- | -------------------------- | ------- |
-| `ospf/missing-area`  | Missing area configuration | warning |
-| `ospf/backbone-stub` | Stub area on backbone      | warning |
+### OSPF (`ospf/*`)
 
----
+| Rule                     | Default | Reported for                                              |
+| ------------------------ | ------- | --------------------------------------------------------- |
+| `ospf/missing-area`      | info    | An OSPF protocol without an `area`                        |
+| `ospf/backbone-stub`     | info    | The backbone area (`0` or `0.0.0.0`) configured as `stub` |
+| `ospf/vlink-in-backbone` | info    | A virtual link inside the backbone area                   |
+| `ospf/asbr-stub-area`    | info    | An ASBR declared inside a stub area                       |
 
-## API Reference
+### Parser and core diagnostics
 
-### `lintBirdConfig(text: string, options?): LintResult`
+The linter reports diagnostics from @birdcc/parser and @birdcc/core under rule codes. When the original code differs from the rule code, the message starts with the original code, for example `[semantic/duplicate-definition] protocol 'd1' is already defined`:
 
-Perform complete lint checks (semantic analysis + rule checks).
+| Original code                                                                                | Rule code                   |
+| -------------------------------------------------------------------------------------------- | --------------------------- |
+| All five parser issue codes                                                                  | `cfg/syntax-error`          |
+| `semantic/duplicate-definition`                                                              | `sym/duplicate`             |
+| `semantic/undefined-reference`, `semantic/missing-include`                                   | `sym/undefined`             |
+| `semantic/circular-template`                                                                 | `cfg/circular-template`     |
+| `semantic/invalid-router-id`, `semantic/invalid-neighbor-address`, `type/unknown-expression` | `cfg/incompatible-type`     |
+| `semantic/invalid-cidr`                                                                      | `net/invalid-prefix-length` |
+| `type/mismatch`                                                                              | `type/mismatch`             |
+| `type/undefined-variable`                                                                    | `sym/variable-scope`        |
 
-```typescript
+### File roles
+
+`lintBirdConfig` infers a role for each file from its URI and content. `bird.conf`, `bird2.conf`, and `bird3.conf` are entry files, and so is a file with a `router id` or `include` declaration unless its directory marks it as a fragment or library. Other files become fragments or libraries based on directory and file-name markers (such as `peers`, `upstream`, `filters`, `lib`), on whether their directory or a parent directory holds an entry file, and on whether they declare named protocols; a file that none of these checks classifies is an entry file. Without a URI, or with a `memory://` URI, the role is `unknown` and no diagnostics are dropped. For fragments and libraries, the linter drops `sym/undefined`, `sym/function-required`, `sym/filter-required`, `sym/table-required`, `cfg/no-protocol`, and `cfg/missing-router-id`, because the definitions they need live in other files. `lintResolvedCrossFileGraph` also drops `cfg/no-protocol` and `cfg/missing-router-id` for every file except the entry.
+
+## Configuring severity
+
+`lintBirdConfig` returns the default severities. The CLI and the language server apply `linter.rules` from `bird.config.json` (or its alias `birdcc.config.json`) to the result:
+
+```json
+{
+  "linter": {
+    "rules": {
+      "cfg/*": "error",
+      "cfg/syntax-error": "off",
+      "sym/filter-required": "info"
+    }
+  }
+}
+```
+
+- A key that equals the rule code wins.
+- Otherwise the longest matching key that ends in `/*` applies; `cfg/*` matches every `cfg/` rule. Other wildcard forms, such as `*` alone, match nothing.
+- Values are `error`, `warning`, `info`, and `off`. `off` removes the diagnostic.
+- `"linter": { "enabled": false }` removes all diagnostics.
+
+Keys match rule codes, not the original parser or core codes.
+
+To apply the same configuration in your own code, pass the diagnostics to `applyLintConfiguration` from `@birdcc/core`:
+
+```ts
+import { applyLintConfiguration } from "@birdcc/core";
 import { lintBirdConfig } from "@birdcc/linter";
 
-const result = lintBirdConfig(birdConfigText);
-// result.parsed      → Parsed AST
-// result.core        → Semantic analysis snapshot
-// result.diagnostics → All diagnostic messages
+const { diagnostics } = await lintBirdConfig(
+  "router id 192.0.2.1;\nprotocol bgp upstream {\n  neighbor 192.0.2.2 as 65002;\n  ipv4 { import filter missing_filter; };\n}\n",
+);
+const configured = applyLintConfiguration(diagnostics, {
+  rules: { "sym/*": "error", "bgp/missing-local-as": "off" },
+});
+console.log(
+  configured.map((diagnostic) => `${diagnostic.severity} ${diagnostic.code}`),
+);
 ```
 
-### Types
+Output:
 
-```typescript
-interface LintResult {
-  parsed: ParsedBirdDocument;
-  core: CoreSnapshot;
-  diagnostics: BirdDiagnostic[];
-}
+```text
+[ 'error sym/filter-required' ]
+```
 
-type BirdRule = (context: RuleContext) => BirdDiagnostic[];
+### Failing CI on lint findings
 
-interface RuleContext {
-  text: string;
-  parsed: ParsedBirdDocument;
-  core: CoreSnapshot;
+`birdcc lint` exits with status 1 only when a diagnostic has severity `error`. With the default severities, a file with syntax errors or undefined filters exits with 0. To fail the build on symbol, configuration, network, and type findings, raise those groups to `error` in `bird.config.json`:
+
+```json
+{
+  "main": "bird.conf",
+  "linter": {
+    "rules": {
+      "sym/*": "error",
+      "cfg/*": "error",
+      "net/*": "error",
+      "type/*": "error"
+    }
+  }
 }
 ```
 
----
+```bash
+birdcc lint bird.conf
+echo $?
+```
 
-## Related Packages
+For a `bird.conf` with a missing `;` and an undefined filter, the output is:
 
-| Package                            | Description                    |
-| ---------------------------------- | ------------------------------ |
-| [@birdcc/parser](../parser/)       | Tree-sitter grammar and parser |
-| [@birdcc/core](../core/)           | Semantic analysis engine       |
-| [@birdcc/formatter](../formatter/) | Code formatting engine         |
-| [@birdcc/lsp](../lsp/)             | LSP server implementation      |
-| [@birdcc/cli](../cli/)             | Command-line interface         |
+```text
+ERROR cfg/syntax-error [file:///.../bird.conf] 4:15 [syntax/missing-semicolon] Missing ';' at end of statement
+ERROR sym/filter-required [file:///.../bird.conf] 10:24 Protocol 'upstream' references unknown filter 'missing_filter'
+1
+```
 
----
+Without the `linter.rules` block, the same file prints both lines as `WARNING` and exits with 0.
 
-### 📖 Documentation
+## API
 
-- [BIRD Official Documentation](https://bird.network.cz/)
-- [BIRD2 User Manual](https://bird.network.cz/doc/bird.html)
-- [GitHub Project](https://github.com/bird-chinese-community/BIRD-LSP)
+| Export                       | Kind     | Description                                                                                                                      |
+| ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `lintBirdConfig`             | function | `(text: string, options?: LintBirdConfigOptions) => Promise<LintResult>`                                                         |
+| `lintResolvedCrossFileGraph` | function | `(resolution: CrossFileResolutionResult) => Promise<CrossFileLintResult>`; lints every visited file with the merged symbol table |
+| `LintBirdConfigOptions`      | type     | `{ parsed?: ParsedBirdDocument; core?: CoreSnapshot; uri?: string }`; pass `parsed` or `core` to reuse earlier results           |
+| `LintResult`                 | type     | `{ parsed: ParsedBirdDocument; core: CoreSnapshot; diagnostics: BirdDiagnostic[] }`                                              |
+| `CrossFileLintResult`        | type     | `{ diagnostics: BirdDiagnostic[]; byUri: Record<string, LintResult> }`                                                           |
 
----
+`BirdDiagnostic`, `CoreSnapshot`, and `CrossFileResolutionResult` come from `@birdcc/core`. The rule set is fixed; the package does not export an API for adding rules.
 
-## 📝 License
+## See also
 
-This project is licensed under the [GPL-3.0 License](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE).
+- [@birdcc/cli](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/cli): `birdcc lint` options, output formats, and exit codes.
+- [@birdcc/core](https://github.com/bird-chinese-community/BIRD-LSP/tree/main/packages/@birdcc/core#diagnostics): the semantic diagnostics behind `sym/*` and `type/*` rules.
+- [Project configuration reference](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/spec.md)
+- [Architecture: linter](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/docs/architecture.md#linter)
 
----
+## License
 
-<p align="center">
-  <sub>Built with ❤️ by the BIRD Chinese Community (BIRDCC)</sub>
-</p>
-
-<p align="center">
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP">🕊 GitHub</a> ·
-  <a href="https://marketplace.visualstudio.com/items?itemName=birdcc.bird2-lsp">🛒 Marketplace</a> ·
-  <a href="https://github.com/bird-chinese-community/BIRD-LSP/issues">🐛 Report Issues</a>
-</p>
+[GPL-3.0-only](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/LICENSE)

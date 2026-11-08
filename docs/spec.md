@@ -25,11 +25,12 @@ Create a `bird.config.json` in your project root:
 
 ## Configuration Structure
 
-```
+```text
 bird.config.json
 ├── $schema              # Schema URL for IDE validation
 ├── main                 # Entry point file
 ├── workspaces           # Monorepo sub-projects (optional)
+├── roles                # Accepted by the schema; not read
 ├── includePaths         # Additional include search paths
 ├── bird                 # BIRD daemon settings
 ├── crossFile            # Cross-file analysis settings
@@ -44,9 +45,9 @@ bird.config.json
 ### `main`
 
 **Type:** `string`  
-**Default:** `"bird.conf"`
+**Default:** none
 
-Specifies the entry point configuration file for the project.
+Specifies the entry point configuration file for the project. Without `main` and `workspaces`, `birdcc lint` and `birdcc fmt` without a file argument use `bird.conf` in the config file's directory, and the language server analyzes each open document as its own entry.
 
 ```json
 {
@@ -59,6 +60,7 @@ Specifies the entry point configuration file for the project.
 - Path is relative to the `bird.config.json` location
 - Ignored when `workspaces` is set (each workspace uses its own entry file)
 - Supports absolute paths for system-wide configurations
+- When the file does not exist, `birdcc lint` and `birdcc fmt` fail and the language server analyzes the open document as its own entry
 
 ---
 
@@ -76,18 +78,19 @@ Defines glob patterns for monorepo setups with multiple routers or PoPs.
 
 **Common Patterns:**
 
-| Pattern                            | Description             |
-| ---------------------------------- | ----------------------- |
-| `["*/"]`                           | All subdirectories      |
-| `["sites/*", "!sites/legacy"]`     | All sites except legacy |
-| `["pop-*/**"]`                     | All PoP directories     |
-| `["routers/eu-*", "routers/us-*"]` | Regional filtering      |
+| Pattern                            | Description                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------- |
+| `["*/"]`                           | The config file's directory and its direct subdirectories                 |
+| `["sites/*", "!sites/legacy"]`     | All sites except legacy                                                   |
+| `["pop-*/**"]`                     | Directories at any depth below each `pop-*` directory, not `pop-*` itself |
+| `["routers/eu-*", "routers/us-*"]` | Regional filtering                                                        |
 
 **Workspace Discovery:**
 
-- Each matched directory should contain its own `bird.conf` or entry file
-- Tooling processes each workspace independently
-- Shared configurations can be placed in parent directories with `includePaths`
+- Patterns match directory paths relative to the config file. `*` and `?` match within one path segment, `**` matches across segments, a leading `!` excludes, and a later pattern overrides an earlier one
+- The entry file of a workspace is always `bird.conf`; `birdcc lint` skips matched directories without one, along with hidden directories, symbolic links, and `node_modules`, `dist`, `build`, `target`, `coverage`, `.turbo`, and `.pnpm`
+- `birdcc lint` without a file argument lints the `bird.conf` of every matched directory; `birdcc fmt` requires a file argument; the language server uses the `bird.conf` of the deepest matched directory that contains the open document
+- Shared configurations outside the workspace directories need an `includePaths` entry and `crossFile.externalIncludes: true`; otherwise `birdcc lint` and the language server skip includes that resolve outside a workspace directory
 
 ---
 
@@ -95,7 +98,7 @@ Defines glob patterns for monorepo setups with multiple routers or PoPs.
 
 **Type:** `string[]`
 
-Additional directories for resolving `include` directives, equivalent to BIRD's `-I` flag.
+Additional directories for resolving `include` directives. Relative paths resolve against the config file's directory.
 
 ```json
 {
@@ -105,9 +108,15 @@ Additional directories for resolving `include` directives, equivalent to BIRD's 
 
 **Resolution Order:**
 
-1. Current file's directory
-2. Config file's directory (default)
+1. Directory of the file that contains the `include`
+2. Default search paths:
+   - Language server: the config file's directory
+   - `birdcc lint`: the linted file's directory when it contains an `include`; otherwise the project directory found by entry detection and the directory of the detected entry
 3. Paths specified in `includePaths` (in order)
+
+Each search path is tried with the full include path and then with leading directories removed (`a/b/c.conf`, `b/c.conf`, `c.conf`).
+
+`birdcc lint` and the language server skip include targets outside the workspace root unless [`crossFile.externalIncludes`](#crossfileexternalincludes) is `true`.
 
 ---
 
@@ -132,7 +141,7 @@ Configuration for interacting with the BIRD routing daemon.
 
 **Type:** `string`
 
-Version constraint for compatibility checking.
+Free-form version note. The schema accepts the field; `birdcc` and the language server do not read it.
 
 ```json
 {
@@ -142,31 +151,26 @@ Version constraint for compatibility checking.
 }
 ```
 
-**Supported Syntax:**
-
-- `">=2.0"` - BIRD 2.0 and later
-- `"^3.0"` - BIRD 3.x only
-- `"2.15.x"` - Specific minor version range
-
 #### `bird.binaryPath`
 
 **Type:** `string`
 
-Path to the BIRD binary. Used as fallback when `validateCommand` is not specified.
+Path to the BIRD binary. Used as fallback when `validateCommand` is not specified: `birdcc lint --bird` runs `<binaryPath> -p -c {file}`.
 
 **Priority Order:**
 
-1. `bird.validateCommand`
-2. `bird.binaryPath`
-3. `BIRD_BIN` environment variable
-4. System `PATH`
+1. `--validate-command` option of `birdcc lint`
+2. `bird.validateCommand`
+3. `bird.binaryPath`
+4. `BIRD_BIN` environment variable
+5. `bird` from the system `PATH`
 
 #### `bird.validateCommand`
 
 **Type:** `string`  
 **Default:** `"bird -p -c {file}"`
 
-Command template for syntax validation. The toolchain substitutes `{file}` with the path to a temporary file containing the bundled configuration.
+Command template for syntax validation with `birdcc lint --bird` or `linter.withBird`. `birdcc` replaces `{file}` with the absolute path of the linted file and appends the path when the template has no `{file}`. The command runs without a shell, in the directory of the linted file, with a 10-second timeout. The language server does not run validation.
 
 ```json
 {
@@ -186,12 +190,13 @@ Command template for syntax validation. The toolchain substitutes `{file}` with 
 | Docker      | `"docker exec bird bird -p -c {file}"` |
 | Remote      | `"ssh router bird -p -c {file}"`       |
 
+The path passed to the command is a path on the local file system. Docker and remote commands need the file at the same path inside the container or on the remote host.
+
 #### `bird.socketPath`
 
-**Type:** `string`  
-**Default:** `"/run/bird/bird.ctl"`
+**Type:** `string`
 
-Path to the BIRD control socket for `birdc` integration and runtime introspection.
+Path to the BIRD control socket. The schema accepts the field; `birdcc` and the language server do not read it.
 
 ---
 
@@ -224,7 +229,7 @@ Enable cross-file include analysis.
 **Type:** `integer`  
 **Default:** `16`
 
-Maximum nesting depth for include expansion. Prevents infinite recursion from circular includes.
+Maximum nesting depth for include expansion. Includes nested deeper are skipped and reported. Each file is analyzed once, so circular includes terminate independently of this limit.
 
 #### `crossFile.maxFiles`
 
@@ -238,7 +243,26 @@ Maximum number of files to analyze. Limits resource usage for large projects.
 **Type:** `boolean`  
 **Default:** `false`
 
-Allow includes outside the workspace root. Enable with caution for security.
+Allow includes outside the workspace root. Without it, `birdcc lint` and the language server skip include targets outside the root and report them as `sym/undefined` diagnostics. Enable with caution for security.
+
+The workspace root is:
+
+- `birdcc lint`: the directory of the linted file when it contains an `include`; otherwise the project directory found by entry detection
+- Language server: the matched workspace directory with `workspaces`, otherwise the config file's directory
+
+#### `crossFile.maxDocumentBytes`
+
+**Type:** `integer`  
+**Default:** `2097152` (2 MiB)
+
+Maximum size of one document. `birdcc lint` fails when the target file is larger; the language server reports a larger open document with an `analysis/size-limit` diagnostic. See [Analysis budgets](./analysis-budgets.md).
+
+#### `crossFile.maxTotalBytes`
+
+**Type:** `integer`  
+**Default:** `16777216` (16 MiB)
+
+Maximum total size of all documents in one include graph. See [Analysis budgets](./analysis-budgets.md).
 
 ---
 
@@ -276,7 +300,7 @@ Enable static analysis.
 **Type:** `boolean`  
 **Default:** `false`
 
-Also run BIRD validation (`bird -p`) in addition to static analysis. Uses `bird.validateCommand` if set, otherwise falls back to `bird.binaryPath` or `BIRD_BIN`.
+Also run BIRD validation (`bird -p`) in addition to static analysis in `birdcc lint`. Uses `bird.validateCommand` if set, otherwise falls back to `bird.binaryPath` or `BIRD_BIN`. The language server does not run BIRD validation.
 
 #### `linter.extends`
 
@@ -296,27 +320,27 @@ Reserved for inheriting rule configurations from presets. The field is accepted,
 
 **Type:** `object`
 
-Per-rule severity overrides. Supports wildcard patterns.
+Per-rule severity overrides. Keys are rule codes or `<group>/*` patterns. An exact rule code wins over a pattern, and a longer pattern wins over a shorter one.
 
 **Rule Categories:**
 
-| Prefix   | Description                              |
-| -------- | ---------------------------------------- |
-| `sym/*`  | Symbol validation (undefined, duplicate) |
-| `cfg/*`  | Configuration errors                     |
-| `net/*`  | Network/prefix validation                |
-| `type/*` | Type checking                            |
-| `bgp/*`  | BGP-specific rules                       |
-| `ospf/*` | OSPF-specific rules                      |
+| Prefix   | Description                              | Default severity |
+| -------- | ---------------------------------------- | ---------------- |
+| `sym/*`  | Symbol validation (undefined, duplicate) | `warning`        |
+| `cfg/*`  | Configuration errors                     | `warning`        |
+| `net/*`  | Network/prefix validation                | `warning`        |
+| `type/*` | Type checking                            | `warning`        |
+| `bgp/*`  | BGP-specific rules                       | `info`           |
+| `ospf/*` | OSPF-specific rules                      | `info`           |
 
 **Severity Levels:**
 
-| Level       | Behavior                  |
-| ----------- | ------------------------- |
-| `"error"`   | Fails CI, blocks commit   |
-| `"warning"` | Reported but non-blocking |
-| `"info"`    | Informational only        |
-| `"off"`     | Disabled                  |
+| Level       | Behavior                                    |
+| ----------- | ------------------------------------------- |
+| `"error"`   | Reported; `birdcc lint` exits with status 1 |
+| `"warning"` | Reported; exit status 0                     |
+| `"info"`    | Reported; exit status 0                     |
+| `"off"`     | Disabled                                    |
 
 **Example Configuration:**
 
@@ -362,8 +386,10 @@ Code formatting settings.
 
 Formatter engine selection:
 
-- `dprint` - Full-featured formatter with configurable rules
+- `dprint` - The `@birdcc/dprint-plugin-bird` WebAssembly plugin, configured with `indentSize`, `lineWidth`, `useTabs`, and `safeMode`
 - `builtin` - Lightweight built-in formatter (fallback)
+
+When `engine` is not set and the `dprint` engine fails, the formatter uses `builtin`. An engine set explicitly reports its failure.
 
 #### `formatter.indentSize`
 
@@ -384,14 +410,14 @@ Indent with one tab per level instead of spaces.
 **Type:** `integer` (20-1000)  
 **Default:** `80`
 
-Maximum line width before wrapping.
+Line width limit. The formatter does not wrap lines; the `builtin` engine leaves lines longer than this value unchanged apart from indentation.
 
 #### `formatter.safeMode`
 
 **Type:** `boolean`  
 **Default:** `true`
 
-Prevent formatting if syntax errors are detected. Recommended for production use.
+Reject the formatted output when its semantic fingerprint differs from the input. The fingerprint covers the parsed declarations without positions and the codes and messages of parser errors, so a file with syntax errors is formatted as long as its errors stay the same. Recommended for production use.
 
 ---
 
@@ -422,7 +448,7 @@ Prevent formatting if syntax errors are detected. Recommended for production use
 {
   "$schema": "https://raw.githubusercontent.com/bird-chinese-community/BIRD-LSP/main/schemas/bird.config.schema.json",
   "workspaces": ["*/"],
-  "includePaths": ["../shared/filters", "../shared/templates"],
+  "includePaths": ["./shared/filters", "./shared/templates"],
   "bird": {
     "version": ">=3.0",
     "binaryPath": "/usr/sbin/bird",
@@ -432,7 +458,7 @@ Prevent formatting if syntax errors are detected. Recommended for production use
   "crossFile": {
     "maxDepth": 10,
     "maxFiles": 512,
-    "externalIncludes": false
+    "externalIncludes": true
   },
   "linter": {
     "enabled": true,
@@ -529,31 +555,27 @@ Include the `$schema` field for IDE autocomplete and validation:
 }
 ```
 
-For offline development, use a local path:
+The npm packages do not include the schema file. For offline development, save a copy of the schema next to the config file and use a relative path:
 
 ```json
 {
-  "$schema": "./node_modules/@birdcc/cli/schemas/bird.config.schema.json"
+  "$schema": "./bird.config.schema.json"
 }
 ```
 
 ### 3. Environment-Specific Overrides
 
-Use environment variables for machine-specific paths:
+`bird.config.json` values are used literally; `birdcc` does not expand environment variables in them. For machine-specific binary paths, leave `bird.binaryPath` and `bird.validateCommand` unset and set the `BIRD_BIN` environment variable:
 
-```json
-{
-  "bird": {
-    "binaryPath": "${BIRD_BIN}"
-  }
-}
+```bash
+BIRD_BIN=/usr/sbin/bird birdcc lint --bird
 ```
 
 ### 4. Workspace Organization
 
 For monorepos, organize by function or region:
 
-```
+```text
 project/
 ├── bird.config.json      # Root config with workspaces
 ├── shared/
@@ -571,7 +593,7 @@ project/
 
 ### 5. Lint Severity in CI
 
-Use strict severity levels in CI/CD:
+With the default severities, rule diagnostics do not change the exit status of `birdcc lint`. Raise the rule groups to `error` so that CI fails on them:
 
 ```json
 {
@@ -596,7 +618,7 @@ Always enable `safeMode` for production formatting to prevent corruption of comp
 
 ### From `birdcc.config.json`
 
-Rename the file and update the schema reference:
+`birdcc.config.json` is read as an alias; when both files exist in one directory, `bird.config.json` takes precedence. To migrate, rename the file and update the schema reference:
 
 ```bash
 mv birdcc.config.json bird.config.json
@@ -612,12 +634,11 @@ Update the `$schema` field if present:
 
 ### Legacy BIRD 1.x Projects
 
-For BIRD 1.x compatibility, set appropriate version constraints:
+The parser and lint rules follow BIRD 2 and BIRD 3 syntax, and `bird.version` does not change them. To check a BIRD 1.x configuration with BIRD itself, point the validation command at the BIRD 1.x binary:
 
 ```json
 {
   "bird": {
-    "version": "1.x",
     "validateCommand": "bird -p -c {file}"
   }
 }
@@ -629,9 +650,9 @@ Note: Some features may not be available for BIRD 1.x configurations.
 
 ## Troubleshooting
 
-### "Entry file not found"
+### Entry file not found
 
-Ensure `main` points to an existing file relative to `bird.config.json`:
+When `main` points to a missing file, `birdcc lint` reports `ENOENT: no such file or directory` and `birdcc fmt` reports `Failed to read file '<path>'`; the language server analyzes the open document on its own. Ensure `main` points to an existing file relative to `bird.config.json`:
 
 ```json
 {
@@ -651,7 +672,7 @@ Add the include directories to `includePaths`:
 
 ### Validation command fails
 
-Check that the command template includes `{file}`:
+`birdcc` replaces `{file}` with the absolute path of the linted file, or appends the path when the template has no `{file}`. A command that cannot start, runs longer than 10 seconds, or exits non-zero without stderr output produces a `bird/runner-error` diagnostic. Check that the command runs by hand with the file path:
 
 ```json
 {
@@ -663,7 +684,7 @@ Check that the command template includes `{file}`:
 
 ### Workspace not discovered
 
-Verify glob patterns match your directory structure:
+Verify glob patterns match your directory structure. `*` matches one directory level, and each workspace directory needs a `bird.conf`:
 
 ```json
 {
@@ -681,4 +702,4 @@ Verify glob patterns match your directory structure:
 
 ---
 
-_Last updated: 2026-03-03_
+_Last updated: 2026-11-08_
