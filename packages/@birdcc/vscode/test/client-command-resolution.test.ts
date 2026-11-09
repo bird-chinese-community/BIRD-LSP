@@ -17,6 +17,12 @@ vi.mock("node:fs", () => ({
   existsSync: mocks.existsSync,
 }));
 
+vi.mock("vscode", () => ({
+  workspace: {
+    getConfiguration: vi.fn(),
+  },
+}));
+
 vi.mock("../src/security/index.js", () => ({
   resolveServerCommand: mocks.resolveServerCommand,
 }));
