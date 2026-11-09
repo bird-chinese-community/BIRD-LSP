@@ -329,7 +329,7 @@
         "bird2-lsp.intel.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable ASN intelligence features (completion, inlay hints, hover). Powered by [BGP.Tools OpenDB](https://github.com/Alice39s/BGP.Tools-OpenDB).",
+          "markdownDescription": "Enable ASN intelligence features and optional DN42 IP address hover. ASN data comes from [BGP.Tools OpenDB](https://github.com/Alice39s/BGP.Tools-OpenDB).",
           "scope": "resource"
         },
         "bird2-lsp.intel.inlayHints": {
