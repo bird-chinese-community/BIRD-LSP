@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDn42Intel } from "../src/dn42.js";
@@ -88,6 +95,7 @@ describe("DN42 intelligence", () => {
           asn: 4242422080,
           asName: "HATSNET-AS",
         });
+        expect(intel.lookup("172.20.0.53")).toBeUndefined();
       } finally {
         intel.dispose();
       }
@@ -140,6 +148,7 @@ describe("DN42 intelligence", () => {
       city: "Test City",
     });
     expect(intel.lookup("172.21.0.1")).toBeUndefined();
+    expect(intel.lookup("172.20.1.1")).toBeUndefined();
     await intel.refresh();
     corrupt = true;
     await expect(intel.refresh()).rejects.toThrow("checksum mismatch");
@@ -221,6 +230,84 @@ describe("DN42 intelligence", () => {
     },
   );
 
+  it("retains only the current and previous database versions", async () => {
+    const versions = await Promise.all(
+      ["city.mmdb", "city-v1.mmdb", "city-v2.mmdb", "city-v3.mmdb"].map(
+        (name) => readFile(new URL(`./fixtures/${name}`, import.meta.url)),
+      ),
+    );
+    expect(new Set(versions.map(digest)).size).toBe(4);
+    let current = versions[0];
+    const url = await serve((request, response) => {
+      if (request.url === "/checksums.json")
+        response.end(
+          JSON.stringify({ ...checksums, "city.mmdb": digest(current) }),
+        );
+      else if (request.url === "/city.mmdb") response.end(current);
+      else response.end(asn);
+    });
+    const dir = await cacheDir();
+    await writeFile(join(dir, "custom.txt"), "preserve");
+    await mkdir(join(dir, ".stage-unfinished"));
+    const otherDir = "a".repeat(64);
+    await mkdir(join(dir, otherDir));
+    await writeFile(join(dir, otherDir, "custom.txt"), "preserve");
+    let updated: () => void = () => {};
+    const ready = new Promise<void>((resolve) => {
+      updated = resolve;
+    });
+    const intel = createDn42Intel({
+      cacheDir: dir,
+      baseUrl: url,
+      onUpdate: updated,
+    });
+    intel.setEnabled(true);
+    await ready;
+    await intel.refresh();
+    let oldReady: () => void = () => {};
+    const oldLoaded = new Promise<void>((resolve) => {
+      oldReady = resolve;
+    });
+    const oldIntel = createDn42Intel({
+      cacheDir: dir,
+      baseUrl: url,
+      onUpdate: oldReady,
+    });
+    oldIntel.setEnabled(true);
+    await oldLoaded;
+    await oldIntel.refresh();
+    const seen = new Set<string>();
+    for (let i = 0; i < versions.length; i++) {
+      current = versions[i];
+      await intel.refresh();
+      const pointer = JSON.parse(
+        await readFile(join(dir, "current.json"), "utf8"),
+      );
+      seen.add(pointer.version);
+      expect(
+        digest(await readFile(join(dir, pointer.version, "city.mmdb"))),
+      ).toBe(digest(current));
+      expect(intel.lookup("172.20.0.1")?.asn).toBe(4242420001);
+      expect(oldIntel.lookup("172.20.0.1")?.asn).toBe(4242420001);
+      const entries = await readdir(dir, { withFileTypes: true });
+      const databaseDirs = entries.filter(
+        (entry) =>
+          entry.isDirectory() &&
+          /^[0-9a-f]{64}$/.test(entry.name) &&
+          entry.name !== otherDir,
+      );
+      expect(databaseDirs.length).toBeLessThanOrEqual(2);
+    }
+    expect(seen.size).toBe(4);
+    expect(await readFile(join(dir, "custom.txt"), "utf8")).toBe("preserve");
+    expect(await readFile(join(dir, otherDir, "custom.txt"), "utf8")).toBe(
+      "preserve",
+    );
+    expect(await readdir(join(dir, ".stage-unfinished"))).toEqual([]);
+    oldIntel.dispose();
+    intel.dispose();
+  });
+
   it("does not start a second download while the cache is locked", async () => {
     let received: () => void = () => {};
     const started = new Promise<void>((resolve) => {
@@ -251,21 +338,26 @@ describe("DN42 intelligence", () => {
     first.setEnabled(true);
     await ready;
     await first.refresh();
+    let secondUpdated: () => void = () => {};
+    const secondReady = new Promise<void>((resolve) => {
+      secondUpdated = resolve;
+    });
+    const errors: Error[] = [];
+    const second = createDn42Intel({
+      cacheDir: dir,
+      baseUrl: url,
+      onUpdate: secondUpdated,
+      onError: (error) => errors.push(error),
+    });
+    second.setEnabled(true);
+    await secondReady;
+    await second.refresh();
     stall = true;
     const pending = first.refresh();
     await started;
     const requestsBefore = requests;
-    let failed: (error: Error) => void = () => {};
-    const lockError = new Promise<Error>((resolve) => {
-      failed = resolve;
-    });
-    const second = createDn42Intel({
-      cacheDir: dir,
-      baseUrl: url,
-      onError: failed,
-    });
-    second.setEnabled(true);
-    expect((await lockError).message).toMatch(/lock/i);
+    await expect(second.refresh()).rejects.toThrow(/lock/i);
+    expect(errors).toHaveLength(1);
     expect(requests).toBe(requestsBefore);
     expect(second.lookup("172.20.0.1")?.asn).toBe(4242420001);
     first.dispose();
