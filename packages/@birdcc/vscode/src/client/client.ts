@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { workspace, type OutputChannel } from "vscode";
+import type { OutputChannel } from "vscode";
 import {
   LanguageClient,
   CloseAction,
@@ -151,9 +151,7 @@ export const createLanguageClient = (
           if (!Array.isArray(values)) return values;
           return params.items.map((item, index) =>
             item.section === "bird2-lsp.intel.dn42.enabled"
-              ? workspace
-                  .getConfiguration(CONFIG_SECTION)
-                  .inspect<boolean>("intel.dn42.enabled")?.globalValue === true
+              ? getConfigurationForResource().intelDn42Enabled
               : values[index],
           );
         },
