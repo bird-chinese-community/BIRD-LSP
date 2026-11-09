@@ -21,34 +21,33 @@ export const findIpLiteralAt = async (
   value: string;
   range: import("./types.js").SourceRange;
 } | null> => {
+  if (position.line < 0 || position.character < 0) return null;
   const parser = await getParser();
   const tree = parser.parse(input);
   if (!tree) return null;
   try {
-    const stack = [tree.rootNode];
-    while (stack.length > 0) {
-      const node = stack.pop();
-      if (!node) break;
-      if (node.type === "comment" || node.type === "string") continue;
-      const range = toRange(node, input);
-      const line = position.line + 1;
-      const column = position.character + 1;
-      if (
-        line < range.line ||
-        line > range.endLine ||
-        (line === range.line && column < range.column) ||
-        (line === range.endLine && column >= range.endColumn)
-      )
-        continue;
+    let node = tree.rootNode.descendantForPosition({
+      row: position.line,
+      column: position.character,
+    });
+    let literal = null;
+    while (node) {
+      if (node.type === "comment" || node.type === "string") return null;
       if (node.type === "ipv4_literal" || node.type === "ipv6_literal") {
-        return { value: node.text, range };
+        literal = node;
       }
-      for (let i = node.childCount - 1; i >= 0; i -= 1) {
-        const child = node.child(i);
-        if (child) stack.push(child);
-      }
+      node = node.parent;
     }
-    return null;
+    if (!literal) return null;
+    const range = toRange(literal, input);
+    if (
+      range.line !== position.line + 1 ||
+      range.endLine !== range.line ||
+      position.character < range.column - 1 ||
+      position.character >= range.endColumn - 1
+    )
+      return null;
+    return { value: literal.text, range };
   } finally {
     tree.delete();
   }
