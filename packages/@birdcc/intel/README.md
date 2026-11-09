@@ -50,7 +50,7 @@ Results depend on the bundled snapshot. `prefixSearch(prefix, limit = 10)` match
 
 `createDn42Intel({ cacheDir, onUpdate, onError })` provides local IP lookups from the [DN42 IPDB releases](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases). It starts disabled. Calling `setEnabled(true)` loads a verified cached City and ASN MMDB pair asynchronously, then checks for an update in the background. `lookup(ip)` returns the available ASN, AS name, country code, subdivision code, and city. Location values are operator GeoFeed claims.
 
-Downloads are verified against the release's SHA-256 checksums and expected MMDB types before the pair is activated. Update failures are reported through `onError` and retain an already loaded pair. A shared cache lock serializes updates across processes. While enabled, the provider checks daily, retries network failures after an hour, and retries cache lock contention after 30 seconds.
+Downloads are verified against the release's SHA-256 checksums and expected MMDB types before the pair is activated. Update failures are reported through `onError` and retain an already loaded pair. A shared cache lock serializes updates across processes. The cache retains the current database pair and up to one previous version. While enabled, the provider checks daily, retries network failures after an hour, and retries cache lock contention after 30 seconds.
 
 Call `setEnabled(false)` to cancel downloads, stop update timers, and disable lookups. Call `dispose()` when the host shuts down. In VS Code, enable the user setting `bird2-lsp.intel.dn42.enabled` to add DN42 IP address hover. Workspace settings cannot authorize the download.
 
