@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OutputChannel } from "vscode";
 
-import { resolveLanguageServerCommand } from "../src/client/client.js";
+import type { LanguageClientOptions } from "vscode-languageclient/node.js";
+import {
+  createLanguageClient,
+  resolveLanguageServerCommand,
+} from "../src/client/client.js";
 import { defaultExtensionConfiguration } from "../src/types.js";
 
 const mocks = vi.hoisted(() => ({
   existsSync: vi.fn(),
   resolveServerCommand: vi.fn(),
   setTrace: vi.fn(),
+  capturedClientOptions: undefined as LanguageClientOptions | undefined,
   capturedServerOptions: undefined as
     | { command: string; args?: readonly string[] }
     | undefined,
@@ -15,12 +20,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("node:fs", () => ({
   existsSync: mocks.existsSync,
-}));
-
-vi.mock("vscode", () => ({
-  workspace: {
-    getConfiguration: vi.fn(),
-  },
 }));
 
 vi.mock("../src/security/index.js", () => ({
@@ -33,12 +32,24 @@ vi.mock("vscode-languageclient/node.js", () => ({
       _id: string,
       _name: string,
       serverOptions: { command: string; args?: readonly string[] },
+      public clientOptions: LanguageClientOptions,
     ) {
       mocks.capturedServerOptions = serverOptions;
+      mocks.capturedClientOptions = clientOptions;
     }
 
     public setTrace(): void {
       mocks.setTrace();
+    }
+
+    public sendRequest(): Promise<void> {
+      return Promise.resolve();
+    }
+
+    public handleFailedRequest(): void {}
+
+    public createDefaultErrorHandler() {
+      return { error: vi.fn(), closed: vi.fn() };
     }
   },
   RevealOutputChannelOn: {
@@ -62,6 +73,7 @@ describe("language client command resolution", () => {
     mocks.resolveServerCommand.mockReset();
     mocks.setTrace.mockReset();
     mocks.capturedServerOptions = undefined;
+    mocks.capturedClientOptions = undefined;
   });
 
   afterEach(() => {
@@ -107,5 +119,46 @@ describe("language client command resolution", () => {
       command: "birdcc",
       args: ["lsp", "--stdio"],
     });
+  });
+
+  it("responds to DN42 configuration with the current user setting", async () => {
+    mocks.existsSync.mockReturnValue(true);
+    let enabled = false;
+    createLanguageClient(
+      defaultExtensionConfiguration,
+      createOutputChannelMock(),
+      "/extension",
+      () => ({
+        ...defaultExtensionConfiguration,
+        intelDn42Enabled: enabled,
+      }),
+    );
+    const middleware =
+      mocks.capturedClientOptions?.middleware?.workspace?.configuration;
+    expect(middleware).toBeDefined();
+    const params = {
+      items: [
+        {
+          section: "bird2-lsp.intel.dn42.enabled",
+          scopeUri: "file:///workspace/bird.conf",
+        },
+        { section: "other" },
+      ],
+    };
+    const next = async () => [true, "kept"];
+    expect(await middleware!(params, undefined as never, next)).toEqual([
+      false,
+      "kept",
+    ]);
+    enabled = true;
+    expect(await middleware!(params, undefined as never, next)).toEqual([
+      true,
+      "kept",
+    ]);
+    enabled = false;
+    expect(await middleware!(params, undefined as never, next)).toEqual([
+      false,
+      "kept",
+    ]);
   });
 });
