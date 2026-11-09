@@ -37,6 +37,7 @@ vi.mock("vscode", () => {
         get: (key: string, defaultValue: unknown) =>
           resourceConfigStore.get(resource?.toString() ?? "")?.[key] ??
           (key in configStore ? configStore[key] : defaultValue),
+        inspect: (key: string) => ({ globalValue: configStore[key] }),
       })),
     },
   };
@@ -101,5 +102,16 @@ describe("configuration manager", () => {
     expect(manager.getForResource(two).performanceMaxFileSizeBytes).toBe(
       4 * 1024 * 1024,
     );
+  });
+
+  it("only enables DN42 from user settings", () => {
+    const resource = { toString: () => "file:///one/bird.conf" } as Uri;
+    resourceConfigStore.set(resource.toString(), {
+      "intel.dn42.enabled": true,
+    });
+    const manager = createConfigurationManager();
+    expect(manager.getForResource(resource).intelDn42Enabled).toBe(false);
+    configStore["intel.dn42.enabled"] = true;
+    expect(manager.getForResource(resource).intelDn42Enabled).toBe(true);
   });
 });

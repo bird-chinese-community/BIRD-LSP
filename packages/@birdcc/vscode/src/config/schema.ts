@@ -116,6 +116,12 @@ export const extensionConfigurationFields = {
     defaultValue: true,
     restartRequired: false,
   },
+  intelDn42Enabled: {
+    workspaceKey: "intel.dn42.enabled",
+    packageKey: "bird2-lsp.intel.dn42.enabled",
+    defaultValue: false,
+    restartRequired: false,
+  },
 } as const;
 
 export type ExtensionConfigurationFieldKey =

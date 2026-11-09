@@ -47,6 +47,8 @@ export const DEFAULT_INTEL_COMPLETION =
   extensionConfigurationFields.intelCompletion.defaultValue;
 export const DEFAULT_INTEL_HOVER =
   extensionConfigurationFields.intelHover.defaultValue;
+export const DEFAULT_INTEL_DN42_ENABLED =
+  extensionConfigurationFields.intelDn42Enabled.defaultValue;
 
 export const RESTART_REQUIRED_CONFIGURATION_PATHS =
   restartRequiredConfigurationPaths;

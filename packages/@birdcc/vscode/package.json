@@ -347,8 +347,14 @@
         "bird2-lsp.intel.hover": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Show ASN details on hover over ASN integers.",
+          "markdownDescription": "Show ASN details and enabled DN42 IP address information on hover.",
           "scope": "resource"
+        },
+        "bird2-lsp.intel.dn42.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Download [DN42 City and ASN databases](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases) for IP address hover and check for updates daily. Enable in user settings.",
+          "scope": "application"
         }
       }
     }
