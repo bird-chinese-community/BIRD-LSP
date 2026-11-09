@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { renameSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
@@ -15,7 +22,8 @@ const LOCK_RETRY_INTERVAL = 30_000;
 const TIMEOUT = 30_000;
 const MAX_DB_BYTES = 32 * 1024 * 1024;
 const MAX_CHECKSUM_BYTES = 64 * 1024;
-const hashSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const VERSION_PATTERN = /^[0-9a-f]{64}$/;
+const hashSchema = z.string().regex(VERSION_PATTERN);
 const checksumsSchema = z
   .object({
     "city.mmdb": hashSchema,
@@ -23,7 +31,7 @@ const checksumsSchema = z
   })
   .catchall(z.string());
 const pointerSchema = z.object({
-  version: z.string().regex(/^[0-9a-f]{64}$/),
+  version: z.string().regex(VERSION_PATTERN),
   checksums: checksumsSchema,
 });
 type Checksums = z.infer<typeof checksumsSchema>;
@@ -90,6 +98,23 @@ async function readBounded(path: string, maxBytes: number): Promise<Buffer> {
   if (data.length > maxBytes)
     throw new Error(`Invalid cache file size: ${path}`);
   return data;
+}
+
+// Called under the cache lock after current.json points at `keep`.
+async function pruneVersions(cacheDir: string, keep: string): Promise<void> {
+  const entries = await readdir(cacheDir, { withFileTypes: true });
+  await Promise.all(
+    entries
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          VERSION_PATTERN.test(entry.name) &&
+          entry.name !== keep,
+      )
+      .map((entry) =>
+        rm(join(cacheDir, entry.name), { recursive: true, force: true }),
+      ),
+  );
 }
 
 async function download(
@@ -211,6 +236,11 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         renameSync(pending, join(options.cacheDir, "current.json"));
         pair = loaded;
         options.onUpdate?.();
+        await pruneVersions(options.cacheDir, versionId).catch((error) =>
+          options.onError?.(
+            error instanceof Error ? error : new Error(String(error)),
+          ),
+        );
       } finally {
         await rm(pending, { force: true });
       }

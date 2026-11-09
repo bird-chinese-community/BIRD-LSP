@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDn42Intel } from "../src/dn42.js";
@@ -147,6 +147,38 @@ describe("DN42 intelligence", () => {
     expect(intel.lookup("172.20.0.1")?.asn).toBe(4242420001);
     intel.setEnabled(false);
     expect(intel.lookup("172.20.0.1")).toBeUndefined();
+    intel.dispose();
+  });
+
+  it("removes unreferenced cache versions after activating an update", async () => {
+    const url = await serve((request, response) => {
+      if (request.url === "/checksums.json")
+        response.end(JSON.stringify(checksums));
+      else if (request.url === "/city.mmdb") response.end(city);
+      else response.end(asn);
+    });
+    const dir = await cacheDir();
+    const stale = join(dir, "a".repeat(64));
+    await mkdir(stale);
+    let updated: () => void = () => {};
+    const ready = new Promise<void>((resolve) => {
+      updated = resolve;
+    });
+    const intel = createDn42Intel({
+      cacheDir: dir,
+      baseUrl: url,
+      onUpdate: () => updated(),
+    });
+    intel.setEnabled(true);
+    await ready;
+    await intel.refresh();
+    const pointer = JSON.parse(
+      await readFile(join(dir, "current.json"), "utf8"),
+    ) as { version: string };
+    const versions = (await readdir(dir)).filter((name) =>
+      /^[0-9a-f]{64}$/.test(name),
+    );
+    expect(versions).toEqual([pointer.version]);
     intel.dispose();
   });
 
