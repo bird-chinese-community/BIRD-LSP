@@ -15,7 +15,8 @@ const LOCK_RETRY_INTERVAL = 30_000;
 const TIMEOUT = 30_000;
 const MAX_DB_BYTES = 32 * 1024 * 1024;
 const MAX_CHECKSUM_BYTES = 64 * 1024;
-const hashSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const VERSION_PATTERN = /^[0-9a-f]{64}$/;
+const hashSchema = z.string().regex(VERSION_PATTERN);
 const checksumsSchema = z
   .object({
     "city.mmdb": hashSchema,
@@ -23,7 +24,7 @@ const checksumsSchema = z
   })
   .catchall(z.string());
 const pointerSchema = z.object({
-  version: z.string().regex(/^[0-9a-f]{64}$/),
+  version: z.string().regex(VERSION_PATTERN),
   checksums: checksumsSchema,
 });
 type Checksums = z.infer<typeof checksumsSchema>;
@@ -223,7 +224,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         })) {
           if (
             !entry.isDirectory() ||
-            !/^[0-9a-f]{64}$/.test(entry.name) ||
+            !VERSION_PATTERN.test(entry.name) ||
             entry.name === versionId ||
             entry.name === previousVersion
           )
