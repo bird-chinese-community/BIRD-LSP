@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { renameSync } from "node:fs";
+import { readdirSync, renameSync, rmSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
 import { Reader, type AsnResponse, type CityResponse } from "maxmind";
@@ -140,7 +140,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
     timer.unref();
   };
 
-  async function loadCache(version: number): Promise<void> {
+  async function loadCache(version: number): Promise<string | undefined> {
     let pointerBytes: Buffer;
     try {
       pointerBytes = await readBounded(
@@ -154,6 +154,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
     const pointer = pointerSchema.parse(
       JSON.parse(pointerBytes.toString("utf8")),
     );
+    if (pair) return pointer.version;
     const dir = join(options.cacheDir, pointer.version);
     const [city, asn] = await Promise.all([
       readBounded(join(dir, "city.mmdb"), MAX_DB_BYTES),
@@ -164,9 +165,14 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       pair = loaded;
       options.onUpdate?.();
     }
+    return pointer.version;
   }
 
-  async function update(version: number, signal: AbortSignal): Promise<void> {
+  async function update(
+    version: number,
+    signal: AbortSignal,
+    previousVersion: string | undefined,
+  ): Promise<void> {
     const checksumBytes = await download(
       new URL("checksums.json", baseUrl).href,
       MAX_CHECKSUM_BYTES,
@@ -211,6 +217,29 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         renameSync(pending, join(options.cacheDir, "current.json"));
         pair = loaded;
         options.onUpdate?.();
+        if (!active(version) || signal.aborted) return;
+        for (const entry of readdirSync(options.cacheDir, {
+          withFileTypes: true,
+        })) {
+          if (
+            !entry.isDirectory() ||
+            !/^[0-9a-f]{64}$/.test(entry.name) ||
+            entry.name === versionId ||
+            entry.name === previousVersion
+          )
+            continue;
+          const dir = join(options.cacheDir, entry.name);
+          const files = readdirSync(dir, { withFileTypes: true });
+          if (
+            files.length === 2 &&
+            files.every(
+              (file) =>
+                file.isFile() &&
+                (file.name === "city.mmdb" || file.name === "asn.mmdb"),
+            )
+          )
+            rmSync(dir, { recursive: true });
+        }
       } finally {
         await rm(pending, { force: true });
       }
@@ -243,7 +272,18 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         });
         try {
           request.signal.throwIfAborted();
-          if (active(version)) await update(version, request.signal);
+          let previousVersion: string | undefined;
+          try {
+            previousVersion = await loadCache(version);
+          } catch (error) {
+            if (active(version))
+              options.onError?.(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+          }
+          request.signal.throwIfAborted();
+          if (active(version))
+            await update(version, request.signal, previousVersion);
         } finally {
           await release();
         }
@@ -273,7 +313,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
   function setEnabled(value: boolean): void {
     if (disposed || value === enabled) return;
     enabled = value;
-    const version = ++generation;
+    generation++;
     if (!value) {
       controller?.abort();
       if (timer) clearTimeout(timer);
@@ -281,17 +321,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       pair = undefined;
       return;
     }
-    void (async () => {
-      try {
-        await loadCache(version);
-      } catch (error) {
-        if (active(version))
-          options.onError?.(
-            error instanceof Error ? error : new Error(String(error)),
-          );
-      }
-      if (active(version)) await refresh();
-    })().catch(() => {});
+    void refresh().catch(() => {});
   }
 
   return {
@@ -301,13 +331,18 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       const city = pair.city.get(ip);
       const asn = pair.asn.get(ip);
       if (!city && !asn) return undefined;
-      return {
+      const info: Dn42IpInfo = {
         asn: asn?.autonomous_system_number,
         asName: asn?.autonomous_system_organization,
         country: city?.country?.iso_code,
         region: city?.subdivisions?.[0]?.iso_code,
         city: city?.city?.names?.en,
       };
+      return Object.values(info).some(
+        (value) => value !== undefined && value !== "",
+      )
+        ? info
+        : undefined;
     },
     refresh,
     dispose() {
