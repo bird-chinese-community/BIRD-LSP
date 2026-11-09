@@ -1,4 +1,6 @@
 import { access } from "node:fs/promises";
+import { homedir } from "node:os";
+import { isIP } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -27,14 +29,14 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ParsedBirdDocument } from "@birdcc/parser";
-import { parseBirdConfig } from "@birdcc/parser";
+import { findIpLiteralAt, parseBirdConfig } from "@birdcc/parser";
 import {
   lintBirdConfig,
   lintResolvedCrossFileGraph,
   type LintResult,
 } from "@birdcc/linter";
 import { formatBirdConfig } from "@birdcc/formatter";
-import { createAsnIntel, type AsnIntel } from "@birdcc/intel";
+import { createAsnIntel, createDn42Intel, type AsnIntel } from "@birdcc/intel";
 import { createCompletionItemsFromParsed } from "./completion.js";
 import { createDefinitionLocations } from "./definition.js";
 import { createDocumentSymbolsFromParsed } from "./document-symbol.js";
@@ -58,6 +60,7 @@ import {
   publishDiagnostics,
   showInfoOnce,
   withDocument,
+  toLspRange,
 } from "./utils.js";
 import { createValidationScheduler } from "./validation.js";
 import { isPathWithinRoot } from "./paths.js";
@@ -140,6 +143,8 @@ export interface LspServerOptions {
   asnDbPath?: string;
   /** Disable ASN intelligence entirely. */
   disableAsnIntel?: boolean;
+  dn42CacheDir?: string;
+  dn42BaseUrl?: string;
 }
 
 /** Starts the stdio LSP server with async lint validation and last-write-wins scheduling. */
@@ -202,6 +207,50 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
+  let dn42Enabled = false;
+  let dn42ConfigurationGeneration = 0;
+  const dn42Intel = createDn42Intel({
+    cacheDir:
+      options?.dn42CacheDir ?? join(homedir(), ".cache", "birdcc", "dn42-ipdb"),
+    baseUrl: options?.dn42BaseUrl,
+    onUpdate: () => {
+      if (supportsInlayHintRefresh)
+        void connection.languages.inlayHint.refresh();
+    },
+    onError: (error) =>
+      connection.console.error(`[intel] DN42 IPDB: ${error.message}`),
+  });
+  const setDn42Enabled = (enabled: boolean): void => {
+    dn42Enabled = enabled;
+    dn42Intel.setEnabled(enabled);
+  };
+  const updateDn42Settings = (): void => {
+    const generation = ++dn42ConfigurationGeneration;
+    if (!supportsConfiguration) {
+      setDn42Enabled(
+        editorSettings.intel?.dn42?.enabled === true &&
+          editorSettings.intel?.enabled !== false,
+      );
+      return;
+    }
+    void connection.workspace
+      .getConfiguration([
+        { section: "bird2-lsp.intel.dn42.enabled" },
+        { section: "bird2-lsp.intel.enabled" },
+      ])
+      .then(([enabled, intelEnabled]) => {
+        if (
+          generation === dn42ConfigurationGeneration &&
+          !hasShutdownBeenRequested
+        ) {
+          setDn42Enabled(enabled === true && intelEnabled !== false);
+        }
+      })
+      .catch((error) => {
+        if (generation === dn42ConfigurationGeneration) setDn42Enabled(false);
+        connection.console.error(`[intel] DN42 settings: ${String(error)}`);
+      });
+  };
 
   // ASN intelligence — loads the bundled database (gracefully degrades if missing)
   const asnIntel: AsnIntel = options?.disableAsnIntel
@@ -951,6 +1000,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   });
 
   connection.onInitialized(() => {
+    updateDn42Settings();
     if (supportsDynamicFileWatching) {
       const patterns = [
         "**/bird.config.json",
@@ -1141,6 +1191,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
       return;
     }
     editorSettings = validation.data;
+    updateDn42Settings();
     settingsByUri.clear();
     projectConfigGeneration += 1;
     eligibilityByUri.clear();
@@ -1222,8 +1273,34 @@ export const startLspServer = (options?: LspServerOptions): void => {
       if (!(await isDocumentEligible(document))) {
         return null;
       }
-      // Try ASN hover first (more specific)
       const settings = await getEditorSettings(document.uri);
+      if (
+        dn42Enabled &&
+        settings.intel?.enabled !== false &&
+        settings.intel?.hover !== false
+      ) {
+        const literal = await findIpLiteralAt(
+          document.getText(),
+          params.position,
+        );
+        if (literal && isIP(literal.value)) {
+          const info = dn42Intel.lookup(literal.value);
+          if (info) {
+            const lines = [
+              "DN42 IPDB",
+              info.prefix,
+              info.asn
+                ? `AS${info.asn}${info.asName ? ` ${info.asName}` : ""}`
+                : undefined,
+              [info.city, info.region, info.country].filter(Boolean).join(", "),
+            ].filter(Boolean);
+            return {
+              contents: { kind: "plaintext", value: lines.join("\n") },
+              range: toLspRange(literal.range),
+            };
+          }
+        }
+      }
       if (
         asnIntel.available &&
         settings.intel?.enabled !== false &&
@@ -1405,10 +1482,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
 
   connection.onShutdown(() => {
     hasShutdownBeenRequested = true;
+    dn42Intel.dispose();
     return configWatchers.dispose();
   });
 
   connection.onExit(() => {
+    dn42Intel.dispose();
     void configWatchers.dispose();
     if (!hasShutdownBeenRequested) {
       process.exitCode = 1;

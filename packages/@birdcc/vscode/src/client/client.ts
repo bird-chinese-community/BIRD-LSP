@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type { OutputChannel } from "vscode";
+import { workspace, type OutputChannel } from "vscode";
 import {
   LanguageClient,
   CloseAction,
@@ -133,6 +133,7 @@ export const createLanguageClient = (
           inlayHints: configuration.intelInlayHints,
           completion: configuration.intelCompletion,
           hover: configuration.intelHover,
+          dn42: { enabled: configuration.intelDn42Enabled },
         },
         formatter: {
           engine: configuration.formatterEngine,
@@ -142,6 +143,21 @@ export const createLanguageClient = (
     },
     synchronize: {
       configurationSection: [CONFIG_SECTION],
+    },
+    middleware: {
+      workspace: {
+        configuration: async (params, token, next) => {
+          const values = await next(params, token);
+          if (!Array.isArray(values)) return values;
+          return params.items.map((item, index) =>
+            item.section === "bird2-lsp.intel.dn42.enabled"
+              ? workspace
+                  .getConfiguration(CONFIG_SECTION)
+                  .inspect<boolean>("intel.dn42.enabled")?.globalValue === true
+              : values[index],
+          );
+        },
+      },
     },
   };
 

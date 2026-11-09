@@ -12,6 +12,7 @@ import {
   DEFAULT_INTEL_INLAY_HINTS,
   DEFAULT_INTEL_COMPLETION,
   DEFAULT_INTEL_HOVER,
+  DEFAULT_INTEL_DN42_ENABLED,
   DEFAULT_SERVER_PATH,
   DEFAULT_TRACE_SERVER,
   DEFAULT_VALIDATION_COMMAND,
@@ -55,6 +56,7 @@ export const extensionConfigurationSchema = z.object({
   intelInlayHints: z.boolean(),
   intelCompletion: z.boolean(),
   intelHover: z.boolean(),
+  intelDn42Enabled: z.boolean(),
 });
 
 export type FormatterEngine = z.infer<typeof formatterEngineSchema>;
@@ -91,6 +93,7 @@ export const defaultExtensionConfiguration: ExtensionConfiguration =
     intelInlayHints: DEFAULT_INTEL_INLAY_HINTS,
     intelCompletion: DEFAULT_INTEL_COMPLETION,
     intelHover: DEFAULT_INTEL_HOVER,
+    intelDn42Enabled: DEFAULT_INTEL_DN42_ENABLED,
   });
 
 export const createDefaultRuntimeState = (): ExtensionRuntimeState => ({

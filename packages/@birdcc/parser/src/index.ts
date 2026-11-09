@@ -10,8 +10,49 @@ import {
 import { parseDeclarations } from "./declarations.js";
 import type { ParseIssue, ParsedBirdDocument } from "./types.js";
 import { collectBirdSyntaxLayout } from "./syntax-layout.js";
+import { toRange } from "./tree.js";
 
 export type { BirdSyntaxLayout } from "./syntax-layout.js";
+
+export const findIpLiteralAt = async (
+  input: string,
+  position: { line: number; character: number },
+): Promise<{
+  value: string;
+  range: import("./types.js").SourceRange;
+} | null> => {
+  const parser = await getParser();
+  const tree = parser.parse(input);
+  if (!tree) return null;
+  try {
+    const stack = [tree.rootNode];
+    while (stack.length > 0) {
+      const node = stack.pop();
+      if (!node) break;
+      if (node.type === "comment" || node.type === "string") continue;
+      const range = toRange(node, input);
+      const line = position.line + 1;
+      const column = position.character + 1;
+      if (
+        line < range.line ||
+        line > range.endLine ||
+        (line === range.line && column < range.column) ||
+        (line === range.endLine && column >= range.endColumn)
+      )
+        continue;
+      if (node.type === "ipv4_literal" || node.type === "ipv6_literal") {
+        return { value: node.text, range };
+      }
+      for (let i = node.childCount - 1; i >= 0; i -= 1) {
+        const child = node.child(i);
+        if (child) stack.push(child);
+      }
+    }
+    return null;
+  } finally {
+    tree.delete();
+  }
+};
 
 export type {
   AcceptStatement,

@@ -93,6 +93,7 @@ export const birdEditorSettingsSchema = z
         inlayHints: z.boolean().optional(),
         completion: z.boolean().optional(),
         hover: z.boolean().optional(),
+        dn42: z.object({ enabled: z.boolean().optional() }).optional(),
       })
       .optional(),
     formatter: birdProjectConfigSchema.shape.formatter,

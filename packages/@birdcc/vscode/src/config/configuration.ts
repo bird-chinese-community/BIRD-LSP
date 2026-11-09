@@ -127,6 +127,9 @@ const readWorkspaceConfiguration = (
         fields.intelHover.workspaceKey,
         fields.intelHover.defaultValue,
       ),
+      intelDn42Enabled:
+        config.inspect<boolean>(fields.intelDn42Enabled.workspaceKey)
+          ?.globalValue === true,
     },
     reportIssue,
   );
