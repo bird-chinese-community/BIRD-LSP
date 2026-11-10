@@ -231,8 +231,10 @@ const pathHints = (types: readonly string[]): string[] => [
 ];
 const isPolicy = (item: Observation): boolean =>
   item.kind === "roa" || item.kind === "irr";
+const isFailure = (result: string): boolean =>
+  result === "invalid" || result === "conflict";
 const isFailedPolicy = (item: Observation): boolean =>
-  isPolicy(item) && (item.status === "invalid" || item.status === "conflict");
+  isPolicy(item) && isFailure(item.status);
 const observationLabel = (item: Observation): string =>
   item.kind === "network_type"
     ? item.value === "public-resolver"
@@ -260,6 +262,14 @@ const serviceObservation = (item: Observation, ownerAsn?: number): Line => [
   ...foreignAsn(item, ownerAsn),
   ...(item.kind === "ptr" && item.value ? [id(item.value)] : []),
 ];
+
+const severityOrder = ["invalid", "conflict", "unknown", "covering", "exact"];
+const severity = (result: string): number => {
+  const index = severityOrder.indexOf(result);
+  return index < 0 ? severityOrder.length : index;
+};
+const members = (count: number): string =>
+  `${count} ${count === 1 ? "member" : "members"}`;
 
 const limited = <T>(
   items: readonly T[],
@@ -395,11 +405,32 @@ export const formatDn42AsnHover = (
     (country) => country.names.en ?? country.iso_code,
   );
   const hints = pathHints(info.observed_network_types);
-  const policies = ["roa", "irr"].flatMap((kind) => {
+  // One member: its result. Several: a count per result, failures first,
+  // with the failed members listed after their count.
+  const policyRow = (kind: "roa" | "irr"): Row[] => {
     const matching = info.observations.filter((item) => item.kind === kind);
-    const selected = matching.find(isFailedPolicy) ?? matching[0];
-    return selected ? [selected] : [];
-  });
+    if (matching.length < 2)
+      return row(
+        kind.toUpperCase(),
+        matching.map((item) => policyObservation(item, info.asn)),
+      );
+    const groups = [...new Set(matching.map((item) => item.status))]
+      .map((result) => ({
+        result,
+        items: matching.filter((item) => item.status === result),
+      }))
+      .sort((a, b) => severity(a.result) - severity(b.result));
+    return row(
+      kind.toUpperCase(),
+      groups.flatMap(({ result, items }) => [
+        [status(result), muted(members(items.length))],
+        ...(isFailure(result)
+          ? limited(items, (item) => policyObservation(item, info.asn).slice(1))
+          : []),
+      ]),
+    );
+  };
+  const policyRows = [...policyRow("roa"), ...policyRow("irr")];
   const services = info.observations.filter(
     (item) =>
       item.kind === "ptr" ||
@@ -427,14 +458,12 @@ export const formatDn42AsnHover = (
               ]
             : [],
         ),
-        ...policies.flatMap((item) =>
-          row(item.kind.toUpperCase(), [policyObservation(item, info.asn)]),
-        ),
+        ...policyRows,
         ...row(
           "Services",
           services.length
             ? limited(services, (item) => serviceObservation(item, info.asn))
-            : policies.length
+            : policyRows.length
               ? []
               : [[muted("No member observations")]],
         ),
@@ -442,7 +471,10 @@ export const formatDn42AsnHover = (
           "Prefixes",
           limited(info.prefixes, (prefix) => [id(prefix)]),
         ),
-        ...row("BGP path", hints.length ? [[text(hints.join(", "))]] : []),
+        ...row(
+          "BGP path",
+          hints.length ? [[text(hints.join(", ")), muted("on members")]] : [],
+        ),
       ],
     },
     markup,

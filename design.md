@@ -23,6 +23,7 @@ version: 2026-11-10
 - [MUST] Keep a qualifier on the row of the value that it limits. Show the scope of an attributed result as secondary text after the result.
 - [SHOULD] Put exceptional observations directly after the results they contradict, before other evidence rows.
 - [SHOULD] Show at most two items of a collection, then a secondary "N more" line.
+- [SHOULD] When a policy result covers several members, show one line per result with its member count, failures first, and list the failed members after their count.
 - [SHOULD] Put the attribution line after the divider and nothing after it.
 
 # 4. Visual rules

@@ -384,44 +384,58 @@ describe.each(markups)("%s form", (markup) => {
     expect(text).toContain(
       "Services Public DNS resolver observed 172.20.0.53 Anycast published 172.20.0.53",
     );
-    expect(text).toContain("BGP path Tunnel");
+    expect(text).toContain("BGP path Tunnel on members");
     expect(text).not.toContain("network_type");
     expect(text).not.toContain("public-resolver");
   });
 
-  it("selects failed ASN policy samples ahead of earlier successful members", () => {
-    const text = pageText(
-      asn({
-        ...asnInfo,
-        observations: [
+  it("counts member policy results and lists failed members first", () => {
+    const nodes = asn({
+      ...asnInfo,
+      observations: [
+        ...[1, 2, 3].map((net) =>
           observation({
             kind: "roa",
             status: "valid",
-            target: "172.20.1.0/24",
+            target: `172.20.${net}.0/24`,
           }),
-          observation({
-            kind: "irr",
-            status: "exact",
-            target: "172.20.2.0/24",
-          }),
+        ),
+        ...[4, 5, 6].map((net) =>
           observation({
             kind: "roa",
             status: "invalid",
-            target: "172.20.3.0/24",
-            asn: 4242420099,
+            target: `172.20.${net}.0/24`,
+            asn: net === 4 ? 4242420099 : undefined,
           }),
-          observation({
-            kind: "irr",
-            status: "conflict",
-            target: "172.20.4.0/24",
-          }),
-        ],
-      }),
+        ),
+        observation({ kind: "irr", status: "exact", target: "172.20.7.0/24" }),
+        observation({
+          kind: "irr",
+          status: "conflict",
+          target: "172.20.8.0/24",
+        }),
+        observation({
+          kind: "irr",
+          status: "unknown",
+          target: "172.20.9.0/24",
+        }),
+      ],
+    });
+    const text = pageText(nodes);
+    expect(text).toMatch(
+      /ROA (✗ )?Invalid 3 members 172\.20\.4\.0\/24 AS4242420099 172\.20\.5\.0\/24 1 more (✓ )?Valid 3 members IRR (! )?Conflict 1 member 172\.20\.8\.0\/24 (\? )?Unknown 1 member (✓ )?Exact 1 member Prefixes/,
     );
-    expect(text).toMatch(/ROA (✗ )?Invalid 172\.20\.3\.0\/24 AS4242420099/);
-    expect(text).toMatch(/IRR (! )?Conflict 172\.20\.4\.0\/24/);
-    expect(text).not.toContain("172.20.1.0/24");
-    expect(text).not.toContain("172.20.2.0/24");
+    for (const hidden of ["172.20.1.0/24", "172.20.6.0/24", "172.20.7.0/24"])
+      expect(text).not.toContain(hidden);
+    if (markup === "html")
+      expect(sheet(nodes).slice(1, 7)).toEqual([
+        ["ROA", "Invalid 3 members"],
+        ["", "172.20.4.0/24 AS4242420099"],
+        ["", "172.20.5.0/24"],
+        ["", "1 more"],
+        ["", "Valid 3 members"],
+        ["IRR", "Conflict 1 member"],
+      ]);
   });
 
   it("shows member results before a shortened prefix list", () => {
