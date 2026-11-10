@@ -12,7 +12,8 @@ import {
 
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 const RETRY_INTERVAL = 60 * 60 * 1000;
-const LOCK_RETRY_INTERVAL = 30_000;
+// Another process holds the cache lock for the whole download.
+const LOCK_RETRY_INTERVAL = 2_000;
 // The SDK applies one deadline to the whole release (about 12 MB).
 const DOWNLOAD_TIMEOUT = 10 * 60 * 1000;
 
@@ -138,11 +139,15 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       } catch (error) {
         request.abort();
         if (active(version)) {
-          const locked = (error as NodeJS.ErrnoException).code === "ELOCKED";
-          if (!locked) failures++;
-          delay = locked
-            ? LOCK_RETRY_INTERVAL
-            : Math.min(RETRY_INTERVAL * 2 ** (failures - 1), CHECK_INTERVAL);
+          if ((error as NodeJS.ErrnoException).code === "ELOCKED") {
+            delay = LOCK_RETRY_INTERVAL;
+            return;
+          }
+          failures++;
+          delay = Math.min(
+            RETRY_INTERVAL * 2 ** (failures - 1),
+            CHECK_INTERVAL,
+          );
           const failure = new Error(
             `Updating DN42 IPDB failed: ${error instanceof Error ? error.message : String(error)}`,
             { cause: error },

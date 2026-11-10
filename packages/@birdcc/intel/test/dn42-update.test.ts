@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { createDn42Intel } from "../src/dn42.js";
 
 type Release = Record<string, Buffer>;
@@ -49,8 +49,9 @@ const cacheDir = async (): Promise<string> => {
   return dir;
 };
 
-const serve = async (current: () => Release): Promise<string> => {
-  const server = createServer((request, response) => {
+const serve = async (current: () => Release, delayMs = 0): Promise<string> => {
+  const server = createServer(async (request, response) => {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
     const artifacts = current();
     const name = request.url?.slice(1) ?? "";
     const body =
@@ -149,6 +150,63 @@ it("waits for its aborted task to release the cache lock after re-enabling", asy
     expect(errors).toEqual([]);
     expect(intel.lookupAsn(4242420001)?.as_name).toBe("Version-1");
   } finally {
+    intel.dispose();
+  }
+});
+
+it("waits quietly while another provider holds the cache lock", async () => {
+  const current = release("Version-1", "2026-11-10T00:00:00Z");
+  const baseUrl = await serve(() => current, 200);
+  const dir = await cacheDir();
+  const errors: Error[] = [];
+  const first = createDn42Intel({
+    cacheDir: dir,
+    baseUrl,
+    onError: (error) => errors.push(error),
+  });
+  const second = createDn42Intel({
+    cacheDir: dir,
+    baseUrl,
+    onError: (error) => errors.push(error),
+  });
+  try {
+    first.setEnabled(true);
+    const download = first.refresh();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    second.setEnabled(true);
+    await second.refresh();
+    expect(second.lookupAsn(4242420001)).toBeUndefined();
+    await download;
+    await vi.waitFor(
+      () => expect(second.lookupAsn(4242420001)?.as_name).toBe("Version-1"),
+      { timeout: 6000, interval: 100 },
+    );
+    expect(errors).toEqual([]);
+  } finally {
+    first.dispose();
+    second.dispose();
+  }
+}, 15000);
+
+it("doubles the retry interval after consecutive failures up to one day", async () => {
+  const spy = vi.spyOn(globalThis, "setTimeout");
+  const intel = createDn42Intel({
+    cacheDir: await cacheDir(),
+    baseUrl: "http://127.0.0.1:1/",
+    onError: () => {},
+  });
+  try {
+    intel.setEnabled(true);
+    for (let attempt = 0; attempt < 7; attempt++)
+      await intel.refresh().catch(() => {});
+    const hour = 60 * 60 * 1000;
+    expect(
+      spy.mock.calls
+        .map(([, delay]) => delay)
+        .filter((delay) => typeof delay === "number" && delay >= hour),
+    ).toEqual([1, 2, 4, 8, 16, 24, 24].map((hours) => hours * hour));
+  } finally {
+    spy.mockRestore();
     intel.dispose();
   }
 });

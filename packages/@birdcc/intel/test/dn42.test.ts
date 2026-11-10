@@ -231,7 +231,7 @@ describe("DN42 SDK provider", () => {
       const pending = first.refresh();
       await started;
       const before = requests;
-      await expect(second.refresh()).rejects.toThrow(/lock/i);
+      await expect(second.refresh()).resolves.toBeUndefined();
       expect(requests).toBe(before);
       expect(second.lookup("172.20.0.1")?.asn).toBe(4242420001);
       first.setEnabled(false);
