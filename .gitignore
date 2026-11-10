@@ -43,3 +43,15 @@ refer/config-examples-private/*
 
 # Git worktrees
 .worktrees/
+
+# Root Markdown stays local (for example MEMORY.md) unless published here
+/*.md
+!/AGENTS.md
+!/CLAUDE.md
+!/CODE_OF_CONDUCT.md
+!/GEMINI.md
+!/README.md
+!/README.zh.md
+!/SECURITY.md
+!/TASKLIST.md
+!/design.md
