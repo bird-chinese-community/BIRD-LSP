@@ -45,26 +45,30 @@ limit. No task-owned build, test or recording ran during measurement. The host
 also runs unrelated services.
 
 The renderer source SHA256 is
-`5392671e28437c82b760fd563598367f08a38f7c97f2a57db7fb8f5e58055560`. Results
+`7e7352f019106b8d582375c140e77600bc3e976a419c9a2470e79376c0f553f3`. Results
 are retained in [run 1](./dn42-hover-run-1.json) and
 [run 2](./dn42-hover-run-2.json).
 
 Ranges span the two processes. Retained samples are shown in run order. All
-sixteen measurements have `optimizedOutWarning: false`.
+sixteen measurements have `optimizedOutWarning: false`. Two earlier pairs of
+processes on the same build each had one case that mitata recorded with
+per-iteration samples (P99 up to 64.46 µs); their means were within 2.2 µs of
+the ranges below.
 
 | Form     | Input                                  | Mean / operation | P99 / operation | Retained samples | Output bytes |
 | -------- | -------------------------------------- | ---------------- | --------------- | ---------------- | ------------ |
-| HTML     | GeoFeed IP                             | 5.32-5.36 µs     | 6.44-6.71 µs    | 28 / 28          | 1,262        |
-| HTML     | Resolver and origin conflicts          | 8.23-8.58 µs     | 8.56-8.88 µs    | 17 / 16          | 2,186        |
-| HTML     | Long IPv6 and 256 observations         | 10.05-10.58 µs   | 10.45-10.92 µs  | 13 / 12          | 2,314        |
-| HTML     | ASN with 256 prefixes and observations | 8.46-8.57 µs     | 9.10-9.26 µs    | 16 / 16          | 1,327        |
-| Markdown | GeoFeed IP                             | 9.47-10.16 µs    | 9.99-11.16 µs   | 14 / 13          | 248          |
-| Markdown | Resolver and origin conflicts          | 16.10-16.36 µs   | 16.91-17.76 µs  | 12 / 12          | 413          |
-| Markdown | Long IPv6 and 256 observations         | 17.59-17.79 µs   | 18.31-19.57 µs  | 12 / 12          | 612          |
-| Markdown | ASN with 256 prefixes and observations | 12.36-12.69 µs   | 12.74-13.27 µs  | 10 / 10          | 314          |
+| HTML     | GeoFeed IP                             | 5.41-5.65 µs     | 6.22-6.99 µs    | 27 / 26          | 1,262        |
+| HTML     | Resolver and origin conflicts          | 8.57-9.07 µs     | 9.00-9.82 µs    | 16 / 15          | 2,186        |
+| HTML     | Long IPv6 and 256 observations         | 10.70-11.00 µs   | 11.15-11.31 µs  | 12 / 12          | 2,314        |
+| HTML     | ASN with 256 prefixes and observations | 18.83-19.17 µs   | 19.65-20.46 µs  | 12 / 12          | 2,575        |
+| Markdown | GeoFeed IP                             | 9.97-10.03 µs    | 10.52-10.73 µs  | 14 / 13          | 248          |
+| Markdown | Resolver and origin conflicts          | 15.59-16.37 µs   | 16.70-17.21 µs  | 12 / 12          | 413          |
+| Markdown | Long IPv6 and 256 observations         | 18.43-19.01 µs   | 19.02-20.89 µs  | 12 / 12          | 612          |
+| Markdown | ASN with 256 prefixes and observations | 26.92-27.30 µs   | 27.60-28.91 µs  | 12 / 12          | 534          |
 
 Each collection shows at most two items, so output size stays bounded; the
-renderer still scans every observation to select them. The Markdown form spends
-most of its time in per-value escaping. This establishes a baseline for subsequent
+renderer still scans every observation to select them. The ASN cases also
+count ROA and IRR results across all 256 member observations. The Markdown form
+spends most of its time in per-value escaping. This establishes a baseline for subsequent
 runs with the same inputs and conditions. It does not establish editor
 response time.
