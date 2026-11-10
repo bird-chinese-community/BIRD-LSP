@@ -177,6 +177,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let supportsConfiguration = false;
   let supportsInlayHintRefresh = false;
   let editorSettings: BirdEditorSettings = {};
+  let initialSettings: BirdEditorSettings = {};
   const settingsByUri = new Map<string, Promise<BirdEditorSettings>>();
   const configurationDiagnosticUris = new Set<string>();
   let projectConfigGeneration = 0;
@@ -235,16 +236,18 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
   const updateDn42Settings = (): void => {
     const generation = ++dn42ConfigurationGeneration;
-    const fallback = editorSettings.intel;
     if (!supportsConfiguration) {
+      const intel = editorSettings.intel;
       setDn42Enabled(
-        fallback?.dn42?.enabled === true &&
-          fallback.enabled !== false &&
-          fallback.hover !== false,
+        intel?.dn42?.enabled === true &&
+          intel.enabled !== false &&
+          intel.hover !== false,
       );
       return;
     }
-    // Unscoped items: the client answers with user-level values.
+    // Unscoped items: the client answers with user-level values. A null
+    // answer falls back to initializationOptions.
+    const fallback = initialSettings.intel;
     void connection.workspace
       .getConfiguration([
         { section: "bird2-lsp.intel.dn42.enabled" },
@@ -986,6 +989,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
     editorSettings = birdEditorSettingsSchema.parse(
       params.initializationOptions?.birdcc ?? {},
     );
+    initialSettings = editorSettings;
     supportsDynamicFileWatching = Boolean(
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration,
     );
