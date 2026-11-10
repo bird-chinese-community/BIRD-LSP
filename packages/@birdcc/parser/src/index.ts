@@ -8,7 +8,7 @@ import {
   suppressRecoverableSyntaxIssues,
 } from "./issues.js";
 import { parseDeclarations } from "./declarations.js";
-import type { ParseIssue, ParsedBirdDocument } from "./types.js";
+import type { ParseIssue, ParsedBirdDocument, SourceRange } from "./types.js";
 import { collectBirdSyntaxLayout } from "./syntax-layout.js";
 import { toRange } from "./tree.js";
 
@@ -20,7 +20,7 @@ export const findNetworkLiteralAt = async (
 ): Promise<{
   value: string;
   kind: "ip" | "number";
-  range: import("./types.js").SourceRange;
+  range: SourceRange;
 } | null> => {
   if (position.line < 0 || position.character < 0) return null;
   const parser = await getParser();
@@ -60,19 +60,6 @@ export const findNetworkLiteralAt = async (
   } finally {
     tree.delete();
   }
-};
-
-export const findIpLiteralAt = async (
-  input: string,
-  position: { line: number; character: number },
-): Promise<{
-  value: string;
-  range: import("./types.js").SourceRange;
-} | null> => {
-  const literal = await findNetworkLiteralAt(input, position);
-  return literal?.kind === "ip"
-    ? { value: literal.value, range: literal.range }
-    : null;
 };
 
 export type {
