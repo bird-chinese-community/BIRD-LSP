@@ -13,7 +13,7 @@ import {
   type Hover,
 } from "vscode-languageserver/node.js";
 import { expect, it, vi } from "vitest";
-import { encodeHTML } from "entities";
+import { decodeHTML } from "entities";
 
 it("uses DN42 hover only after user enables it", async () => {
   const fixture = fileURLToPath(
@@ -141,22 +141,46 @@ it("uses DN42 hover only after user enables it", async () => {
       !("kind" in ipHover)
     )
       throw new Error("DN42 hover must contain MarkupContent");
+    expect(ipHover.kind).toBe("markdown");
+    const ipMarkdown = decodeHTML(ipHover.value);
+    expect(ipMarkdown).toMatch(/^\*\*172\.20\.0\.1\*\*/);
     for (const text of [
-      "IP: 172.20.0.1",
-      "Prefix: 172.20.0.1/32",
+      "**AS4242420001**",
+      "TestNetwork",
+      "**Matched network** 172.20.0.1/32",
       "California, United States",
-      "Anycast: published",
-      "public-resolver",
-      "PTR: resolver.test.dn42",
-      "ROA policy (DN42 registry): valid",
-      "IRR (DN42 registry route object): exact",
+      "**Registered in** Germany",
+      "`Public DNS resolver`",
+      "`Anycast · published`",
+      "**PTR** resolver.test.dn42",
+      "**DN42 registry policy**",
+      "**ROA** Valid",
+      "**IRR** Exact",
     ])
-      expect(ipHover.value).toContain(encodeHTML(text));
-    const asnHover = JSON.stringify((await hover(0, 45))?.contents);
-    expect(asnHover).toContain("AS4242420001 TestNetwork");
-    expect(asnHover).toContain(encodeHTML("Registered countries: Germany"));
-    expect(asnHover).toContain(
-      encodeHTML("Types observed on member prefixes:"),
+      expect(ipMarkdown).toContain(text);
+    expect(ipMarkdown).not.toContain("network_type");
+    expect(ipMarkdown).not.toContain("public-resolver");
+    const asnHover = (await hover(0, 45))?.contents;
+    if (
+      !asnHover ||
+      typeof asnHover !== "object" ||
+      Array.isArray(asnHover) ||
+      !("kind" in asnHover)
+    )
+      throw new Error("DN42 ASN hover must contain MarkupContent");
+    expect(asnHover.kind).toBe("markdown");
+    const asnMarkdown = decodeHTML(asnHover.value);
+    expect(asnMarkdown).toMatch(/^\*\*AS4242420001\*\*/);
+    expect(asnMarkdown).toContain("TestNetwork");
+    expect(asnMarkdown).toContain("**Registered in** Germany");
+    expect(asnMarkdown).toContain("**4 prefixes**");
+    expect(asnMarkdown).toContain("**Member observations**");
+    expect(asnMarkdown).toContain(
+      "172.20.0.1 · **Public DNS resolver** Observed",
+    );
+    expect(asnMarkdown).toContain("172.20.0.1 · **Anycast** Published");
+    expect(asnMarkdown).toContain(
+      "Policy observations use DN42 registry objects",
     );
     expect(JSON.stringify(await hover(5, 48))).not.toContain("DN42 IPDB");
     expect(JSON.stringify((await hover(1, 5))?.contents) ?? "").not.toContain(

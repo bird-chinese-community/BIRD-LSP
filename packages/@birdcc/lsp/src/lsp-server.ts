@@ -47,11 +47,7 @@ import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
 import { findAsnMatchesInLine } from "./asn-context.js";
-import {
-  formatDn42AsnHover,
-  formatDn42IpHover,
-  toDn42HoverMarkdown,
-} from "./dn42-hover.js";
+import { formatDn42AsnHover, formatDn42IpHover } from "./dn42-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
   createProjectAnalysisResolver,
@@ -1295,7 +1291,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
             return {
               contents: {
                 kind: "markdown",
-                value: toDn42HoverMarkdown(formatDn42IpHover(info)),
+                value: formatDn42IpHover(info),
               },
               range: toLspRange(literal.range),
             };
@@ -1314,7 +1310,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
             return {
               contents: {
                 kind: "markdown",
-                value: toDn42HoverMarkdown(formatDn42AsnHover(info)),
+                value: formatDn42AsnHover(info),
               },
               range: toLspRange(literal.range),
             };
