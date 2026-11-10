@@ -71,19 +71,22 @@ export const verifyWorkspaceVsix = async ({
   const extensionManifest = await readJson(
     path.join(packageRoot, "package.json"),
   );
-  const { stdout } = await execFileAsync(
-    "pnpm",
-    [
-      "--filter",
-      `${extensionManifest.name}...`,
-      "list",
-      "--json",
-      "--depth",
-      "-1",
-    ],
-    { cwd: workspaceRoot, timeout: 60_000 },
+  const listProjects = async (selector) => {
+    const { stdout } = await execFileAsync(
+      "pnpm",
+      [...selector, "list", "--json", "--depth", "-1"],
+      { cwd: workspaceRoot, timeout: 60_000 },
+    );
+    return JSON.parse(stdout);
+  };
+  const projects = await listProjects([
+    "--filter",
+    `${extensionManifest.name}...`,
+  ]);
+  // Registry packages may share the @birdcc scope with workspace projects.
+  const workspaceNames = new Set(
+    (await listProjects(["--recursive"])).map((project) => project.name),
   );
-  const projects = JSON.parse(stdout);
   ok(projects.some((project) => project.name === extensionManifest.name));
   const versions = new Map(
     projects.map((project) => [project.name, project.version]),
@@ -106,8 +109,17 @@ export const verifyWorkspaceVsix = async ({
       signal: AbortSignal.timeout(60_000),
     });
     const bundledPackages = new Map();
+    const registryPackages = [];
     for (const file of manifests.sort()) {
       const manifest = await readJson(path.join(bundledRoot, file));
+      if (!workspaceNames.has(manifest.name)) {
+        registryPackages.push({
+          name: manifest.name,
+          version: manifest.version,
+          path: path.dirname(file),
+        });
+        continue;
+      }
       ok(
         sourcePackages.has(manifest.name),
         `Unexpected internal package ${file}`,
@@ -177,6 +189,7 @@ export const verifyWorkspaceVsix = async ({
         files: extensionFiles,
       },
       workspacePackages: packageReports,
+      registryPackages,
     };
     await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log(
