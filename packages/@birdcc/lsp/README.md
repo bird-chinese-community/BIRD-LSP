@@ -118,7 +118,7 @@ Editor settings come from two places:
 | `formatter.lineWidth`          | integer | `80`                       | No line wrapping. The `builtin` engine leaves lines longer than this value unchanged apart from indentation.                   |
 | `formatter.safeMode`           | boolean | `true`                     | Fail formatting when the declarations or parser errors of the output differ from the input.                                    |
 
-Set `intel.dn42.enabled` to `true` in user settings to download City and ASN databases to the user's cache directory and refresh them asynchronously. The default is `false`. `intel.enabled` and `intel.hover` also control the hover result.
+Set `intel.dn42.enabled` to `true` in user settings to download the DN42 IPDB bundle (Country, City, ASN and Connection-Type MMDB files with their JSON sidecars) to `birdcc/dn42-ipdb` under `$XDG_CACHE_HOME`, `%LOCALAPPDATA%` on Windows, or `~/.cache`, and to check for updates daily in the background. The default is `false`. `intel.enabled` and `intel.hover` also control the hover result.
 
 For formatting, the `formatter` section of the project config overrides these settings, which override the `tabSize` and `insertSpaces` options of the request.
 
