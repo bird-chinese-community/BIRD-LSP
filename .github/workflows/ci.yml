@@ -203,6 +203,11 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
+      # The main extension bundles the dprint plugin, which builds to WASM.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+          targets: wasm32-unknown-unknown
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
