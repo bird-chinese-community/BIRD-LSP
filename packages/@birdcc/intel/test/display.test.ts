@@ -74,4 +74,19 @@ describe("formatAsnDisplay", () => {
     expect(display.completionDetail).toContain("RFC 6996");
     expect(display.hoverMarkdown).toContain("| **Type** | Reserved |");
   });
+
+  it("keeps hostile AS names inert in Markdown and HTML", () => {
+    const display = formatAsnDisplay({
+      asn: 64500,
+      name: '<img src="https://example.org/x.png"> [docs](https://example.org) | *x*',
+      cls: "Content",
+      cc: "US",
+    });
+    const row = display.hoverMarkdown
+      .split("\n")
+      .find((line) => line.startsWith("| **AS Name** |"));
+    expect(row).toBe(
+      '| **AS Name** | \\<img src="https\\://example.org/x.png"\\> \\[docs\\]\\(https\\://example.org\\) \\| \\*x\\* |',
+    );
+  });
 });
