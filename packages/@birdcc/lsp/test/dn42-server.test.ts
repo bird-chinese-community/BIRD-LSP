@@ -83,13 +83,15 @@ it("uses DN42 hover only after user enables it", async () => {
           ? userEnabled
           : item.section === "bird2-lsp.intel.enabled"
             ? masterEnabled
-            : {
-                intel: {
-                  enabled: masterEnabled,
-                  hover: hoverEnabled,
-                  dn42: { enabled: true },
+            : item.section === "bird2-lsp.intel.hover"
+              ? hoverEnabled
+              : {
+                  intel: {
+                    enabled: masterEnabled,
+                    hover: hoverEnabled,
+                    dn42: { enabled: true },
+                  },
                 },
-              },
       ),
   );
   client.listen();
