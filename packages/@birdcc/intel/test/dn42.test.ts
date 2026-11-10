@@ -163,7 +163,7 @@ describe("DN42 SDK provider", () => {
     }
   });
 
-  it("cancels a download and suppresses stale generation updates", async () => {
+  it("cancels a download and leaves no stale generation data", async () => {
     let received: () => void = () => {};
     const started = new Promise<void>((resolve) => {
       received = resolve;
@@ -177,14 +177,10 @@ describe("DN42 SDK provider", () => {
       }
     });
     const dir = await cacheDir();
-    let updates = 0;
     const errors: Error[] = [];
     const intel = createDn42Intel({
       cacheDir: dir,
       baseUrl,
-      onUpdate: () => {
-        updates++;
-      },
       onError: (error) => errors.push(error),
     });
     intel.setEnabled(true);
@@ -192,7 +188,6 @@ describe("DN42 SDK provider", () => {
     await started;
     intel.setEnabled(false);
     await pending;
-    expect(updates).toBe(0);
     expect(errors).toHaveLength(0);
     expect(intel.lookup("172.20.0.1")).toBeUndefined();
     await expect(

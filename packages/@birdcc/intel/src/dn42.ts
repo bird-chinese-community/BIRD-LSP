@@ -31,7 +31,6 @@ export type Dn42AsnInfo = AsnInfo;
 
 export interface Dn42IntelOptions {
   cacheDir: string;
-  onUpdate?: () => void;
   onError?: (error: Error) => void;
   baseUrl?: string;
 }
@@ -72,7 +71,6 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
     }
     bundle?.close();
     bundle = loaded;
-    options.onUpdate?.();
   }
 
   function refresh(): Promise<void> {
@@ -155,6 +153,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       if (!enabled || !bundle || !isIP(ip) || ip.includes("%"))
         return undefined;
       const { records } = bundle.lookup(ip);
+      if (!Object.keys(records).length) return undefined;
       const city = records.city?.data;
       const country = city?.country ?? records.country?.data.country;
       const registeredCountry =
@@ -165,7 +164,6 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         asn?.dn42 ??
         records.country?.data.dn42 ??
         records.connection_type?.data.dn42;
-      if (!Object.keys(records).length) return undefined;
       return {
         ip,
         asn: asn?.autonomous_system_number ?? dn42?.asn,
