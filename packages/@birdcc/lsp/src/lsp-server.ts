@@ -1,7 +1,7 @@
 import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isIP } from "node:net";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
@@ -211,9 +211,19 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let hasShutdownBeenRequested = false;
   let dn42Enabled = false;
   let dn42ConfigurationGeneration = 0;
+  const cacheHome = process.env.XDG_CACHE_HOME;
   const dn42Intel = createDn42Intel({
     cacheDir:
-      options?.dn42CacheDir ?? join(homedir(), ".cache", "birdcc", "dn42-ipdb"),
+      options?.dn42CacheDir ??
+      join(
+        cacheHome && isAbsolute(cacheHome)
+          ? cacheHome
+          : process.platform === "win32" && process.env.LOCALAPPDATA
+            ? process.env.LOCALAPPDATA
+            : join(homedir(), ".cache"),
+        "birdcc",
+        "dn42-ipdb",
+      ),
     baseUrl: options?.dn42BaseUrl,
     onError: (error) =>
       connection.console.error(`[intel] DN42 IPDB: ${error.message}`),
