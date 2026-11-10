@@ -13,6 +13,7 @@
     "format": "turbo run format",
     "coverage": "turbo run coverage",
     "bench:dn42": "node --expose-gc tools/bench-dn42.mjs",
+    "bench:dn42:hover": "node --expose-gc tools/bench-dn42-hover.mjs",
     "tegami": "node tools/tegami.mjs",
     "release:version": "node tools/version-packages.mjs",
     "release:status": "node tools/release-status.mjs",
