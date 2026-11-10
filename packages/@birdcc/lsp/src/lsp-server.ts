@@ -246,24 +246,32 @@ export const startLspServer = (options?: LspServerOptions): void => {
   };
   const updateDn42Settings = (): void => {
     const generation = ++dn42ConfigurationGeneration;
+    const fallback = editorSettings.intel;
     if (!supportsConfiguration) {
       setDn42Enabled(
-        editorSettings.intel?.dn42?.enabled === true &&
-          editorSettings.intel?.enabled !== false,
+        fallback?.dn42?.enabled === true &&
+          fallback.enabled !== false &&
+          fallback.hover !== false,
       );
       return;
     }
+    // Unscoped items: the client answers with user-level values.
     void connection.workspace
       .getConfiguration([
         { section: "bird2-lsp.intel.dn42.enabled" },
         { section: "bird2-lsp.intel.enabled" },
+        { section: "bird2-lsp.intel.hover" },
       ])
-      .then(([enabled, intelEnabled]) => {
+      .then(([enabled, intelEnabled, hoverEnabled]) => {
         if (
           generation === dn42ConfigurationGeneration &&
           !hasShutdownBeenRequested
         ) {
-          setDn42Enabled(enabled === true && intelEnabled !== false);
+          setDn42Enabled(
+            (enabled ?? fallback?.dn42?.enabled) === true &&
+              (intelEnabled ?? fallback?.enabled) !== false &&
+              (hoverEnabled ?? fallback?.hover) !== false,
+          );
         }
       })
       .catch((error) => {
