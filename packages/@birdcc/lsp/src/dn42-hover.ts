@@ -1,4 +1,5 @@
 import {
+  countryCodeToFlag,
   escapeMarkdown,
   markdownCode,
   type Dn42AsnInfo,
@@ -7,6 +8,12 @@ import {
 
 /** `html` targets clients that allow `span` and `table`; `markdown` is portable. */
 export type Dn42HoverMarkup = "html" | "markdown";
+
+export interface Dn42HoverOptions {
+  markup?: Dn42HoverMarkup;
+  /** Release tag of the loaded DN42 IPDB bundle. */
+  release?: string;
+}
 
 type Observation = NonNullable<Dn42IpInfo["dn42"]>["observations"][number];
 
@@ -24,9 +31,13 @@ interface Row {
 
 interface Card {
   icon: string;
+  /** Replaces the kind icon in the title. */
+  flag?: string;
   title: string;
   summary: Line[];
   rows: Row[];
+  /** Attribution after the divider. */
+  source: string;
 }
 
 interface StatusStyle {
@@ -37,7 +48,10 @@ interface StatusStyle {
 }
 
 const MUTED = "descriptionForeground";
-const ATTRIBUTION = "DN42 IPDB · registry data";
+const attribution = (release?: string): string =>
+  `Data source: @birdcc/dn42-ipdb${release ? `, #${release}` : ""}`;
+const flagOf = (code?: string): string | undefined =>
+  code && /^[A-Za-z]{2}$/.test(code) ? countryCodeToFlag(code) : undefined;
 
 const statuses = new Map<string, StatusStyle>([
   [
@@ -148,7 +162,7 @@ const htmlLine = (line: Line): string => line.map(htmlPart).join(" ");
 
 const renderHtml = (card: Card): string =>
   [
-    `<h3>${codicon(card.icon)} ${escapeHtml(card.title)}</h3>`,
+    `<h3>${card.flag ?? codicon(card.icon)} ${escapeHtml(card.title)}</h3>`,
     card.summary.length
       ? `<p>${card.summary.map(htmlLine).join("<br>")}</p>`
       : undefined,
@@ -163,7 +177,7 @@ const renderHtml = (card: Card): string =>
           .join("")}</table>`
       : undefined,
     "<hr>",
-    `<p>${tinted(MUTED, escapeHtml(ATTRIBUTION))}</p>`,
+    `<p>${tinted(MUTED, escapeHtml(card.source))}</p>`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -197,7 +211,7 @@ const markdownLine = (line: Line): string =>
 
 const renderMarkdown = (card: Card): string =>
   [
-    `### ${markdownCode(card.title)}`,
+    `### ${card.flag ? `${card.flag} ` : ""}${markdownCode(card.title)}`,
     card.summary.length
       ? card.summary.map(markdownLine).join("  \n")
       : undefined,
@@ -213,13 +227,18 @@ const renderMarkdown = (card: Card): string =>
           .join("  \n")
       : undefined,
     "---",
-    `*${escapeMarkdown(ATTRIBUTION)}*`,
+    `*${escapeMarkdown(card.source)}*`,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-const render = (card: Card, markup: Dn42HoverMarkup): string =>
-  markup === "html" ? renderHtml(card) : renderMarkdown(card);
+const render = (
+  card: Omit<Card, "source">,
+  { markup = "markdown", release }: Dn42HoverOptions,
+): string => {
+  const complete = { ...card, source: attribution(release) };
+  return markup === "html" ? renderHtml(complete) : renderMarkdown(complete);
+};
 
 const pathHints = (types: readonly string[]): string[] => [
   ...new Set(
@@ -255,9 +274,12 @@ const policyObservation = (item: Observation, ownerAsn?: number): Line => [
   ...(item.value ? [muted("policy"), id(item.value)] : []),
 ];
 
+// Every PTR name is an observation, so only other PTR results are labeled.
 const serviceObservation = (item: Observation, ownerAsn?: number): Line => [
   text(observationLabel(item)),
-  evidence(item.status),
+  ...(item.kind === "ptr" && item.status === "observed"
+    ? []
+    : [evidence(item.status)]),
   id(item.target),
   ...foreignAsn(item, ownerAsn),
   ...(item.kind === "ptr" && item.value ? [id(item.value)] : []),
@@ -283,7 +305,7 @@ const limited = <T>(
 /** Renders a DN42 address lookup as a title, owner summary and property sheet. */
 export const formatDn42IpHover = (
   info: Dn42IpInfo,
-  markup: Dn42HoverMarkup = "markdown",
+  options: Dn42HoverOptions = {},
 ): string => {
   const data = info.dn42;
   const types = data?.network_types ?? [];
@@ -312,7 +334,7 @@ export const formatDn42IpHover = (
   const ptrLines: Line[] = data?.ptr.length
     ? limited(data.ptr, (name) => [id(name)])
     : ptr?.status === "nxdomain"
-      ? [[status("nxdomain"), muted("observed")]]
+      ? [[status("nxdomain")]]
       : ptr?.status === "unknown"
         ? [[status("unknown"), muted("lookup inconclusive")]]
         : [];
@@ -329,6 +351,10 @@ export const formatDn42IpHover = (
   return render(
     {
       icon: "globe",
+      // A withheld location must not resurface through the flag.
+      flag: flagOf(
+        (!withheld && location && info.country) || info.registeredCountry,
+      ),
       title: info.ip,
       summary: [
         ...(info.asn
@@ -351,7 +377,7 @@ export const formatDn42IpHover = (
                     icon("location"),
                     text(location),
                     ...(data?.confidence === "geofeed"
-                      ? [muted("GeoFeed")]
+                      ? [muted("(by GeoFeed)")]
                       : []),
                   ],
                 ]
@@ -392,14 +418,14 @@ export const formatDn42IpHover = (
         ),
       ],
     },
-    markup,
+    options,
   );
 };
 
 /** Renders a DN42 autonomous system lookup with member policy and services. */
 export const formatDn42AsnHover = (
   info: Dn42AsnInfo,
-  markup: Dn42HoverMarkup = "markdown",
+  options: Dn42HoverOptions = {},
 ): string => {
   const countries = info.registered_countries.map(
     (country) => country.names.en ?? country.iso_code,
@@ -477,6 +503,6 @@ export const formatDn42AsnHover = (
         ),
       ],
     },
-    markup,
+    options,
   );
 };

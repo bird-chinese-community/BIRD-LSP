@@ -22,6 +22,7 @@
   "registry_commit": "",
   "registry_committed_at": "0001-01-01T00:00:00Z",
   "release_repository": "https://github.com/bird-chinese-community/DN42-IPDB-Releases",
+  "release_tag": "2023-11-14.1",
   "schema_version": "2",
   "semantics": {
     "connection_type": "Explicit access classification only; absent when unknown. Overlay tunnels do not identify subscriber access technology.",

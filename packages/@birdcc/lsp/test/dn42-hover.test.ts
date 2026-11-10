@@ -136,34 +136,33 @@ const asnInfo: Dn42AsnInfo = {
 };
 
 const markups: Dn42HoverMarkup[] = ["html", "markdown"];
+const release = "2026-11-10.13";
 
 describe.each(markups)("%s form", (markup) => {
   const ip = (value: Dn42IpInfo): Node[] =>
-    render(formatDn42IpHover(value, markup));
+    render(formatDn42IpHover(value, { markup, release }));
   const asn = (value: Dn42AsnInfo): Node[] =>
-    render(formatDn42AsnHover(value, markup));
+    render(formatDn42AsnHover(value, { markup, release }));
+  const heading = (nodes: Node[]): string =>
+    squash(
+      textOf(elements(nodes).find((element) => element.tagName === "h3")!),
+    );
 
   it("leads with the address, owner and roles before the property sheet", () => {
     const nodes = ip(info);
     expectSanitizerSafe(nodes);
-    const heading = elements(nodes).find((element) => element.tagName === "h3");
-    expect(squash(textOf(heading!))).toBe("172.20.0.53");
+    expect(heading(nodes)).toBe("🇯🇵 172.20.0.53");
     const text = pageText(nodes);
     expect(text).toMatch(
-      /^172\.20\.0\.53 TestNetwork AS4242420001 Public DNS resolver Anycast published /,
+      /^🇯🇵 172\.20\.0\.53 TestNetwork AS4242420001 Public DNS resolver Anycast published /,
     );
     expect(text.indexOf("Location")).toBeGreaterThan(text.indexOf("Anycast"));
     expect(text).toMatch(
-      / Location (⌖ )?Tokyo, Japan Network 172\.20\.0\.53\/32 ROA (✓ )?Valid 172\.20\.0\.0\/24 IRR (↳ )?Covering 172\.20\.0\.0\/24 DN42 IPDB · registry data$/,
+      / Location (⌖ )?Tokyo, Japan Network 172\.20\.0\.53\/32 ROA (✓ )?Valid 172\.20\.0\.0\/24 IRR (↳ )?Covering 172\.20\.0\.0\/24 Data source: @birdcc\/dn42-ipdb, #2026-11-10\.13$/,
     );
     expect(text).not.toContain("PTR");
     if (markup === "html") {
-      expect(icons(nodes)).toEqual([
-        "globe",
-        "location",
-        "pass-filled",
-        "pass",
-      ]);
+      expect(icons(nodes)).toEqual(["location", "pass-filled", "pass"]);
       expect(sheet(nodes)).toEqual([
         ["Location", "Tokyo, Japan"],
         ["Network", "172.20.0.53/32"],
@@ -213,20 +212,20 @@ describe.each(markups)("%s form", (markup) => {
         dn42: { ...info.dn42!, confidence: "geofeed" },
       }),
     );
-    expect(text).toMatch(/Location (⌖ )?Tokyo, Japan GeoFeed/);
+    expect(text).toMatch(/Location (⌖ )?Tokyo, Japan \(by GeoFeed\)/);
     expect(text.match(/Tokyo/g)).toHaveLength(1);
     expect(text).toContain("Registered Germany");
   });
 
   it("does not present a registration-only country as a location", () => {
-    const text = pageText(
-      ip({
-        ip: info.ip,
-        registeredCountry: "DE",
-        registeredCountryName: "Germany",
-        dn42: { ...info.dn42!, confidence: "registry" },
-      }),
-    );
+    const nodes = ip({
+      ip: info.ip,
+      registeredCountry: "DE",
+      registeredCountryName: "Germany",
+      dn42: { ...info.dn42!, confidence: "registry" },
+    });
+    expect(heading(nodes)).toBe("🇩🇪 172.20.0.53");
+    const text = pageText(nodes);
     expect(text).toContain("Registered Germany");
     expect(text).not.toContain("Location");
     expect(text).not.toContain("GeoFeed");
@@ -253,6 +252,7 @@ describe.each(markups)("%s form", (markup) => {
         ],
       },
     });
+    expect(heading(nodes)).toBe("🇩🇪 172.20.0.53");
     const text = pageText(nodes);
     expect(text).toContain("Location Withheld by GeoFeed");
     expect(text).toContain("Registered Germany");
@@ -262,20 +262,21 @@ describe.each(markups)("%s form", (markup) => {
   });
 
   it("keeps unknown policy and location states explicit", () => {
-    const text = pageText(
-      ip({
-        ip: info.ip,
-        dn42: {
-          ...info.dn42!,
-          anycast: "unknown",
-          network_types: [],
-          roa_status: "unknown",
-          roa_prefix: undefined,
-          irr_status: "unknown",
-          irr_prefix: undefined,
-        },
-      }),
-    );
+    const nodes = ip({
+      ip: info.ip,
+      dn42: {
+        ...info.dn42!,
+        anycast: "unknown",
+        network_types: [],
+        roa_status: "unknown",
+        roa_prefix: undefined,
+        irr_status: "unknown",
+        irr_prefix: undefined,
+      },
+    });
+    expect(heading(nodes)).toBe("172.20.0.53");
+    if (markup === "html") expect(icons(nodes)[0]).toBe("globe");
+    const text = pageText(nodes);
     expect(text).toContain("Location Not recorded");
     expect(text).toMatch(/ROA (\? )?Unknown IRR (\? )?Unknown/);
     for (const hidden of ["Anycast", "Unicast", "Public DNS resolver", "PTR"])
@@ -283,7 +284,7 @@ describe.each(markups)("%s form", (markup) => {
   });
 
   it.each([
-    ["nxdomain", /PTR (⊘ )?NXDOMAIN observed/],
+    ["nxdomain", /PTR (⊘ )?NXDOMAIN Data source/],
     ["unknown", /PTR (\? )?Unknown lookup inconclusive/],
   ])("distinguishes a recorded PTR %s result", (result, expected) => {
     const text = pageText(
@@ -345,7 +346,7 @@ describe.each(markups)("%s form", (markup) => {
     });
     const text = pageText(nodes);
     expect(text).toMatch(
-      /Origins IRR (! )?Conflict 172\.20\.0\.53\/32 AS4242422189 ROA (✗ )?Invalid 172\.20\.0\.0\/24 AS4242422601 1 more DN42 IPDB/,
+      /Origins IRR (! )?Conflict 172\.20\.0\.53\/32 AS4242422189 ROA (✗ )?Invalid 172\.20\.0\.0\/24 AS4242422601 1 more Data source/,
     );
     expect(text).not.toContain("172.20.9.0/24");
     if (markup === "html")
@@ -454,7 +455,7 @@ describe.each(markups)("%s form", (markup) => {
       }),
     );
     expect(text).toContain(
-      "Services Public DNS resolver observed 172.20.0.53 Public DNS resolver observed 172.20.0.54 3 more Prefixes 172.20.0.0/24 172.20.1.0/24 2 more DN42 IPDB",
+      "Services Public DNS resolver observed 172.20.0.53 Public DNS resolver observed 172.20.0.54 3 more Prefixes 172.20.0.0/24 172.20.1.0/24 2 more Data source",
     );
     expect(text).not.toContain("172.20.0.55");
     expect(text).not.toContain("172.20.2.0/24");
@@ -462,8 +463,34 @@ describe.each(markups)("%s form", (markup) => {
 
   it("states that no member observations exist", () => {
     expect(pageText(asn(asnInfo))).toContain(
-      "Services No member observations Prefixes 172.20.0.0/24 DN42 IPDB",
+      "Services No member observations Prefixes 172.20.0.0/24 Data source",
     );
+  });
+
+  it("lists member PTR names without an evidence word", () => {
+    const text = pageText(
+      asn({
+        ...asnInfo,
+        observations: [
+          observation({ kind: "ptr", value: "ns1.test.dn42" }),
+          observation({
+            kind: "ptr",
+            status: "nxdomain",
+            target: "172.20.0.54",
+          }),
+        ],
+      }),
+    );
+    expect(text).toMatch(
+      /Services PTR 172\.20\.0\.53 ns1\.test\.dn42 PTR (⊘ )?NXDOMAIN 172\.20\.0\.54 Prefixes/,
+    );
+    expect(text).not.toContain("observed");
+  });
+
+  it("names the data package and omits a missing release tag", () => {
+    const text = pageText(render(formatDn42IpHover(info, { markup })));
+    expect(text).toMatch(/ Data source: @birdcc\/dn42-ipdb$/);
+    expect(text).not.toContain("#");
   });
 });
 
@@ -477,6 +504,7 @@ describe.each(markups)("%s form with hostile data", (markup) => {
       formatDn42IpHover(
         {
           ...info,
+          country: "<b",
           asName: hostile,
           city: hostile,
           countryName: hostile,
@@ -497,7 +525,7 @@ describe.each(markups)("%s form with hostile data", (markup) => {
             ],
           },
         },
-        markup,
+        { markup, release: hostile },
       ),
     );
     expectSanitizerSafe(nodes);
@@ -525,7 +553,7 @@ describe.each(markups)("%s form with hostile data", (markup) => {
             }),
           ],
         },
-        markup,
+        { markup, release: hostile },
       ),
     );
     expectSanitizerSafe(nodes);
