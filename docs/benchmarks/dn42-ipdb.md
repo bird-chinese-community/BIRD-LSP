@@ -132,6 +132,27 @@ both runs have `optimizedOutWarning: false`.
 | First install with cleanup                  | 183–185 ms       | 196–209 ms      | 12–12            |
 | Changed metadata and full bundle activation | 182–184 ms       | 204–204 ms      | 12–12            |
 
+The registered-country lookup projection was measured in two independent
+processes using `5acb8442511884142c71bc9993634c7dfee58533+working-tree`,
+SDK 0.1.1 from the npm registry, and the same 2026-11-10.1 data, Node 22.20.0,
+mitata 1.0.34, host, CPU affinity and memory limit:
+[run 1](./dn42-ipdb-hover-refresh-run-1.json) and
+[run 2](./dn42-ipdb-hover-refresh-run-2.json). Both reports record the installed
+SDK archive checksum and measured module hashes. GUI recording and task builds
+were stopped; unrelated host services remained active. These five cases cover
+the changed IP lookup projection and the startup/install paths that call it;
+hover formatting and the editor/LSP request path are outside their scope.
+Ranges span both processes; retained sample counts are listed in run order.
+All ten measurements have `optimizedOutWarning: false`.
+
+| Case                                | Mean / operation | P99 / operation | Retained samples |
+| ----------------------------------- | ---------------- | --------------- | ---------------- |
+| Warm IPv4 hit                       | 104–119 µs       | 315–397 µs      | 6736 / 5880      |
+| Warm IPv6 hit                       | 36.6–40.7 µs     | 37.7–70.1 µs    | 12 / 17106       |
+| IPv4 miss                           | 823–877 ns       | 1041–1114 ns    | 205 / 192        |
+| Existing cache startup and manifest | 151–155 ms       | 167–179 ms      | 12 / 12          |
+| First install with cleanup          | 178–179 ms       | 196–197 ms      | 12 / 12          |
+
 ## 2026-11-10 two-database baseline
 
 Measured on 2026-11-10 at `6dc70afbc3bdc2b8cf038dbedf8f1e5ce644f11e`,
