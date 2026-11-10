@@ -1,4 +1,5 @@
 import { countryCodeToFlag } from "./country-flag.js";
+import { escapeMarkdown } from "./markdown.js";
 import type { AsnEntry, AsnDisplayInfo } from "./types.js";
 
 const ASN_INLAY_MAX_DIGITS = 6;
@@ -31,15 +32,15 @@ export const formatAsnDisplay = (entry: AsnEntry): AsnDisplayInfo => {
     "",
     `| | |`,
     `|---|---|`,
-    `| **AS Name** | ${entry.name} |`,
+    `| **AS Name** | ${escapeMarkdown(entry.name)} |`,
     `| **ASN** | ${entry.asn} |`,
   ];
 
   if (entry.cc) {
-    hoverLines.push(`| **Country** | ${flag} ${entry.cc} |`);
+    hoverLines.push(`| **Country** | ${flag} ${escapeMarkdown(entry.cc)} |`);
   }
   if (entry.cls) {
-    hoverLines.push(`| **Type** | ${entry.cls} |`);
+    hoverLines.push(`| **Type** | ${escapeMarkdown(entry.cls)} |`);
   }
 
   hoverLines.push(
