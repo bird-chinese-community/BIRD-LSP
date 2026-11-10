@@ -50,7 +50,7 @@ import {
   formatDn42IpHover,
   type Dn42HoverMarkup,
 } from "./dn42-hover.js";
-import { findDn42HoverTarget } from "./dn42-target.js";
+import { findDn42Hover } from "./dn42-target.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
   createProjectAnalysisResolver,
@@ -1297,24 +1297,23 @@ export const startLspServer = (options?: LspServerOptions): void => {
         settings.intel?.enabled !== false &&
         settings.intel?.hover !== false
       ) {
-        const target = await findDn42HoverTarget(
+        const hover = await findDn42Hover(
           document.getText(),
           getLineText(document, params.position.line),
           params.position,
+          (candidate) => {
+            if (candidate.kind === "ip") {
+              const info = dn42Intel.lookup(candidate.ip);
+              return info && formatDn42IpHover(info, dn42Markup);
+            }
+            const info = dn42Intel.lookupAsn(candidate.asn);
+            return info && formatDn42AsnHover(info, dn42Markup);
+          },
         );
-        const ipInfo =
-          target?.kind === "ip" ? dn42Intel.lookup(target.ip) : undefined;
-        const asnInfo =
-          target?.kind === "asn" ? dn42Intel.lookupAsn(target.asn) : undefined;
-        const value = ipInfo
-          ? formatDn42IpHover(ipInfo, dn42Markup)
-          : asnInfo
-            ? formatDn42AsnHover(asnInfo, dn42Markup)
-            : undefined;
-        if (target && value)
+        if (hover)
           return {
-            contents: { kind: "markdown", value },
-            range: toLspRange(target.range),
+            contents: { kind: "markdown", value: hover.value },
+            range: toLspRange(hover.range),
           };
       }
       if (
