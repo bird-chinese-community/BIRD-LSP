@@ -10,10 +10,10 @@
   "built_at": "2023-11-14T22:13:20Z",
   "copyright": "Copyright 2026 BIRD Chinese Community (database compilation). Source data retains its respective ownership and licenses.",
   "database_types": {
-    "asn.mmdb": "DN42-GeoLite2-ASN",
-    "city.mmdb": "DN42-GeoIP2-City",
-    "connection-type.mmdb": "DN42-GeoIP2-Connection-Type",
-    "country.mmdb": "DN42-GeoIP2-Country"
+    "DN42-IPDB-ASN.mmdb": "DN42-GeoLite2-ASN",
+    "DN42-IPDB-City.mmdb": "DN42-GeoIP2-City",
+    "DN42-IPDB-Connection-Type.mmdb": "DN42-GeoIP2-Connection-Type",
+    "DN42-IPDB-Country.mmdb": "DN42-GeoIP2-Country"
   },
   "generator": "DN42-IPDB",
   "ip_version": 6,

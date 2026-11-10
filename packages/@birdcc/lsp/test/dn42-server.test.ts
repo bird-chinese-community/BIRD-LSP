@@ -19,10 +19,10 @@ it("uses DN42 hover only after user enables it", async () => {
     new URL("../../intel/test/fixtures/", import.meta.url),
   );
   const files = [
-    "country.mmdb",
-    "city.mmdb",
-    "asn.mmdb",
-    "connection-type.mmdb",
+    "DN42-IPDB-Country.mmdb",
+    "DN42-IPDB-City.mmdb",
+    "DN42-IPDB-ASN.mmdb",
+    "DN42-IPDB-Connection-Type.mmdb",
     "asn-index.json",
     "metadata.json",
     "LICENSE-Unicode.txt",

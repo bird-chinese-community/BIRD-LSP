@@ -39,6 +39,9 @@ batch-average time rather than individual call latency.
 
 Run on the benchmark host with pnpm 10.18.3 and Node 22 or newer:
 
+These commands use the canonical artifact names required by SDK 0.2.0. The
+tables below retain their recorded code, SDK, and dataset revisions.
+
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm --filter @birdcc/parser exec tsc -p tsconfig.json
@@ -47,21 +50,22 @@ pnpm --filter @birdcc/intel exec tsc -p tsconfig.json
 mkdir -p .tmp/dn42-release .tmp/dn42-bench
 curl --fail --location --proto '=https' --proto-redir '=https' \
   --max-time 45 --max-filesize 1048576 \
-  --output .tmp/dn42-bench/birdcc-dn42-ipdb-0.1.0.tgz \
-  https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz
-gh release download 2026-11-10.1 \
+  --output .tmp/dn42-bench/birdcc-dn42-ipdb-0.2.0.tgz \
+  https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.2.0/birdcc-dn42-ipdb-0.2.0.tgz
+gh release download 2026-11-10.13 \
   --repo bird-chinese-community/DN42-IPDB-Releases \
-  --pattern country.mmdb --pattern city.mmdb --pattern asn.mmdb \
-  --pattern connection-type.mmdb --pattern asn-index.json \
+  --pattern DN42-IPDB-Country.mmdb --pattern DN42-IPDB-City.mmdb \
+  --pattern DN42-IPDB-ASN.mmdb --pattern DN42-IPDB-Connection-Type.mmdb \
+  --pattern asn-index.json \
   --pattern metadata.json --pattern LICENSE-Unicode.txt --pattern checksums.json \
   --dir .tmp/dn42-release
 DN42_BENCH_DB_DIR="$PWD/.tmp/dn42-release" \
-  DN42_BENCH_RELEASE=2026-11-10.1 \
+  DN42_BENCH_RELEASE=2026-11-10.13 \
   DN42_BENCH_REVISION="$(git rev-parse HEAD)" \
   DN42_BENCH_OUTPUT="$PWD/.tmp/dn42-bench/run.json" \
   DN42_BENCH_CPU_AFFINITY=2,3 \
-  DN42_BENCH_SDK_ARCHIVE="$PWD/.tmp/dn42-bench/birdcc-dn42-ipdb-0.1.0.tgz" \
-  DN42_BENCH_SDK_ARCHIVE_URL=https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz \
+  DN42_BENCH_SDK_ARCHIVE="$PWD/.tmp/dn42-bench/birdcc-dn42-ipdb-0.2.0.tgz" \
+  DN42_BENCH_SDK_ARCHIVE_URL=https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.2.0/birdcc-dn42-ipdb-0.2.0.tgz \
   NODE_OPTIONS=--max-old-space-size=2048 \
   taskset -c 2,3 pnpm bench:dn42 > .tmp/dn42-bench/run.log
 ```
@@ -75,10 +79,10 @@ checksum manifest is checked before measurement.
 
 ## 2026-11-10.1 seven-artifact baseline
 
-The final dependency uses SDK 0.1.1. Its published runtime module has the same
-SHA256 as the SDK 0.1.0 module measured below; the archive version, runtime
-requirement and package documentation changed. The reports retain the measured
-0.1.0 archive URL and checksum.
+The 27-case baseline uses SDK 0.1.0. SDK 0.1.1, used for the registered-country
+reruns below, has the same published runtime-module SHA256; its archive version,
+runtime requirement, and package documentation changed. Each report records its
+measured SDK archive URL and checksum.
 
 The [2026-11-10.1 release](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases/tag/2026-11-10.1)
 supplies four MMDBs, the ASN index, metadata, and the Unicode notice. The test
