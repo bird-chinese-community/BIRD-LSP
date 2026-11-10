@@ -215,10 +215,6 @@ export const startLspServer = (options?: LspServerOptions): void => {
     cacheDir:
       options?.dn42CacheDir ?? join(homedir(), ".cache", "birdcc", "dn42-ipdb"),
     baseUrl: options?.dn42BaseUrl,
-    onUpdate: () => {
-      if (supportsInlayHintRefresh)
-        void connection.languages.inlayHint.refresh();
-    },
     onError: (error) =>
       connection.console.error(`[intel] DN42 IPDB: ${error.message}`),
   });
