@@ -17,6 +17,8 @@ export interface Dn42IpInfo {
   asName?: string;
   country?: string;
   countryName?: string;
+  registeredCountry?: string;
+  registeredCountryName?: string;
   region?: string;
   regionName?: string;
   city?: string;
@@ -155,6 +157,8 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       const { records } = bundle.lookup(ip);
       const city = records.city?.data;
       const country = city?.country ?? records.country?.data.country;
+      const registeredCountry =
+        city?.registered_country ?? records.country?.data.registered_country;
       const asn = records.asn?.data;
       const dn42 =
         city?.dn42 ??
@@ -168,6 +172,8 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
         asName: asn?.autonomous_system_organization ?? dn42?.as_name,
         country: country?.iso_code,
         countryName: country?.names?.en,
+        registeredCountry: registeredCountry?.iso_code,
+        registeredCountryName: registeredCountry?.names?.en,
         region: city?.subdivisions?.[0]?.iso_code,
         regionName: city?.subdivisions?.[0]?.names?.en,
         city: city?.city?.names?.en,
