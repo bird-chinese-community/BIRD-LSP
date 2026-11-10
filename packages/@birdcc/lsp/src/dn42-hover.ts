@@ -1,5 +1,6 @@
 import {
   escapeMarkdown,
+  markdownCode,
   type Dn42AsnInfo,
   type Dn42IpInfo,
 } from "@birdcc/intel";
@@ -168,24 +169,13 @@ const renderHtml = (card: Card): string =>
     .join("\n");
 
 // Markdown form: code spans for identifiers, backslash escapes for prose.
-const codeSpan = (value: string): string => {
-  const content = clean(value);
-  const longest = Math.max(
-    0,
-    ...(content.match(/`+/g) ?? []).map((run) => run.length),
-  );
-  const fence = "`".repeat(longest + 1);
-  const padded = /^`|`$/.test(content) ? ` ${content} ` : content;
-  return `${fence}${padded}${fence}`;
-};
-
 const markdownPart = (part: Part): string | undefined => {
   switch (part.kind) {
     case "text":
     case "badge":
       return escapeMarkdown(part.value);
     case "id":
-      return codeSpan(part.value);
+      return markdownCode(part.value);
     case "muted":
       return `*${escapeMarkdown(part.value)}*`;
     case "icon":
@@ -207,7 +197,7 @@ const markdownLine = (line: Line): string =>
 
 const renderMarkdown = (card: Card): string =>
   [
-    `### ${codeSpan(card.title)}`,
+    `### ${markdownCode(card.title)}`,
     card.summary.length
       ? card.summary.map(markdownLine).join("  \n")
       : undefined,

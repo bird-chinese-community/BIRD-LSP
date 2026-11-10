@@ -4,6 +4,7 @@ import {
   type Range,
   type Position,
 } from "vscode-languageserver/node.js";
+import { markdownCode } from "@birdcc/intel";
 import type { BirdDeclaration, SourceRange } from "@birdcc/parser";
 import { HOVER_KEYWORD_DOCS } from "./hover-docs.js";
 import {
@@ -69,20 +70,17 @@ export const isPositionInRange = (
 export const declarationMetadata = (
   declaration: BirdDeclaration,
 ): LspDeclarationMetadata | null => {
-  const escapeMarkdownCode = (text: string): string =>
-    text.replaceAll("\\", "\\\\").replaceAll("`", "\\`");
-
   switch (declaration.kind) {
     case "protocol": {
       const fromTemplate = declaration.fromTemplate
-        ? ` from \`${escapeMarkdownCode(declaration.fromTemplate)}\``
+        ? ` from ${markdownCode(declaration.fromTemplate)}`
         : "";
       return {
         symbolName: declaration.name,
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Module,
         detail: `protocol ${declaration.protocolType}`,
-        hoverMarkdown: `**protocol** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.protocolType)}\`${fromTemplate}`,
+        hoverMarkdown: `**protocol** ${markdownCode(declaration.name)}\n\nType: ${markdownCode(declaration.protocolType)}${fromTemplate}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: `protocol ${declaration.protocolType}`,
@@ -94,7 +92,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Class,
         detail: `template ${declaration.templateType}`,
-        hoverMarkdown: `**template** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.templateType)}\``,
+        hoverMarkdown: `**template** ${markdownCode(declaration.name)}\n\nType: ${markdownCode(declaration.templateType)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: `template ${declaration.templateType}`,
@@ -105,7 +103,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Method,
         detail: "filter",
-        hoverMarkdown: `**filter** \`${escapeMarkdownCode(declaration.name)}\``,
+        hoverMarkdown: `**filter** ${markdownCode(declaration.name)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: "filter",
@@ -116,7 +114,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Function,
         detail: "function",
-        hoverMarkdown: `**function** \`${escapeMarkdownCode(declaration.name)}\``,
+        hoverMarkdown: `**function** ${markdownCode(declaration.name)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Reference,
         completionDetail: "function",
@@ -127,7 +125,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Constant,
         detail: "define",
-        hoverMarkdown: `**define** \`${escapeMarkdownCode(declaration.name)}\``,
+        hoverMarkdown: `**define** ${markdownCode(declaration.name)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Constant,
         completionDetail: "define",
@@ -138,7 +136,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Object,
         detail: `table ${declaration.tableType}`,
-        hoverMarkdown: `**table** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.tableType)}\``,
+        hoverMarkdown: `**table** ${markdownCode(declaration.name)}\n\nType: ${markdownCode(declaration.tableType)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Variable,
         completionDetail: `table ${declaration.tableType}`,
@@ -149,7 +147,7 @@ export const declarationMetadata = (
         selectionRange: declaration.pathRange,
         symbolKind: SymbolKind.File,
         detail: "include",
-        hoverMarkdown: `**include** \`${escapeMarkdownCode(declaration.path)}\``,
+        hoverMarkdown: `**include** ${markdownCode(declaration.path)}`,
         completionLabel: declaration.path,
         completionKind: CompletionItemKind.File,
         completionDetail: "include path",
@@ -163,7 +161,7 @@ export const declarationMetadata = (
         selectionRange: declaration.valueRange,
         symbolKind: SymbolKind.Property,
         detail: `router-id ${declaration.valueKind}`,
-        hoverMarkdown: `**router id** \`${escapeMarkdownCode(declaration.value)}\`${fromSource}`,
+        hoverMarkdown: `**router id** ${markdownCode(declaration.value)}${fromSource}`,
         completionLabel: `router id ${declaration.value}`,
         completionKind: CompletionItemKind.Property,
         completionDetail: `router id ${declaration.valueKind}`,
@@ -175,7 +173,7 @@ export const declarationMetadata = (
         selectionRange: declaration.valueRange,
         symbolKind: SymbolKind.Property,
         detail: "graceful-restart-wait",
-        hoverMarkdown: `**graceful restart wait** \`${escapeMarkdownCode(declaration.value)}\``,
+        hoverMarkdown: `**graceful restart wait** ${markdownCode(declaration.value)}`,
         completionLabel: `graceful restart wait ${declaration.value}`,
         completionKind: CompletionItemKind.Property,
         completionDetail: "graceful restart wait",
@@ -186,7 +184,7 @@ export const declarationMetadata = (
         selectionRange: declaration.valueRange,
         symbolKind: SymbolKind.String,
         detail: "hostname",
-        hoverMarkdown: `**hostname** \`${escapeMarkdownCode(declaration.value)}\``,
+        hoverMarkdown: `**hostname** ${markdownCode(declaration.value)}`,
         completionLabel: `hostname ${declaration.value}`,
         completionKind: CompletionItemKind.Text,
         completionDetail: "hostname override",
@@ -197,7 +195,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Property,
         detail: `attribute ${declaration.attributeType}`,
-        hoverMarkdown: `**attribute** \`${escapeMarkdownCode(declaration.name)}\`\n\nType: \`${escapeMarkdownCode(declaration.attributeType)}\``,
+        hoverMarkdown: `**attribute** ${markdownCode(declaration.name)}\n\nType: ${markdownCode(declaration.attributeType)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Property,
         completionDetail: `attribute ${declaration.attributeType}`,
@@ -208,7 +206,7 @@ export const declarationMetadata = (
         selectionRange: declaration.nameRange,
         symbolKind: SymbolKind.Object,
         detail: "mpls domain",
-        hoverMarkdown: `**mpls domain** \`${escapeMarkdownCode(declaration.name)}\``,
+        hoverMarkdown: `**mpls domain** ${markdownCode(declaration.name)}`,
         completionLabel: declaration.name,
         completionKind: CompletionItemKind.Variable,
         completionDetail: "mpls domain",
