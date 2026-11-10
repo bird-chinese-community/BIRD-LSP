@@ -147,14 +147,15 @@ it("uses DN42 hover only after user enables it", async () => {
     for (const text of [
       "AS4242420001",
       "TestNetwork",
-      "*DN42 IPDB* · Network 172.20.0.1/32",
+      "Network 172.20.0.1/32",
       "California, United States",
       "Registered in Germany",
-      "*Public DNS resolver · Anycast (Published)*",
+      "**Public DNS resolver** · Anycast `Published`",
       "PTR: resolver.test.dn42",
-      "| DN42 registry | Result |",
-      "| ROA | Valid",
-      "| IRR | Exact",
+      "*Source: DN42 IPDB*",
+      "ROA `✓ Valid`",
+      "*DN42 registry*  \nROA `✓ Valid`",
+      "IRR `✓ Exact`",
     ])
       expect(ipMarkdown).toContain(text);
     expect(ipMarkdown).not.toContain("network_type");
@@ -175,13 +176,10 @@ it("uses DN42 hover only after user enables it", async () => {
     expect(asnMarkdown).toContain("**4 prefixes**");
     expect(asnMarkdown).toContain("**Member observations**");
     expect(asnMarkdown).toContain(
-      "- **Public DNS resolver Observed** · 172.20.0.1",
+      "- Public DNS resolver `Observed` · 172.20.0.1",
     );
-    expect(asnMarkdown).toContain("- **Anycast Published** · 172.20.0.1");
-    expect(asnMarkdown).toContain("| DN42 registry | Member observation |");
-    expect(asnMarkdown).toContain(
-      "Policy samples apply to the listed member networks",
-    );
+    expect(asnMarkdown).toContain("- Anycast `Published` · 172.20.0.1");
+    expect(asnMarkdown).toContain("**Member policy** · *DN42 registry*");
     expect(JSON.stringify(await hover(5, 48))).not.toContain("DN42 IPDB");
     expect(JSON.stringify((await hover(1, 5))?.contents) ?? "").not.toContain(
       "DN42 IPDB",
