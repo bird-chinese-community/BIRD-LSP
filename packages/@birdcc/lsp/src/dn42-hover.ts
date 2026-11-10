@@ -2,7 +2,6 @@ import type { Dn42AsnInfo, Dn42IpInfo } from "@birdcc/intel";
 import { encodeHTML } from "entities";
 
 type Observation = NonNullable<Dn42IpInfo["dn42"]>["observations"][number];
-type Row = readonly [label: string, value: string];
 
 const text = (value: string): string =>
   encodeHTML(value.replace(/\s+/g, " ").trim());
@@ -19,7 +18,20 @@ const statuses = new Map([
   ["published", "Published"],
   ["nxdomain", "NXDOMAIN"],
 ]);
-const status = (value: string): string => statuses.get(value) ?? value;
+const statusMarks = new Map([
+  ["valid", "✓"],
+  ["exact", "✓"],
+  ["invalid", "!"],
+  ["conflict", "!"],
+  ["unknown", "?"],
+  ["covering", "↳"],
+]);
+const statusBadge = (value: string): string => {
+  const label = statuses.get(value);
+  if (!label) return text(value);
+  const mark = statusMarks.get(value);
+  return `\`${mark ? `${mark} ` : ""}${label}\``;
+};
 const pathLabels = new Map([
   ["bgp-path-tunnel", "Tunnel"],
   ["bgp-path-ixp", "IXP"],
@@ -30,13 +42,8 @@ const paragraphs = (blocks: (string | undefined)[]): string =>
   blocks.filter(Boolean).join("\n\n");
 const lines = (values: (string | undefined)[]): string =>
   values.filter(Boolean).join("  \n");
-const table = (heading: Row, rows: Row[]): string =>
-  [heading, [":---", ":---"], ...rows]
-    .map(
-      (row, index) =>
-        `| ${row.map((cell) => (index === 1 ? cell : text(cell))).join(" | ")} |`,
-    )
-    .join("\n");
+const policyLine = (label: string, result: string, prefix?: string): string =>
+  `${label} ${statusBadge(result)}${prefix ? ` · ${text(prefix)}` : ""}`;
 const pathHints = (types: string[]): string[] => [
   ...new Set(
     types.flatMap((type) => {
@@ -80,18 +87,18 @@ const observationLine = (item: Observation, ownerAsn?: number): string => {
       : isPolicy(item) && item.value
         ? ` · policy ${text(item.value)}`
         : "";
-  return `- **${text(observationLabel(item))} ${text(status(item.status))}** · ${text(scope)}${value}`;
+  return `- ${text(observationLabel(item))} ${statusBadge(item.status)} · ${text(scope)}${value}`;
 };
 
 const observationList = (
-  heading: string,
+  headingMarkdown: string,
   items: Observation[],
   limit: number,
   ownerAsn?: number,
 ): string | undefined =>
   items.length
     ? paragraphs([
-        `**${heading}**`,
+        headingMarkdown,
         items
           .slice(0, limit)
           .map((item) => observationLine(item, ownerAsn))
@@ -117,17 +124,17 @@ export const formatDn42IpHover = (info: Dn42IpInfo): string => {
     (item) => item.kind === "geofeed-withheld",
   );
   const roles = [
-    types.includes("public-resolver") ? "Public DNS resolver" : undefined,
+    types.includes("public-resolver") ? "**Public DNS resolver**" : undefined,
     data && data.anycast !== "unknown"
-      ? `Anycast (${status(data.anycast)})`
+      ? `Anycast ${statusBadge(data.anycast)}`
       : undefined,
   ]
     .filter(Boolean)
     .join(" · ");
-  const locationSummary = location
-    ? `**${text(location)}**${data?.confidence === "geofeed" ? " · *GeoFeed location*" : ""}`
-    : withheld
-      ? "*Location withheld by GeoFeed*"
+  const locationSummary = withheld
+    ? "*Location withheld by GeoFeed*"
+    : location
+      ? `**${data?.confidence === "geofeed" ? "⌖ " : ""}${text(location)}**${data?.confidence === "geofeed" ? " · *GeoFeed location*" : ""}`
       : registered
         ? `Registered in ${text(registered)}`
         : roles
@@ -150,33 +157,33 @@ export const formatDn42IpHover = (info: Dn42IpInfo): string => {
   return paragraphs([
     `### ${text(info.ip)}`,
     lines([
+      roles || undefined,
+      locationSummary,
       info.asn
         ? `AS${info.asn}${info.asName ? ` · ${text(info.asName)}` : ""}`
         : undefined,
-      locationSummary,
       registered &&
       ((location && info.registeredCountry !== info.country) || withheld)
         ? `Registered in ${text(registered)}`
         : undefined,
-      roles ? `*${text(roles)}*` : undefined,
     ]),
-    `*DN42 IPDB*${info.prefix ? ` · Network ${text(info.prefix)}` : ""}`,
     data
-      ? table(
-          ["DN42 registry", "Result"],
-          [
-            [
-              "ROA",
-              `${status(data.roa_status)}${data.roa_prefix ? ` · ${data.roa_prefix}` : ""}`,
-            ],
-            [
-              "IRR",
-              `${status(data.irr_status)}${data.irr_prefix ? ` · ${data.irr_prefix}` : ""}`,
-            ],
-          ],
-        )
+      ? lines([
+          "*DN42 registry*",
+          data.roa_prefix === data.irr_prefix
+            ? `${policyLine("ROA", data.roa_status)} · ${policyLine("IRR", data.irr_status)}`
+            : policyLine("ROA", data.roa_status, data.roa_prefix),
+          data.roa_prefix === data.irr_prefix
+            ? data.roa_prefix
+              ? `Policy for both: ${text(data.roa_prefix)}`
+              : undefined
+            : policyLine("IRR", data.irr_status, data.irr_prefix),
+        ])
       : undefined,
+    observationList("**Origin observations**", warnings, 2),
+    "---",
     lines([
+      info.prefix ? `Network ${text(info.prefix)}` : undefined,
       ptrValue ? `PTR: ${text(ptrValue)}` : undefined,
       info.connectionType ? `Access: ${text(info.connectionType)}` : undefined,
       hints.length ? `BGP path: ${hints.join(" · ")}` : undefined,
@@ -184,7 +191,7 @@ export const formatDn42IpHover = (info: Dn42IpInfo): string => {
         ? `Network types: ${otherTypes.map(text).join(" · ")}`
         : undefined,
     ]),
-    observationList("Origin observations", warnings, 2),
+    "*Source: DN42 IPDB*",
   ]);
 };
 
@@ -208,20 +215,20 @@ export const formatDn42AsnHover = (info: Dn42AsnInfo): string => {
   return paragraphs([
     `### AS${info.asn}`,
     lines([
-      info.as_name ? `**${text(info.as_name)}**` : undefined,
-      countries.length
-        ? `Registered in ${countries.slice(0, 4).map(text).join(", ")}${countries.length > 4 ? ` · ${countries.length - 4} more` : ""}`
-        : undefined,
-      `*DN42 IPDB* · **${info.prefixes.length} prefixes**`,
+      info.as_name ? text(info.as_name) : undefined,
+      `**${info.prefixes.length} prefixes**`,
     ]),
     policies.length
-      ? table(
-          ["DN42 registry", "Member observation"],
-          policies.map((item) => [
-            observationLabel(item),
-            `${status(item.status)} · ${item.target}${item.asn && item.asn !== info.asn ? ` · AS${item.asn}` : ""}${item.value ? ` · policy ${item.value}` : ""}`,
-          ]),
+      ? observationList(
+          "**Member policy** · *DN42 registry*",
+          policies,
+          2,
+          info.asn,
         )
+      : undefined,
+    "---",
+    countries.length
+      ? `Registered in ${countries.slice(0, 4).map(text).join(", ")}${countries.length > 4 ? ` · ${countries.length - 4} more` : ""}`
       : undefined,
     lines([
       ...info.prefixes.slice(0, 2).map(text),
@@ -229,12 +236,15 @@ export const formatDn42AsnHover = (info: Dn42AsnInfo): string => {
     ]),
     hints.length ? `BGP path on members: ${hints.join(" · ")}` : undefined,
     memberObservations.length
-      ? observationList("Member observations", memberObservations, 2, info.asn)
+      ? observationList(
+          "**Member observations**",
+          memberObservations,
+          2,
+          info.asn,
+        )
       : policies.length
         ? undefined
         : "*No member observations recorded*",
-    policies.length
-      ? "*Policy samples apply to the listed member networks.*"
-      : undefined,
+    "*Source: DN42 IPDB*",
   ]);
 };
