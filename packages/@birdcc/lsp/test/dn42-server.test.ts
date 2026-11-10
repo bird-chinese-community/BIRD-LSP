@@ -13,27 +13,41 @@ import {
   type Hover,
 } from "vscode-languageserver/node.js";
 import { expect, it, vi } from "vitest";
+import { encodeHTML } from "entities";
 
 it("uses DN42 hover only after user enables it", async () => {
   const fixture = fileURLToPath(
     new URL("../../intel/test/fixtures/", import.meta.url),
   );
-  const [city, asn] = await Promise.all([
-    readFile(join(fixture, "city.mmdb")),
-    readFile(join(fixture, "asn.mmdb")),
-  ]);
+  const files = [
+    "country.mmdb",
+    "city.mmdb",
+    "asn.mmdb",
+    "connection-type.mmdb",
+    "asn-index.json",
+    "metadata.json",
+    "LICENSE-Unicode.txt",
+  ];
+  const artifacts = Object.fromEntries(
+    await Promise.all(
+      files.map(async (file) => [
+        `/${file}`,
+        await readFile(join(fixture, file)),
+      ]),
+    ),
+  );
   const hash = (data: Buffer) =>
     createHash("sha256").update(data).digest("hex");
-  const checksums = JSON.stringify({
-    "city.mmdb": hash(city),
-    "asn.mmdb": hash(asn),
-  });
+  const checksums = JSON.stringify(
+    Object.fromEntries(
+      files.map((file) => [file, hash(artifacts[`/${file}`])]),
+    ),
+  );
   let requests = 0;
   const server = createServer((req, res) => {
     requests += 1;
     if (req.url === "/checksums.json") res.end(checksums);
-    else if (req.url === "/city.mmdb") res.end(city);
-    else if (req.url === "/asn.mmdb") res.end(asn);
+    else if (artifacts[req.url ?? ""]) res.end(artifacts[req.url ?? ""]);
     else {
       res.statusCode = 404;
       res.end();
@@ -60,6 +74,8 @@ it("uses DN42 hover only after user enables it", async () => {
     new StreamMessageWriter(child.stdin),
   );
   let userEnabled = false;
+  let masterEnabled = true;
+  let hoverEnabled = true;
   client.onRequest(
     "workspace/configuration",
     (params: { items: { section?: string; scopeUri?: string }[] }) =>
@@ -67,14 +83,20 @@ it("uses DN42 hover only after user enables it", async () => {
         item.section === "bird2-lsp.intel.dn42.enabled"
           ? userEnabled
           : item.section === "bird2-lsp.intel.enabled"
-            ? true
-            : { intel: { dn42: { enabled: true } } },
+            ? masterEnabled
+            : {
+                intel: {
+                  enabled: masterEnabled,
+                  hover: hoverEnabled,
+                  dn42: { enabled: true },
+                },
+              },
       ),
   );
   client.listen();
   const uri = pathToFileURL(join(dir, "bird.conf")).toString();
   const source =
-    "protocol bgp test { neighbor 172.20.0.1 as 4242420001; }\n# 172.20.0.1\n";
+    'protocol bgp test { neighbor 172.20.0.1 as 4242420001; }\n# 172.20.0.1\n/* local as 4242420001;\nneighbor 172.20.0.1 as 4242420001; */\ndefine LABEL = "local as 4242420001";\nprotocol bgp invalid { neighbor 172.20.0.1 as 4294967296; }\n';
   const hover = (line: number, character: number) =>
     client.sendRequest<Hover | null>("textDocument/hover", {
       textDocument: { uri },
@@ -105,14 +127,76 @@ it("uses DN42 hover only after user enables it", async () => {
     await vi.waitFor(
       async () =>
         expect((await hover(0, 34))?.contents).toMatchObject({
-          kind: "plaintext",
+          kind: "markdown",
           value: expect.stringContaining("DN42 IPDB"),
         }),
       { timeout: 10000 },
     );
-    expect(requests).toBeGreaterThanOrEqual(3);
+    expect(requests).toBeGreaterThanOrEqual(8);
+    const ipHover = (await hover(0, 34))?.contents;
+    if (
+      !ipHover ||
+      typeof ipHover !== "object" ||
+      Array.isArray(ipHover) ||
+      !("kind" in ipHover)
+    )
+      throw new Error("DN42 hover must contain MarkupContent");
+    for (const text of [
+      "IP: 172.20.0.1",
+      "Prefix: 172.20.0.1/32",
+      "California, United States",
+      "Anycast: published",
+      "public-resolver",
+      "PTR: resolver.test.dn42",
+      "ROA policy (DN42 registry): valid",
+      "IRR (DN42 registry route object): exact",
+    ])
+      expect(ipHover.value).toContain(encodeHTML(text));
+    const asnHover = JSON.stringify((await hover(0, 45))?.contents);
+    expect(asnHover).toContain("AS4242420001 TestNetwork");
+    expect(asnHover).toContain(encodeHTML("Registered countries: Germany"));
+    expect(asnHover).toContain(
+      encodeHTML("Types observed on member prefixes:"),
+    );
+    expect(JSON.stringify(await hover(5, 48))).not.toContain("DN42 IPDB");
     expect(JSON.stringify((await hover(1, 5))?.contents) ?? "").not.toContain(
       "DN42 IPDB",
+    );
+    for (const position of [
+      [2, 17],
+      [3, 45],
+      [4, 30],
+    ]) {
+      expect(
+        JSON.stringify((await hover(position[0], position[1]))?.contents) ?? "",
+      ).not.toContain("DN42 IPDB");
+    }
+    hoverEnabled = false;
+    await client.sendNotification("workspace/didChangeConfiguration", {
+      settings: { birdcc: { intel: { hover: false } } },
+    });
+    await vi.waitFor(async () =>
+      expect(
+        JSON.stringify((await hover(0, 34))?.contents) ?? "",
+      ).not.toContain("DN42 IPDB"),
+    );
+    hoverEnabled = true;
+    await client.sendNotification("workspace/didChangeConfiguration", {
+      settings: { birdcc: { intel: { hover: true } } },
+    });
+    await vi.waitFor(async () =>
+      expect(JSON.stringify((await hover(0, 45))?.contents) ?? "").toContain(
+        "DN42 IPDB",
+      ),
+    );
+    masterEnabled = false;
+    await client.sendNotification("workspace/didChangeConfiguration", {
+      settings: { birdcc: { intel: { enabled: false } } },
+    });
+    await vi.waitFor(async () =>
+      expect(
+        JSON.stringify((await hover(0, 45))?.contents) ?? "",
+      ).not.toContain("DN42 IPDB"),
     );
     userEnabled = false;
     await client.sendNotification("workspace/didChangeConfiguration", {

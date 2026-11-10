@@ -1,0 +1,807 @@
+{
+  "metadata": {
+    "revision": "5884dc63cf7ca21c5b29c7de5fdea5337608fdae+working-tree",
+    "node": "v22.20.0",
+    "mitata": "1.0.34",
+    "sdk": "0.1.0",
+    "sdkArchive": {
+      "name": "birdcc-dn42-ipdb-0.1.0.tgz",
+      "sha256": "61fc37cfb442966837d13ec4d60cc00f2a9b734f787e97f66ed33ec4bc6daacb",
+      "url": "https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz"
+    },
+    "codeSha256": {
+      "tools/bench-dn42.mjs": "abc8ca6949bab2b696ff8487eb2fdc6cd15d47e607d0aec70ee5d8b80044e8fc",
+      "packages/@birdcc/intel/dist/dn42.js": "b85d7463c5a71c8433817e35c87d0ce2d763eb5062eb3aa14afce29665a79cbc",
+      "packages/@birdcc/parser/dist/index.js": "23fc9b08a02668f1542bcf3e3dd8f0b0e6e398d8409feffed19d8c0f81b7e600",
+      "packages/@birdcc/intel/node_modules/@birdcc/dn42-ipdb/dist/index.js": "3393ca1f203f6cffc63cc0c9b1fedb0b46dd563ff8cfdb9c2ce38d22ce40ce1d"
+    },
+    "gc": "exposed; mitata default once after warmup",
+    "platform": "linux-x64",
+    "cpu": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "dataset": "public-release",
+    "release": "2026-11-10.1",
+    "releaseRepository": "https://github.com/bird-chinese-community/DN42-IPDB-Releases",
+    "artifacts": {
+      "country.mmdb": {
+        "bytes": 2023435,
+        "sha256": "a3fb275f2cfa2e23659f9e6e8bfd847a6b857f2c8e47f25226be5173ff0cb6de"
+      },
+      "city.mmdb": {
+        "bytes": 2028356,
+        "sha256": "cb0b13474d182b293746e633ae6caeae09ede56c7038a4544a41a9dd86e98a37"
+      },
+      "asn.mmdb": {
+        "bytes": 2061027,
+        "sha256": "32ab383f01b670c7c043f095080ceef9d591f7f339910a5619c2d150af8fdcc0"
+      },
+      "connection-type.mmdb": {
+        "bytes": 1997656,
+        "sha256": "f20c0be1ff53a5695129edaceeb7d222fd91b6e7e80c78e54fe47bf6509f79e0"
+      },
+      "asn-index.json": {
+        "bytes": 3943272,
+        "sha256": "eaa617aab47fef6c71be9220dfd7b75a87fd31229cb126c107e63aaf772ed3b5"
+      },
+      "metadata.json": {
+        "bytes": 12787,
+        "sha256": "c54295ebd5be0bea88b77f54e648bb327476cf2434f9a864ec7cb51ee80ca041"
+      },
+      "LICENSE-Unicode.txt": {
+        "bytes": 2033,
+        "sha256": "220ba0e1c43b99530d2d5bdb892a99dca0989414f51ab695ecd90163eaa1ec3b"
+      }
+    },
+    "inputs": [
+      {
+        "declarations": 10,
+        "bytes": 306
+      },
+      {
+        "declarations": 1000,
+        "bytes": 23886
+      },
+      {
+        "declarations": 10000,
+        "bytes": 257886
+      }
+    ],
+    "requests": 244,
+    "artifactRequests": 189,
+    "mmdbRequests": 108,
+    "updateRevisions": 13,
+    "cpuAffinity": "2,3",
+    "nodeOptions": "--max-old-space-size=2048",
+    "timingUnit": "nanoseconds per operation"
+  },
+  "context": {
+    "now": 1794280842270,
+    "arch": "x64-linux",
+    "version": "22.20.0",
+    "runtime": "node",
+    "cpu": {
+      "name": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+      "freq": 3.2086278932829315
+    },
+    "noop": {
+      "fn": {
+        "avg": 0.08921304547875793,
+        "p99": 0.154052734375,
+        "ticks": 7167016960
+      },
+      "iter": {
+        "avg": 22.219846759610775,
+        "p99": 81.075927734375,
+        "ticks": 28827648
+      },
+      "fn_gc": {
+        "avg": 4.607367153825431,
+        "p99": 7.13232421875,
+        "ticks": 237568
+      }
+    }
+  },
+  "benchmarks": [
+    {
+      "alias": "lookup / disabled control",
+      "runs": [
+        {
+          "name": "lookup / disabled control",
+          "stats": {
+            "avg": 5.078691033604442,
+            "p50": 4.358642578125,
+            "p75": 4.43701171875,
+            "p99": 9.36303710914217,
+            "min": 3.984619140625,
+            "max": 108.6982421875,
+            "ticks": 135892992,
+            "sampleCount": 33177,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 33163,
+              "total": 3984.458984375,
+              "min": 0.099609375,
+              "max": 51.865234375,
+              "avg": 0.12014772440294907
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / IPv4 hit",
+      "runs": [
+        {
+          "name": "lookup / IPv4 hit",
+          "stats": {
+            "avg": 126486.44568949936,
+            "p50": 107480,
+            "p75": 132949,
+            "p99": 441100,
+            "min": 88114,
+            "max": 635080,
+            "ticks": 5533,
+            "sampleCount": 5533,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 5447,
+              "total": 1283006056,
+              "min": 14584,
+              "max": 556232,
+              "avg": 235543.61226363137
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / IPv6 hit",
+      "runs": [
+        {
+          "name": "lookup / IPv6 hit",
+          "stats": {
+            "avg": 41128.93092854818,
+            "p50": 41024.24072265625,
+            "p75": 41532.605224609375,
+            "p99": 42050.48193359375,
+            "min": 38533.36279296875,
+            "max": 45477.024169921875,
+            "ticks": 49152,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 8,
+              "total": 12785.333984375,
+              "min": 1543.443359375,
+              "max": 1978.43359375,
+              "avg": 1598.166748046875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / IPv4 miss",
+      "runs": [
+        {
+          "name": "lookup / IPv4 miss",
+          "stats": {
+            "avg": 922.9015013307005,
+            "p50": 868.416015625,
+            "p75": 947.515625,
+            "p99": 1460.24853515625,
+            "min": 767.623046875,
+            "max": 1494.61181640625,
+            "ticks": 745472,
+            "sampleCount": 182,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 118,
+              "total": 174902.298828125,
+              "min": 1202.5390625,
+              "max": 2803.25,
+              "avg": 1482.222871424788
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / invalid address",
+      "runs": [
+        {
+          "name": "lookup / invalid address",
+          "stats": {
+            "avg": 45.00586175717382,
+            "p50": 37.81689453125,
+            "p75": 44.426025390625,
+            "p99": 138.052001953125,
+            "min": 34.5390625,
+            "max": 270.656982421875,
+            "ticks": 15532032,
+            "sampleCount": 3792,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 3785,
+              "total": 943.107421875,
+              "min": 0.01171875,
+              "max": 99.232421875,
+              "avg": 0.2491697283685601
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / disabled ASN control",
+      "runs": [
+        {
+          "name": "lookup / disabled ASN control",
+          "stats": {
+            "avg": 0.9743408014749431,
+            "p50": 0.836669921875,
+            "p75": 0.87060546875,
+            "p99": 1.7734375,
+            "min": 0.7705078125,
+            "max": 87.658203125,
+            "ticks": 679493632,
+            "sampleCount": 165892,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 165888,
+              "total": 18072.421875,
+              "min": 0.099609375,
+              "max": 68.384765625,
+              "avg": 0.10894351535373265
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / ASN hit",
+      "runs": [
+        {
+          "name": "lookup / ASN hit",
+          "stats": {
+            "avg": 81.87373011746853,
+            "p50": 72.552001953125,
+            "p75": 79.5888671875,
+            "p99": 208.34375,
+            "min": 64.16455078125,
+            "max": 308.3662109375,
+            "ticks": 8540160,
+            "sampleCount": 2085,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 2066,
+              "total": 67682.6640625,
+              "min": 14.162109375,
+              "max": 218.0546875,
+              "avg": 32.76024397991287
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "lookup / ASN miss",
+      "runs": [
+        {
+          "name": "lookup / ASN miss",
+          "stats": {
+            "avg": 27.7067678392827,
+            "p50": 24.49609375,
+            "p75": 27.991455078125,
+            "p99": 46.030517578125,
+            "min": 23.300048828125,
+            "max": 136.67260742140934,
+            "ticks": 25272320,
+            "sampleCount": 6170,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 6169,
+              "total": 1652.322265625,
+              "min": 0.111328125,
+              "max": 130.33984375,
+              "avg": 0.2678428052561193
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10 / full parse control",
+      "runs": [
+        {
+          "name": "parser / 10 / full parse control",
+          "stats": {
+            "avg": 81335.50679314033,
+            "p50": 66735,
+            "p75": 85948.9999961853,
+            "p99": 165897.99999809265,
+            "min": 58928.99999809265,
+            "max": 2364644.9999980927,
+            "ticks": 8538,
+            "sampleCount": 8538,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 8369,
+              "total": 361471560,
+              "min": 904,
+              "max": 537048,
+              "avg": 43191.72661010874
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10 / IP after Unicode",
+      "runs": [
+        {
+          "name": "parser / 10 / IP after Unicode",
+          "stats": {
+            "avg": 35132.14933268229,
+            "p50": 35145.823486328125,
+            "p75": 35705.589599609375,
+            "p99": 37004.4638671875,
+            "min": 33167.71533203125,
+            "max": 37537.045654296875,
+            "ticks": 49152,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 3,
+              "total": 9641.25390625,
+              "min": 3152.744140625,
+              "max": 3335.740234375,
+              "avg": 3213.7513020833335
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10 / ASN after Unicode",
+      "runs": [
+        {
+          "name": "parser / 10 / ASN after Unicode",
+          "stats": {
+            "avg": 33989.08624267578,
+            "p50": 33729.726806640625,
+            "p75": 34447.058837890625,
+            "p99": 35836.971435546875,
+            "min": 32076.683349609375,
+            "max": 37123.620849609375,
+            "ticks": 49152,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 4,
+              "total": 11641.236328125,
+              "min": 2889.33203125,
+              "max": 2973.130859375,
+              "avg": 2910.30908203125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10 / comment",
+      "runs": [
+        {
+          "name": "parser / 10 / comment",
+          "stats": {
+            "avg": 31555.914103190105,
+            "p50": 31162.669677734375,
+            "p75": 32241.560302734375,
+            "p99": 32703.652099609375,
+            "min": 30196.02685546875,
+            "max": 33939.833984375,
+            "ticks": 49152,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 6,
+              "total": 12424.0546875,
+              "min": 2064.67578125,
+              "max": 2100.47265625,
+              "avg": 2070.67578125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10 / non-IP token",
+      "runs": [
+        {
+          "name": "parser / 10 / non-IP token",
+          "stats": {
+            "avg": 33052.91491699219,
+            "p50": 32597.5908203125,
+            "p75": 34154.946044921875,
+            "p99": 34273.215087890625,
+            "min": 31022.927734375,
+            "max": 35514.25,
+            "ticks": 49152,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 5,
+              "total": 13021.728515625,
+              "min": 2592.90625,
+              "max": 2649.98046875,
+              "avg": 2604.345703125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 1000 / full parse control",
+      "runs": [
+        {
+          "name": "parser / 1000 / full parse control",
+          "stats": {
+            "avg": 27238748.5,
+            "p50": 26911794,
+            "p75": 27700762,
+            "p99": 28951226,
+            "min": 25855470,
+            "max": 29222320,
+            "ticks": 22,
+            "sampleCount": 22,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 22,
+              "total": 45258848,
+              "min": 657736,
+              "max": 4007120,
+              "avg": 2057220.3636363635
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 1000 / IP after Unicode",
+      "runs": [
+        {
+          "name": "parser / 1000 / IP after Unicode",
+          "stats": {
+            "avg": 2211130.7492063493,
+            "p50": 2175945,
+            "p75": 2233231,
+            "p99": 2771031,
+            "min": 1968368,
+            "max": 2934164,
+            "ticks": 315,
+            "sampleCount": 315,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 311,
+              "total": 5526624,
+              "min": 3504,
+              "max": 1181376,
+              "avg": 17770.495176848875
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 1000 / ASN after Unicode",
+      "runs": [
+        {
+          "name": "parser / 1000 / ASN after Unicode",
+          "stats": {
+            "avg": 2196506.432176656,
+            "p50": 2168090,
+            "p75": 2212192,
+            "p99": 2600263,
+            "min": 2047896,
+            "max": 2680422,
+            "ticks": 317,
+            "sampleCount": 317,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 315,
+              "total": 2086048,
+              "min": 3832,
+              "max": 381688,
+              "avg": 6622.374603174603
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 1000 / comment",
+      "runs": [
+        {
+          "name": "parser / 1000 / comment",
+          "stats": {
+            "avg": 2073905.2738095238,
+            "p50": 2051122,
+            "p75": 2120812,
+            "p99": 2562201,
+            "min": 1898299,
+            "max": 2835230,
+            "ticks": 336,
+            "sampleCount": 336,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 338,
+              "total": 1027048,
+              "min": 2624,
+              "max": 52208,
+              "avg": 3038.603550295858
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 1000 / non-IP token",
+      "runs": [
+        {
+          "name": "parser / 1000 / non-IP token",
+          "stats": {
+            "avg": 2183770.606918239,
+            "p50": 2156608,
+            "p75": 2195511,
+            "p99": 2591247,
+            "min": 1909340,
+            "max": 3199126,
+            "ticks": 318,
+            "sampleCount": 318,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 319,
+              "total": 2155336,
+              "min": 3368,
+              "max": 851080,
+              "avg": 6756.539184952978
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10000 / full parse control",
+      "runs": [
+        {
+          "name": "parser / 10000 / full parse control",
+          "stats": {
+            "avg": 2388813713.3333335,
+            "p50": 2377970113,
+            "p75": 2393245768,
+            "p99": 2423810393,
+            "min": 2347044889,
+            "max": 2447798874,
+            "ticks": 12,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 6,
+              "total": 56876008,
+              "min": 8193704,
+              "max": 10707384,
+              "avg": 9479334.666666666
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10000 / IP after Unicode",
+      "runs": [
+        {
+          "name": "parser / 10000 / IP after Unicode",
+          "stats": {
+            "avg": 22090818.5,
+            "p50": 21992180,
+            "p75": 22521814,
+            "p99": 23363249,
+            "min": 21162398,
+            "max": 23575533,
+            "ticks": 28,
+            "sampleCount": 28,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 31,
+              "total": 654232,
+              "min": 6752,
+              "max": 310000,
+              "avg": 21104.25806451613
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10000 / ASN after Unicode",
+      "runs": [
+        {
+          "name": "parser / 10000 / ASN after Unicode",
+          "stats": {
+            "avg": 21719824.655172415,
+            "p50": 21704885,
+            "p75": 22026453,
+            "p99": 22334466,
+            "min": 21053135,
+            "max": 22375863,
+            "ticks": 29,
+            "sampleCount": 29,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 32,
+              "total": 542888,
+              "min": 6392,
+              "max": 342768,
+              "avg": 16965.25
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10000 / comment",
+      "runs": [
+        {
+          "name": "parser / 10000 / comment",
+          "stats": {
+            "avg": 21766165.655172415,
+            "p50": 21752154,
+            "p75": 21834297,
+            "p99": 22784223,
+            "min": 20939303,
+            "max": 22993612,
+            "ticks": 29,
+            "sampleCount": 29,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 33,
+              "total": 210168,
+              "min": 4800,
+              "max": 56160,
+              "avg": 6368.727272727273
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "parser / 10000 / non-IP token",
+      "runs": [
+        {
+          "name": "parser / 10000 / non-IP token",
+          "stats": {
+            "avg": 21620801.55172414,
+            "p50": 21606163,
+            "p75": 21892855,
+            "p99": 22477962,
+            "min": 20856790,
+            "max": 22509100,
+            "ticks": 29,
+            "sampleCount": 29,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 32,
+              "total": 544288,
+              "min": 5928,
+              "max": 358712,
+              "avg": 17009
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "updater / unchanged manifest",
+      "runs": [
+        {
+          "name": "updater / unchanged manifest",
+          "stats": {
+            "avg": 67546691.41666667,
+            "p50": 62855878,
+            "p75": 69196195,
+            "p99": 96889733,
+            "min": 50748123,
+            "max": 101699151,
+            "ticks": 12,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 11,
+              "total": 98471800,
+              "min": 8662232,
+              "max": 9773600,
+              "avg": 8951981.818181818
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "updater / existing cache startup and manifest",
+      "runs": [
+        {
+          "name": "updater / existing cache startup and manifest",
+          "stats": {
+            "avg": 154017778.75,
+            "p50": 154068378,
+            "p75": 162910093,
+            "p99": 169186720,
+            "min": 133790103,
+            "max": 170246520,
+            "ticks": 12,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 9,
+              "total": 241254112,
+              "min": 26128736,
+              "max": 28484008,
+              "avg": 26806012.444444444
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "updater / first install including directory cleanup",
+      "runs": [
+        {
+          "name": "updater / first install including directory cleanup",
+          "stats": {
+            "avg": 183019229.83333015,
+            "p50": 183705927.99999237,
+            "p75": 190022780.99999237,
+            "p99": 196249446,
+            "min": 169281245.00000763,
+            "max": 202337213,
+            "ticks": 12,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 10,
+              "total": 260842904,
+              "min": 23208208,
+              "max": 26446848,
+              "avg": 26084290.4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "updater / changed metadata and full bundle activation",
+      "runs": [
+        {
+          "name": "updater / changed metadata and full bundle activation",
+          "stats": {
+            "avg": 181871572.3333346,
+            "p50": 175159101,
+            "p75": 191235856,
+            "p99": 203604097.00000763,
+            "min": 163330764.00000763,
+            "max": 211481258,
+            "ticks": 12,
+            "sampleCount": 12,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 10,
+              "total": 260508992,
+              "min": 22964440,
+              "max": 26447464,
+              "avg": 26050899.2
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

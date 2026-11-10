@@ -14,11 +14,12 @@ import { toRange } from "./tree.js";
 
 export type { BirdSyntaxLayout } from "./syntax-layout.js";
 
-export const findIpLiteralAt = async (
+export const findNetworkLiteralAt = async (
   input: string,
   position: { line: number; character: number },
 ): Promise<{
   value: string;
+  kind: "ip" | "number";
   range: import("./types.js").SourceRange;
 } | null> => {
   if (position.line < 0 || position.character < 0) return null;
@@ -33,7 +34,11 @@ export const findIpLiteralAt = async (
     let literal = null;
     while (node) {
       if (node.type === "comment" || node.type === "string") return null;
-      if (node.type === "ipv4_literal" || node.type === "ipv6_literal") {
+      if (
+        node.type === "ipv4_literal" ||
+        node.type === "ipv6_literal" ||
+        node.type === "number"
+      ) {
         literal = node;
       }
       node = node.parent;
@@ -47,10 +52,27 @@ export const findIpLiteralAt = async (
       position.character >= range.endColumn - 1
     )
       return null;
-    return { value: literal.text, range };
+    return {
+      value: literal.text,
+      kind: literal.type === "number" ? "number" : "ip",
+      range,
+    };
   } finally {
     tree.delete();
   }
+};
+
+export const findIpLiteralAt = async (
+  input: string,
+  position: { line: number; character: number },
+): Promise<{
+  value: string;
+  range: import("./types.js").SourceRange;
+} | null> => {
+  const literal = await findNetworkLiteralAt(input, position);
+  return literal?.kind === "ip"
+    ? { value: literal.value, range: literal.range }
+    : null;
 };
 
 export type {
