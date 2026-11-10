@@ -329,7 +329,7 @@
         "bird2-lsp.intel.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Enable ASN intelligence features and optional DN42 IP address hover. ASN data comes from [BGP.Tools OpenDB](https://github.com/Alice39s/BGP.Tools-OpenDB).",
+          "markdownDescription": "Enable ASN intelligence features and optional DN42 IP and ASN hover. ASN data comes from [BGP.Tools OpenDB](https://github.com/Alice39s/BGP.Tools-OpenDB).",
           "scope": "resource"
         },
         "bird2-lsp.intel.inlayHints": {
@@ -347,13 +347,13 @@
         "bird2-lsp.intel.hover": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Show ASN details and enabled DN42 IP address information on hover.",
+          "markdownDescription": "Show ASN details and enabled DN42 IP and ASN information on hover.",
           "scope": "resource"
         },
         "bird2-lsp.intel.dn42.enabled": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Download [DN42 City and ASN databases](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases) for IP address hover and check for updates daily. Enable in user settings.",
+          "markdownDescription": "Download the [DN42 IPDB bundle](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases) for IP and ASN hover, including location, service observations and registry origin policy. Check for updates daily. Enable in user settings.",
           "scope": "application"
         }
       }

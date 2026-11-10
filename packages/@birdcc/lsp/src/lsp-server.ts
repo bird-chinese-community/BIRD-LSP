@@ -29,7 +29,7 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { ParsedBirdDocument } from "@birdcc/parser";
-import { findIpLiteralAt, parseBirdConfig } from "@birdcc/parser";
+import { findNetworkLiteralAt, parseBirdConfig } from "@birdcc/parser";
 import {
   lintBirdConfig,
   lintResolvedCrossFileGraph,
@@ -46,6 +46,12 @@ import { createAsnCompletionItems } from "./asn-completion.js";
 import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
+import { findAsnMatchesInLine } from "./asn-context.js";
+import {
+  formatDn42AsnHover,
+  formatDn42IpHover,
+  toDn42HoverMarkdown,
+} from "./dn42-hover.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
   createProjectAnalysisResolver,
@@ -1279,26 +1285,39 @@ export const startLspServer = (options?: LspServerOptions): void => {
         settings.intel?.enabled !== false &&
         settings.intel?.hover !== false
       ) {
-        const literal = await findIpLiteralAt(
+        const literal = await findNetworkLiteralAt(
           document.getText(),
           params.position,
         );
-        if (literal && isIP(literal.value)) {
+        if (literal?.kind === "ip" && isIP(literal.value)) {
           const info = dn42Intel.lookup(literal.value);
           if (info) {
-            const lines = [
-              "DN42 IPDB",
-              info.prefix,
-              info.asn
-                ? `AS${info.asn}${info.asName ? ` ${info.asName}` : ""}`
-                : undefined,
-              [info.city, info.region, info.country].filter(Boolean).join(", "),
-            ].filter(Boolean);
             return {
-              contents: { kind: "plaintext", value: lines.join("\n") },
+              contents: {
+                kind: "markdown",
+                value: toDn42HoverMarkdown(formatDn42IpHover(info)),
+              },
               range: toLspRange(literal.range),
             };
           }
+        }
+        if (literal?.kind === "number") {
+          const match = findAsnMatchesInLine(
+            getLineText(document, params.position.line),
+          ).find(
+            (candidate) =>
+              candidate.start === literal.range.column - 1 &&
+              candidate.end === literal.range.endColumn - 1,
+          );
+          const info = match ? dn42Intel.lookupAsn(match.asn) : undefined;
+          if (info)
+            return {
+              contents: {
+                kind: "markdown",
+                value: toDn42HoverMarkdown(formatDn42AsnHover(info)),
+              },
+              range: toLspRange(literal.range),
+            };
         }
       }
       if (
