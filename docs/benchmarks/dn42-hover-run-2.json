@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "measuredAt": "2026-11-10T17:15:39.623Z",
-    "revision": "9b158747",
+    "measuredAt": "2026-11-10T17:48:44.055Z",
+    "revision": "a872bb72",
     "node": "v22.20.0",
     "mitata": "1.0.34",
     "platform": "linux-x64",
@@ -12,9 +12,9 @@
     "scope": "HTML and Markdown hover formatting only; synthetic inputs; excludes lookup, IPC and editor rendering",
     "timingUnit": "nanoseconds per operation",
     "codeSha256": {
-      "tools/bench-dn42-hover.mjs": "61d67f57d5ee020d864ac877ab9156af1136f4143e88901941ed08f254bf3a27",
-      "packages/@birdcc/lsp/src/dn42-hover.ts": "7e7352f019106b8d582375c140e77600bc3e976a419c9a2470e79376c0f553f3",
-      "packages/@birdcc/lsp/dist/dn42-hover.js": "d7fcda70704c7cd5af80e848d0b4b281a5e56761fdcbb0aaccdde2ae689713ab"
+      "tools/bench-dn42-hover.mjs": "f795c4edda29ba30a9c6a6b972e479671f0ca349dbf5e68bee7a74e8c91a6d3d",
+      "packages/@birdcc/lsp/src/dn42-hover.ts": "ecf7551c2a956c38984175de9dac13bf6b335aafb96fc9f19876649c37d2afe9",
+      "packages/@birdcc/lsp/dist/dn42-hover.js": "89bf58c3bf8924b7dc245318ab8ecbf627f182ffff02bc5e0c2cfb9dd6b39161"
     },
     "inputs": [
       {
@@ -22,56 +22,56 @@
         "sha256": "a98fe5f8e7e624d6742e7aff80df97cc73ff1f40fba14a715b6ea5cc976e002c",
         "observations": 0,
         "prefixes": 1,
-        "outputBytes": 1262
+        "outputBytes": 1252
       },
       {
         "name": "html / IP / resolver and conflicts",
         "sha256": "23758e77c919a3b03fdf723ac3ad15a5c6e10861e8cb8ca0e78c11e464161fac",
         "observations": 2,
         "prefixes": 1,
-        "outputBytes": 2186
+        "outputBytes": 2206
       },
       {
         "name": "html / IP / long IPv6 and 256 observations",
         "sha256": "fbfeca49017701e0589d37457b7d9d8b463cb213403b10137a34441d8c900c96",
         "observations": 256,
         "prefixes": 1,
-        "outputBytes": 2314
+        "outputBytes": 2304
       },
       {
         "name": "html / ASN / 256 prefixes and observations",
         "sha256": "74995bcce7110e2d8ecaafcb398817d38cdbe42fae85140190078ff6f8282c3e",
         "observations": 256,
         "prefixes": 256,
-        "outputBytes": 2575
+        "outputBytes": 2595
       },
       {
         "name": "markdown / IP / GeoFeed",
         "sha256": "a98fe5f8e7e624d6742e7aff80df97cc73ff1f40fba14a715b6ea5cc976e002c",
         "observations": 0,
         "prefixes": 1,
-        "outputBytes": 248
+        "outputBytes": 287
       },
       {
         "name": "markdown / IP / resolver and conflicts",
         "sha256": "23758e77c919a3b03fdf723ac3ad15a5c6e10861e8cb8ca0e78c11e464161fac",
         "observations": 2,
         "prefixes": 1,
-        "outputBytes": 413
+        "outputBytes": 436
       },
       {
         "name": "markdown / IP / long IPv6 and 256 observations",
         "sha256": "fbfeca49017701e0589d37457b7d9d8b463cb213403b10137a34441d8c900c96",
         "observations": 256,
         "prefixes": 1,
-        "outputBytes": 612
+        "outputBytes": 651
       },
       {
         "name": "markdown / ASN / 256 prefixes and observations",
         "sha256": "74995bcce7110e2d8ecaafcb398817d38cdbe42fae85140190078ff6f8282c3e",
         "observations": 256,
         "prefixes": 256,
-        "outputBytes": 534
+        "outputBytes": 557
       }
     ]
   },
@@ -82,20 +82,20 @@
         {
           "name": "html / IP / GeoFeed",
           "stats": {
-            "avg": 5650.307767427885,
-            "p50": 5410.053466796875,
-            "p99": 6990.81640625,
-            "min": 5071.893310546875,
-            "max": 7164.126953125,
+            "avg": 5608.180767352782,
+            "p50": 5591.84423828125,
+            "p99": 6230.321289062616,
+            "min": 5273.29541015625,
+            "max": 6235.475097656366,
             "ticks": 106496,
             "sampleCount": 26,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 28,
-              "total": 7889.515625,
-              "min": 101.3671875,
-              "max": 2640.841796875,
-              "avg": 281.76841517857144
+              "_": 17,
+              "total": 32761.224609375,
+              "min": 1793.978515625,
+              "max": 3998.21875,
+              "avg": 1927.130859375
             }
           }
         }
@@ -107,20 +107,20 @@
         {
           "name": "html / IP / resolver and conflicts",
           "stats": {
-            "avg": 9069.511116536458,
-            "p50": 8969.171875,
-            "p99": 9817.041259765625,
-            "min": 8416.0830078125,
-            "max": 10241.142333984375,
-            "ticks": 61440,
-            "sampleCount": 15,
+            "avg": 8616.066970825195,
+            "p50": 8457.4013671875,
+            "p99": 9097.635009765625,
+            "min": 8166.807373046875,
+            "max": 9658.5283203125,
+            "ticks": 65536,
+            "sampleCount": 16,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 9,
-              "total": 22128.943359375,
-              "min": 2229.400390625,
-              "max": 4284.8046875,
-              "avg": 2458.771484375
+              "_": 7,
+              "total": 20729.51953125,
+              "min": 2658.462890625,
+              "max": 4778.61328125,
+              "avg": 2961.359933035714
             }
           }
         }
@@ -132,20 +132,20 @@
         {
           "name": "html / IP / long IPv6 and 256 observations",
           "stats": {
-            "avg": 10997.711975097656,
-            "p50": 10889.362060546875,
-            "p99": 11310.182861328125,
-            "min": 10731.5,
-            "max": 11328.7529296875,
+            "avg": 10906.214823404947,
+            "p50": 10843.346435546875,
+            "p99": 11307.3974609375,
+            "min": 10536.53564453125,
+            "max": 11391.790283203125,
             "ticks": 49152,
             "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 10,
-              "total": 16970.990234375,
-              "min": 1619.802734375,
-              "max": 2380.2421875,
-              "avg": 1697.0990234375
+              "_": 15,
+              "total": 4854.671875,
+              "min": 253.42578125,
+              "max": 1302.49609375,
+              "avg": 323.64479166666666
             }
           }
         }
@@ -157,20 +157,20 @@
         {
           "name": "html / ASN / 256 prefixes and observations",
           "stats": {
-            "avg": 19168.250549316406,
-            "p50": 18484.5244140625,
-            "p99": 19645.960205078125,
-            "min": 17536.8935546875,
-            "max": 25876.225341796875,
+            "avg": 18387.08791097005,
+            "p50": 17716.359130859375,
+            "p99": 19005.0146484375,
+            "min": 16865.2431640625,
+            "max": 25202.3818359375,
             "ticks": 49152,
             "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 2,
-              "total": 7795.208984375,
-              "min": 3709.640625,
-              "max": 4085.568359375,
-              "avg": 3897.6044921875
+              "_": 3,
+              "total": 4389.73046875,
+              "min": 88.083984375,
+              "max": 3931.134765625,
+              "avg": 1463.2434895833333
             }
           }
         }
@@ -182,20 +182,20 @@
         {
           "name": "markdown / IP / GeoFeed",
           "stats": {
-            "avg": 9972.956017127404,
-            "p50": 9905.87841796875,
-            "p99": 10729.151611328125,
-            "min": 9350.90869140625,
-            "max": 10930.8720703125,
-            "ticks": 53248,
-            "sampleCount": 13,
+            "avg": 10850.003438313803,
+            "p50": 10666.961181640625,
+            "p99": 11334.8212890625,
+            "min": 10372.1796875,
+            "max": 11590.5849609375,
+            "ticks": 49152,
+            "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 3,
-              "total": 8014.701171875,
-              "min": 545.82421875,
-              "max": 3747.94140625,
-              "avg": 2671.5670572916665
+              "_": 13,
+              "total": 8101.96484375,
+              "min": 62.30859375,
+              "max": 2326.734375,
+              "avg": 623.2280649038462
             }
           }
         }
@@ -207,20 +207,20 @@
         {
           "name": "markdown / IP / resolver and conflicts",
           "stats": {
-            "avg": 15585.458028157513,
-            "p50": 15311.206298827892,
-            "p99": 16702.033935546875,
-            "min": 14832.758544921642,
-            "max": 16881.197265625,
+            "avg": 16925.16961669922,
+            "p50": 16403.243652343983,
+            "p99": 17925.2900390625,
+            "min": 15825.761718750233,
+            "max": 18234.73486328125,
             "ticks": 49152,
             "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 11,
-              "total": 7591.36328125,
-              "min": 687.154296875,
-              "max": 708.984375,
-              "avg": 690.1239346590909
+              "_": 10,
+              "total": 10193.134765625,
+              "min": 1007.642578125,
+              "max": 1122.677734375,
+              "avg": 1019.3134765625
             }
           }
         }
@@ -232,20 +232,20 @@
         {
           "name": "markdown / IP / long IPv6 and 256 observations",
           "stats": {
-            "avg": 18429.277689615887,
-            "p50": 18297.2451171875,
-            "p99": 19018.803466796875,
-            "min": 17758.369873046875,
-            "max": 19348.48095703125,
+            "avg": 18625.99072265625,
+            "p50": 18535.210693359375,
+            "p99": 18859.79833984375,
+            "min": 17859.66259765625,
+            "max": 21037.284423828125,
             "ticks": 49152,
             "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 6,
-              "total": 12884.494140625,
-              "min": 2139.408203125,
-              "max": 2187.09765625,
-              "avg": 2147.4156901041665
+              "_": 3,
+              "total": 9822.330078125,
+              "min": 3246.912109375,
+              "max": 3327.443359375,
+              "avg": 3274.1100260416665
             }
           }
         }
@@ -257,20 +257,20 @@
         {
           "name": "markdown / ASN / 256 prefixes and observations",
           "stats": {
-            "avg": 26916.968139648438,
-            "p50": 26400.877197265625,
-            "p99": 28905.229248046875,
-            "min": 25842.5517578125,
-            "max": 30168.78125,
+            "avg": 26074.669087727863,
+            "p50": 25719.933349609375,
+            "p99": 27596.606201171875,
+            "min": 24933.001708984375,
+            "max": 28480.71826171875,
             "ticks": 49152,
             "sampleCount": 12,
             "optimizedOutWarning": false,
             "heap": {
-              "_": 12,
-              "total": 4113.853515625,
-              "min": 333.46484375,
-              "max": 444.33203125,
-              "avg": 342.8211263020833
+              "_": 10,
+              "total": 8212.353515625,
+              "min": 807.365234375,
+              "max": 937.072265625,
+              "avg": 821.2353515625
             }
           }
         }
