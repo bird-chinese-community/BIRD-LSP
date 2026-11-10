@@ -212,6 +212,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter bird2-extension-pack marketplace:package
+      - run: pnpm --filter @birdcc/vscode marketplace:package
 
   # Gate check — all required jobs must pass before merging
   ci-ok:
