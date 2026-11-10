@@ -27,6 +27,7 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import type { ParsedBirdDocument } from "@birdcc/parser";
 import { parseBirdConfig } from "@birdcc/parser";
 import {
@@ -215,6 +216,13 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let dn42Enabled = false;
   let dn42Markup: Dn42HoverMarkup = "markdown";
   let dn42ConfigurationGeneration = 0;
+  // Node's fetch ignores proxy variables; DN42 downloads are its only caller.
+  if (
+    ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"].some(
+      (name) => process.env[name],
+    )
+  )
+    setGlobalDispatcher(new EnvHttpProxyAgent());
   const cacheHome = process.env.XDG_CACHE_HOME;
   const dn42Intel = createDn42Intel({
     cacheDir:
