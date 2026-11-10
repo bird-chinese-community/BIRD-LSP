@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { findIpLiteralAt } from "../src/index.js";
+import { findIpLiteralAt, findNetworkLiteralAt } from "../src/index.js";
 
 it("finds IP tokens without treating comments or strings as addresses", async () => {
   const input = [
@@ -23,4 +23,26 @@ it("finds IP tokens without treating comments or strings as addresses", async ()
     value: "172.20.0.53",
     range: { column: unicode.indexOf("172.20.0.53") + 1 },
   });
+});
+
+it("finds integer tokens and excludes multiline comments and strings", async () => {
+  const input = [
+    "/* neighbor 172.20.0.1 as 4242420001;",
+    "local as 4242420001; */",
+    'define NAME = "local as 4242420001";',
+    "protocol bgp test { neighbor 172.20.0.1 as 4242420001; }",
+  ].join("\n");
+  expect(
+    await findNetworkLiteralAt(input, { line: 1, character: 12 }),
+  ).toBeNull();
+  expect(
+    await findNetworkLiteralAt(input, { line: 2, character: 29 }),
+  ).toBeNull();
+  expect(
+    await findNetworkLiteralAt(input, { line: 3, character: 45 }),
+  ).toMatchObject({
+    value: "4242420001",
+    kind: "number",
+  });
+  expect(await findIpLiteralAt(input, { line: 3, character: 45 })).toBeNull();
 });

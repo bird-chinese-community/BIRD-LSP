@@ -114,22 +114,16 @@ importers:
 
   packages/@birdcc/intel:
     dependencies:
+      '@birdcc/dn42-ipdb':
+        specifier: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz
+        version: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz
       '@msgpack/msgpack':
         specifier: ^3.1.3
         version: 3.1.3
-      maxmind:
-        specifier: ^5.0.8
-        version: 5.0.8
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
       zod:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@types/proper-lockfile':
-        specifier: ^4.1.4
-        version: 4.1.4
       csv-parse:
         specifier: ^6.1.0
         version: 6.1.0
@@ -163,6 +157,9 @@ importers:
       '@birdcc/parser':
         specifier: workspace:*
         version: link:../parser
+      entities:
+        specifier: ^9.0.0
+        version: 9.0.0
       vscode-languageserver:
         specifier: ^9.0.1
         version: 9.0.1
@@ -297,6 +294,11 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@birdcc/dn42-ipdb@https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz':
+    resolution: {tarball: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=22'}
 
   '@clack/core@1.5.1':
     resolution: {integrity: sha512-iHTrHA8MtVuLl2TfZySmcKv1qO2PoyC9Z7pfSDozEuV5vtY3/wcOPKJXlqJ5Oq2Cx5DDGQGAMVx6HZfRRoVEbQ==}
@@ -1254,12 +1256,6 @@ packages:
 
   '@types/node@24.11.0':
     resolution: {integrity: sha512-fPxQqz4VTgPI/IQ+lj9r0h+fDR66bzoeMGHp8ASee+32OSGIkeASsoZuJixsQoVef1QJbeubcPBxKk22QVoWdw==}
-
-  '@types/proper-lockfile@4.1.4':
-    resolution: {integrity: sha512-uo2ABllncSqg9F1D4nugVl9v93RmjxF6LJzQLMLDdPaXCUIDPeOJ21Gbqi43xNKzBi/WQ0Q0dICqufzQbMjipQ==}
-
-  '@types/retry@0.12.5':
-    resolution: {integrity: sha512-3xSjTp3v03X/lSQLkczaN9UIEwJMoMCA1+Nb5HfbJEQWogdeQIyVtTvxPXDQjZ5zws8rFQfVfRdz03ARihPJgw==}
 
   '@types/vscode@1.109.0':
     resolution: {integrity: sha512-0Pf95rnwEIwDbmXGC08r0B4TQhAbsHQ5UyTIgVgoieDe4cOnf92usuR5dEczb6bTKEp7ziZH4TV1TRGPPCExtw==}
@@ -2845,6 +2841,12 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
+  '@birdcc/dn42-ipdb@https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.0/birdcc-dn42-ipdb-0.1.0.tgz':
+    dependencies:
+      maxmind: 5.0.8
+      proper-lockfile: 4.1.2
+      zod: 4.6.7
+
   '@clack/core@1.5.1':
     dependencies:
       fast-wrap-ansi: 0.2.2
@@ -3546,12 +3548,6 @@ snapshots:
   '@types/node@24.11.0':
     dependencies:
       undici-types: 7.16.0
-
-  '@types/proper-lockfile@4.1.4':
-    dependencies:
-      '@types/retry': 0.12.5
-
-  '@types/retry@0.12.5': {}
 
   '@types/vscode@1.109.0': {}
 

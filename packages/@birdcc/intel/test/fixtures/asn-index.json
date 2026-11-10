@@ -1,0 +1,132 @@
+{
+  "asns": {
+    "4242420001": {
+      "asn": 4242420001,
+      "as_name": "TestNetwork",
+      "registered_countries": [
+        {
+          "iso_code": "DE",
+          "names": {
+            "en": "Germany"
+          }
+        }
+      ],
+      "prefixes": [
+        "172.20.0.0/24",
+        "172.20.0.1/32",
+        "fd42:1234::/48",
+        "fd42:1234::1/128"
+      ],
+      "observed_network_types": [
+        "anycast",
+        "public-resolver"
+      ],
+      "observations": [
+        {
+          "target": "172.20.0.1",
+          "asn": 4242420001,
+          "kind": "irr",
+          "status": "exact",
+          "method": "registry-route-object",
+          "source": "data/route/test",
+          "authority": "registry-object",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "172.20.0.1",
+          "kind": "network_type",
+          "value": "public-resolver",
+          "status": "observed",
+          "method": "dns-query",
+          "source": "dns://172.20.0.1:53",
+          "authority": "dns-response",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "172.20.0.1",
+          "kind": "network_type",
+          "value": "anycast",
+          "status": "published",
+          "method": "published-service",
+          "source": "https://example.org/dns",
+          "authority": "service-documentation",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "172.20.0.1",
+          "kind": "ptr",
+          "value": "resolver.test.dn42.",
+          "status": "observed",
+          "method": "dns-ptr",
+          "source": "dns://172.20.0.1:53",
+          "authority": "dns-response",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "172.20.0.1",
+          "asn": 4242420001,
+          "kind": "roa",
+          "status": "valid",
+          "method": "dn42-registry-derived-roa",
+          "source": "https://example.org/roa.json",
+          "authority": "registry-derived",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "fd42:1234::1",
+          "asn": 4242420001,
+          "kind": "irr",
+          "status": "exact",
+          "method": "registry-route-object",
+          "source": "data/route/test",
+          "authority": "registry-object",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "fd42:1234::1",
+          "kind": "network_type",
+          "value": "public-resolver",
+          "status": "observed",
+          "method": "dns-query",
+          "source": "dns://172.20.0.1:53",
+          "authority": "dns-response",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "fd42:1234::1",
+          "kind": "network_type",
+          "value": "anycast",
+          "status": "published",
+          "method": "published-service",
+          "source": "https://example.org/dns",
+          "authority": "service-documentation",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "fd42:1234::1",
+          "kind": "ptr",
+          "value": "resolver.test.dn42.",
+          "status": "observed",
+          "method": "dns-ptr",
+          "source": "dns://172.20.0.1:53",
+          "authority": "dns-response",
+          "observed_at": "2023-11-14T22:13:20Z"
+        },
+        {
+          "target": "fd42:1234::1",
+          "asn": 4242420001,
+          "kind": "roa",
+          "status": "valid",
+          "method": "dn42-registry-derived-roa",
+          "source": "https://example.org/roa.json",
+          "authority": "registry-derived",
+          "observed_at": "2023-11-14T22:13:20Z"
+        }
+      ]
+    }
+  },
+  "built_at": "2023-11-14T22:13:20Z",
+  "copyright": "Copyright 2026 BIRD Chinese Community (database compilation). Source data retains its respective ownership and licenses.",
+  "release_repository": "https://github.com/bird-chinese-community/DN42-IPDB-Releases",
+  "schema_version": "2"
+}

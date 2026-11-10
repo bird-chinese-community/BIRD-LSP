@@ -15,4 +15,5 @@ export {
   type Dn42Intel,
   type Dn42IntelOptions,
   type Dn42IpInfo,
+  type Dn42AsnInfo,
 } from "./dn42.js";

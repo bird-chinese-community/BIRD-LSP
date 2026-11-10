@@ -1,0 +1,36 @@
+{
+  "attributions": [
+    {
+      "license": "Unicode-3.0",
+      "license_file": "LICENSE-Unicode.txt",
+      "name": "Unicode CLDR English names",
+      "source": "https://github.com/unicode-org/cldr-json/tree/7d2b9cb11cec08f4d333ad73209deb3df0711c3b"
+    }
+  ],
+  "built_at": "2023-11-14T22:13:20Z",
+  "copyright": "Copyright 2026 BIRD Chinese Community (database compilation). Source data retains its respective ownership and licenses.",
+  "database_types": {
+    "asn.mmdb": "DN42-GeoLite2-ASN",
+    "city.mmdb": "DN42-GeoIP2-City",
+    "connection-type.mmdb": "DN42-GeoIP2-Connection-Type",
+    "country.mmdb": "DN42-GeoIP2-Country"
+  },
+  "generator": "DN42-IPDB",
+  "ip_version": 6,
+  "languages": [
+    "en"
+  ],
+  "publisher": "BIRD Chinese Community",
+  "registry_commit": "",
+  "registry_committed_at": "0001-01-01T00:00:00Z",
+  "release_repository": "https://github.com/bird-chinese-community/DN42-IPDB-Releases",
+  "schema_version": "2",
+  "semantics": {
+    "connection_type": "Explicit access classification only; absent when unknown. Overlay tunnels do not identify subscriber access technology.",
+    "location": "Operator-authorized GeoFeed claim; registry registration country is separate.",
+    "network_types": "Published service roles or observed BGP path characteristics; method and source describe the evidence.",
+    "ptr": "Reverse DNS observations apply only to their queried host address.",
+    "roa_status": "Registry-derived DN42 origin policy; method and origin ASN are attached to each observation. No cryptographic RPKI validation is implied."
+  },
+  "source_documents": []
+}
