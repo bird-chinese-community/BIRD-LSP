@@ -29,7 +29,7 @@
   ],
   "dependencies": {
     "@msgpack/msgpack": "^3.1.3",
-    "@birdcc/dn42-ipdb": "https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz",
+    "@birdcc/dn42-ipdb": "0.1.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {

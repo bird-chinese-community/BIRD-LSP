@@ -115,8 +115,8 @@ importers:
   packages/@birdcc/intel:
     dependencies:
       '@birdcc/dn42-ipdb':
-        specifier: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz
-        version: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz
+        specifier: 0.1.1
+        version: 0.1.1
       '@msgpack/msgpack':
         specifier: ^3.1.3
         version: 3.1.3
@@ -295,9 +295,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@birdcc/dn42-ipdb@https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz':
-    resolution: {tarball: https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz}
-    version: 0.1.1
+  '@birdcc/dn42-ipdb@0.1.1':
+    resolution: {integrity: sha512-yd2UGqYbQyVg3J7ICbFUVIkYO+ibFRWdVayEU0hQR3lfSFTZfSxmn2TuFUY4eiFPs8ZI6gSXr3B92/2Q+sitmg==}
     engines: {node: '>=20.18.3'}
 
   '@clack/core@1.5.1':
@@ -2841,7 +2840,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@birdcc/dn42-ipdb@https://github.com/bird-chinese-community/DN42-IPDB-SDK/releases/download/v0.1.1/birdcc-dn42-ipdb-0.1.1.tgz':
+  '@birdcc/dn42-ipdb@0.1.1':
     dependencies:
       maxmind: 5.0.8
       proper-lockfile: 4.1.2
