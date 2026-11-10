@@ -1,9 +1,95 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { marked } from "marked";
+import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import type { Dn42AsnInfo, Dn42IpInfo } from "@birdcc/intel";
-import { decodeHTML, encodeHTML } from "entities";
-import { formatDn42AsnHover, formatDn42IpHover } from "../src/dn42-hover.js";
+import {
+  formatDn42AsnHover,
+  formatDn42IpHover,
+  type Dn42HoverMarkup,
+} from "../src/dn42-hover.js";
 
 type Observation = NonNullable<Dn42IpInfo["dn42"]>["observations"][number];
+type Node = DefaultTreeAdapterMap["childNode"];
+type Element = DefaultTreeAdapterMap["element"];
+
+// Tags that vscode-languageclient 9 advertises with markdown.supportHtml.
+const clientTags = new Set([
+  "ul",
+  "li",
+  "p",
+  "code",
+  "blockquote",
+  "ol",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "hr",
+  "em",
+  "pre",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "div",
+  "del",
+  "a",
+  "strong",
+  "br",
+  "img",
+  "span",
+]);
+// Attribute rules from VS Code's markdown sanitizer.
+const styleRule =
+  /^(color:(#[0-9a-fA-F]+|var\(--vscode(-[a-zA-Z0-9]+)+\));)?(background-color:(#[0-9a-fA-F]+|var\(--vscode(-[a-zA-Z0-9]+)+\));)?(border-radius:[0-9]+px;)?$/;
+const classRule = /^codicon codicon-[a-z-]+( codicon-modifier-[a-z-]+)?$/;
+
+const render = (markdown: string): Node[] =>
+  parseFragment(marked.parse(markdown, { async: false })).childNodes;
+const elements = (nodes: Node[]): Element[] =>
+  nodes.flatMap((node) =>
+    "tagName" in node ? [node, ...elements(node.childNodes)] : [],
+  );
+const blockTags = new Set(["br", "h3", "hr", "p", "td", "tr"]);
+const textOf = (node: Node): string => {
+  if (node.nodeName === "#text" && "value" in node) return node.value;
+  if (!("tagName" in node)) return "";
+  const inner = node.childNodes.map(textOf).join("");
+  return blockTags.has(node.tagName) ? ` ${inner} ` : inner;
+};
+const squash = (value: string): string => value.replace(/\s+/g, " ").trim();
+const pageText = (nodes: Node[]): string => squash(nodes.map(textOf).join(" "));
+const sheet = (nodes: Node[]): string[][] =>
+  elements(nodes)
+    .filter((element) => element.tagName === "tr")
+    .map((row) =>
+      elements(row.childNodes)
+        .filter((cell) => cell.tagName === "td")
+        .map((cell) => squash(textOf(cell))),
+    );
+const icons = (nodes: Node[]): string[] =>
+  elements(nodes).flatMap((element) =>
+    element.attrs
+      .filter((attribute) => attribute.name === "class")
+      .map((attribute) => attribute.value.replace("codicon codicon-", "")),
+  );
+
+const expectSanitizerSafe = (nodes: Node[]): void => {
+  for (const element of elements(nodes)) {
+    expect(clientTags).toContain(element.tagName);
+    expect(["a", "img"]).not.toContain(element.tagName);
+    for (const attribute of element.attrs) {
+      expect(element.tagName).toBe("span");
+      expect(attribute.value).toMatch(
+        attribute.name === "style" ? styleRule : classRule,
+      );
+    }
+  }
+};
 
 const observation = (values: Partial<Observation>): Observation => ({
   target: "172.20.0.53",
@@ -49,114 +135,106 @@ const asnInfo: Dn42AsnInfo = {
   observations: [],
 };
 
-it("separates the queried host, its matched record and registry policy prefixes", () => {
-  const hover = decodeHTML(formatDn42IpHover(info));
-  expect(hover).toMatch(/^### 172\.20\.0\.53\n/);
-  expect(hover).toContain("AS4242420001 · TestNetwork");
-  expect(hover).toContain("Network 172.20.0.53/32");
-  expect(hover).toContain("Tokyo, Japan");
-  expect(hover).toContain("*Source: DN42 IPDB*");
-  expect(hover).toContain("ROA `✓ Valid`");
-  expect(hover).toContain(
-    "*DN42 registry*  \nROA `✓ Valid` · IRR `↳ Covering`  \nPolicy for both: 172.20.0.0/24",
-  );
-  expect(hover.match(/DN42 registry/g)).toHaveLength(1);
-  expect(hover).toContain("IRR `↳ Covering`");
-  expect(hover).not.toContain("Policy for both: 172.20.0.53/32");
-  expect(hover).not.toContain("PTR:");
-  expect(hover.indexOf("Tokyo, Japan")).toBeLessThan(
-    hover.indexOf("AS4242420001"),
-  );
-  expect(hover.indexOf("IRR `↳ Covering`")).toBeLessThan(
-    hover.indexOf("\n---\n"),
-  );
-  expect(hover.indexOf("Source: DN42 IPDB")).toBeGreaterThan(
-    hover.indexOf("\n---\n"),
-  );
-});
+const markups: Dn42HoverMarkup[] = ["html", "markdown"];
 
-it("groups service conclusions and keeps BGP path hints in the evidence section", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
-      ...info,
-      dn42: {
-        ...info.dn42!,
-        network_types: [
-          "anycast",
-          "public-resolver",
-          "bgp-path-tunnel",
-          "bgp-path-ixp",
-          "bgp-path-centralized-vix",
-        ],
-      },
-    }),
-  );
-  const services = hover
-    .split("\n")
-    .find((line) => line.startsWith("**Public DNS resolver"));
-  expect(services?.trim()).toMatch(
-    /^\*\*Public DNS resolver\*\* .*Anycast `Published`$/,
-  );
-  expect(services).toContain("`Published`");
-  expect(services).not.toContain("Tunnel");
-  const hints = hover.split("\n").find((line) => line.startsWith("BGP path:"));
-  expect(hints).toContain("Tunnel · IXP · Centralized VIX");
-  expect(hints).not.toContain("Public DNS resolver");
-  expect(hover.match(/Anycast/g)).toHaveLength(1);
-  expect(hover).not.toContain("bgp-path-");
-  expect(hover).not.toContain("public-resolver");
-});
+describe.each(markups)("%s form", (markup) => {
+  const ip = (value: Dn42IpInfo): Node[] =>
+    render(formatDn42IpHover(value, markup));
+  const asn = (value: Dn42AsnInfo): Node[] =>
+    render(formatDn42AsnHover(value, markup));
 
-it("keeps distinct ROA and IRR policy prefixes on their own status lines", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
-      ...info,
-      dn42: { ...info.dn42!, irr_prefix: "172.20.0.0/16" },
-    }),
-  );
-  expect(hover).toContain(
-    "*DN42 registry*  \nROA `✓ Valid` · 172.20.0.0/24  \nIRR `↳ Covering` · 172.20.0.0/16",
-  );
-  expect(hover).not.toContain("Policy for both");
-});
+  it("leads with the address, owner and roles before the property sheet", () => {
+    const nodes = ip(info);
+    expectSanitizerSafe(nodes);
+    const heading = elements(nodes).find((element) => element.tagName === "h3");
+    expect(squash(textOf(heading!))).toBe("172.20.0.53");
+    const text = pageText(nodes);
+    expect(text).toMatch(
+      /^172\.20\.0\.53 TestNetwork AS4242420001 Public DNS resolver Anycast published /,
+    );
+    expect(text.indexOf("Location")).toBeGreaterThan(text.indexOf("Anycast"));
+    expect(text).toMatch(
+      / Location (⌖ )?Tokyo, Japan Network 172\.20\.0\.53\/32 ROA (✓ )?Valid 172\.20\.0\.0\/24 IRR (↳ )?Covering 172\.20\.0\.0\/24 DN42 IPDB · registry data$/,
+    );
+    expect(text).not.toContain("PTR");
+    if (markup === "html") {
+      expect(icons(nodes)).toEqual([
+        "globe",
+        "location",
+        "pass-filled",
+        "pass",
+      ]);
+      expect(sheet(nodes)).toEqual([
+        ["Location", "Tokyo, Japan"],
+        ["Network", "172.20.0.53/32"],
+        ["ROA", "Valid 172.20.0.0/24"],
+        ["IRR", "Covering 172.20.0.0/24"],
+      ]);
+    }
+  });
 
-it("labels registration separately from a GeoFeed location", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
-      ...info,
-      city: "Tokyo",
-      registeredCountry: "DE",
-      registeredCountryName: "Germany",
-      dn42: { ...info.dn42!, confidence: "geofeed" },
-    }),
-  );
-  expect(hover).toContain("Tokyo, Japan");
-  expect(hover.match(/Tokyo/g)).toHaveLength(1);
-  expect(hover).toContain("*GeoFeed location*");
-  expect(hover).toContain("**⌖ Tokyo, Japan**");
-  expect(hover).toContain("Registered in Germany");
-  expect(hover).not.toContain("Tokyo, Germany");
-});
+  it("keeps BGP path hints and service roles in separate places", () => {
+    const text = pageText(
+      ip({
+        ...info,
+        dn42: {
+          ...info.dn42!,
+          network_types: [
+            "anycast",
+            "public-resolver",
+            "bgp-path-tunnel",
+            "bgp-path-ixp",
+            "bgp-path-centralized-vix",
+          ],
+        },
+      }),
+    );
+    expect(text).toContain("BGP path Tunnel, IXP, Centralized VIX");
+    expect(text.match(/Anycast/g)).toHaveLength(1);
+    expect(text).not.toContain("bgp-path-");
+    expect(text).not.toContain("public-resolver");
+  });
 
-it("does not present a registration-only country as a location", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
-      ip: info.ip,
-      registeredCountry: "DE",
-      registeredCountryName: "Germany",
-      dn42: { ...info.dn42!, confidence: "registry" },
-    }),
-  );
-  expect(hover).toContain("Registered in Germany");
-  expect(hover).not.toContain("GeoFeed location");
-  expect(hover).not.toContain("⌖");
-  expect(hover).not.toContain("Tokyo");
-  expect(hover.match(/Germany/g)).toHaveLength(1);
-});
+  it("shows each registry policy with its own scope", () => {
+    const text = pageText(
+      ip({ ...info, dn42: { ...info.dn42!, irr_prefix: "172.20.0.0/16" } }),
+    );
+    expect(text).toMatch(/ROA (✓ )?Valid 172\.20\.0\.0\/24/);
+    expect(text).toMatch(/IRR (↳ )?Covering 172\.20\.0\.0\/16/);
+  });
 
-it("prioritizes GeoFeed withholding over residual location fields", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
+  it("labels registration separately from a GeoFeed location", () => {
+    const text = pageText(
+      ip({
+        ...info,
+        city: "Tokyo",
+        registeredCountry: "DE",
+        registeredCountryName: "Germany",
+        dn42: { ...info.dn42!, confidence: "geofeed" },
+      }),
+    );
+    expect(text).toMatch(/Location (⌖ )?Tokyo, Japan GeoFeed/);
+    expect(text.match(/Tokyo/g)).toHaveLength(1);
+    expect(text).toContain("Registered Germany");
+  });
+
+  it("does not present a registration-only country as a location", () => {
+    const text = pageText(
+      ip({
+        ip: info.ip,
+        registeredCountry: "DE",
+        registeredCountryName: "Germany",
+        dn42: { ...info.dn42!, confidence: "registry" },
+      }),
+    );
+    expect(text).toContain("Registered Germany");
+    expect(text).not.toContain("Location");
+    expect(text).not.toContain("GeoFeed");
+    expect(text.match(/Germany/g)).toHaveLength(1);
+  });
+
+  it("prioritizes GeoFeed withholding over residual location fields", () => {
+    const nodes = ip({
       ...info,
       city: "Private city",
       registeredCountry: "DE",
@@ -174,50 +252,42 @@ it("prioritizes GeoFeed withholding over residual location fields", () => {
           },
         ],
       },
-    }),
-  );
-  expect(hover).toContain("*Location withheld by GeoFeed*");
-  expect(hover).toContain("Registered in Germany");
-  expect(hover).not.toContain("*GeoFeed location*");
-  expect(hover).not.toContain("Private city");
-  expect(hover).not.toContain("Tokyo");
-  expect(hover).not.toContain("Japan");
-  expect(hover).not.toContain("Location not recorded");
-  expect(hover).not.toContain("⌖");
-});
+    });
+    const text = pageText(nodes);
+    expect(text).toContain("Location Withheld by GeoFeed");
+    expect(text).toContain("Registered Germany");
+    for (const hidden of ["Private city", "Tokyo", "Japan", "Not recorded"])
+      expect(text).not.toContain(hidden);
+    if (markup === "html") expect(icons(nodes)).toContain("eye-closed");
+  });
 
-it("keeps unknown policy and location states explicit without inventing service roles", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
-      ip: info.ip,
-      dn42: {
-        ...info.dn42!,
-        anycast: "unknown",
-        network_types: [],
-        roa_status: "unknown",
-        roa_prefix: undefined,
-        irr_status: "unknown",
-        irr_prefix: undefined,
-      },
-    }),
-  );
-  expect(hover).toContain("Location not recorded");
-  expect(hover).toContain("ROA `? Unknown`");
-  expect(hover).toContain("IRR `? Unknown`");
-  expect(hover).not.toContain("Anycast");
-  expect(hover).not.toContain("Unicast");
-  expect(hover).not.toContain("Public DNS resolver");
-  expect(hover).not.toContain("PTR:");
-});
+  it("keeps unknown policy and location states explicit", () => {
+    const text = pageText(
+      ip({
+        ip: info.ip,
+        dn42: {
+          ...info.dn42!,
+          anycast: "unknown",
+          network_types: [],
+          roa_status: "unknown",
+          roa_prefix: undefined,
+          irr_status: "unknown",
+          irr_prefix: undefined,
+        },
+      }),
+    );
+    expect(text).toContain("Location Not recorded");
+    expect(text).toMatch(/ROA (\? )?Unknown IRR (\? )?Unknown/);
+    for (const hidden of ["Anycast", "Unicast", "Public DNS resolver", "PTR"])
+      expect(text).not.toContain(hidden);
+  });
 
-it.each([
-  ["nxdomain", "NXDOMAIN (observed)"],
-  ["unknown", "Unknown (lookup inconclusive)"],
-])(
-  "distinguishes a recorded PTR %s result from an absent lookup",
-  (result, label) => {
-    const hover = decodeHTML(
-      formatDn42IpHover({
+  it.each([
+    ["nxdomain", /PTR (⊘ )?NXDOMAIN observed/],
+    ["unknown", /PTR (\? )?Unknown lookup inconclusive/],
+  ])("distinguishes a recorded PTR %s result", (result, expected) => {
+    const text = pageText(
+      ip({
         ...info,
         dn42: {
           ...info.dn42!,
@@ -225,14 +295,25 @@ it.each([
         },
       }),
     );
-    expect(hover).toContain(`PTR: ${label}`);
-    if (result === "unknown") expect(hover).not.toContain("NXDOMAIN");
-  },
-);
+    expect(text).toMatch(expected);
+  });
 
-it("retains per-origin policy failures when aggregate status is unknown", () => {
-  const hover = decodeHTML(
-    formatDn42IpHover({
+  it("lists PTR names and counts the rest", () => {
+    const text = pageText(
+      ip({
+        ...info,
+        dn42: {
+          ...info.dn42!,
+          ptr: ["a.test.dn42", "b.test.dn42", "c.test.dn42"],
+        },
+      }),
+    );
+    expect(text).toContain("PTR a.test.dn42 b.test.dn42 1 more");
+    expect(text).not.toContain("c.test.dn42");
+  });
+
+  it("retains per-origin policy failures when aggregate status is unknown", () => {
+    const nodes = ip({
       ...info,
       dn42: {
         ...info.dn42!,
@@ -261,194 +342,182 @@ it("retains per-origin policy failures when aggregate status is unknown", () => 
           }),
         ],
       },
-    }),
-  );
-  expect(hover).toContain("ROA `? Unknown`");
-  expect(hover).toContain("IRR `? Unknown`");
-  expect(hover).toContain("**Origin observations**");
-  expect(hover).toContain("- IRR `! Conflict` · 172.20.0.53/32 · AS4242422189");
-  expect(hover).toContain("- ROA `! Invalid` · 172.20.0.0/24 · AS4242422601");
-  expect(hover.indexOf("- ROA `! Invalid`")).toBeLessThan(
-    hover.indexOf("\n---\n"),
-  );
-  expect(hover).toMatch(/\*1 more observations?\*/);
-  expect(hover).not.toContain("172.20.9.0/24");
-});
+    });
+    const text = pageText(nodes);
+    expect(text).toMatch(
+      /Origins IRR (! )?Conflict 172\.20\.0\.53\/32 AS4242422189 ROA (✗ )?Invalid 172\.20\.0\.0\/24 AS4242422601 1 more DN42 IPDB/,
+    );
+    expect(text).not.toContain("172.20.9.0/24");
+    if (markup === "html")
+      expect(icons(nodes)).toEqual(
+        expect.arrayContaining(["warning", "error", "question"]),
+      );
+  });
 
-it("keeps service and policy observations attached to their ASN member targets", () => {
-  const hover = decodeHTML(
-    formatDn42AsnHover({
-      ...asnInfo,
-      observed_network_types: ["public-resolver", "bgp-path-tunnel"],
-      observations: [
-        observation({ value: "public-resolver" }),
-        observation({
-          kind: "network_type",
-          value: "anycast",
-          status: "published",
-          method: "published-service",
-          authority: "service-documentation",
-        }),
-        observation({
-          kind: "roa",
-          target: "172.20.0.53/32",
-          value: "172.20.0.0/24",
-          status: "valid",
-        }),
-      ],
-    }),
-  );
-  expect(hover).toMatch(/^### AS4242420001\n/);
-  expect(hover).toContain("TestNetwork");
-  expect(hover).toContain("Registered in Germany");
-  expect(hover).toContain("BGP path on members: Tunnel");
-  expect(hover).toContain("**Member observations**");
-  expect(hover).toContain("- Public DNS resolver `Observed` · 172.20.0.53");
-  expect(hover).toContain("- Anycast `Published` · 172.20.0.53");
-  expect(hover).toContain(
-    "**Member policy** · *DN42 registry*\n\n- ROA `✓ Valid`",
-  );
-  expect(hover.match(/DN42 registry/g)).toHaveLength(1);
-  expect(hover.indexOf("**Member policy**")).toBeLessThan(
-    hover.indexOf("Registered in Germany"),
-  );
-  expect(hover).toContain(
-    "- ROA `✓ Valid` · 172.20.0.53/32 · policy 172.20.0.0/24",
-  );
-  expect(hover).not.toContain("network_type");
-  expect(hover).not.toContain("public-resolver");
-});
+  it("keeps service and policy observations attached to member targets", () => {
+    const text = pageText(
+      asn({
+        ...asnInfo,
+        observed_network_types: ["public-resolver", "bgp-path-tunnel"],
+        observations: [
+          observation({ value: "public-resolver" }),
+          observation({
+            kind: "network_type",
+            value: "anycast",
+            status: "published",
+            method: "published-service",
+            authority: "service-documentation",
+          }),
+          observation({
+            kind: "roa",
+            target: "172.20.0.53/32",
+            value: "172.20.0.0/24",
+            status: "valid",
+          }),
+        ],
+      }),
+    );
+    expect(text).toMatch(/^AS4242420001 TestNetwork Registered Germany /);
+    expect(text).toMatch(
+      /ROA (✓ )?Valid 172\.20\.0\.53\/32 policy 172\.20\.0\.0\/24 Services/,
+    );
+    expect(text).toContain(
+      "Services Public DNS resolver observed 172.20.0.53 Anycast published 172.20.0.53",
+    );
+    expect(text).toContain("BGP path Tunnel");
+    expect(text).not.toContain("network_type");
+    expect(text).not.toContain("public-resolver");
+  });
 
-it("selects failed ASN policy samples ahead of earlier successful members", () => {
-  const hover = decodeHTML(
-    formatDn42AsnHover({
-      ...asnInfo,
-      observations: [
-        observation({
-          kind: "roa",
-          status: "valid",
-          target: "172.20.1.0/24",
-        }),
-        observation({
-          kind: "irr",
-          status: "exact",
-          target: "172.20.2.0/24",
-        }),
-        observation({
-          kind: "roa",
-          status: "invalid",
-          target: "172.20.3.0/24",
-          asn: 4242420099,
-        }),
-        observation({
-          kind: "irr",
-          status: "conflict",
-          target: "172.20.4.0/24",
-        }),
-      ],
-    }),
-  );
-  expect(hover).toContain("- ROA `! Invalid` · 172.20.3.0/24 · AS4242420099");
-  expect(hover).toContain("- IRR `! Conflict` · 172.20.4.0/24");
-  expect(hover).not.toContain("172.20.1.0/24");
-  expect(hover).not.toContain("172.20.2.0/24");
-});
+  it("selects failed ASN policy samples ahead of earlier successful members", () => {
+    const text = pageText(
+      asn({
+        ...asnInfo,
+        observations: [
+          observation({
+            kind: "roa",
+            status: "valid",
+            target: "172.20.1.0/24",
+          }),
+          observation({
+            kind: "irr",
+            status: "exact",
+            target: "172.20.2.0/24",
+          }),
+          observation({
+            kind: "roa",
+            status: "invalid",
+            target: "172.20.3.0/24",
+            asn: 4242420099,
+          }),
+          observation({
+            kind: "irr",
+            status: "conflict",
+            target: "172.20.4.0/24",
+          }),
+        ],
+      }),
+    );
+    expect(text).toMatch(/ROA (✗ )?Invalid 172\.20\.3\.0\/24 AS4242420099/);
+    expect(text).toMatch(/IRR (! )?Conflict 172\.20\.4\.0\/24/);
+    expect(text).not.toContain("172.20.1.0/24");
+    expect(text).not.toContain("172.20.2.0/24");
+  });
 
-it("reports remaining member observations and prefixes without expanding the lists", () => {
-  const hover = decodeHTML(
-    formatDn42AsnHover({
-      ...asnInfo,
-      prefixes: [
-        "172.20.0.0/24",
-        "172.20.1.0/24",
-        "172.20.2.0/24",
-        "172.20.3.0/24",
-      ],
-      observations: [53, 54, 55, 56, 57].map((host) =>
-        observation({ target: `172.20.0.${host}`, value: "public-resolver" }),
-      ),
-    }),
-  );
-  expect(hover).toContain("**4 prefixes**");
-  expect(hover).toContain("*2 more prefixes*");
-  expect(hover).toContain("*3 more observations*");
-  expect(hover.match(/^- Public DNS resolver `Observed`/gm)).toHaveLength(2);
-  expect(hover).toContain("172.20.0.53");
-  expect(hover).toContain("172.20.0.54");
-  expect(hover).not.toContain("172.20.0.55");
-  expect(hover).not.toContain("172.20.2.0/24");
+  it("shows member results before a shortened prefix list", () => {
+    const text = pageText(
+      asn({
+        ...asnInfo,
+        prefixes: [
+          "172.20.0.0/24",
+          "172.20.1.0/24",
+          "172.20.2.0/24",
+          "172.20.3.0/24",
+        ],
+        observations: [53, 54, 55, 56, 57].map((host) =>
+          observation({ target: `172.20.0.${host}`, value: "public-resolver" }),
+        ),
+      }),
+    );
+    expect(text).toContain(
+      "Services Public DNS resolver observed 172.20.0.53 Public DNS resolver observed 172.20.0.54 3 more Prefixes 172.20.0.0/24 172.20.1.0/24 2 more DN42 IPDB",
+    );
+    expect(text).not.toContain("172.20.0.55");
+    expect(text).not.toContain("172.20.2.0/24");
+  });
+
+  it("states that no member observations exist", () => {
+    expect(pageText(asn(asnInfo))).toContain(
+      "Services No member observations Prefixes 172.20.0.0/24 DN42 IPDB",
+    );
+  });
 });
 
 const hostile =
-  "[open](command:run) <img src=x> `code` *bold*\n\n# injected\n| cell |";
+  '[open](command:run) <img src="https://example.org/x.png"> `code` *bold* www.example.org\n\n# injected\n| cell |';
 const normalizedHostile = hostile.replace(/\s+/g, " ").trim();
 
-it("escapes dynamic IP data without escaping native Markdown structure", () => {
-  const hover = formatDn42IpHover({
-    ...info,
-    asName: hostile,
-    city: hostile,
-    countryName: hostile,
-    registeredCountry: "DE",
-    registeredCountryName: hostile,
-    prefix: hostile,
-    connectionType: hostile,
-    dn42: {
-      ...info.dn42!,
-      anycast: hostile,
-      network_types: [hostile],
-      ptr: [hostile],
-      roa_prefix: hostile,
-      roa_status: hostile,
-      irr_prefix: hostile,
-      observations: [
-        observation({ kind: "roa", status: "invalid", target: hostile }),
-      ],
-    },
+describe.each(markups)("%s form with hostile data", (markup) => {
+  it("renders every dynamic IP field as inert text", () => {
+    const nodes = render(
+      formatDn42IpHover(
+        {
+          ...info,
+          asName: hostile,
+          city: hostile,
+          countryName: hostile,
+          registeredCountry: "DE",
+          registeredCountryName: hostile,
+          prefix: hostile,
+          connectionType: hostile,
+          dn42: {
+            ...info.dn42!,
+            anycast: hostile,
+            network_types: [hostile],
+            ptr: [hostile],
+            roa_prefix: hostile,
+            roa_status: hostile,
+            irr_prefix: hostile,
+            observations: [
+              observation({ kind: "roa", status: "invalid", target: hostile }),
+            ],
+          },
+        },
+        markup,
+      ),
+    );
+    expectSanitizerSafe(nodes);
+    const tags = elements(nodes).map((element) => element.tagName);
+    expect(tags.filter((tag) => tag === "h3")).toHaveLength(1);
+    expect(tags).not.toContain("h1");
+    expect(pageText(nodes)).toContain(normalizedHostile);
   });
-  expect(decodeHTML(hover)).toMatch(/^### 172\.20\.0\.53\n/);
-  expect(hover).toContain("AS4242420001");
-  expect(hover).toContain(encodeHTML(normalizedHostile));
-  expect(decodeHTML(hover)).toContain(normalizedHostile);
-  expect(hover).not.toContain("command:");
-  expect(hover).not.toContain("<img");
-  expect(hover).not.toContain("`code`");
-  expect(hover).not.toContain("*bold*");
-  expect(hover).not.toContain("\n# injected");
-  expect(hover).not.toContain(`\`${encodeHTML(normalizedHostile)}\``);
-  expect(hover).toContain(`ROA ${encodeHTML(normalizedHostile)}`);
-  const tableRows = hover.split("\n").filter((line) => line.startsWith("|"));
-  expect(tableRows).toHaveLength(0);
-  expect(hover).not.toContain("| cell |");
-});
 
-it("escapes dynamic ASN names, countries, prefixes and observation content", () => {
-  const hover = formatDn42AsnHover({
-    ...asnInfo,
-    as_name: hostile,
-    registered_countries: [{ iso_code: "DE", names: { en: hostile } }],
-    prefixes: [hostile],
-    observations: [
-      observation({ kind: "ptr", target: hostile, value: hostile }),
-      observation({
-        kind: "roa",
-        target: hostile,
-        value: hostile,
-        status: "invalid",
-      }),
-    ],
+  it("renders every dynamic ASN field as inert text", () => {
+    const nodes = render(
+      formatDn42AsnHover(
+        {
+          ...asnInfo,
+          as_name: hostile,
+          registered_countries: [{ iso_code: "DE", names: { en: hostile } }],
+          prefixes: [hostile],
+          observations: [
+            observation({ kind: "ptr", target: hostile, value: hostile }),
+            observation({
+              kind: "roa",
+              target: hostile,
+              value: hostile,
+              status: "invalid",
+            }),
+          ],
+        },
+        markup,
+      ),
+    );
+    expectSanitizerSafe(nodes);
+    const tags = elements(nodes).map((element) => element.tagName);
+    expect(tags.filter((tag) => tag === "h3")).toHaveLength(1);
+    expect(tags).not.toContain("h1");
+    expect(pageText(nodes)).toContain(normalizedHostile);
   });
-  expect(hover).toMatch(/^### AS4242420001\n/);
-  expect(hover).toContain("**Member observations**");
-  expect(hover).toContain(encodeHTML(normalizedHostile));
-  expect(decodeHTML(hover)).toContain(normalizedHostile);
-  expect(hover).not.toContain("command:");
-  expect(hover).not.toContain("<img");
-  expect(hover).not.toContain("`code`");
-  expect(hover).not.toContain("*bold*");
-  expect(hover).not.toContain("\n# injected");
-  expect(hover).not.toContain(`\`${encodeHTML(normalizedHostile)}\``);
-  const tableRows = hover.split("\n").filter((line) => line.startsWith("|"));
-  expect(tableRows).toHaveLength(0);
-  expect(hover).not.toContain("| cell |");
 });

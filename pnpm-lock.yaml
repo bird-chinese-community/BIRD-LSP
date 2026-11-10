@@ -157,9 +157,6 @@ importers:
       '@birdcc/parser':
         specifier: workspace:*
         version: link:../parser
-      entities:
-        specifier: ^9.0.0
-        version: 9.0.0
       vscode-languageserver:
         specifier: ^9.0.1
         version: 9.0.1
@@ -169,6 +166,13 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+    devDependencies:
+      marked:
+        specifier: ^18.1.3
+        version: 18.1.3
+      parse5:
+        specifier: ^8.1.0
+        version: 8.1.0
 
   packages/@birdcc/parser:
     dependencies:

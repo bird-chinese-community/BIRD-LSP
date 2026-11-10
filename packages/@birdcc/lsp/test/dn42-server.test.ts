@@ -13,7 +13,6 @@ import {
   type Hover,
 } from "vscode-languageserver/node.js";
 import { expect, it, vi } from "vitest";
-import { decodeHTML } from "entities";
 
 it("uses DN42 hover only after user enables it", async () => {
   const fixture = fileURLToPath(
@@ -106,7 +105,15 @@ it("uses DN42 hover only after user enables it", async () => {
     await client.sendRequest("initialize", {
       processId: null,
       rootUri: pathToFileURL(dir).toString(),
-      capabilities: { workspace: { configuration: true } },
+      capabilities: {
+        workspace: { configuration: true },
+        general: {
+          markdown: {
+            parser: "marked",
+            allowedTags: ["h3", "p", "br", "table", "tr", "td", "hr", "span"],
+          },
+        },
+      },
       initializationOptions: { birdcc: {} },
     });
     await client.sendNotification("initialized", {});
@@ -142,22 +149,25 @@ it("uses DN42 hover only after user enables it", async () => {
     )
       throw new Error("DN42 hover must contain MarkupContent");
     expect(ipHover.kind).toBe("markdown");
-    const ipMarkdown = decodeHTML(ipHover.value);
-    expect(ipMarkdown).toMatch(/^### 172\.20\.0\.1\n/);
+    const ipMarkdown = ipHover.value;
+    expect(ipMarkdown).toMatch(
+      /^<h3><span class="codicon codicon-globe"><\/span> 172\.20\.0\.1<\/h3>\n/,
+    );
     for (const text of [
-      "AS4242420001",
       "TestNetwork",
-      "Network 172.20.0.1/32",
-      "California, United States",
-      "Registered in Germany",
-      "**Public DNS resolver** · Anycast `Published`",
-      "PTR: resolver.test.dn42",
-      "*Source: DN42 IPDB*",
-      "ROA `✓ Valid`",
-      "*DN42 registry*  \nROA `✓ Valid`",
-      "IRR `✓ Exact`",
+      "AS4242420001",
+      "Public DNS resolver",
+      "Test City, California, United States",
+      "Germany",
+      "172.20.0.1/32",
+      "resolver.test.dn42",
+      "codicon-pass-filled",
+      "&nbsp;Valid",
+      "&nbsp;Exact",
+      "DN42 IPDB · registry data",
     ])
       expect(ipMarkdown).toContain(text);
+    expect(ipMarkdown).toContain("<table>");
     expect(ipMarkdown).not.toContain("network_type");
     expect(ipMarkdown).not.toContain("public-resolver");
     const asnHover = (await hover(0, 45))?.contents;
@@ -169,17 +179,19 @@ it("uses DN42 hover only after user enables it", async () => {
     )
       throw new Error("DN42 ASN hover must contain MarkupContent");
     expect(asnHover.kind).toBe("markdown");
-    const asnMarkdown = decodeHTML(asnHover.value);
-    expect(asnMarkdown).toMatch(/^### AS4242420001\n/);
-    expect(asnMarkdown).toContain("TestNetwork");
-    expect(asnMarkdown).toContain("Registered in Germany");
-    expect(asnMarkdown).toContain("**4 prefixes**");
-    expect(asnMarkdown).toContain("**Member observations**");
-    expect(asnMarkdown).toContain(
-      "- Public DNS resolver `Observed` · 172.20.0.1",
+    const asnMarkdown = asnHover.value;
+    expect(asnMarkdown).toMatch(
+      /^<h3><span class="codicon codicon-organization"><\/span> AS4242420001<\/h3>\n/,
     );
-    expect(asnMarkdown).toContain("- Anycast `Published` · 172.20.0.1");
-    expect(asnMarkdown).toContain("**Member policy** · *DN42 registry*");
+    for (const text of [
+      "TestNetwork",
+      "Germany",
+      "2 more",
+      "Public DNS resolver",
+      "Anycast",
+      "172.20.0.1",
+    ])
+      expect(asnMarkdown).toContain(text);
     expect(JSON.stringify(await hover(5, 48))).not.toContain("DN42 IPDB");
     expect(JSON.stringify((await hover(1, 5))?.contents) ?? "").not.toContain(
       "DN42 IPDB",
