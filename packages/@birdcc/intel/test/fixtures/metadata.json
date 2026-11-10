@@ -17,9 +17,7 @@
   },
   "generator": "DN42-IPDB",
   "ip_version": 6,
-  "languages": [
-    "en"
-  ],
+  "languages": ["en"],
   "publisher": "BIRD Chinese Community",
   "registry_commit": "",
   "registry_committed_at": "0001-01-01T00:00:00Z",

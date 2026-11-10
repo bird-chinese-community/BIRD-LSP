@@ -17,10 +17,7 @@
         "fd42:1234::/48",
         "fd42:1234::1/128"
       ],
-      "observed_network_types": [
-        "anycast",
-        "public-resolver"
-      ],
+      "observed_network_types": ["anycast", "public-resolver"],
       "observations": [
         {
           "target": "172.20.0.1",
