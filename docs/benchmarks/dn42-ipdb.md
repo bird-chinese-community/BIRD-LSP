@@ -5,6 +5,9 @@ cases against the built parser and intelligence packages. It checks lookup
 results, parser positions, cache reuse, and artifact request counts before
 measuring. Each startup/install iteration also checks the loaded ASN.
 
+The [hover formatting baseline](./dn42-hover.md) measures native Markdown
+construction separately with four additional mitata cases.
+
 ## Measurement scope
 
 - Lookup: one repeated IPv4/IPv6 hit, miss, invalid input, disabled-provider

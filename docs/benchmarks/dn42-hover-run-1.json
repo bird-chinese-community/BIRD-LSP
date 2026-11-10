@@ -1,0 +1,152 @@
+{
+  "metadata": {
+    "measuredAt": "2026-11-10T10:28:00.756Z",
+    "revision": "e342fdad1ae406c7c3d82fb4a1839dda6b2e6743+astra-renderer-b1bd06a9",
+    "node": "v22.20.0",
+    "mitata": "1.0.34",
+    "platform": "linux-x64",
+    "cpu": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics",
+    "cpuAffinity": "2,3",
+    "nodeOptions": "--max-old-space-size=2048",
+    "gc": "exposed; mitata default once after warmup",
+    "scope": "native Markdown formatting only; synthetic inputs; excludes lookup, IPC and editor rendering",
+    "timingUnit": "nanoseconds per operation",
+    "codeSha256": {
+      "tools/bench-dn42-hover.mjs": "8619cc1367295521b95b980850834b4e65489faa399d3be296e7209ddb498038",
+      "packages/@birdcc/lsp/src/dn42-hover.ts": "b1bd06a9b2aa6f3432bb61d230eec11cbff2758a59ea48b592c8e0fb752e6227",
+      "packages/@birdcc/lsp/dist/dn42-hover.js": "fcdd2b26c486b51f5794670f504ba7b3e8100c3699a57d209576b63e82d32bad"
+    },
+    "inputs": [
+      {
+        "name": "IP / GeoFeed",
+        "sha256": "a98fe5f8e7e624d6742e7aff80df97cc73ff1f40fba14a715b6ea5cc976e002c",
+        "observations": 0,
+        "prefixes": 1,
+        "outputBytes": 332
+      },
+      {
+        "name": "IP / resolver and conflicts",
+        "sha256": "23758e77c919a3b03fdf723ac3ad15a5c6e10861e8cb8ca0e78c11e464161fac",
+        "observations": 2,
+        "prefixes": 1,
+        "outputBytes": 639
+      },
+      {
+        "name": "IP / long IPv6 and 256 observations",
+        "sha256": "fbfeca49017701e0589d37457b7d9d8b463cb213403b10137a34441d8c900c96",
+        "observations": 256,
+        "prefixes": 1,
+        "outputBytes": 964
+      },
+      {
+        "name": "ASN / 256 prefixes and observations",
+        "sha256": "74995bcce7110e2d8ecaafcb398817d38cdbe42fae85140190078ff6f8282c3e",
+        "observations": 256,
+        "prefixes": 256,
+        "outputBytes": 509
+      }
+    ]
+  },
+  "benchmarks": [
+    {
+      "alias": "IP / GeoFeed",
+      "runs": [
+        {
+          "name": "IP / GeoFeed",
+          "stats": {
+            "avg": 2220.3114632384336,
+            "p50": 2167.23876953125,
+            "p99": 2550.230712890625,
+            "min": 2030.25341796875,
+            "max": 2709.635986328125,
+            "ticks": 299008,
+            "sampleCount": 73,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 35,
+              "total": 79034.8203125,
+              "min": 2239.046875,
+              "max": 2900.2421875,
+              "avg": 2258.137723214286
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "IP / resolver and conflicts",
+      "runs": [
+        {
+          "name": "IP / resolver and conflicts",
+          "stats": {
+            "avg": 4595.786656996783,
+            "p50": 4468.72119140625,
+            "p99": 5367.794921875,
+            "min": 4164.126708984375,
+            "max": 5772.74462890625,
+            "ticks": 139264,
+            "sampleCount": 34,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 11,
+              "total": 34153.810546875,
+              "min": 2976.65625,
+              "max": 4381.37109375,
+              "avg": 3104.8918678977275
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "IP / long IPv6 and 256 observations",
+      "runs": [
+        {
+          "name": "IP / long IPv6 and 256 observations",
+          "stats": {
+            "avg": 7630.391370271382,
+            "p50": 7523.72119140625,
+            "p99": 8254.060546875,
+            "min": 7051.965576171875,
+            "max": 8425.65380859375,
+            "ticks": 77824,
+            "sampleCount": 19,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 13,
+              "total": 25471.537109375,
+              "min": 1870.93359375,
+              "max": 3007.95703125,
+              "avg": 1959.3490084134614
+            }
+          }
+        }
+      ]
+    },
+    {
+      "alias": "ASN / 256 prefixes and observations",
+      "runs": [
+        {
+          "name": "ASN / 256 prefixes and observations",
+          "stats": {
+            "avg": 6666.2092840021305,
+            "p50": 6480.0185546875,
+            "p99": 7632.712646484375,
+            "min": 5951.105712890625,
+            "max": 8113.90283203125,
+            "ticks": 90112,
+            "sampleCount": 22,
+            "optimizedOutWarning": false,
+            "heap": {
+              "_": 16,
+              "total": 27679.943359375,
+              "min": 1475.009765625,
+              "max": 2584.3984375,
+              "avg": 1729.9964599609375
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
