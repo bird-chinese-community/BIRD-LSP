@@ -127,19 +127,22 @@ const cases = ["html", "markdown"].flatMap((markup) =>
 
 for (const item of cases) {
   const output = item.render();
-  assert.ok(output.includes("DN42 IPDB · registry data"));
   assert.ok(output.includes(escapedName[item.markup]), "Escape source markup");
   assert.ok(!output.includes("<network>"), "Escape source markup");
+  // The inputs contain no backslashes, so removing escapes yields visible text.
+  const visible =
+    item.markup === "markdown" ? output.replaceAll("\\", "") : output;
+  assert.ok(visible.includes("DN42 IPDB · registry data"));
   assert.ok(
-    output.includes(item.input.dn42?.roa_prefix ?? "172.20.0.0/24"),
+    visible.includes(item.input.dn42?.roa_prefix ?? "172.20.0.0/24"),
     "Keep policy prefix scope",
   );
   if (item.input === resolver) {
-    assert.ok(output.includes("Anycast") && output.includes("published"));
-    assert.ok(output.includes("Conflict"));
+    assert.ok(visible.includes("Anycast") && visible.includes("published"));
+    assert.ok(visible.includes("Conflict"));
   }
-  if (item.input === longIPv6) assert.ok(output.includes(longIPv6.ip));
-  if (item.input === asn) assert.ok(output.includes("254 more"));
+  if (item.input === longIPv6) assert.ok(visible.includes(longIPv6.ip));
+  if (item.input === asn) assert.ok(visible.includes("254 more"));
   bench(item.name, () => do_not_optimize(item.render()));
 }
 
