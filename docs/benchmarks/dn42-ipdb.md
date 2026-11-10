@@ -72,6 +72,11 @@ checksum manifest is checked before measurement.
 
 ## 2026-11-10.1 seven-artifact baseline
 
+The final dependency uses SDK 0.1.1. Its published runtime module has the same
+SHA256 as the SDK 0.1.0 module measured below; the archive version, runtime
+requirement and package documentation changed. The reports retain the measured
+0.1.0 archive URL and checksum.
+
 The [2026-11-10.1 release](https://github.com/bird-chinese-community/DN42-IPDB-Releases/releases/tag/2026-11-10.1)
 supplies four MMDBs, the ASN index, metadata, and the Unicode notice. The test
 server serves those published bytes. The changed-update case adds a metadata
