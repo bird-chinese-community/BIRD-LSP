@@ -144,7 +144,7 @@ Use `--remote-dir <path>` to choose the remote working directory, and `--help` t
 
 The package also exports the types of all 14 declarations and of a subset of the protocol statements, channel entries, and filter statements, for example `ProtocolStatement`, `ChannelStatement`, `NeighborStatement`, and `FilterBodyStatement`. See [`src/index.ts`](https://github.com/bird-chinese-community/BIRD-LSP/blob/main/packages/@birdcc/parser/src/index.ts) for the full list.
 
-`findNetworkLiteralAt(input, { line, character })` accepts a zero-based LSP position and returns the IP or number token at that position as `{ kind: "ip" | "number", value, range }`, or `null`. It parses once with Tree-sitter and excludes comments and strings. `range` uses the same one-based coordinates as declarations. `findIpLiteralAt` provides the IP-only form.
+`findNetworkLiteralAt(input, { line, character })` accepts a zero-based LSP position and returns the IP or number token at that position as `{ kind: "ip" | "number", value, range }`, or `null`. It parses once with Tree-sitter and excludes comments and strings. `range` uses the same one-based coordinates as declarations.
 
 ## See also
 
