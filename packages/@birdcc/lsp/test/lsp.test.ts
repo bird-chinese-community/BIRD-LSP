@@ -1,3 +1,5 @@
+import { marked } from "marked";
+import { parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { describe, expect, it } from "vitest";
 import { DiagnosticSeverity } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -91,20 +93,50 @@ describe("@birdcc/lsp", () => {
     expect(hover?.contents).toBeDefined();
   });
 
-  it("escapes markdown code content in include hover", async () => {
-    const text = 'include "unsafe`name.conf";';
+  it("keeps declaration strings inside one code span", async () => {
+    const values = [
+      "x`<img src=https://example.org/h.png>`",
+      "y`![i](https://example.org/i.png)`.conf",
+      "``z``",
+    ];
+    const text = [
+      `hostname "${values[0]}";`,
+      `include "${values[1]}";`,
+      `hostname "${values[2]}";`,
+    ].join("\n");
     const parsed = await parseBirdConfig(text);
     const document = TextDocument.create("file:///bird.conf", "bird", 1, text);
 
-    const hover = createHoverFromParsed(parsed, document, {
-      line: 0,
-      character: 12,
-    });
-
-    expect(hover?.contents).toBeDefined();
-    expect(
-      hover && typeof hover.contents !== "string" ? hover.contents.value : "",
-    ).toContain("unsafe\\`name.conf");
+    for (const [line, value] of values.entries()) {
+      const hover = createHoverFromParsed(parsed, document, {
+        line,
+        character: text.split("\n")[line]!.indexOf(value) + 1,
+      });
+      const markdown =
+        hover && typeof hover.contents !== "string" && "value" in hover.contents
+          ? hover.contents.value
+          : "";
+      const nodes = parseFragment(
+        marked.parse(markdown, { async: false }),
+      ).childNodes;
+      const elements = (
+        list: readonly DefaultTreeAdapterMap["childNode"][],
+      ): string[] =>
+        list.flatMap((node) =>
+          "tagName" in node ? [node.tagName, ...elements(node.childNodes)] : [],
+        );
+      expect(elements(nodes)).toEqual(["p", "strong", "code"]);
+      const code = nodes
+        .flatMap((node) => ("childNodes" in node ? node.childNodes : []))
+        .find((node) => "tagName" in node && node.tagName === "code");
+      expect(
+        code && "childNodes" in code
+          ? code.childNodes
+              .map((node) => ("value" in node ? node.value : ""))
+              .join("")
+          : "",
+      ).toBe(value);
+    }
   });
 
   it("creates hover for multi-word keyword phrase", async () => {

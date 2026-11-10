@@ -8,7 +8,7 @@ export type {
 } from "./types.js";
 export { loadAsnDatabase } from "./database.js";
 export { formatAsnDisplay } from "./display.js";
-export { escapeMarkdown } from "./markdown.js";
+export { escapeMarkdown, markdownCode } from "./markdown.js";
 export { countryCodeToFlag } from "./country-flag.js";
 export { createAsnIntel, type AsnIntel } from "./intel.js";
 export {
