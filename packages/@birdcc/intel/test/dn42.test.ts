@@ -6,10 +6,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createDn42Intel } from "../src/dn42.js";
 
 const files = [
-  "country.mmdb",
-  "city.mmdb",
-  "asn.mmdb",
-  "connection-type.mmdb",
+  "DN42-IPDB-Country.mmdb",
+  "DN42-IPDB-City.mmdb",
+  "DN42-IPDB-ASN.mmdb",
+  "DN42-IPDB-Connection-Type.mmdb",
   "asn-index.json",
   "metadata.json",
   "LICENSE-Unicode.txt",
@@ -77,7 +77,9 @@ describe("DN42 SDK provider", () => {
       if (request.url === "/checksums.json")
         response.end(
           JSON.stringify(
-            corrupt ? { ...checksums, "city.mmdb": "0".repeat(64) } : checksums,
+            corrupt
+              ? { ...checksums, "DN42-IPDB-City.mmdb": "0".repeat(64) }
+              : checksums,
           ),
         );
       else response.end(artifacts[request.url ?? ""]);
@@ -147,11 +149,11 @@ describe("DN42 SDK provider", () => {
       expect(errors).toHaveLength(1);
       expect(intel.lookup("172.20.0.1")?.asn).toBe(4242420001);
       const pointer = JSON.parse(
-        await readFile(join(dir, "typescript", "current.json"), "utf8"),
+        await readFile(join(dir, "typescript", "v2", "current.json"), "utf8"),
       ) as { version: string };
       expect(
         await readFile(
-          join(dir, "typescript", pointer.version, "LICENSE-Unicode.txt"),
+          join(dir, "typescript", "v2", pointer.version, "LICENSE-Unicode.txt"),
           "utf8",
         ),
       ).toContain("UNICODE");
@@ -191,10 +193,10 @@ describe("DN42 SDK provider", () => {
     expect(errors).toHaveLength(0);
     expect(intel.lookup("172.20.0.1")).toBeUndefined();
     await expect(
-      readFile(join(dir, "typescript", "current.json")),
+      readFile(join(dir, "typescript", "v2", "current.json")),
     ).rejects.toMatchObject({ code: "ENOENT" });
     expect(
-      (await readdir(join(dir, "typescript"))).filter((name) =>
+      (await readdir(join(dir, "typescript", "v2"))).filter((name) =>
         name.startsWith(".stage-"),
       ),
     ).toEqual([]);

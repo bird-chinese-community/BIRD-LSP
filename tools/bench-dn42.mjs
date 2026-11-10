@@ -31,10 +31,10 @@ const sdkArchive = sdkArchivePath
     }
   : undefined;
 const artifactNames = [
-  "country.mmdb",
-  "city.mmdb",
-  "asn.mmdb",
-  "connection-type.mmdb",
+  "DN42-IPDB-Country.mmdb",
+  "DN42-IPDB-City.mmdb",
+  "DN42-IPDB-ASN.mmdb",
+  "DN42-IPDB-Connection-Type.mmdb",
   "asn-index.json",
   "metadata.json",
   "LICENSE-Unicode.txt",
