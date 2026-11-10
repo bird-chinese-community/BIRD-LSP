@@ -118,6 +118,7 @@ export const createLanguageClient = (
     documentSelector: [...BIRD_DOCUMENT_SELECTOR],
     outputChannel,
     revealOutputChannelOn: RevealOutputChannelOn.Never,
+    markdown: { supportHtml: true },
     initializationOptions: {
       birdcc: {
         enabled: configuration.enabled,

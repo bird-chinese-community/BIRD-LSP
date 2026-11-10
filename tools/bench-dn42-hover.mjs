@@ -1,7 +1,6 @@
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { cpus } from "node:os";
 import { bench, do_not_optimize, run } from "mitata";
 import {
@@ -12,9 +11,6 @@ import {
 assert.equal(typeof globalThis.gc, "function", "Run Node with --expose-gc");
 assert.ok(process.env.DN42_HOVER_BENCH_OUTPUT, "Set DN42_HOVER_BENCH_OUTPUT");
 const root = new URL("../", import.meta.url);
-const { decodeHTML } = createRequire(
-  new URL("packages/@birdcc/lsp/package.json", root),
-)("entities");
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const observation = (index, kind = "irr") => ({
   target: `172.20.${index % 256}.0/24`,
@@ -98,7 +94,7 @@ const asn = {
     observation(index, index % 2 === 0 ? "roa" : "irr"),
   ),
 };
-const cases = [
+const inputs = [
   { name: "IP / GeoFeed", input: base, format: formatDn42IpHover },
   {
     name: "IP / resolver and conflicts",
@@ -116,25 +112,35 @@ const cases = [
     format: formatDn42AsnHover,
   },
 ];
+const escapedName = {
+  html: "Benchmark &#60;network&#62; &#38; operator",
+  markdown: "Benchmark \\<network\\> \\& operator",
+};
+const cases = ["html", "markdown"].flatMap((markup) =>
+  inputs.map((item) => ({
+    ...item,
+    name: `${markup} / ${item.name}`,
+    markup,
+    render: () => item.format(item.input, markup),
+  })),
+);
 
 for (const item of cases) {
-  const output = item.format(item.input);
-  const decoded = decodeHTML(output);
-  assert.ok(decoded.includes("DN42 registry"));
-  assert.ok(decoded.includes("Benchmark <network> & operator"));
+  const output = item.render();
+  assert.ok(output.includes("DN42 IPDB · registry data"));
+  assert.ok(output.includes(escapedName[item.markup]), "Escape source markup");
   assert.ok(!output.includes("<network>"), "Escape source markup");
   assert.ok(
-    decoded.includes(item.input.dn42?.roa_prefix ?? "172.20.0.0/24"),
+    output.includes(item.input.dn42?.roa_prefix ?? "172.20.0.0/24"),
     "Keep policy prefix scope",
   );
-  assert.ok(decoded.includes("Source: DN42 IPDB"));
   if (item.input === resolver) {
-    assert.ok(decoded.includes("Anycast") && decoded.includes("Published"));
-    assert.match(decoded, /IRR[^\n]*Conflict/);
+    assert.ok(output.includes("Anycast") && output.includes("published"));
+    assert.ok(output.includes("Conflict"));
   }
-  if (item.input === longIPv6) assert.ok(decoded.includes(longIPv6.ip));
-  if (item.input === asn) assert.ok(decoded.includes("256 prefixes"));
-  bench(item.name, () => do_not_optimize(item.format(item.input)));
+  if (item.input === longIPv6) assert.ok(output.includes(longIPv6.ip));
+  if (item.input === asn) assert.ok(output.includes("254 more"));
+  bench(item.name, () => do_not_optimize(item.render()));
 }
 
 const result = await run({ colors: false });
@@ -162,7 +168,7 @@ const report = {
     nodeOptions: process.env.NODE_OPTIONS ?? null,
     gc: "exposed; mitata default once after warmup",
     scope:
-      "native Markdown formatting only; synthetic inputs; excludes lookup, IPC and editor rendering",
+      "HTML and Markdown hover formatting only; synthetic inputs; excludes lookup, IPC and editor rendering",
     timingUnit: "nanoseconds per operation",
     codeSha256,
     inputs: cases.map((item) => ({
@@ -171,7 +177,7 @@ const report = {
       observations:
         item.input.dn42?.observations.length ?? item.input.observations.length,
       prefixes: item.input.prefixes?.length ?? 1,
-      outputBytes: Buffer.byteLength(item.format(item.input)),
+      outputBytes: Buffer.byteLength(item.render()),
     })),
   },
   benchmarks: result.benchmarks.map((benchmark) => ({

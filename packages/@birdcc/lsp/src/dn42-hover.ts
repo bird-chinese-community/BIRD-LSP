@@ -1,50 +1,237 @@
-import type { Dn42AsnInfo, Dn42IpInfo } from "@birdcc/intel";
-import { encodeHTML } from "entities";
+import {
+  escapeMarkdown,
+  type Dn42AsnInfo,
+  type Dn42IpInfo,
+} from "@birdcc/intel";
+
+/** `html` targets clients that allow `span` and `table`; `markdown` is portable. */
+export type Dn42HoverMarkup = "html" | "markdown";
 
 type Observation = NonNullable<Dn42IpInfo["dn42"]>["observations"][number];
 
-const text = (value: string): string =>
-  encodeHTML(value.replace(/\s+/g, " ").trim());
+type Part =
+  | { kind: "text" | "muted" | "id" | "badge"; value: string }
+  | { kind: "status"; value: string }
+  | { kind: "icon"; name: string };
 
-const statuses = new Map([
-  ["valid", "Valid"],
-  ["invalid", "Invalid"],
-  ["unknown", "Unknown"],
-  ["exact", "Exact"],
-  ["covering", "Covering"],
-  ["conflict", "Conflict"],
-  ["observed", "Observed"],
-  ["advertised", "Advertised"],
-  ["published", "Published"],
-  ["nxdomain", "NXDOMAIN"],
+type Line = Part[];
+
+interface Row {
+  label: string;
+  lines: Line[];
+}
+
+interface Card {
+  icon: string;
+  title: string;
+  summary: Line[];
+  rows: Row[];
+}
+
+interface StatusStyle {
+  label: string;
+  icon: string;
+  color: string;
+  marker: string;
+}
+
+const MUTED = "descriptionForeground";
+const ATTRIBUTION = "DN42 IPDB · registry data";
+
+const statuses = new Map<string, StatusStyle>([
+  [
+    "valid",
+    {
+      label: "Valid",
+      icon: "pass-filled",
+      color: "testing-iconPassed",
+      marker: "✓",
+    },
+  ],
+  [
+    "exact",
+    {
+      label: "Exact",
+      icon: "pass-filled",
+      color: "testing-iconPassed",
+      marker: "✓",
+    },
+  ],
+  [
+    "covering",
+    {
+      label: "Covering",
+      icon: "pass",
+      color: "editorInfo-foreground",
+      marker: "↳",
+    },
+  ],
+  [
+    "invalid",
+    { label: "Invalid", icon: "error", color: "errorForeground", marker: "✗" },
+  ],
+  [
+    "conflict",
+    {
+      label: "Conflict",
+      icon: "warning",
+      color: "editorWarning-foreground",
+      marker: "!",
+    },
+  ],
+  [
+    "unknown",
+    { label: "Unknown", icon: "question", color: MUTED, marker: "?" },
+  ],
+  [
+    "nxdomain",
+    { label: "NXDOMAIN", icon: "circle-slash", color: MUTED, marker: "⊘" },
+  ],
 ]);
-const statusMarks = new Map([
-  ["valid", "✓"],
-  ["exact", "✓"],
-  ["invalid", "!"],
-  ["conflict", "!"],
-  ["unknown", "?"],
-  ["covering", "↳"],
+const evidenceLabels = new Map([
+  ["observed", "observed"],
+  ["advertised", "advertised"],
+  ["published", "published"],
 ]);
-const statusBadge = (value: string): string => {
-  const label = statuses.get(value);
-  if (!label) return text(value);
-  const mark = statusMarks.get(value);
-  return `\`${mark ? `${mark} ` : ""}${label}\``;
-};
 const pathLabels = new Map([
   ["bgp-path-tunnel", "Tunnel"],
   ["bgp-path-ixp", "IXP"],
   ["bgp-path-centralized-vix", "Centralized VIX"],
 ]);
 
-const paragraphs = (blocks: (string | undefined)[]): string =>
-  blocks.filter(Boolean).join("\n\n");
-const lines = (values: (string | undefined)[]): string =>
-  values.filter(Boolean).join("  \n");
-const policyLine = (label: string, result: string, prefix?: string): string =>
-  `${label} ${statusBadge(result)}${prefix ? ` · ${text(prefix)}` : ""}`;
-const pathHints = (types: string[]): string[] => [
+const text = (value: string): Part => ({ kind: "text", value });
+const muted = (value: string): Part => ({ kind: "muted", value });
+const id = (value: string): Part => ({ kind: "id", value });
+const badge = (value: string): Part => ({ kind: "badge", value });
+const status = (value: string): Part => ({ kind: "status", value });
+const icon = (name: string): Part => ({ kind: "icon", name });
+
+const clean = (value: string): string => value.replace(/\s+/g, " ").trim();
+const more = (total: number, shown: number): Line[] =>
+  total > shown ? [[muted(`${total - shown} more`)]] : [];
+const row = (label: string, lines: Line[]): Row[] =>
+  lines.length ? [{ label, lines }] : [];
+
+// HTML form: only spans with sanitizer-approved styles and codicon classes.
+const escapeHtml = (value: string): string =>
+  clean(value).replace(
+    /[&<>"']/g,
+    (character) => `&#${character.charCodeAt(0)};`,
+  );
+const tinted = (color: string, inner: string): string =>
+  `<span style="color:var(--vscode-${color});">${inner}</span>`;
+const codicon = (name: string): string =>
+  `<span class="codicon codicon-${name}"></span>`;
+
+const htmlPart = (part: Part): string => {
+  switch (part.kind) {
+    case "text":
+    case "id":
+      return escapeHtml(part.value);
+    case "muted":
+      return tinted(MUTED, escapeHtml(part.value));
+    case "badge":
+      return `<span style="color:var(--vscode-badge-foreground);background-color:var(--vscode-badge-background);border-radius:4px;">&nbsp;${escapeHtml(part.value)}&nbsp;</span>`;
+    case "icon":
+      return codicon(part.name);
+    case "status": {
+      const style = statuses.get(part.value);
+      return style
+        ? `${tinted(style.color, codicon(style.icon))}&nbsp;${style.label}`
+        : escapeHtml(part.value);
+    }
+  }
+};
+
+const htmlLine = (line: Line): string => line.map(htmlPart).join(" ");
+
+const renderHtml = (card: Card): string =>
+  [
+    `<h3>${codicon(card.icon)} ${escapeHtml(card.title)}</h3>`,
+    card.summary.length
+      ? `<p>${card.summary.map(htmlLine).join("<br>")}</p>`
+      : undefined,
+    card.rows.length
+      ? `<table>${card.rows
+          .flatMap(({ label, lines }) =>
+            lines.map(
+              (line, index) =>
+                `<tr><td>${index ? "" : `${tinted(MUTED, escapeHtml(label))}&emsp;`}</td><td>${htmlLine(line)}</td></tr>`,
+            ),
+          )
+          .join("")}</table>`
+      : undefined,
+    "<hr>",
+    `<p>${tinted(MUTED, escapeHtml(ATTRIBUTION))}</p>`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+// Markdown form: code spans for identifiers, backslash escapes for prose.
+const codeSpan = (value: string): string => {
+  const content = clean(value);
+  const longest = Math.max(
+    0,
+    ...(content.match(/`+/g) ?? []).map((run) => run.length),
+  );
+  const fence = "`".repeat(longest + 1);
+  const padded = /^`|`$/.test(content) ? ` ${content} ` : content;
+  return `${fence}${padded}${fence}`;
+};
+
+const markdownPart = (part: Part): string | undefined => {
+  switch (part.kind) {
+    case "text":
+    case "badge":
+      return escapeMarkdown(part.value);
+    case "id":
+      return codeSpan(part.value);
+    case "muted":
+      return `*${escapeMarkdown(part.value)}*`;
+    case "icon":
+      return part.name === "location" ? "⌖" : undefined;
+    case "status": {
+      const style = statuses.get(part.value);
+      return style
+        ? `${style.marker} ${style.label}`
+        : escapeMarkdown(part.value);
+    }
+  }
+};
+
+const markdownLine = (line: Line): string =>
+  line
+    .map(markdownPart)
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+
+const renderMarkdown = (card: Card): string =>
+  [
+    `### ${codeSpan(card.title)}`,
+    card.summary.length
+      ? card.summary.map(markdownLine).join("  \n")
+      : undefined,
+    card.rows.length
+      ? card.rows
+          .flatMap(({ label, lines }) =>
+            lines.map((line, index) =>
+              index
+                ? markdownLine(line)
+                : `**${escapeMarkdown(label)}** ${markdownLine(line)}`,
+            ),
+          )
+          .join("  \n")
+      : undefined,
+    "---",
+    `*${escapeMarkdown(ATTRIBUTION)}*`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+const render = (card: Card, markup: Dn42HoverMarkup): string =>
+  markup === "html" ? renderHtml(card) : renderMarkdown(card);
+
+const pathHints = (types: readonly string[]): string[] => [
   ...new Set(
     types.flatMap((type) => {
       const label = pathLabels.get(type);
@@ -52,19 +239,10 @@ const pathHints = (types: string[]): string[] => [
     }),
   ),
 ];
-const remaining = (
-  total: number,
-  shown: number,
-  noun: readonly [singular: string, plural: string],
-): string | undefined =>
-  total > shown
-    ? `*${total - shown} more ${noun[total - shown === 1 ? 0 : 1]}*`
-    : undefined;
 const isPolicy = (item: Observation): boolean =>
   item.kind === "roa" || item.kind === "irr";
 const isFailedPolicy = (item: Observation): boolean =>
   isPolicy(item) && (item.status === "invalid" || item.status === "conflict");
-
 const observationLabel = (item: Observation): string =>
   item.kind === "network_type"
     ? item.value === "public-resolver"
@@ -73,41 +251,40 @@ const observationLabel = (item: Observation): string =>
     : item.kind === "anycast"
       ? "Anycast"
       : item.kind.toUpperCase();
+const evidence = (value: string): Part =>
+  evidenceLabels.has(value) ? muted(value) : status(value);
+const foreignAsn = (item: Observation, ownerAsn?: number): Part[] =>
+  item.asn && item.asn !== ownerAsn ? [muted(`AS${item.asn}`)] : [];
 
-const observationLine = (item: Observation, ownerAsn?: number): string => {
-  const scope = [
-    item.target,
-    item.asn && item.asn !== ownerAsn ? `AS${item.asn}` : undefined,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const value =
-    item.kind === "ptr" && item.value
-      ? ` · ${text(item.value)}`
-      : isPolicy(item) && item.value
-        ? ` · policy ${text(item.value)}`
-        : "";
-  return `- ${text(observationLabel(item))} ${statusBadge(item.status)} · ${text(scope)}${value}`;
-};
+const policyObservation = (item: Observation, ownerAsn?: number): Line => [
+  status(item.status),
+  id(item.target),
+  ...foreignAsn(item, ownerAsn),
+  ...(item.value ? [muted("policy"), id(item.value)] : []),
+];
 
-const observationList = (
-  headingMarkdown: string,
-  items: Observation[],
-  limit: number,
-  ownerAsn?: number,
-): string | undefined =>
-  items.length
-    ? paragraphs([
-        headingMarkdown,
-        items
-          .slice(0, limit)
-          .map((item) => observationLine(item, ownerAsn))
-          .join("\n"),
-        remaining(items.length, limit, ["observation", "observations"]),
-      ])
-    : undefined;
+const serviceObservation = (item: Observation, ownerAsn?: number): Line => [
+  text(observationLabel(item)),
+  evidence(item.status),
+  id(item.target),
+  ...foreignAsn(item, ownerAsn),
+  ...(item.kind === "ptr" && item.value ? [id(item.value)] : []),
+];
 
-export const formatDn42IpHover = (info: Dn42IpInfo): string => {
+const limited = <T>(
+  items: readonly T[],
+  toLine: (item: T) => Line,
+  limit = 2,
+): Line[] => [
+  ...items.slice(0, limit).map(toLine),
+  ...more(items.length, limit),
+];
+
+/** Renders a DN42 address lookup as a title, owner summary and property sheet. */
+export const formatDn42IpHover = (
+  info: Dn42IpInfo,
+  markup: Dn42HoverMarkup = "markdown",
+): string => {
   const data = info.dn42;
   const types = data?.network_types ?? [];
   const location = [
@@ -124,78 +301,106 @@ export const formatDn42IpHover = (info: Dn42IpInfo): string => {
     (item) => item.kind === "geofeed-withheld",
   );
   const roles = [
-    types.includes("public-resolver") ? "**Public DNS resolver**" : undefined,
-    data && data.anycast !== "unknown"
-      ? `Anycast ${statusBadge(data.anycast)}`
-      : undefined,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const locationSummary = withheld
-    ? "*Location withheld by GeoFeed*"
-    : location
-      ? `**${data?.confidence === "geofeed" ? "⌖ " : ""}${text(location)}**${data?.confidence === "geofeed" ? " · *GeoFeed location*" : ""}`
-      : registered
-        ? `Registered in ${text(registered)}`
-        : roles
-          ? undefined
-          : "*Location not recorded*";
+    ...(types.includes("public-resolver")
+      ? [badge("Public DNS resolver")]
+      : []),
+    ...(data && data.anycast !== "unknown"
+      ? [badge("Anycast"), evidence(data.anycast)]
+      : []),
+  ];
   const ptr = data?.observations.find((item) => item.kind === "ptr");
-  const ptrValue = data?.ptr.length
-    ? `${data.ptr.slice(0, 2).join(", ")}${data.ptr.length > 2 ? ` · ${data.ptr.length - 2} more` : ""}`
+  const ptrLines: Line[] = data?.ptr.length
+    ? limited(data.ptr, (name) => [id(name)])
     : ptr?.status === "nxdomain"
-      ? "NXDOMAIN (observed)"
+      ? [[status("nxdomain"), muted("observed")]]
       : ptr?.status === "unknown"
-        ? "Unknown (lookup inconclusive)"
-        : undefined;
+        ? [[status("unknown"), muted("lookup inconclusive")]]
+        : [];
   const hints = pathHints(types);
   const otherTypes = types.filter(
     (type) =>
       type !== "anycast" && type !== "public-resolver" && !pathLabels.has(type),
   );
-  const warnings = data?.observations.filter(isFailedPolicy) ?? [];
-  return paragraphs([
-    `### ${text(info.ip)}`,
-    lines([
-      roles || undefined,
-      locationSummary,
-      info.asn
-        ? `AS${info.asn}${info.asName ? ` · ${text(info.asName)}` : ""}`
-        : undefined,
-      registered &&
-      ((location && info.registeredCountry !== info.country) || withheld)
-        ? `Registered in ${text(registered)}`
-        : undefined,
-    ]),
-    data
-      ? lines([
-          "*DN42 registry*",
-          data.roa_prefix === data.irr_prefix
-            ? `${policyLine("ROA", data.roa_status)} · ${policyLine("IRR", data.irr_status)}`
-            : policyLine("ROA", data.roa_status, data.roa_prefix),
-          data.roa_prefix === data.irr_prefix
-            ? data.roa_prefix
-              ? `Policy for both: ${text(data.roa_prefix)}`
-              : undefined
-            : policyLine("IRR", data.irr_status, data.irr_prefix),
-        ])
-      : undefined,
-    observationList("**Origin observations**", warnings, 2),
-    "---",
-    lines([
-      info.prefix ? `Network ${text(info.prefix)}` : undefined,
-      ptrValue ? `PTR: ${text(ptrValue)}` : undefined,
-      info.connectionType ? `Access: ${text(info.connectionType)}` : undefined,
-      hints.length ? `BGP path: ${hints.join(" · ")}` : undefined,
-      otherTypes.length
-        ? `Network types: ${otherTypes.map(text).join(" · ")}`
-        : undefined,
-    ]),
-    "*Source: DN42 IPDB*",
-  ]);
+  const conflicts = data?.observations.filter(isFailedPolicy) ?? [];
+  const policy = (result: string, prefix?: string): Line[] => [
+    [status(result), ...(prefix ? [muted(prefix)] : [])],
+  ];
+
+  return render(
+    {
+      icon: "globe",
+      title: info.ip,
+      summary: [
+        ...(info.asn
+          ? [
+              info.asName
+                ? [text(info.asName), muted(`AS${info.asn}`)]
+                : [text(`AS${info.asn}`)],
+            ]
+          : []),
+        ...(roles.length ? [roles] : []),
+      ],
+      rows: [
+        ...row(
+          "Location",
+          withheld
+            ? [[icon("eye-closed"), muted("Withheld by GeoFeed")]]
+            : location
+              ? [
+                  [
+                    icon("location"),
+                    text(location),
+                    ...(data?.confidence === "geofeed"
+                      ? [muted("GeoFeed")]
+                      : []),
+                  ],
+                ]
+              : registered || roles.length
+                ? []
+                : [[muted("Not recorded")]],
+        ),
+        ...row(
+          "Registered",
+          registered &&
+            (withheld || !location || info.registeredCountry !== info.country)
+            ? [[text(registered)]]
+            : [],
+        ),
+        ...row("Network", info.prefix ? [[id(info.prefix)]] : []),
+        ...(data
+          ? [
+              ...row("ROA", policy(data.roa_status, data.roa_prefix)),
+              ...row("IRR", policy(data.irr_status, data.irr_prefix)),
+            ]
+          : []),
+        ...row(
+          "Origins",
+          limited(conflicts, (item) => [
+            text(item.kind.toUpperCase()),
+            ...policyObservation(item, info.asn),
+          ]),
+        ),
+        ...row("PTR", ptrLines),
+        ...row(
+          "Access",
+          info.connectionType ? [[text(info.connectionType)]] : [],
+        ),
+        ...row("BGP path", hints.length ? [[text(hints.join(", "))]] : []),
+        ...row(
+          "Types",
+          otherTypes.length ? [[text(otherTypes.join(", "))]] : [],
+        ),
+      ],
+    },
+    markup,
+  );
 };
 
-export const formatDn42AsnHover = (info: Dn42AsnInfo): string => {
+/** Renders a DN42 autonomous system lookup with member policy and services. */
+export const formatDn42AsnHover = (
+  info: Dn42AsnInfo,
+  markup: Dn42HoverMarkup = "markdown",
+): string => {
   const countries = info.registered_countries.map(
     (country) => country.names.en ?? country.iso_code,
   );
@@ -205,46 +410,51 @@ export const formatDn42AsnHover = (info: Dn42AsnInfo): string => {
     const selected = matching.find(isFailedPolicy) ?? matching[0];
     return selected ? [selected] : [];
   });
-  const memberObservations = info.observations.filter(
+  const services = info.observations.filter(
     (item) =>
       item.kind === "ptr" ||
       item.kind === "anycast" ||
       (item.kind === "network_type" &&
         (item.value === "public-resolver" || item.value === "anycast")),
   );
-  return paragraphs([
-    `### AS${info.asn}`,
-    lines([
-      info.as_name ? text(info.as_name) : undefined,
-      `**${info.prefixes.length} prefixes**`,
-    ]),
-    policies.length
-      ? observationList(
-          "**Member policy** · *DN42 registry*",
-          policies,
-          2,
-          info.asn,
-        )
-      : undefined,
-    "---",
-    countries.length
-      ? `Registered in ${countries.slice(0, 4).map(text).join(", ")}${countries.length > 4 ? ` · ${countries.length - 4} more` : ""}`
-      : undefined,
-    lines([
-      ...info.prefixes.slice(0, 2).map(text),
-      remaining(info.prefixes.length, 2, ["prefix", "prefixes"]),
-    ]),
-    hints.length ? `BGP path on members: ${hints.join(" · ")}` : undefined,
-    memberObservations.length
-      ? observationList(
-          "**Member observations**",
-          memberObservations,
-          2,
-          info.asn,
-        )
-      : policies.length
-        ? undefined
-        : "*No member observations recorded*",
-    "*Source: DN42 IPDB*",
-  ]);
+
+  return render(
+    {
+      icon: "organization",
+      title: `AS${info.asn}`,
+      summary: info.as_name ? [[text(info.as_name)]] : [],
+      rows: [
+        ...row(
+          "Registered",
+          countries.length
+            ? [
+                [
+                  text(countries.slice(0, 4).join(", ")),
+                  ...(countries.length > 4
+                    ? [muted(`${countries.length - 4} more`)]
+                    : []),
+                ],
+              ]
+            : [],
+        ),
+        ...policies.flatMap((item) =>
+          row(item.kind.toUpperCase(), [policyObservation(item, info.asn)]),
+        ),
+        ...row(
+          "Services",
+          services.length
+            ? limited(services, (item) => serviceObservation(item, info.asn))
+            : policies.length
+              ? []
+              : [[muted("No member observations")]],
+        ),
+        ...row(
+          "Prefixes",
+          limited(info.prefixes, (prefix) => [id(prefix)]),
+        ),
+        ...row("BGP path", hints.length ? [[text(hints.join(", "))]] : []),
+      ],
+    },
+    markup,
+  );
 };

@@ -133,6 +133,9 @@ describe("language client command resolution", () => {
         intelDn42Enabled: enabled,
       }),
     );
+    expect(mocks.capturedClientOptions?.markdown).toEqual({
+      supportHtml: true,
+    });
     const middleware =
       mocks.capturedClientOptions?.middleware?.workspace?.configuration;
     expect(middleware).toBeDefined();

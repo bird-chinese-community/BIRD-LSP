@@ -45,7 +45,11 @@ import { createAsnCompletionItems } from "./asn-completion.js";
 import { createAsnInlayHints } from "./asn-inlay-hints.js";
 import { createTypeHintInlayHints } from "./type-hint-inlay.js";
 import { createAsnHover } from "./asn-hover.js";
-import { formatDn42AsnHover, formatDn42IpHover } from "./dn42-hover.js";
+import {
+  formatDn42AsnHover,
+  formatDn42IpHover,
+  type Dn42HoverMarkup,
+} from "./dn42-hover.js";
 import { findDn42HoverTarget } from "./dn42-target.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
@@ -209,6 +213,7 @@ export const startLspServer = (options?: LspServerOptions): void => {
   let noConfigTipAnnounced = false;
   let hasShutdownBeenRequested = false;
   let dn42Enabled = false;
+  let dn42Markup: Dn42HoverMarkup = "markdown";
   let dn42ConfigurationGeneration = 0;
   const cacheHome = process.env.XDG_CACHE_HOME;
   const dn42Intel = createDn42Intel({
@@ -967,6 +972,12 @@ export const startLspServer = (options?: LspServerOptions): void => {
     supportsInlayHintRefresh = Boolean(
       params.capabilities.workspace?.inlayHint?.refreshSupport,
     );
+    const markdownTags = params.capabilities.general?.markdown?.allowedTags;
+    dn42Markup = ["h3", "p", "br", "table", "tr", "td", "hr", "span"].every(
+      (tag) => markdownTags?.includes(tag),
+    )
+      ? "html"
+      : "markdown";
     editorSettings = birdEditorSettingsSchema.parse(
       params.initializationOptions?.birdcc ?? {},
     );
@@ -1296,9 +1307,9 @@ export const startLspServer = (options?: LspServerOptions): void => {
         const asnInfo =
           target?.kind === "asn" ? dn42Intel.lookupAsn(target.asn) : undefined;
         const value = ipInfo
-          ? formatDn42IpHover(ipInfo)
+          ? formatDn42IpHover(ipInfo, dn42Markup)
           : asnInfo
-            ? formatDn42AsnHover(asnInfo)
+            ? formatDn42AsnHover(asnInfo, dn42Markup)
             : undefined;
         if (target && value)
           return {
