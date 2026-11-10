@@ -1,4 +1,7 @@
+import { readFile } from "node:fs/promises";
 import { isIP } from "node:net";
+import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   downloadRelease,
   openCachedBundle,
@@ -10,6 +13,8 @@ import {
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 const RETRY_INTERVAL = 60 * 60 * 1000;
 const LOCK_RETRY_INTERVAL = 30_000;
+// The SDK applies one deadline to the whole release (about 12 MB).
+const DOWNLOAD_TIMEOUT = 10 * 60 * 1000;
 
 export interface Dn42IpInfo {
   ip: string;
@@ -51,6 +56,9 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
   let controller: AbortController | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let inFlight: Promise<void> | undefined;
+  // Settles after the latest task releases the cache lock, even when aborted.
+  let settled: Promise<void> = Promise.resolve();
+  let failures = 0;
 
   const active = (version: number) =>
     enabled && !disposed && generation === version;
@@ -73,6 +81,18 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
     bundle = loaded;
   }
 
+  // Another process sharing the cache may have activated a newer release.
+  async function isLoaded(directory: string): Promise<boolean> {
+    if (!bundle) return false;
+    const metadata = await readFile(join(directory, "metadata.json"), "utf8")
+      .then((text): unknown => JSON.parse(text))
+      .catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return undefined;
+        throw error;
+      });
+    return isDeepStrictEqual(metadata, bundle.releaseMetadata());
+  }
+
   function refresh(): Promise<void> {
     if (!enabled || disposed) return Promise.resolve();
     if (inFlight) return inFlight;
@@ -80,10 +100,13 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
     const version = generation;
     const request = new AbortController();
     controller = request;
+    const previous = settled;
     let task!: Promise<void>;
     task = (async () => {
       let delay = CHECK_INTERVAL;
       try {
+        await previous;
+        request.signal.throwIfAborted();
         if (!bundle) {
           try {
             await loadCache(version);
@@ -103,18 +126,23 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
           cacheDir: options.cacheDir,
           baseURL: options.baseUrl,
           signal: request.signal,
-          timeoutMs: 30_000,
+          timeoutMs: DOWNLOAD_TIMEOUT,
         });
         request.signal.throwIfAborted();
-        if (active(version) && (result.changed || !bundle))
+        if (
+          active(version) &&
+          (result.changed || !(await isLoaded(result.directory)))
+        )
           await loadCache(version);
+        failures = 0;
       } catch (error) {
         request.abort();
         if (active(version)) {
-          delay =
-            (error as NodeJS.ErrnoException).code === "ELOCKED"
-              ? LOCK_RETRY_INTERVAL
-              : RETRY_INTERVAL;
+          const locked = (error as NodeJS.ErrnoException).code === "ELOCKED";
+          if (!locked) failures++;
+          delay = locked
+            ? LOCK_RETRY_INTERVAL
+            : Math.min(RETRY_INTERVAL * 2 ** (failures - 1), CHECK_INTERVAL);
           const failure = new Error(
             `Updating DN42 IPDB failed: ${error instanceof Error ? error.message : String(error)}`,
             { cause: error },
@@ -129,6 +157,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       }
     })();
     inFlight = task;
+    settled = task.catch(() => {});
     return task;
   }
 
@@ -144,6 +173,7 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       bundle = undefined;
       return;
     }
+    failures = 0;
     void refresh().catch(() => {});
   }
 
