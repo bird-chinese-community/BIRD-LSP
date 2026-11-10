@@ -1311,12 +1311,16 @@ export const startLspServer = (options?: LspServerOptions): void => {
           getLineText(document, params.position.line),
           params.position,
           (candidate) => {
+            const options = {
+              markup: dn42Markup,
+              release: dn42Intel.release(),
+            };
             if (candidate.kind === "ip") {
               const info = dn42Intel.lookup(candidate.ip);
-              return info && formatDn42IpHover(info, dn42Markup);
+              return info && formatDn42IpHover(info, options);
             }
             const info = dn42Intel.lookupAsn(candidate.asn);
-            return info && formatDn42AsnHover(info, dn42Markup);
+            return info && formatDn42AsnHover(info, options);
           },
         );
         if (hover)

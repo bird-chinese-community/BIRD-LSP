@@ -45,6 +45,8 @@ export interface Dn42Intel {
   setEnabled(enabled: boolean): void;
   lookup(ip: string): Dn42IpInfo | undefined;
   lookupAsn(asn: number): Dn42AsnInfo | undefined;
+  /** Release tag of the loaded bundle, such as `2026-11-10.13`. */
+  release(): string | undefined;
   refresh(): Promise<void>;
   dispose(): void;
 }
@@ -225,6 +227,11 @@ export function createDn42Intel(options: Dn42IntelOptions): Dn42Intel {
       )
         return undefined;
       return bundle.lookupAsn(asn);
+    },
+    release() {
+      const tag =
+        enabled && bundle ? bundle.releaseMetadata().release_tag : undefined;
+      return typeof tag === "string" ? tag : undefined;
     },
     refresh,
     dispose() {

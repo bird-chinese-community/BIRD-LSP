@@ -18,13 +18,13 @@ version: 2026-11-10
 # 3. Structure and composition
 
 - [SHOULD] Decision: Compose every popover as a title, a summary, a property sheet, one divider and an attribution line. Source: the redesign request for a calmer, aligned reference layout.
-- [SHOULD] The title carries one kind icon and the identifier. The summary holds the owner name and categorical role badges.
+- [SHOULD] The title carries one kind icon and the identifier. An address with a known country uses that country's flag emoji instead of the kind icon: the shown location's country, else the registration country. A withheld location never supplies the flag. The summary holds the owner name and categorical role badges.
 - [SHOULD] The property sheet has a label column and a value column. Each row holds one fact. A row with several values continues on following rows with an empty label cell.
-- [MUST] Keep a qualifier on the row of the value that it limits. Show the scope of an attributed result as secondary text after the result.
+- [MUST] Keep a qualifier on the row of the value that it limits. Show the scope of an attributed result as secondary text after the result. Phrase a source qualifier as attribution, for example "(by GeoFeed)".
 - [SHOULD] Put exceptional observations directly after the results they contradict, before other evidence rows.
 - [SHOULD] Show at most two items of a collection, then a secondary "N more" line.
 - [SHOULD] When a policy result covers several members, show one line per result with its member count, failures first, and list the failed members after their count.
-- [SHOULD] Put the attribution line after the divider and nothing after it.
+- [SHOULD] Put the attribution line after the divider and nothing after it. It names the data package and the loaded release tag: `Data source: @birdcc/dn42-ipdb, #<release tag>`. Omit the tag when the release does not record one.
 
 # 4. Visual rules
 
@@ -44,7 +44,7 @@ version: 2026-11-10
 | :-------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------- | :-------------------------------------- | :------------------ |
 | Popover surface | Native editor hover container                                                                                                                                                                                                                                                             | Host theme `editorHoverWidget.*`         | All lookup popovers                     | Implemented by host |
 | Title           | `<h3>` with kind codicon; Markdown `###`                                                                                                                                                                                                                                                  | `packages/@birdcc/lsp/src/dn42-hover.ts` | One identifier                          | Implemented         |
-| Kind icon       | `codicon-globe` (address), `codicon-organization` (autonomous system)                                                                                                                                                                                                                     | Same renderer                            | Title only                              | Implemented         |
+| Kind icon       | Country flag emoji (address with a known country), `codicon-globe` (other addresses), `codicon-organization` (autonomous system)                                                                                                                                                          | Same renderer                            | Title only                              | Implemented         |
 | Property sheet  | `<table>` of label and value cells; Markdown hard-break lines                                                                                                                                                                                                                             | Same renderer                            | Facts below the summary                 | Implemented         |
 | Secondary text  | `var(--vscode-descriptionForeground)`; Markdown emphasis                                                                                                                                                                                                                                  | Same renderer                            | Labels, scopes, counts, attribution     | Implemented         |
 | Result icon     | `pass-filled` with `var(--vscode-testing-iconPassed)`; `pass` with `var(--vscode-editorInfo-foreground)`; `error` with `var(--vscode-errorForeground)`; `warning` with `var(--vscode-editorWarning-foreground)`; `question` and `circle-slash` with `var(--vscode-descriptionForeground)` | Same renderer                            | Defined results                         | Implemented         |
@@ -67,6 +67,7 @@ version: 2026-11-10
 # 7. Anti-patterns
 
 - [SHOULD] Do not use code-span pills for status words or ordinary metadata.
+- [MUST] Do not show a word that every value of its row would carry, such as "observed" on PTR results. Do not write attribution that restates what the popover already implies; it must let the reader identify and reproduce the source.
 - [SHOULD] Do not chain several facts on one line with separator dots.
 - [SHOULD] Do not use italic text as a section heading.
 - [SHOULD] Do not place cards inside the popover surface or add decorative icon tiles.

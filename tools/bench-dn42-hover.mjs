@@ -121,7 +121,7 @@ const cases = ["html", "markdown"].flatMap((markup) =>
     ...item,
     name: `${markup} / ${item.name}`,
     markup,
-    render: () => item.format(item.input, markup),
+    render: () => item.format(item.input, { markup, release: "2026-11-10.13" }),
   })),
 );
 
@@ -132,7 +132,7 @@ for (const item of cases) {
   // The inputs contain no backslashes, so removing escapes yields visible text.
   const visible =
     item.markup === "markdown" ? output.replaceAll("\\", "") : output;
-  assert.ok(visible.includes("DN42 IPDB · registry data"));
+  assert.ok(visible.includes("Data source: @birdcc/dn42-ipdb, #2026-11-10.13"));
   assert.ok(
     visible.includes(item.input.dn42?.roa_prefix ?? "172.20.0.0/24"),
     "Keep policy prefix scope",

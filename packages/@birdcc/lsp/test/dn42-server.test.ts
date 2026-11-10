@@ -219,15 +219,13 @@ it("uses DN42 hover only after the user enables it", async () => {
   userEnabled = true;
   await changeSettings({ birdcc: { intel: { dn42: { enabled: true } } } });
   await vi.waitFor(
-    async () => expect(await hover(0, 34)).toContain("DN42 IPDB"),
+    async () => expect(await hover(0, 34)).toContain("@birdcc/dn42-ipdb"),
     { timeout: 10000 },
   );
   expect(release.counts.requests).toBeGreaterThanOrEqual(8);
 
   const ipMarkdown = await hover(0, 34);
-  expect(ipMarkdown).toMatch(
-    /^<h3><span class="codicon codicon-globe"><\/span> 172\.20\.0\.1<\/h3>\n/,
-  );
+  expect(ipMarkdown).toMatch(/^<h3>🇺🇸 172\.20\.0\.1<\/h3>\n/);
   for (const text of [
     "TestNetwork",
     "AS4242420001",
@@ -239,7 +237,7 @@ it("uses DN42 hover only after the user enables it", async () => {
     "codicon-pass-filled",
     "&nbsp;Valid",
     "&nbsp;Exact",
-    "DN42 IPDB · registry data",
+    "Data source: @birdcc/dn42-ipdb, #2023-11-14.1",
     "<table>",
   ])
     expect(ipMarkdown).toContain(text);
@@ -266,19 +264,19 @@ it("uses DN42 hover only after the user enables it", async () => {
     [3, 45],
     [4, 30],
   ] as const)
-    expect(await hover(line, character)).not.toContain("DN42 IPDB");
+    expect(await hover(line, character)).not.toContain("@birdcc/dn42-ipdb");
 
   hoverEnabled = false;
   await changeSettings({ birdcc: { intel: { hover: false } } });
   await vi.waitFor(async () =>
-    expect(await hover(0, 34)).not.toContain("DN42 IPDB"),
+    expect(await hover(0, 34)).not.toContain("@birdcc/dn42-ipdb"),
   );
   // Turning hover back on restarts the provider, which checks for an update.
   const checked = release.counts.requests;
   hoverEnabled = true;
   await changeSettings({ birdcc: { intel: { hover: true } } });
   await vi.waitFor(async () =>
-    expect(await hover(0, 45)).toContain("DN42 IPDB"),
+    expect(await hover(0, 45)).toContain("@birdcc/dn42-ipdb"),
   );
   await vi.waitFor(() =>
     expect(release.counts.requests).toBeGreaterThan(checked),
@@ -286,12 +284,12 @@ it("uses DN42 hover only after the user enables it", async () => {
   masterEnabled = false;
   await changeSettings({ birdcc: { intel: { enabled: false } } });
   await vi.waitFor(async () =>
-    expect(await hover(0, 45)).not.toContain("DN42 IPDB"),
+    expect(await hover(0, 45)).not.toContain("@birdcc/dn42-ipdb"),
   );
   userEnabled = false;
   await changeSettings({ birdcc: { intel: { dn42: { enabled: false } } } });
   await vi.waitFor(async () =>
-    expect(await hover(0, 34)).not.toContain("DN42 IPDB"),
+    expect(await hover(0, 34)).not.toContain("@birdcc/dn42-ipdb"),
   );
   await shutdown();
 }, 20000);
@@ -305,11 +303,12 @@ it("serves the Markdown form and falls back to initialization options", async ()
     configuration: () => null,
   });
   await vi.waitFor(
-    async () => expect(await session.hover(0, 34)).toContain("DN42 IPDB"),
+    async () =>
+      expect(await session.hover(0, 34)).toContain("@birdcc/dn42-ipdb"),
     { timeout: 10000 },
   );
   const markdown = await session.hover(0, 34);
-  expect(markdown).toMatch(/^### `172\.20\.0\.1`\n\n/);
+  expect(markdown).toMatch(/^### 🇺🇸 `172\.20\.0\.1`\n\n/);
   expect(markdown).not.toContain("<span");
 
   const answered = session.configurationRequests();
@@ -320,7 +319,7 @@ it("serves the Markdown form and falls back to initialization options", async ()
     expect(session.configurationRequests()).toBeGreaterThan(answered),
   );
   await new Promise((resolve) => setTimeout(resolve, 200));
-  expect(await session.hover(0, 45)).toContain("DN42 IPDB");
+  expect(await session.hover(0, 45)).toContain("@birdcc/dn42-ipdb");
   await session.shutdown();
 }, 20000);
 
@@ -337,7 +336,8 @@ it("downloads through the proxy in the server environment", async () => {
       section === "bird2-lsp.intel.dn42.enabled" ? true : null,
   });
   await vi.waitFor(
-    async () => expect(await session.hover(0, 34)).toContain("DN42 IPDB"),
+    async () =>
+      expect(await session.hover(0, 34)).toContain("@birdcc/dn42-ipdb"),
     { timeout: 10000 },
   );
   expect(release.counts.proxied).toBeGreaterThan(0);
