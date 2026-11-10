@@ -1,6 +1,5 @@
 import { access } from "node:fs/promises";
-import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   DEFAULT_CROSS_FILE_MAX_DEPTH,
@@ -51,6 +50,7 @@ import {
   formatDn42IpHover,
   type Dn42HoverMarkup,
 } from "./dn42-hover.js";
+import { dn42CacheDir } from "./dn42-cache.js";
 import { findDn42Hover } from "./dn42-target.js";
 import { detectWorkspaceEntry } from "./init/workspace-init.js";
 import {
@@ -223,19 +223,8 @@ export const startLspServer = (options?: LspServerOptions): void => {
     )
   )
     setGlobalDispatcher(new EnvHttpProxyAgent());
-  const cacheHome = process.env.XDG_CACHE_HOME;
   const dn42Intel = createDn42Intel({
-    cacheDir:
-      options?.dn42CacheDir ??
-      join(
-        cacheHome && isAbsolute(cacheHome)
-          ? cacheHome
-          : process.platform === "win32" && process.env.LOCALAPPDATA
-            ? process.env.LOCALAPPDATA
-            : join(homedir(), ".cache"),
-        "birdcc",
-        "dn42-ipdb",
-      ),
+    cacheDir: options?.dn42CacheDir ?? dn42CacheDir(),
     baseUrl: options?.dn42BaseUrl,
     onError: (error) =>
       connection.console.error(`[intel] DN42 IPDB: ${error.message}`),
