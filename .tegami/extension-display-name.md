@@ -6,3 +6,5 @@ packages:
 ## Name the extension BIRD2 LSP
 
 Show `BIRD2 LSP` as the extension name in the Extensions view, the Settings editor, and the Output channel.
+
+PR: https://github.com/bird-chinese-community/BIRD-LSP/pull/250
