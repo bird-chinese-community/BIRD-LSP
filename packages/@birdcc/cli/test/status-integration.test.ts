@@ -10,6 +10,8 @@ const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const cliPath = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 const validator = (script: string): string =>
   `"${process.execPath}" -e '${script}' {file}`;
+const processTimeoutMs = 10_000;
+const processTestTimeoutMs = 30_000;
 
 describe("CLI process status and runtime exports", () => {
   let directory: string;
@@ -31,7 +33,7 @@ describe("CLI process status and runtime exports", () => {
       const result = spawnSync(
         process.execPath,
         [cliPath, "fmt", file, "--check", "--engine", "builtin", ...output],
-        { encoding: "utf8" },
+        { encoding: "utf8", timeout: processTimeoutMs },
       );
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(1);
@@ -42,27 +44,34 @@ describe("CLI process status and runtime exports", () => {
         });
       }
     },
+    processTestTimeoutMs,
   );
 
-  it("writes JSON output successfully and passes a subsequent check", async () => {
-    const written = spawnSync(
-      process.execPath,
-      [cliPath, "fmt", file, "--write", "--json", "--engine", "builtin"],
-      { encoding: "utf8" },
-    );
-    expect(written.status).toBe(0);
-    expect(JSON.parse(written.stdout)).toMatchObject({ changed: true });
-    expect(await readFile(file, "utf8")).toBe(
-      "router id 192.0.2.1;\nprotocol device {}\n",
-    );
-    const checked = spawnSync(
-      process.execPath,
-      [cliPath, "fmt", file, "--check", "--json", "--engine", "builtin"],
-      { encoding: "utf8" },
-    );
-    expect(checked.status).toBe(0);
-    expect(JSON.parse(checked.stdout)).toMatchObject({ changed: false });
-  });
+  it(
+    "writes JSON output successfully and passes a subsequent check",
+    async () => {
+      const written = spawnSync(
+        process.execPath,
+        [cliPath, "fmt", file, "--write", "--json", "--engine", "builtin"],
+        { encoding: "utf8", timeout: processTimeoutMs },
+      );
+      expect(written.error).toBeUndefined();
+      expect(written.status).toBe(0);
+      expect(JSON.parse(written.stdout)).toMatchObject({ changed: true });
+      expect(await readFile(file, "utf8")).toBe(
+        "router id 192.0.2.1;\nprotocol device {}\n",
+      );
+      const checked = spawnSync(
+        process.execPath,
+        [cliPath, "fmt", file, "--check", "--json", "--engine", "builtin"],
+        { encoding: "utf8", timeout: processTimeoutMs },
+      );
+      expect(checked.error).toBeUndefined();
+      expect(checked.status).toBe(0);
+      expect(JSON.parse(checked.stdout)).toMatchObject({ changed: false });
+    },
+    processTestTimeoutMs,
+  );
 
   it("reports a silent nonzero validator exit and retains its status", async () => {
     const command = validator("process.exit(2)");
