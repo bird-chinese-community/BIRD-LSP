@@ -1,3 +1,23 @@
+## @birdcc/vscode@1.1.0
+
+### Add optional DN42 IP and ASN intelligence
+
+Add user-enabled DN42 IP and ASN hover with English location names, prefix-scoped service and DNS observations, and registry-derived origin policy. VS Code shows the hover as a property sheet with theme-colored result icons; other clients receive the same layout in Markdown. Use DN42-IPDB-SDK to download and verify the database bundle in the background through the proxy environment variables, retain loaded data on update failure, and check for updates daily while enabled.
+
+PR: https://github.com/bird-chinese-community/BIRD-LSP/pull/254
+
+### Name the extension BIRD2 LSP
+
+Show `BIRD2 LSP` as the extension name in the Extensions view, the Settings editor, and the Output channel.
+
+PR: https://github.com/bird-chinese-community/BIRD-LSP/pull/250
+
+### Document current package behavior
+
+Describe each package from its current sources: CLI commands, options, exit codes, and JSON output; the lint rule catalog with default severities; formatter engines and options; language server capabilities and settings; and the VS Code extension's settings, commands, and snippets.
+
+PR: https://github.com/bird-chinese-community/BIRD-LSP/pull/250
+
 ## @birdcc/vscode@1.0.0
 
 ### Honor the workspace build graph and observe stdio shutdown

@@ -1,3 +1,11 @@
+## @birdcc/dprint-plugin-bird@1.1.0
+
+### Document current package behavior
+
+Describe each package from its current sources: CLI commands, options, exit codes, and JSON output; the lint rule catalog with default severities; formatter engines and options; language server capabilities and settings; and the VS Code extension's settings, commands, and snippets.
+
+PR: https://github.com/bird-chinese-community/BIRD-LSP/pull/250
+
 ## @birdcc/dprint-plugin-bird@1.0.0
 
 ### Preserve syntax while formatting
